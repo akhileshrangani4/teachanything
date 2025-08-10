@@ -1,0 +1,37 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": [
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "DATABASE_URL",
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENROUTER_API_KEY",
+    "JWT_SECRET",
+    "NEXTAUTH_URL",
+    "NEXTAUTH_SECRET",
+    "BACKEND_URL",
+    "NEXT_PUBLIC_API_URL",
+    "FRONTEND_URL",
+    "ALLOWED_ORIGINS",
+    "PORT"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["NODE_ENV"]
+    },
+    "migrate": {
+      "cache": false
+    },
+    "generate": {
+      "cache": false
+    }
+  }
+}

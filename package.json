@@ -1,29 +1,26 @@
 {
-  "name": "aialexa",
+  "name": "@aialexa/root",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@9.14.4",
   "workspaces": [
-    "backend",
-    "frontend"
+    "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "npm run dev --workspace=backend",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "build": "npm run build:backend && npm run build:frontend",
-    "build:backend": "npm run build --workspace=backend",
-    "build:frontend": "npm run build --workspace=frontend",
-    "start": "npm run start:backend",
-    "start:backend": "npm run start --workspace=backend",
-    "migrate": "npm run migrate --workspace=backend",
-    "generate": "npm run generate --workspace=backend",
-    "studio": "npm run studio --workspace=backend"
+    "dev": "dotenv -e .env -- turbo run dev",
+    "build": "dotenv -e .env -- turbo run build",
+    "start": "dotenv -e .env -- turbo run start",
+    "lint": "turbo run lint",
+    "migrate": "dotenv -e .env -- turbo run migrate",
+    "generate": "dotenv -e .env -- turbo run generate",
+    "studio": "dotenv -e .env -- turbo run studio"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "dotenv-cli": "^7.4.4",
+    "turbo": "^2.5.5"
   },
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "pnpm": ">=9.0.0"
   }
 }

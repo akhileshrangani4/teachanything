@@ -1,22 +1,22 @@
 {
   "version": 2,
   "framework": null,
-  "outputDirectory": ".",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "buildCommand": "pnpm run build",
+  "installCommand": "pnpm install",
   "functions": {
-    "backend/api/index.js": {
+    "packages/backend/api/index.ts": {
+      "runtime": "@vercel/node@3.0.0",
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/backend/api"
+      "destination": "/packages/backend/api"
     },
     {
       "source": "/(.*)",
-      "destination": "/frontend/$1"
+      "destination": "/packages/frontend/$1"
     }
   ]
 }
