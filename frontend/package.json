@@ -19,6 +19,7 @@
     "date-fns": "^2.30.0",
     "framer-motion": "^10.16.16",
     "next": "14.0.4",
+    "next-auth": "^4.24.11",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.2.0",
@@ -27,13 +28,13 @@
     "react-hot-toast": "^2.4.1",
     "react-markdown": "^9.0.1",
     "recharts": "^2.10.3",
-    "sonner": "^1.2.4",
-    "zustand": "^4.4.7"
+    "sonner": "^1.2.4"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4.1.11",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/next-auth": "^3.13.0",
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",

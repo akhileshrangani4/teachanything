@@ -4,23 +4,33 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
-import { useAuthStore } from '@/stores/auth.store';
+import { signIn } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const login = useAuthStore((state) => state.login);
   const [isLoading, setIsLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   const onSubmit = async (data: any) => {
     setIsLoading(true);
+    
     try {
-      await login(data.email, data.password);
-      toast.success('Welcome back!');
-      router.push('/dashboard');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Login failed');
+      const result = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        toast.error('Invalid email or password');
+      } else {
+        toast.success('Welcome back!');
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch (error) {
+      toast.error('An error occurred during login');
     } finally {
       setIsLoading(false);
     }

@@ -4,24 +4,52 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
-import { useAuthStore } from '@/stores/auth.store';
+import { signIn } from 'next-auth/react';
 import toast from 'react-hot-toast';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const register = useAuthStore((state) => state.register);
   const [isLoading, setIsLoading] = useState(false);
   const { register: formRegister, handleSubmit, watch, formState: { errors } } = useForm();
   const password = watch('password');
 
   const onSubmit = async (data: any) => {
     setIsLoading(true);
+    
     try {
-      await register(data.email, data.password, data.name);
-      toast.success('Account created successfully!');
-      router.push('/dashboard');
+      // First register the user
+      const registerResponse = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          name: data.name
+        })
+      });
+
+      if (!registerResponse.ok) {
+        const error = await registerResponse.json();
+        throw new Error(error.error || 'Registration failed');
+      }
+
+      // Then sign them in automatically
+      const result = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        toast.error('Account created but login failed. Please try logging in.');
+        router.push('/login');
+      } else {
+        toast.success('Account created successfully!');
+        router.push('/dashboard');
+        router.refresh();
+      }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Registration failed');
+      toast.error(error.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }

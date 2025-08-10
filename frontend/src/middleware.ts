@@ -1,28 +1,46 @@
+import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('token');
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login') || 
-                     request.nextUrl.pathname.startsWith('/register');
-  const isPublicPage = request.nextUrl.pathname.startsWith('/chat/shared') ||
-                       request.nextUrl.pathname.startsWith('/embed');
-
-  // If accessing auth pages while logged in, redirect to dashboard
-  if (isAuthPage && token) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+export default withAuth(
+  function middleware(req) {
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ req, token }) => {
+        // Public paths that don't require authentication
+        const publicPaths = [
+          '/login',
+          '/register',
+          '/chat/shared',
+          '/embed',
+          '/',
+          '/api/auth'
+        ];
+        
+        const pathname = req.nextUrl.pathname;
+        
+        // Check if path is public
+        const isPublicPath = publicPaths.some(path => 
+          pathname.startsWith(path)
+        );
+        
+        if (isPublicPath) {
+          return true;
+        }
+        
+        // Require token for all other paths
+        return !!token;
+      }
+    },
+    pages: {
+      signIn: '/login',
+    }
   }
-
-  // If accessing protected pages without token, redirect to login
-  if (!isPublicPage && !isAuthPage && !token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  return NextResponse.next();
-}
+);
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public).*)',
   ],
 };

@@ -8,11 +8,20 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { CreateChatbotModal } from '@/components/CreateChatbotModal';
 import { ShareModal } from '@/components/ShareModal';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
 
 export default function Dashboard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [shareModalData, setShareModalData] = useState<any>(null);
   const queryClient = useQueryClient();
+
+  useSession({
+    required: true,
+    onUnauthenticated() {
+      redirect('/login');
+    },
+  });
 
   const { data: chatbotList, isLoading } = useQuery({
     queryKey: ['chatbots'],

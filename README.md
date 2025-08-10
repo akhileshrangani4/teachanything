@@ -33,7 +33,6 @@
 ### Frontend
 - **Framework**: Next.js 14 with TypeScript
 - **Styling**: Tailwind CSS
-- **State Management**: Zustand
 - **UI Components**: Headless UI, Heroicons
 - **Charts**: Recharts
 - **Forms**: React Hook Form
@@ -139,7 +138,6 @@ aialexa/
 │ ├── src/
 │ │ ├── app/ # Next.js app router pages
 │ │ ├── components/ # React components
-│ │ ├── stores/ # Zustand stores
 │ │ └── lib/ # Utilities and API client
 │ └── package.json
 └── package.json # Monorepo configuration
