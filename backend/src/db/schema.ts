@@ -26,7 +26,6 @@ export const chatbots = pgTable('chatbots', {
   welcome_message: text('welcome_message'),
   suggested_questions: jsonb('suggested_questions').default([]), // Array of strings
   share_token: text('share_token').unique(), // For shareable links
-  is_public: boolean('is_public').default(false),
   embed_settings: jsonb('embed_settings').default({
     theme: 'light',
     position: 'bottom-right',

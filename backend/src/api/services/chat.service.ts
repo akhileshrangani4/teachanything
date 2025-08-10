@@ -166,8 +166,8 @@ export class ChatService {
       .where(eq(chatbots.share_token, shareToken))
       .limit(1);
 
-    if (!chatbot || !chatbot.is_public) {
-      throw new Error('Chatbot not found or not public');
+    if (!chatbot || !chatbot.share_token) {
+      throw new Error('Chatbot not found or not shareable');
     }
 
     return this.processMessage(chatbot.id, message, sessionId, context);

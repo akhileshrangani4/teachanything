@@ -29,6 +29,13 @@
       "when": 1754782547952,
       "tag": "0003_sloppy_ezekiel",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1754799459723,
+      "tag": "0004_fluffy_jack_power",
+      "breakpoints": true
     }
   ]
 }

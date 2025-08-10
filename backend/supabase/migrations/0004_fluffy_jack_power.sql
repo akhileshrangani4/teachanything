@@ -1,0 +1,1 @@
+ALTER TABLE "chatbots" DROP COLUMN "is_public";

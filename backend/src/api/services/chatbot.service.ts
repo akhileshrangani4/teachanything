@@ -90,7 +90,6 @@ export class ChatbotService {
     await db.update(chatbots)
       .set({
         share_token: shareToken,
-        is_public: true,
         updated_at: new Date()
       })
       .where(and(

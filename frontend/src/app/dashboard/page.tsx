@@ -96,7 +96,7 @@ export default function Dashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Active Shares</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {chatbotList?.filter((c: any) => c.is_public).length || 0}
+                  {chatbotList?.filter((c: any) => c.share_token).length || 0}
                 </p>
               </div>
             </div>
@@ -126,9 +126,6 @@ export default function Dashboard() {
                 
                 <div className="flex items-center text-xs text-gray-500 mb-4">
                   <span className="px-2 py-1 bg-gray-100 rounded-full">{chatbot.model}</span>
-                  {chatbot.is_public && (
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded-full">Public</span>
-                  )}
                 </div>
 
                 <div className="flex space-x-2">

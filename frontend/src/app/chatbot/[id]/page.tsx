@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatbots, files, analytics, embed } from '@/lib/api';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { 
   CogIcon, 
@@ -23,7 +22,6 @@ export default function ChatbotDetailPage({ params }: { params: { id: string } }
   const [activeTab, setActiveTab] = useState('settings');
   const [isFileUploadOpen, setIsFileUploadOpen] = useState(false);
   const [embedCode, setEmbedCode] = useState('');
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   // Fetch chatbot details
@@ -224,18 +222,6 @@ export default function ChatbotDetailPage({ params }: { params: { id: string } }
                         defaultValue={chatbot?.welcome_message}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       />
-                    </div>
-
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        name="isPublic"
-                        defaultChecked={chatbot?.is_public}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <label className="ml-2 block text-sm text-gray-900">
-                        Make this chatbot publicly accessible
-                      </label>
                     </div>
                   </div>
 

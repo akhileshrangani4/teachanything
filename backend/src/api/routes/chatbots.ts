@@ -17,7 +17,6 @@ const createChatbotSchema = z.object({
   maxTokens: z.number().min(100).max(4000).default(2000),
   welcomeMessage: z.string().optional(),
   suggestedQuestions: z.array(z.string()).optional(),
-  isPublic: z.boolean().default(false),
   embedSettings: z.object({
     theme: z.enum(['light', 'dark']).default('light'),
     position: z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left']).default('bottom-right'),
@@ -84,7 +83,6 @@ router.put('/:id', authenticate, async (req: any, res) => {
     if (validatedData.maxTokens !== undefined) updateData.max_tokens = validatedData.maxTokens;
     if (validatedData.welcomeMessage !== undefined) updateData.welcome_message = validatedData.welcomeMessage;
     if (validatedData.suggestedQuestions !== undefined) updateData.suggested_questions = validatedData.suggestedQuestions;
-    if (validatedData.isPublic !== undefined) updateData.is_public = validatedData.isPublic;
     if (validatedData.embedSettings !== undefined) updateData.embed_settings = validatedData.embedSettings;
     
     const chatbot = await chatbotService.updateChatbot(
@@ -123,7 +121,7 @@ router.post('/:id/share', authenticate, async (req: any, res) => {
 router.get('/shared/:shareToken', async (req: any, res) => {
   try {
     const chatbot = await chatbotService.getChatbotByShareToken(req.params.shareToken);
-    if (!chatbot.is_public) {
+    if (!chatbot.share_token) {
       return res.status(404).json({ error: 'Chatbot not found' });
     }
     res.json(chatbot);

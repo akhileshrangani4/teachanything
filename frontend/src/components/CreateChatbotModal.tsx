@@ -158,17 +158,6 @@ export function CreateChatbotModal({ isOpen, onClose }: CreateChatbotModalProps)
                     />
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      {...register('isPublic')}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label className="ml-2 block text-sm text-gray-900">
-                      Make this chatbot publicly accessible
-                    </label>
-                  </div>
-
                   <div className="mt-6 flex justify-end space-x-3">
                     <button
                       type="button"
