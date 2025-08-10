@@ -1,4 +1,6 @@
 {
+  "buildCommand": "echo 'No build needed for serverless functions'",
+  "outputDirectory": ".",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node@3.0.0",
@@ -7,7 +9,7 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/(.*)",
       "destination": "/api"
     }
   ]

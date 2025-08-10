@@ -2,13 +2,14 @@
   "name": "@aialexa/root",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@9.14.4",
+  "packageManager": "pnpm@8.15.9",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
     "dev": "dotenv -e .env -- turbo run dev",
-    "build": "dotenv -e .env -- turbo run build",
+    "build": "turbo run build",
+    "vercel-build": "pnpm run build",
     "start": "dotenv -e .env -- turbo run start",
     "lint": "turbo run lint",
     "migrate": "dotenv -e .env -- turbo run migrate",
@@ -21,6 +22,6 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=9.0.0"
+    "pnpm": ">=8.0.0"
   }
 }

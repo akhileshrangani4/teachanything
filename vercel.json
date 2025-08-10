@@ -1,21 +1,21 @@
 {
   "version": 2,
-  "framework": null,
   "buildCommand": "pnpm run build",
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm install --frozen-lockfile",
   "functions": {
-    "packages/backend/api/index.ts": {
+    "api/index.ts": {
       "runtime": "@vercel/node@3.0.0",
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "packages/backend/dist/**"
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/packages/backend/api"
+      "destination": "/api"
     },
     {
-      "source": "/(.*)",
+      "source": "/(.*)", 
       "destination": "/packages/frontend/$1"
     }
   ]
