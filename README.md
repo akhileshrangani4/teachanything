@@ -1,148 +1,197 @@
-# MVP - File Upload and Contextual Chat System
+# AIAlexa - AI Chatbot Management Platform
 
-A powerful file management and contextual chat system built with Mastra framework. This system allows users to upload files, process them for context-aware conversations, and includes weather-based activity planning capabilities.
+🤖 **AIAlexa** is a comprehensive chatbot management system that allows you to create, customize, and deploy intelligent AI chatbots for your website. With support for multiple AI providers, file-based context (RAG), and easy embedding options.
+
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)
+![TypeScript](https://img.shields.io/badge/typescript-%5E5.3.3-blue.svg)
 
 ## Features
 
-- **File Management**
-  - Support for multiple file types (text, markdown, HTML, JSON)
-  - Automatic file chunking and processing
-  - Vector-based semantic search
-  - File history tracking
-  - Metadata storage
+### Core Features
+- **Multi-Provider AI Support**: OpenAI, Anthropic, and 100+ models via OpenRouter
+- **RAG (Retrieval-Augmented Generation)**: Upload documents for contextual responses
+- **Multiple Deployment Options**: Embed as iframe, JavaScript widget, or shareable link
+- **Real-time Analytics**: Track conversations, popular topics, and usage patterns
+- **File Processing**: Support for PDF, Word, Markdown, JSON, CSV, and plain text files
+- **Semantic Search**: AI-powered search through uploaded documents
+- **User Authentication**: Secure JWT-based authentication
+- **Multi-Chatbot Management**: Create and manage multiple chatbots per account
+- **Customizable Appearance**: Theme, colors, position, and welcome messages
+- **Public Sharing**: Generate shareable links for public access
+- **Conversation History**: Persistent chat sessions with full history
 
-- **Contextual Chat**
-  - Context-aware responses based on uploaded files
-  - Custom instructions support
-  - Thread-based conversations
-  - Working memory for maintaining conversation context
+## Tech Stack
 
-- **Weather Integration**
-  - Real-time weather data fetching
-  - Location-based weather forecasts
-  - Weather-based activity planning
-  - Detailed weather conditions and suggestions
+### Backend
+- **Framework**: Express.js with TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Vector DB**: pgvector for semantic search
+- **AI SDK**: Vercel AI SDK
+- **Authentication**: JWT with bcrypt
+
+### Frontend
+- **Framework**: Next.js 14 with TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **UI Components**: Headless UI, Heroicons
+- **Charts**: Recharts
+- **Forms**: React Hook Form
 
 ## Prerequisites
 
-- Node.js
+- Node.js >= 18.0.0
 - PostgreSQL with pgvector extension
-- LibSQL/SQLite (for local storage)
-- OpenAI API key
+- API keys for AI providers (OpenAI/Anthropic/OpenRouter)
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone the repository**
 ```bash
-git clone <repository-url>
-cd mvp
+git clone https://github.com/yourusername/aialexa.git
+cd aialexa
 ```
 
-2. Install dependencies:
+2. **Install dependencies**
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
-Create a `.env` file in the root directory with the following variables:
-```env
-POSTGRES_CONNECTION_STRING=your_postgres_connection_string
-OPENAI_API_KEY=your_openai_api_key
+3. **Set up environment variables**
+
+Create `.env` files in the backend directory:
+
+```bash
+# backend/.env
+DATABASE_URL=postgresql://username:password@localhost:5432/aialexa_db
+JWT_SECRET=your-secret-key-change-this-in-production
+
+# AI API Keys
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+OPENROUTER_API_KEY=sk-or-...
+
+# URLs
+FRONTEND_URL=http://localhost:3001
+API_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3001,http://localhost:3000
+
+NODE_ENV=development
+PORT=3000
 ```
 
-4. Set up the database:
+Create `.env.local` in the frontend directory:
+
 ```bash
-# Run migrations
+# frontend/.env.local
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+NEXT_PUBLIC_APP_URL=http://localhost:3001
+```
+
+4. **Set up the database**
+
+Enable pgvector extension:
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+Run migrations:
+```bash
+npm run generate
 npm run migrate
 ```
 
 ## Development
 
-Start the development server:
+**Run both frontend and backend:**
 ```bash
 npm run dev
 ```
 
-Other available scripts:
-- `npm start` - Start the application
-- `npm run build` - Build the TypeScript project
-- `npm run generate` - Generate Drizzle ORM schemas
-- `npm run studio` - Launch Drizzle Studio
+**Run services individually:**
+```bash
+npm run dev:backend  # Backend on http://localhost:3000
+npm run dev:frontend # Frontend on http://localhost:3001
+```
+
+**Database management:**
+```bash
+npm run generate  # Generate migrations
+npm run migrate   # Apply migrations
+npm run studio    # Open Drizzle Studio
+```
 
 ## Project Structure
 
-```bash
-contextual-chat/
-├── src/
-│ ├── db/ # Database configuration and schemas
-│ ├── mastra/ # Mastra framework implementation
-│ │ ├── agents/ # AI agents for different functionalities
-│ │ ├── tools/ # Custom tools for file and weather operations
-│ │ └── workflows/ # Workflow definitions
-│ └── index.ts # Application entry point
-└── supabase/ # Database migrations
+```
+aialexa/
+├── backend/
+│ ├── src/
+│ │ ├── api/ # API routes and server
+│ │ │ ├── routes/ # Express routes
+│ │ │ ├── services/ # Business logic
+│ │ │ └── middleware/
+│ │ ├── db/ # Database schema and connection
+│ │ └── ai-client/ # AI provider integrations
+│ ├── supabase/migrations/
+│ └── package.json
+├── frontend/
+│ ├── src/
+│ │ ├── app/ # Next.js app router pages
+│ │ ├── components/ # React components
+│ │ ├── stores/ # Zustand stores
+│ │ └── lib/ # Utilities and API client
+│ └── package.json
+└── package.json # Monorepo configuration
 ```
 
-## Architecture
+## API Endpoints
 
-The project uses a modular architecture built on the Mastra framework:
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user
 
-- **Agents**: Specialized AI agents for handling context-aware conversations and weather-related queries
-- **Tools**: Custom implementations for file operations and weather data fetching
-- **Workflows**: Defined processes for handling file uploads and weather-based activity planning
-- **Storage**: Uses PostgreSQL with pgvector for vector embeddings and LibSQL for local storage
+### Chatbots
+- `GET /api/chatbots` - List user's chatbots
+- `POST /api/chatbots` - Create chatbot
+- `PUT /api/chatbots/:id` - Update chatbot
+- `DELETE /api/chatbots/:id` - Delete chatbot
+- `POST /api/chatbots/:id/share` - Generate share link
 
-## Database
+### Chat
+- `POST /api/chat/:chatbotId/message` - Send message
+- `POST /api/chat/shared/:shareToken/message` - Public chat
+- `GET /api/chat/:chatbotId/history/:sessionId` - Get history
 
-The system uses two database components:
-1. PostgreSQL with pgvector for storing file embeddings and metadata
-2. LibSQL for local storage and working memory
+### Files
+- `POST /api/files/:chatbotId/upload` - Upload file
+- `GET /api/files/:chatbotId` - List files
+- `DELETE /api/files/:chatbotId/:fileId` - Delete file
 
-## API Usage
-
-### File Upload
-```typescript
-const uploadResult = await workflow.start({
-  inputData: {
-    type: 'upload',
-    content: fileContent,
-    fileName: 'example.md',
-    fileType: 'markdown',
-    customInstructions: 'Optional instructions'
-  }
-});
-```
-
-### Contextual Chat
-```typescript
-const chatResult = await workflow.start({
-  inputData: {
-    type: 'query',
-    content: 'Your question here',
-    customInstructions: 'Optional instructions'
-  }
-});
-```
-
-### Weather Query
-```typescript
-const weatherResult = await weatherWorkflow.start({
-  inputData: {
-    city: 'New York'
-  }
-});
-```
+### Analytics
+- `GET /api/analytics/chatbot/:id` - Chatbot analytics
+- `GET /api/analytics/overview` - User overview
+- `GET /api/analytics/messages/:id` - Message volume
 
 ## Contributing
 
+Contributions are welcome! Please feel free to submit a Pull Request.
+
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## Acknowledgments
+## License
 
-- Built with [Mastra Framework](https://mastra.ai)
-- Uses OpenAI's embeddings for semantic search
-- Weather data provided by Open-Meteo API
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, email akhileshrangani4@gmail.com or open an issue in this repository.
+
+---
+
+Built with ❤️ by Akhilesh Rangani
