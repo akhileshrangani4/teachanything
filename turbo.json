@@ -27,6 +27,11 @@
       "persistent": true,
       "env": ["NODE_ENV"]
     },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
     "migrate": {
       "cache": false
     },

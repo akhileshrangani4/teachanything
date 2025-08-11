@@ -17,7 +17,7 @@ import analyticsRoutes from './routes/analytics';
 import type { Express } from 'express';
 
 const app: Express = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.BACKEND_PORT || 3000;
 
 // Middleware
 app.use(cors({
