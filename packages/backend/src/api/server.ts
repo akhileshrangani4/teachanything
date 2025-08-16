@@ -19,6 +19,9 @@ import type { Express } from 'express';
 const app: Express = express();
 const PORT = process.env.BACKEND_PORT || 3000;
 
+// Trust proxy headers (required for Railway, Heroku, etc.)
+app.set('trust proxy', true);
+
 // Middleware
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
