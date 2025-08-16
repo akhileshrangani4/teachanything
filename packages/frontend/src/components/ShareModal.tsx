@@ -13,8 +13,8 @@ interface ShareModalProps {
 
 export function ShareModal({ isOpen, onClose, chatbot }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
-  const shareUrl = `${process.env.FRONTEND_URL}/chat/shared/${chatbot.shareToken}`;
-  const embedCode = `<iframe src="${process.env.FRONTEND_URL}/embed/chat/${chatbot.id}" width="400" height="600" frameborder="0"></iframe>`;
+  const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL}/chat/shared/${chatbot.shareToken}`;
+  const embedCode = `<iframe src="${process.env.NEXT_PUBLIC_APP_URL}/embed/chat/${chatbot.id}" width="400" height="600" frameborder="0"></iframe>`;
 
   const copyToClipboard = (text: string, message: string) => {
     navigator.clipboard.writeText(text);
