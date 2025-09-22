@@ -1,10 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { chatbots } from '@/lib/api';
-import { ChatWidget } from '@/components/ChatWidget';
+import { useEffect, useState } from "react";
+import { chatbots } from "@/lib/api";
+import { ChatWidget } from "@/components/ChatWidget";
 
-export default function EmbedChatPage({ params }: { params: { chatbotId: string } }) {
+export default function EmbedChatPage({
+  params,
+}: {
+  params: { chatbotId: string };
+}) {
   const [config, setConfig] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -14,7 +18,7 @@ export default function EmbedChatPage({ params }: { params: { chatbotId: string 
         const response = await chatbots.get(params.chatbotId);
         setConfig(response.data);
       } catch (error) {
-        console.error('Failed to load chatbot:', error);
+        console.error("Failed to load chatbot:", error);
       } finally {
         setIsLoading(false);
       }

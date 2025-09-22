@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { chat, analytics } from '@/lib/api';
-import { PaperAirplaneIcon, XMarkIcon } from '@heroicons/react/24/solid';
-import ReactMarkdown from 'react-markdown';
-import { nanoid } from 'nanoid';
+import { useState, useRef, useEffect } from "react";
+import { chat, analytics } from "@/lib/api";
+import { PaperAirplaneIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import ReactMarkdown from "react-markdown";
+import { nanoid } from "nanoid";
 
 interface Message {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
   sources?: Array<{ fileName: string; excerpt: string }>;
@@ -20,9 +20,14 @@ interface ChatWidgetProps {
   embedded?: boolean;
 }
 
-export function ChatWidget({ chatbotId, shareToken, config, embedded = false }: ChatWidgetProps) {
+export function ChatWidget({
+  chatbotId,
+  shareToken,
+  config,
+  embedded = false,
+}: ChatWidgetProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => nanoid());
   const [isOpen, setIsOpen] = useState(embedded);
@@ -31,72 +36,83 @@ export function ChatWidget({ chatbotId, shareToken, config, embedded = false }: 
   useEffect(() => {
     // Add welcome message if configured
     if (config?.welcomeMessage) {
-      setMessages([{
-        role: 'assistant',
-        content: config.welcomeMessage,
-        timestamp: new Date()
-      }]);
+      setMessages([
+        {
+          role: "assistant",
+          content: config.welcomeMessage,
+          timestamp: new Date(),
+        },
+      ]);
     }
 
     // Track widget open event
     if (chatbotId) {
       analytics.trackEvent({
         chatbotId,
-        eventType: 'widget_opened',
+        eventType: "widget_opened",
         sessionId,
-        eventData: { embedded }
+        eventData: { embedded },
       });
     }
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
     const userMessage: Message = {
-      role: 'user',
+      role: "user",
       content: input,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
     setIsLoading(true);
 
     try {
       const response = shareToken
-        ? await chat.sendSharedMessage(shareToken, userMessage.content, sessionId)
+        ? await chat.sendSharedMessage(
+            shareToken,
+            userMessage.content,
+            sessionId,
+          )
         : await chat.sendMessage(chatbotId!, userMessage.content, sessionId);
 
       const assistantMessage: Message = {
-        role: 'assistant',
+        role: "assistant",
         content: response.data.response,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Failed to send message:', error);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date()
-      }]);
+      console.error("Failed to send message:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I encountered an error. Please try again.",
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const widgetContent = (
-    <div className={`flex flex-col h-full ${embedded ? '' : 'max-h-[600px]'}`}>
+    <div className={`flex flex-col h-full ${embedded ? "" : "max-h-[600px]"}`}>
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-lg">{config?.name || 'AI Assistant'}</h3>
+            <h3 className="font-semibold text-lg">
+              {config?.name || "AI Assistant"}
+            </h3>
             <p className="text-xs opacity-90">Powered by AI</p>
           </div>
           {!embedded && (
@@ -115,16 +131,16 @@ export function ChatWidget({ chatbotId, shareToken, config, embedded = false }: 
         {messages.map((message, index) => (
           <div key={index}>
             <div
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
                 className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-900 shadow'
+                  message.role === "user"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-900 shadow"
                 }`}
               >
-                {message.role === 'assistant' ? (
+                {message.role === "assistant" ? (
                   <>
                     <ReactMarkdown className="prose prose-sm max-w-none">
                       {message.content}
@@ -166,15 +182,17 @@ export function ChatWidget({ chatbotId, shareToken, config, embedded = false }: 
         <div className="px-4 py-2 bg-gray-50">
           <p className="text-xs text-gray-500 mb-2">Suggested questions:</p>
           <div className="flex flex-wrap gap-2">
-            {config.suggestedQuestions.map((question: string, index: number) => (
-              <button
-                key={index}
-                onClick={() => setInput(question)}
-                className="text-xs px-3 py-1 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
-              >
-                {question}
-              </button>
-            ))}
+            {config.suggestedQuestions.map(
+              (question: string, index: number) => (
+                <button
+                  key={index}
+                  onClick={() => setInput(question)}
+                  className="text-xs px-3 py-1 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
+                >
+                  {question}
+                </button>
+              ),
+            )}
           </div>
         </div>
       )}
@@ -220,8 +238,18 @@ export function ChatWidget({ chatbotId, shareToken, config, embedded = false }: 
           onClick={() => setIsOpen(true)}
           className="fixed bottom-5 right-5 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z" />
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z"
+            />
           </svg>
         </button>
       )}

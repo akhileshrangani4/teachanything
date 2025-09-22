@@ -1,7 +1,7 @@
 packages:
-  - 'packages/*'
+  - "packages/*"
 
 onlyBuiltDependencies:
-  - '@tailwindcss/oxide'
+  - "@tailwindcss/oxide"
   - esbuild
   - unrs-resolver

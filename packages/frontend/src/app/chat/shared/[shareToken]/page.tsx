@@ -1,10 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { chatbots } from '@/lib/api';
-import { ChatWidget } from '@/components/ChatWidget';
+import { useEffect, useState } from "react";
+import { chatbots } from "@/lib/api";
+import { ChatWidget } from "@/components/ChatWidget";
 
-export default function SharedChatPage({ params }: { params: { shareToken: string } }) {
+export default function SharedChatPage({
+  params,
+}: {
+  params: { shareToken: string };
+}) {
   const [config, setConfig] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -12,11 +16,13 @@ export default function SharedChatPage({ params }: { params: { shareToken: strin
     const loadChatbot = async () => {
       try {
         // You'll need to add an endpoint to get chatbot by share token
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chatbots/shared/${params.shareToken}`);
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/chatbots/shared/${params.shareToken}`,
+        );
         const data = await response.json();
         setConfig(data);
       } catch (error) {
-        console.error('Failed to load chatbot:', error);
+        console.error("Failed to load chatbot:", error);
       } finally {
         setIsLoading(false);
       }
@@ -37,8 +43,12 @@ export default function SharedChatPage({ params }: { params: { shareToken: strin
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Chatbot Not Found</h2>
-          <p className="mt-2 text-gray-600">This chatbot link may be invalid or expired.</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Chatbot Not Found
+          </h2>
+          <p className="mt-2 text-gray-600">
+            This chatbot link may be invalid or expired.
+          </p>
         </div>
       </div>
     );
@@ -54,7 +64,10 @@ export default function SharedChatPage({ params }: { params: { shareToken: strin
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow-xl overflow-hidden" style={{ height: '600px' }}>
+        <div
+          className="bg-white rounded-lg shadow-xl overflow-hidden"
+          style={{ height: "600px" }}
+        >
           <ChatWidget
             shareToken={params.shareToken}
             config={config}

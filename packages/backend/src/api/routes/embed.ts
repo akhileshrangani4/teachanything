@@ -1,20 +1,20 @@
-import { Router, type Router as ExpressRouter } from 'express';
-import { authenticate } from '../middleware/auth';
-import { EmbedService } from '../services/embed.service';
+import { Router } from "express";
+import { authenticate } from "../middleware/auth";
+import { EmbedService } from "../services/embed.service";
 
-const router: ExpressRouter = Router();
+const router: Router = Router();
 const embedService = new EmbedService();
 
 // Get embed code for chatbot
-router.get('/:chatbotId/code', authenticate, async (req: any, res) => {
+router.get("/:chatbotId/code", authenticate, async (req: any, res) => {
   try {
     const embedCode = await embedService.generateEmbedCode(
       req.params.chatbotId,
       req.user.id,
       {
-        type: req.query.type || 'iframe', // 'iframe' or 'script'
-        ...req.query
-      }
+        type: req.query.type || "iframe", // 'iframe' or 'script'
+        ...req.query,
+      },
     );
     res.json({ embedCode });
   } catch (error: any) {
@@ -23,14 +23,14 @@ router.get('/:chatbotId/code', authenticate, async (req: any, res) => {
 });
 
 // Serve widget script
-router.get('/widget.js', (_req, res) => {
-  res.type('application/javascript');
+router.get("/widget.js", (_req, res) => {
+  res.type("application/javascript");
   res.send(embedService.getWidgetScript());
 });
 
 // Serve widget styles
-router.get('/widget.css', (_req, res) => {
-  res.type('text/css');
+router.get("/widget.css", (_req, res) => {
+  res.type("text/css");
   res.send(embedService.getWidgetStyles());
 });
 

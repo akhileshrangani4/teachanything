@@ -1,11 +1,11 @@
-import { openai } from '@ai-sdk/openai';
-import { embed, embedMany } from 'ai';
-import { db, fileChunks, chatbotFiles } from '../../db';
-import { eq, sql } from 'drizzle-orm';
-import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { encoding_for_model } from 'tiktoken';
+import { openai } from "@ai-sdk/openai";
+import { embed, embedMany } from "ai";
+import { db, fileChunks, chatbotFiles } from "../../db";
+import { eq, sql } from "drizzle-orm";
+import pdfParse from "pdf-parse";
+import mammoth from "mammoth";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { encoding_for_model } from "tiktoken";
 
 export class RAGService {
   private textSplitter: RecursiveCharacterTextSplitter;
@@ -16,11 +16,11 @@ export class RAGService {
     this.textSplitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000, // ~250 tokens
       chunkOverlap: 200, // 20% overlap for context continuity
-      separators: ['\n\n', '\n', '.', '!', '?', ',', ' ', '']
+      separators: ["\n\n", "\n", ".", "!", "?", ",", " ", ""],
     });
-    
+
     // Initialize token counter
-    this.encoder = encoding_for_model('gpt-3.5-turbo');
+    this.encoder = encoding_for_model("gpt-3.5-turbo");
   }
 
   /**
@@ -29,24 +29,24 @@ export class RAGService {
   async extractContent(buffer: Buffer, mimeType: string): Promise<string> {
     try {
       switch (mimeType) {
-        case 'application/pdf':
+        case "application/pdf":
           return await this.extractPDF(buffer);
-        
-        case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-        case 'application/msword':
+
+        case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        case "application/msword":
           return await this.extractWord(buffer);
-        
-        case 'text/plain':
-        case 'text/markdown':
-        case 'text/csv':
-        case 'application/json':
-          return buffer.toString('utf-8');
-        
+
+        case "text/plain":
+        case "text/markdown":
+        case "text/csv":
+        case "application/json":
+          return buffer.toString("utf-8");
+
         default:
           throw new Error(`Unsupported file type: ${mimeType}`);
       }
     } catch (error: any) {
-      console.error('Content extraction error:', error);
+      console.error("Content extraction error:", error);
       throw new Error(`Failed to extract content: ${error.message}`);
     }
   }
@@ -59,8 +59,8 @@ export class RAGService {
       const data = await pdfParse(buffer);
       return data.text;
     } catch (error) {
-      console.error('PDF extraction error:', error);
-      throw new Error('Failed to extract PDF content');
+      console.error("PDF extraction error:", error);
+      throw new Error("Failed to extract PDF content");
     }
   }
 
@@ -72,8 +72,8 @@ export class RAGService {
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
     } catch (error) {
-      console.error('Word extraction error:', error);
-      throw new Error('Failed to extract Word document content');
+      console.error("Word extraction error:", error);
+      throw new Error("Failed to extract Word document content");
     }
   }
 
@@ -84,14 +84,14 @@ export class RAGService {
     fileId: string,
     chatbotId: string,
     content: string,
-    metadata: any = {}
+    metadata: any = {},
   ): Promise<void> {
     try {
       // Split content into chunks
       const chunks = await this.textSplitter.splitText(content);
-      
+
       if (chunks.length === 0) {
-        throw new Error('No content to process');
+        throw new Error("No content to process");
       }
 
       // Generate embeddings for all chunks
@@ -108,16 +108,14 @@ export class RAGService {
         metadata: {
           ...metadata,
           chunkIndex: index,
-          totalChunks: chunks.length
-        }
+          totalChunks: chunks.length,
+        },
       }));
 
       // Store chunks in database
       await db.insert(fileChunks).values(chunkRecords);
-      
-      console.log(`Processed ${chunks.length} chunks for file ${fileId}`);
     } catch (error) {
-      console.error('File processing error:', error);
+      console.error("File processing error:", error);
       throw error;
     }
   }
@@ -127,15 +125,15 @@ export class RAGService {
    */
   private async generateEmbeddings(texts: string[]): Promise<number[][]> {
     try {
-      const model = openai.embedding('text-embedding-3-small');
+      const model = openai.embedding("text-embedding-3-small");
       const { embeddings } = await embedMany({
         model,
-        values: texts
+        values: texts,
       });
       return embeddings;
     } catch (error) {
-      console.error('Embedding generation error:', error);
-      throw new Error('Failed to generate embeddings');
+      console.error("Embedding generation error:", error);
+      throw new Error("Failed to generate embeddings");
     }
   }
 
@@ -158,14 +156,14 @@ export class RAGService {
   async searchRelevantChunks(
     chatbotId: string,
     query: string,
-    topK: number = 5
+    topK: number = 5,
   ): Promise<any[]> {
     try {
       // Generate embedding for the query
-      const model = openai.embedding('text-embedding-3-small');
+      const model = openai.embedding("text-embedding-3-small");
       const { embedding } = await embed({
         model,
-        value: query
+        value: query,
       });
 
       // Perform cosine similarity search in PostgreSQL
@@ -179,18 +177,20 @@ export class RAGService {
           metadata: fileChunks.metadata,
           file_name: chatbotFiles.file_name,
           // Calculate similarity score (1 - normalized distance)
-          similarity: sql<number>`1 - (${fileChunks.embedding} <-> ${JSON.stringify(embedding)}::vector) / 2`
+          similarity: sql<number>`1 - (${fileChunks.embedding} <-> ${JSON.stringify(embedding)}::vector) / 2`,
         })
         .from(fileChunks)
         .innerJoin(chatbotFiles, eq(fileChunks.file_id, chatbotFiles.id))
         .where(eq(fileChunks.chatbot_id, chatbotId))
-        .orderBy(sql`${fileChunks.embedding} <-> ${JSON.stringify(embedding)}::vector`)
+        .orderBy(
+          sql`${fileChunks.embedding} <-> ${JSON.stringify(embedding)}::vector`,
+        )
         .limit(topK);
 
       return relevantChunks;
     } catch (error) {
-      console.error('Semantic search error:', error);
-      throw new Error('Failed to search relevant content');
+      console.error("Semantic search error:", error);
+      throw new Error("Failed to search relevant content");
     }
   }
 
@@ -199,14 +199,14 @@ export class RAGService {
    */
   buildContext(chunks: any[]): string {
     if (chunks.length === 0) {
-      return '';
+      return "";
     }
 
     const context = chunks
       .map((chunk, _index) => {
         return `[Source: ${chunk.file_name} - Part ${chunk.chunk_index + 1}]\n${chunk.content}`;
       })
-      .join('\n\n---\n\n');
+      .join("\n\n---\n\n");
 
     return `Based on the following context from uploaded documents:\n\n${context}\n\n`;
   }

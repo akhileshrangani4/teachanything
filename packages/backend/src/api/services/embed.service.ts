@@ -1,4 +1,4 @@
-import { ChatbotService } from './chatbot.service';
+import { ChatbotService } from "./chatbot.service";
 
 export class EmbedService {
   private chatbotService = new ChatbotService();
@@ -6,8 +6,8 @@ export class EmbedService {
   async generateEmbedCode(chatbotId: string, userId: string, options: any) {
     // Verify ownership
     const chatbot = await this.chatbotService.getChatbot(chatbotId, userId);
-    
-    if (options.type === 'iframe') {
+
+    if (options.type === "iframe") {
       return this.generateIframeCode(chatbot, options);
     } else {
       return this.generateScriptCode(chatbot, options);
@@ -15,10 +15,10 @@ export class EmbedService {
   }
 
   private generateIframeCode(chatbot: any, options: any) {
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const width = options.width || '400px';
-    const height = options.height || '600px';
-    
+    const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const width = options.width || "400px";
+    const height = options.height || "600px";
+
     return `<!-- Chatbot Widget -->
 <iframe
   src="${baseUrl}/embed/chat/${chatbot.id}"
@@ -30,9 +30,9 @@ export class EmbedService {
   }
 
   private generateScriptCode(chatbot: any, options: any) {
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const apiUrl = process.env.API_URL || 'http://localhost:3000';
-    
+    const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const apiUrl = process.env.API_URL || "http://localhost:3000";
+
     return `<!-- Chatbot Widget -->
 <script>
   (function() {
@@ -40,8 +40,8 @@ export class EmbedService {
     script.src = '${apiUrl}/api/embed/widget.js';
     script.setAttribute('data-chatbot-id', '${chatbot.id}');
     script.setAttribute('data-base-url', '${baseUrl}');
-    script.setAttribute('data-position', '${options.position || 'bottom-right'}');
-    script.setAttribute('data-theme', '${options.theme || 'light'}');
+    script.setAttribute('data-position', '${options.position || "bottom-right"}');
+    script.setAttribute('data-theme', '${options.theme || "light"}');
     script.async = true;
     document.head.appendChild(script);
     

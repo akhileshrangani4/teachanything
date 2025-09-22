@@ -54,12 +54,8 @@
           "name": "analytics_chatbot_id_chatbots_id_fk",
           "tableFrom": "analytics",
           "tableTo": "chatbots",
-          "columnsFrom": [
-            "chatbot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chatbot_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -138,12 +134,8 @@
           "name": "chatbot_files_chatbot_id_chatbots_id_fk",
           "tableFrom": "chatbot_files",
           "tableTo": "chatbots",
-          "columnsFrom": [
-            "chatbot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chatbot_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -257,12 +249,8 @@
           "name": "chatbots_user_id_users_id_fk",
           "tableFrom": "chatbots",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -272,9 +260,7 @@
         "chatbots_share_token_unique": {
           "name": "chatbots_share_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "share_token"
-          ]
+          "columns": ["share_token"]
         }
       },
       "policies": {},
@@ -350,12 +336,8 @@
           "name": "conversations_chatbot_id_chatbots_id_fk",
           "tableFrom": "conversations",
           "tableTo": "chatbots",
-          "columnsFrom": [
-            "chatbot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chatbot_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -434,12 +416,8 @@
           "name": "file_chunks_file_id_chatbot_files_id_fk",
           "tableFrom": "file_chunks",
           "tableTo": "chatbot_files",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -447,12 +425,8 @@
           "name": "file_chunks_chatbot_id_chatbots_id_fk",
           "tableFrom": "file_chunks",
           "tableTo": "chatbots",
-          "columnsFrom": [
-            "chatbot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["chatbot_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -513,12 +487,8 @@
           "name": "messages_conversation_id_conversations_id_fk",
           "tableFrom": "messages",
           "tableTo": "conversations",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -592,9 +562,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},

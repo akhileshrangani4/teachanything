@@ -1,18 +1,24 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { chatbots } from '@/lib/api';
-import { PlusIcon, ChatBubbleLeftRightIcon, ChartBarIcon, ShareIcon, TrashIcon } from '@heroicons/react/24/outline';
-import Link from 'next/link';
-import toast from 'react-hot-toast';
-import { CreateChatbotModal } from '@/components/CreateChatbotModal';
-import { ShareModal } from '@/components/ShareModal';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { chatbots } from "@/lib/api";
+import {
+  PlusIcon,
+  ChatBubbleLeftRightIcon,
+  ChartBarIcon,
+  ShareIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
+import Link from "next/link";
+import toast from "react-hot-toast";
+import { CreateChatbotModal } from "@/components/CreateChatbotModal";
+import { ShareModal } from "@/components/ShareModal";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 // Disable static generation for this page
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function Dashboard() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -23,12 +29,12 @@ export default function Dashboard() {
   useSession({
     required: true,
     onUnauthenticated() {
-      router.push('/login');
+      router.push("/login");
     },
   });
 
   const { data: chatbotList, isLoading } = useQuery({
-    queryKey: ['chatbots'],
+    queryKey: ["chatbots"],
     queryFn: async () => {
       const response = await chatbots.list();
       return response.data;
@@ -38,11 +44,11 @@ export default function Dashboard() {
   const deleteMutation = useMutation({
     mutationFn: chatbots.delete,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chatbots'] });
-      toast.success('Chatbot deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ["chatbots"] });
+      toast.success("Chatbot deleted successfully");
     },
     onError: () => {
-      toast.error('Failed to delete chatbot');
+      toast.error("Failed to delete chatbot");
     },
   });
 
@@ -71,7 +77,9 @@ export default function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">My Chatbots</h1>
-          <p className="mt-2 text-gray-600">Create and manage AI chatbots for your website</p>
+          <p className="mt-2 text-gray-600">
+            Create and manage AI chatbots for your website
+          </p>
         </div>
 
         {/* Stats */}
@@ -80,8 +88,12 @@ export default function Dashboard() {
             <div className="flex items-center">
               <ChatBubbleLeftRightIcon className="h-10 w-10 text-blue-500" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Chatbots</p>
-                <p className="text-2xl font-bold text-gray-900">{chatbotList?.length || 0}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Total Chatbots
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {chatbotList?.length || 0}
+                </p>
               </div>
             </div>
           </div>
@@ -89,7 +101,9 @@ export default function Dashboard() {
             <div className="flex items-center">
               <ChartBarIcon className="h-10 w-10 text-green-500" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Conversations</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Total Conversations
+                </p>
                 <p className="text-2xl font-bold text-gray-900">0</p>
               </div>
             </div>
@@ -98,7 +112,9 @@ export default function Dashboard() {
             <div className="flex items-center">
               <ShareIcon className="h-10 w-10 text-purple-500" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Shares</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Active Shares
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
                   {chatbotList?.filter((c: any) => c.share_token).length || 0}
                 </p>
@@ -121,15 +137,22 @@ export default function Dashboard() {
         {/* Chatbots Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {chatbotList?.map((chatbot: any) => (
-            <div key={chatbot.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+            <div
+              key={chatbot.id}
+              className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow"
+            >
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{chatbot.name}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {chatbot.name}
+                </h3>
                 <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                  {chatbot.description || 'No description provided'}
+                  {chatbot.description || "No description provided"}
                 </p>
-                
+
                 <div className="flex items-center text-xs text-gray-500 mb-4">
-                  <span className="px-2 py-1 bg-gray-100 rounded-full">{chatbot.model}</span>
+                  <span className="px-2 py-1 bg-gray-100 rounded-full">
+                    {chatbot.model}
+                  </span>
                 </div>
 
                 <div className="flex space-x-2">
@@ -147,7 +170,9 @@ export default function Dashboard() {
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm('Are you sure you want to delete this chatbot?')) {
+                      if (
+                        confirm("Are you sure you want to delete this chatbot?")
+                      ) {
                         deleteMutation.mutate(chatbot.id);
                       }
                     }}
@@ -165,8 +190,12 @@ export default function Dashboard() {
         {chatbotList?.length === 0 && (
           <div className="text-center py-12">
             <ChatBubbleLeftRightIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No chatbots</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new chatbot.</p>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No chatbots
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Get started by creating a new chatbot.
+            </p>
             <div className="mt-6">
               <button
                 onClick={() => setIsCreateModalOpen(true)}
@@ -181,12 +210,12 @@ export default function Dashboard() {
       </div>
 
       {/* Modals */}
-      <CreateChatbotModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
+      <CreateChatbotModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
       />
       {shareModalData && (
-        <ShareModal 
+        <ShareModal
           isOpen={!!shareModalData}
           onClose={() => setShareModalData(null)}
           chatbot={shareModalData}

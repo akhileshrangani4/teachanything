@@ -9,6 +9,7 @@
 ## Features
 
 ### Core Features
+
 - **Multi-Provider AI Support**: OpenAI, Anthropic, and 100+ models via OpenRouter
 - **RAG (Retrieval-Augmented Generation)**: Upload documents for contextual responses
 - **Multiple Deployment Options**: Embed as iframe, JavaScript widget, or shareable link
@@ -24,6 +25,7 @@
 ## Tech Stack
 
 ### Backend
+
 - **Framework**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
 - **Vector DB**: pgvector for semantic search
@@ -31,6 +33,7 @@
 - **Authentication**: JWT with bcrypt
 
 ### Frontend
+
 - **Framework**: Next.js 14 with TypeScript
 - **Styling**: Tailwind CSS
 - **UI Components**: Headless UI, Heroicons
@@ -46,12 +49,14 @@
 ## Installation
 
 1. **Clone the repository**
+
 ```bash
 git clone https://github.com/yourusername/aialexa.git
 cd aialexa
 ```
 
 2. **Install dependencies**
+
 ```bash
 npm install
 ```
@@ -90,11 +95,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3001
 4. **Set up the database**
 
 Enable pgvector extension:
+
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
 Run migrations:
+
 ```bash
 npm run generate
 npm run migrate
@@ -103,17 +110,20 @@ npm run migrate
 ## Development
 
 **Run both frontend and backend:**
+
 ```bash
 npm run dev
 ```
 
 **Run services individually:**
+
 ```bash
 npm run dev:backend  # Backend on http://localhost:3000
 npm run dev:frontend # Frontend on http://localhost:3001
 ```
 
 **Database management:**
+
 ```bash
 npm run generate  # Generate migrations
 npm run migrate   # Apply migrations
@@ -146,11 +156,13 @@ aialexa/
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - User login
 - `GET /api/auth/me` - Get current user
 
 ### Chatbots
+
 - `GET /api/chatbots` - List user's chatbots
 - `POST /api/chatbots` - Create chatbot
 - `PUT /api/chatbots/:id` - Update chatbot
@@ -158,16 +170,19 @@ aialexa/
 - `POST /api/chatbots/:id/share` - Generate share link
 
 ### Chat
+
 - `POST /api/chat/:chatbotId/message` - Send message
 - `POST /api/chat/shared/:shareToken/message` - Public chat
 - `GET /api/chat/:chatbotId/history/:sessionId` - Get history
 
 ### Files
+
 - `POST /api/files/:chatbotId/upload` - Upload file
 - `GET /api/files/:chatbotId` - List files
 - `DELETE /api/files/:chatbotId/:fileId` - Delete file
 
 ### Analytics
+
 - `GET /api/analytics/chatbot/:id` - Chatbot analytics
 - `GET /api/analytics/overview` - User overview
 - `GET /api/analytics/messages/:id` - Message volume

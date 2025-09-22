@@ -1,8 +1,7 @@
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp?: Date;
-  metadata?: Record<string, any>;
 }
 
 export interface ChatResponse {
@@ -12,7 +11,6 @@ export interface ChatResponse {
     completionTokens: number;
     totalTokens: number;
   };
-  metadata?: Record<string, any>;
 }
 
 export interface FileContext {
@@ -20,7 +18,6 @@ export interface FileContext {
   fileName: string;
   content: string;
   fileType: string;
-  metadata?: Record<string, any>;
 }
 
 export interface ChatbotConfig {
@@ -34,38 +31,21 @@ export interface ChatbotConfig {
 }
 
 export interface AIClientConfig {
-  provider: AIProvider;
   apiKey: string;
   chatbot: ChatbotConfig;
   files?: FileContext[];
   sessionId?: string;
   userId?: string;
-  // Optional OpenRouter specific config
   openRouterConfig?: {
     siteUrl?: string;
     siteName?: string;
   };
 }
 
-export enum AIProvider {
-  OPENAI = 'openai',
-  ANTHROPIC = 'anthropic',
-  GEMINI = 'gemini',
-  OPENROUTER = 'openrouter'  // Add OpenRouter
-}
-
 export interface ProviderInterface {
   sendMessage(
     messages: ChatMessage[],
     config: ChatbotConfig,
-    files?: FileContext[]
+    files?: FileContext[],
   ): Promise<ChatResponse>;
-  
-  embedText(text: string): Promise<number[]>;
-}
-
-export interface StreamingOptions {
-  onToken?: (token: string) => void;
-  onComplete?: (response: ChatResponse) => void;
-  onError?: (error: Error) => void;
 }
