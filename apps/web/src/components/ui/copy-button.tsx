@@ -46,23 +46,28 @@ export function CopyButton({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback for cross-origin iframes where Clipboard API is blocked
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "-9999px";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
       try {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.style.position = "fixed";
-        textarea.style.left = "-9999px";
-        textarea.style.top = "-9999px";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
         textarea.focus();
         textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
+        const success = document.execCommand("copy");
+        if (!success) {
+          toast.error(errorMessage);
+          return;
+        }
         setCopied(true);
         toast.success(successMessage);
         setTimeout(() => setCopied(false), 2000);
       } catch {
         toast.error(errorMessage);
+      } finally {
+        document.body.removeChild(textarea);
       }
     }
   };
