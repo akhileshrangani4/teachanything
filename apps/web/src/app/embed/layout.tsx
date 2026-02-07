@@ -18,6 +18,10 @@ export default function EmbedLayout({
               height: 100% !important;
               overflow: hidden !important;
             }
+            .streamdown-content, .streamdown-content * {
+              -webkit-user-select: text !important;
+              user-select: text !important;
+            }
           `,
         }}
       />
