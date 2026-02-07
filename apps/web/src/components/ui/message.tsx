@@ -79,6 +79,8 @@ const MessageContent = ({
   const combinedStyle: React.CSSProperties = {
     wordBreak: "break-word",
     overflowWrap: "anywhere" as React.CSSProperties["overflowWrap"],
+    userSelect: "text",
+    WebkitUserSelect: "text",
     ...style,
   };
 

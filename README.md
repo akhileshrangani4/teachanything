@@ -80,7 +80,7 @@ See [AGENTS.md](./AGENTS.md) for detailed coding guidelines.
 
 ## License
 
-[MIT](./LICENSE)
+[GNU Affero General Public License v3.0](./LICENSE)
 
 ---
 
