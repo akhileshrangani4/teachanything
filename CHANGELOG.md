@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.3](https://github.com/akhileshrangani4/teachanything/compare/v1.5.2...v1.5.3) (2026-02-07)
+
+
+### Bug Fixes
+
+* **embed:** enable message copying in cross-origin iframe widgets ([#109](https://github.com/akhileshrangani4/teachanything/issues/109)) ([9864e33](https://github.com/akhileshrangani4/teachanything/commit/9864e3339d2665a3359087b951f3866e9536647e))
+
+
+### Miscellaneous Chores
+
+* update license information in README.md ([#107](https://github.com/akhileshrangani4/teachanything/issues/107)) ([943a504](https://github.com/akhileshrangani4/teachanything/commit/943a504a05d702d67abb723ab01bc0959aa3f584))
+
 ## [1.5.2](https://github.com/akhileshrangani4/teachanything/compare/v1.5.1...v1.5.2) (2026-01-22)
 
 
