@@ -25,7 +25,9 @@ interface ChatInterfaceProps {
   height?: string;
   hideHeader?: boolean;
   embedMode?: boolean;
+  showFrame?: boolean;
   showSources?: boolean;
+  brandingText?: string;
 }
 
 export function ChatInterface({
@@ -42,53 +44,62 @@ export function ChatInterface({
   height = "h-[600px]",
   hideHeader = false,
   embedMode = false,
+  showFrame,
   showSources = false,
+  brandingText,
 }: ChatInterfaceProps) {
   return (
     <div
-      className={`flex flex-col ${height} ${embedMode ? "" : "border rounded-lg"} bg-background overflow-hidden`}
+      className={`flex flex-col ${height} ${(showFrame ?? !embedMode) ? "border rounded-lg" : ""} bg-background overflow-hidden`}
       style={{
         height: height === "h-full" ? "100%" : undefined,
         maxHeight: "100%",
       }}
     >
-      {/* Header with Reset and Export Buttons */}
-      {!hideHeader && messages.length > 0 && (
-        <div className="flex justify-end items-center gap-2 px-2 md:px-4 py-2 md:py-2.5 border-b bg-muted/30 flex-shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (messages.length === 0) {
-                toast.info("No messages to export");
-                return;
-              }
-              try {
-                exportChatAsText(messages, chatbotName);
-                toast.success("Chat exported successfully");
-              } catch (error) {
-                toast.error("Failed to export chat", {
-                  description:
-                    error instanceof Error ? error.message : "Unknown error",
-                });
-              }
-            }}
-            disabled={isStreaming}
-            className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
-          >
-            <Download className="h-3.5 w-3.5 md:mr-1.5" />
-            <span className="hidden md:inline">Export Chat</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={resetChat}
-            disabled={isStreaming}
-            className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
-          >
-            <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" />
-            <span className="hidden md:inline">New Chat</span>
-          </Button>
+      {/* Header */}
+      {!hideHeader && (brandingText || messages.length > 0) && (
+        <div className="flex items-center gap-2 px-2 md:px-4 py-2 md:py-2.5 border-b bg-muted/30 flex-shrink-0">
+          {brandingText && (
+            <p className="text-xs text-muted-foreground">{brandingText}</p>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            {messages.length > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    try {
+                      exportChatAsText(messages, chatbotName);
+                      toast.success("Chat exported successfully");
+                    } catch (error) {
+                      toast.error("Failed to export chat", {
+                        description:
+                          error instanceof Error
+                            ? error.message
+                            : "Unknown error",
+                      });
+                    }
+                  }}
+                  disabled={isStreaming}
+                  className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
+                >
+                  <Download className="h-3.5 w-3.5 md:mr-1.5" />
+                  <span className="hidden md:inline">Export Chat</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetChat}
+                  disabled={isStreaming}
+                  className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" />
+                  <span className="hidden md:inline">New Chat</span>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       )}
 

@@ -3,7 +3,6 @@
 import { useParams } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { ChatInterface } from "@/components/chat/messages/ChatInterface";
-import { WrappableText } from "@/components/ui/wrappable-text";
 import {
   Card,
   CardContent,
@@ -11,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { SharedChatSkeleton } from "@/components/ui/skeletons";
 
 export default function SharedChatPage() {
   const params = useParams();
@@ -63,11 +63,7 @@ export default function SharedChatPage() {
 
   // Loading state
   if (chatbotLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary">
-        <p className="text-muted-foreground">Loading chatbot...</p>
-      </div>
-    );
+    return <SharedChatSkeleton />;
   }
 
   if (!chatbot) {
@@ -75,42 +71,25 @@ export default function SharedChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-secondary">
-      <div className="max-w-7xl mx-auto px-4 py-4 md:py-8">
-        {/* Header */}
-        <div className="mb-4 md:mb-6">
-          <h1 className="text-xl md:text-2xl font-bold text-foreground mb-1 md:mb-2">
-            {chatbot.name || "Chatbot"}
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            <WrappableText>
-              {chatbot.description || "No description available"}
-            </WrappableText>
-          </p>
-        </div>
-
-        {/* Chat Interface */}
-        {/* Mobile height: 100vh minus header (~80px) + footer (~40px) + padding (~60px) = 180px */}
-        <ChatInterface
-          messages={messages}
-          isStreaming={isStreaming}
-          streamingContent={streamingContent}
-          currentMessage={currentMessage}
-          setCurrentMessage={setCurrentMessage}
-          handleSendMessage={handleSendMessage}
-          messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
-          chatbotName={chatbot.name || "Chatbot"}
-          resetChat={resetChat}
-          stopStreaming={stopStreaming}
-          height="h-[calc(100vh-180px)] md:h-[700px] lg:h-[800px]"
-          showSources={chatbot.showSources ?? false}
-        />
-
-        {/* Footer */}
-        <div className="mt-4 md:mt-6 text-center text-xs md:text-sm text-muted-foreground">
-          <p>Powered by Teach anything • AI Teaching Assistant Platform</p>
-        </div>
-      </div>
+    <div className="h-dvh w-full overflow-hidden bg-secondary flex justify-center">
+    <div className="h-full w-full max-w-6xl flex flex-col bg-background md:my-6 md:rounded-xl md:h-[calc(100dvh-48px)] md:border md:shadow-lg">
+      <ChatInterface
+        messages={messages}
+        isStreaming={isStreaming}
+        streamingContent={streamingContent}
+        currentMessage={currentMessage}
+        setCurrentMessage={setCurrentMessage}
+        handleSendMessage={handleSendMessage}
+        messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
+        chatbotName={chatbot.name || "Chatbot"}
+        resetChat={resetChat}
+        stopStreaming={stopStreaming}
+        height="flex-1 min-h-0"
+        showFrame={false}
+        showSources={chatbot.showSources ?? false}
+        brandingText="Powered by Teach anything"
+      />
+    </div>
     </div>
   );
 }

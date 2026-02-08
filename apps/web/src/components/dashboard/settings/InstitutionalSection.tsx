@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CountryCombobox } from "@/components/ui/country-combobox";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -51,7 +52,7 @@ export function InstitutionalSection() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="space-y-2">
             <Skeleton className="h-4 w-28" />
             <Skeleton className="h-10 w-full rounded-md" />
@@ -75,12 +76,14 @@ export function InstitutionalSection() {
         customTitle: titleData.custom,
         institution: profile.institutionalAffiliation ?? "",
         department: profile.department ?? "",
+        country: profile.country ?? "",
         webpage: profile.facultyWebpage ?? "",
       }}
       saved={{
         title: profile.title ?? "",
         institution: profile.institutionalAffiliation ?? "",
         department: profile.department ?? "",
+        country: profile.country ?? "",
         webpage: profile.facultyWebpage ?? "",
       }}
     />
@@ -92,6 +95,7 @@ interface FormValues {
   customTitle: string;
   institution: string;
   department: string;
+  country: string;
   webpage: string;
 }
 
@@ -99,6 +103,7 @@ interface SavedValues {
   title: string;
   institution: string;
   department: string;
+  country: string;
   webpage: string;
 }
 
@@ -131,6 +136,7 @@ function InstitutionalForm({
     currentTitle !== saved.title ||
     form.institution !== saved.institution ||
     form.department !== saved.department ||
+    form.country !== saved.country ||
     form.webpage !== saved.webpage;
 
   const updateField = <K extends keyof FormValues>(
@@ -156,8 +162,11 @@ function InstitutionalForm({
     if (!form.department.trim()) {
       return toast.error("Department is required");
     }
+    if (!form.country.trim()) {
+      return toast.error("Country is required");
+    }
     if (!form.webpage.trim()) {
-      return toast.error("Faculty webpage is required");
+      return toast.error("University webpage is required");
     }
 
     // URL validation
@@ -171,6 +180,7 @@ function InstitutionalForm({
       title: currentTitle,
       institutionalAffiliation: form.institution.trim(),
       department: form.department.trim(),
+      country: form.country.trim(),
       facultyWebpage: form.webpage.trim(),
     });
   };
@@ -234,12 +244,22 @@ function InstitutionalForm({
           />
         </div>
 
-        {/* Faculty Webpage */}
+        {/* Country */}
         <div className="space-y-2">
-          <Label>Faculty Webpage</Label>
+          <Label>Country</Label>
+          <CountryCombobox
+            value={form.country}
+            onValueChange={(value) => updateField("country", value)}
+            disabled={isPending}
+          />
+        </div>
+
+        {/* University Webpage */}
+        <div className="space-y-2">
+          <Label>University webpage about you</Label>
           <Input
             type="url"
-            placeholder="university.edu/faculty/you"
+            placeholder="university.edu/your-name"
             value={form.webpage}
             onChange={(e) => updateField("webpage", e.target.value)}
             onBlur={(e) => {

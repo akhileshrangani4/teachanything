@@ -22,6 +22,13 @@
       "when": 1768798829281,
       "tag": "0002_square_expediter",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770519156826,
+      "tag": "0003_condemned_sister_grimm",
+      "breakpoints": true
     }
   ]
 }

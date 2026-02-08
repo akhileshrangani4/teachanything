@@ -272,6 +272,7 @@ export function AllUsersTab() {
                               institutionalAffiliation: u.institutionalAffiliation,
                               department: u.department,
                               facultyWebpage: u.facultyWebpage,
+                              country: u.country,
                               status: u.status,
                               createdAt:
                                 typeof u.createdAt === "string"

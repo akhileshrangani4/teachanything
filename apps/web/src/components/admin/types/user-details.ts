@@ -14,6 +14,7 @@ export type UserDetailsData = Pick<
   | "institutionalAffiliation"
   | "department"
   | "facultyWebpage"
+  | "country"
   | "status"
   | "createdAt"
 >;

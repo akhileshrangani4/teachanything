@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CountryCombobox } from "@/components/ui/country-combobox";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useEffect } from "react";
@@ -39,6 +40,7 @@ export default function RegisterPage() {
   const [institutionalAffiliation, setInstitutionalAffiliation] = useState("");
   const [department, setDepartment] = useState("");
   const [facultyWebpage, setFacultyWebpage] = useState("");
+  const [country, setCountry] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -123,9 +125,15 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!country.trim()) {
+      setError("Country is required");
+      toast.error("Country is required");
+      return;
+    }
+
     if (!facultyWebpage.trim()) {
-      setError("University faculty webpage is required");
-      toast.error("University faculty webpage is required");
+      setError("University webpage about you is required");
+      toast.error("University webpage about you is required");
       return;
     }
 
@@ -133,9 +141,9 @@ export default function RegisterPage() {
     try {
       new URL(facultyWebpage.trim());
     } catch {
-      setError("Please enter a valid URL for your faculty webpage");
+      setError("Please enter a valid URL for your university webpage");
       toast.error("Invalid URL", {
-        description: "Please enter a valid URL (e.g., university.edu/faculty/you)",
+        description: "Please enter a valid URL (e.g., university.edu/your-name)",
       });
       return;
     }
@@ -181,6 +189,7 @@ export default function RegisterPage() {
           title: resolvedTitle,
           institutionalAffiliation,
           department,
+          country: country.trim(),
           facultyWebpage: facultyWebpage.trim(),
         },
         {
@@ -363,11 +372,19 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="facultyWebpage">University Faculty Webpage</Label>
+              <Label>Country</Label>
+              <CountryCombobox
+                value={country}
+                onValueChange={setCountry}
+                disabled={loading || success}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="facultyWebpage">University webpage about you</Label>
               <Input
                 id="facultyWebpage"
                 type="url"
-                placeholder="university.edu/faculty/jsmith"
+                placeholder="university.edu/your-name"
                 value={facultyWebpage}
                 onChange={(e) => setFacultyWebpage(e.target.value)}
                 onBlur={(e) => {
@@ -381,7 +398,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">University Faculty Email</Label>
+              <Label htmlFor="email">Your university email</Label>
               <Input
                 id="email"
                 type="email"

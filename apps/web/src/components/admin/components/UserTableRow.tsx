@@ -31,6 +31,7 @@ interface UserData {
   institutionalAffiliation: string | null;
   department: string | null;
   facultyWebpage: string | null;
+  country: string | null;
   createdAt: Date | string;
 }
 

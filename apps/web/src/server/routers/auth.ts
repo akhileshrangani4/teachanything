@@ -84,6 +84,7 @@ export const authRouter = router({
         institutionalAffiliation: user.institutionalAffiliation,
         department: user.department,
         facultyWebpage: user.facultyWebpage,
+        country: user.country,
         status: user.status,
         role: user.role,
       })
@@ -121,6 +122,7 @@ export const authRouter = router({
         title: z.string().trim().min(1).max(100),
         institutionalAffiliation: z.string().trim().min(1).max(200),
         department: z.string().trim().min(1).max(200),
+        country: z.string().trim().min(1).max(100),
         facultyWebpage: z.string().trim().url().max(500),
       }),
     )
@@ -131,6 +133,7 @@ export const authRouter = router({
           title: input.title,
           institutionalAffiliation: input.institutionalAffiliation,
           department: input.department,
+          country: input.country,
           facultyWebpage: input.facultyWebpage,
           updatedAt: new Date(),
         })
