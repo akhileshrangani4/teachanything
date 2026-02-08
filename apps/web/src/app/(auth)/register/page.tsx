@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CountryCombobox } from "@/components/ui/country-combobox";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useEffect } from "react";
@@ -371,13 +372,10 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                placeholder="United States"
+              <Label>Country</Label>
+              <CountryCombobox
                 value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                required
+                onValueChange={setCountry}
                 disabled={loading || success}
               />
             </div>

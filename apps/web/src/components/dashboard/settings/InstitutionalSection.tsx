@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CountryCombobox } from "@/components/ui/country-combobox";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -246,10 +247,9 @@ function InstitutionalForm({
         {/* Country */}
         <div className="space-y-2">
           <Label>Country</Label>
-          <Input
-            placeholder="United States"
+          <CountryCombobox
             value={form.country}
-            onChange={(e) => updateField("country", e.target.value)}
+            onValueChange={(value) => updateField("country", value)}
             disabled={isPending}
           />
         </div>
