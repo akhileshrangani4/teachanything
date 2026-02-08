@@ -7,7 +7,7 @@ import { DashboardShellSkeleton } from "@/components/ui/skeletons";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MobileSidebarOverlay } from "@/components/dashboard/MobileSidebarOverlay";
-import { SidebarProvider } from "@/app/(dashboard)/layout";
+import { SidebarProvider } from "@/components/dashboard/sidebar-context";
 import type { ExtendedUser } from "@/lib/auth-client";
 
 export default function AdminLayout({

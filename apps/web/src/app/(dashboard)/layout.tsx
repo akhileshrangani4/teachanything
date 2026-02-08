@@ -2,45 +2,12 @@
 
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardShellSkeleton } from "@/components/ui/skeletons";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MobileSidebarOverlay } from "@/components/dashboard/MobileSidebarOverlay";
-
-// Sidebar context for mobile toggle
-interface SidebarContextValue {
-  isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
-}
-
-const SidebarContext = createContext<SidebarContextValue | null>(null);
-
-const fallbackSidebar: SidebarContextValue = {
-  isOpen: false,
-  setIsOpen: () => {},
-};
-
-export function useSidebar() {
-  const ctx = useContext(SidebarContext);
-  return ctx ?? fallbackSidebar;
-}
-
-export function SidebarProvider({
-  children,
-  isOpen,
-  setIsOpen,
-}: {
-  children: React.ReactNode;
-  isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
-}) {
-  return (
-    <SidebarContext.Provider value={{ isOpen, setIsOpen }}>
-      {children}
-    </SidebarContext.Provider>
-  );
-}
+import { SidebarProvider } from "@/components/dashboard/sidebar-context";
 
 export default function DashboardLayout({
   children,
@@ -66,7 +33,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <SidebarContext.Provider value={{ isOpen, setIsOpen }}>
+    <SidebarProvider isOpen={isOpen} setIsOpen={setIsOpen}>
       <div className="h-screen bg-background flex flex-col overflow-hidden">
         {/* Header - Full Width */}
         <DashboardHeader />
@@ -85,6 +52,6 @@ export default function DashboardLayout({
           <main className="flex-1 overflow-y-auto bg-noise min-w-0">{children}</main>
         </div>
       </div>
-    </SidebarContext.Provider>
+    </SidebarProvider>
   );
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -84,7 +86,7 @@ export function FileTableSkeleton({
 }: {
   desktopRows?: number;
   mobileCards?: number;
-} = {}) {
+}) {
   return (
     <div>
       {/* Desktop table skeleton */}
@@ -149,7 +151,7 @@ export function AuthCardSkeleton({
   titleWidth?: string;
   descWidth?: string;
   className?: string;
-} = {}) {
+}) {
   return (
     <div
       className={`min-h-screen flex items-center justify-center bg-secondary ${className}`}

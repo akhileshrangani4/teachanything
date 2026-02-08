@@ -43,7 +43,7 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
   const isAdminActive = pathname === "/admin" || pathname?.startsWith("/admin");
 
   return (
-    <aside className="w-64 bg-[hsl(var(--sidebar-background))] border-r border-[hsl(var(--sidebar-border))] flex flex-col h-full overflow-hidden">
+    <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full overflow-hidden">
       {/* Navigation */}
       <div className="flex-1 flex flex-col pt-8 pb-4 overflow-y-auto">
         <nav className="flex-1 px-3 space-y-1">
@@ -62,19 +62,19 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
                 className={cn(
                   "group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative",
                   isActive
-                    ? "bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-primary))]"
-                    : "text-[hsl(var(--sidebar-foreground))]/70 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]",
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 )}
               >
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[hsl(var(--sidebar-primary))] rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sidebar-primary rounded-r-full" />
                 )}
                 <item.icon
                   className={cn(
                     "mr-3 h-5 w-5 flex-shrink-0 transition-colors",
                     isActive
-                      ? "text-[hsl(var(--sidebar-primary))]"
-                      : "text-[hsl(var(--sidebar-foreground))]/50 group-hover:text-[hsl(var(--sidebar-foreground))]",
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                   )}
                 />
                 <span
@@ -92,26 +92,26 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
           {/* Admin Link - Only visible for admins */}
           {isAdmin && (
             <>
-              <div className="my-2 mx-3 border-t border-[hsl(var(--sidebar-border))]" />
+              <div className="my-2 mx-3 border-t border-sidebar-border" />
               <Link
                 href="/admin"
                 onClick={onNavigate}
                 className={cn(
                   "group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative",
                   isAdminActive
-                    ? "bg-[hsl(var(--sidebar-accent))] text-[hsl(var(--sidebar-primary))]"
-                    : "text-[hsl(var(--sidebar-foreground))]/70 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))]",
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 )}
               >
                 {isAdminActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[hsl(var(--sidebar-primary))] rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sidebar-primary rounded-r-full" />
                 )}
                 <Shield
                   className={cn(
                     "mr-3 h-5 w-5 flex-shrink-0 transition-colors",
                     isAdminActive
-                      ? "text-[hsl(var(--sidebar-primary))]"
-                      : "text-[hsl(var(--sidebar-foreground))]/50 group-hover:text-[hsl(var(--sidebar-foreground))]",
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                   )}
                 />
                 <span
@@ -129,8 +129,8 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-[hsl(var(--sidebar-border))] flex-shrink-0">
-        <p className="text-xs text-[hsl(var(--sidebar-foreground))]/50 font-medium">
+      <div className="px-6 py-4 border-t border-sidebar-border flex-shrink-0">
+        <p className="text-xs text-sidebar-foreground/50 font-medium">
           Built by{" "}
           <a
             href={
@@ -139,7 +139,7 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
             }
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[hsl(var(--sidebar-primary))] hover:underline font-medium"
+            className="text-sidebar-primary hover:underline font-medium"
           >
             Akhilesh Rangani
           </a>

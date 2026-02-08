@@ -3,7 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { DashboardSidebar } from "./DashboardSidebar";
-import { useSidebar } from "@/app/(dashboard)/layout";
+import { useSidebar } from "@/components/dashboard/sidebar-context";
 
 export function MobileSidebarOverlay() {
   const { isOpen, setIsOpen } = useSidebar();
@@ -19,8 +19,8 @@ export function MobileSidebarOverlay() {
           <DialogPrimitive.Description className="sr-only">
             Main navigation sidebar for the dashboard
           </DialogPrimitive.Description>
-          <DialogPrimitive.Close className="absolute right-2 top-2 z-10 rounded-md p-1.5 hover:bg-[hsl(var(--sidebar-accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-ring">
-            <X className="h-4 w-4 text-[hsl(var(--sidebar-foreground))]" />
+          <DialogPrimitive.Close className="absolute right-2 top-2 z-10 rounded-md p-1.5 hover:bg-sidebar-accent transition-colors focus:outline-none focus:ring-2 focus:ring-ring">
+            <X className="h-4 w-4 text-sidebar-foreground" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
           <DashboardSidebar onNavigate={() => setIsOpen(false)} />

@@ -22,7 +22,7 @@ import {
   Menu,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useSidebar } from "@/app/(dashboard)/layout";
+import { useSidebar } from "@/components/dashboard/sidebar-context";
 
 export function DashboardHeader() {
   const { data: session } = useSession();
