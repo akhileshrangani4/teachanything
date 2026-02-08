@@ -26,8 +26,8 @@ export function PaginationControls({
           onClick={() => onPageChange(Math.max(0, currentPage - 1))}
           disabled={currentPage === 0}
         >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Previous
+          <ChevronLeft className="h-4 w-4 sm:mr-1" />
+          <span className="hidden sm:inline">Previous</span>
         </Button>
         <Button
           variant="outline"
@@ -37,8 +37,8 @@ export function PaginationControls({
           }
           disabled={currentPage >= totalPages - 1}
         >
-          Next
-          <ChevronRight className="h-4 w-4 ml-1" />
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRight className="h-4 w-4 sm:ml-1" />
         </Button>
       </div>
     </div>

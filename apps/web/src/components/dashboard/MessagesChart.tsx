@@ -68,11 +68,11 @@ export function MessagesChart({
       new Date(data.accountCreatedAt).getTime();
 
   return (
-    <Card className="border-2">
+    <Card className="border border-border/60 shadow-sm">
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle className="text-xl font-semibold">
+            <CardTitle className="text-lg sm:text-xl font-semibold">
               Messages Sent Over Time
             </CardTitle>
             <CardDescription className="text-base">
@@ -108,14 +108,14 @@ export function MessagesChart({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="h-[350px] flex items-center justify-center">
+          <div className="h-[250px] sm:h-[350px] flex items-center justify-center">
             <div className="flex flex-col items-center gap-3">
               <span className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <p className="text-muted-foreground">Loading chart data...</p>
             </div>
           </div>
         ) : chartData.length === 0 ? (
-          <div className="h-[350px] flex items-center justify-center border-2 border-dashed border-muted rounded-lg">
+          <div className="h-[250px] sm:h-[350px] flex items-center justify-center border border-dashed border-muted rounded-lg">
             <div className="text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
               <p className="text-muted-foreground font-medium">
@@ -127,27 +127,31 @@ export function MessagesChart({
             </div>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={350}>
+          <div className="h-[250px] sm:h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
-              margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+              margin={{ top: 5, right: 16, left: -10, bottom: 5 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="hsl(var(--muted))"
                 opacity={0.3}
+                vertical={false}
               />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                stroke="hsl(var(--border))"
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                dy={8}
+                interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                stroke="hsl(var(--border))"
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                allowDecimals={false}
               />
               <Tooltip
                 contentStyle={{
@@ -155,18 +159,22 @@ export function MessagesChart({
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "8px",
                   boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  fontSize: "13px",
+                  padding: "8px 12px",
                 }}
+                cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
               />
               <Line
                 type="monotone"
                 dataKey="messages"
                 stroke="hsl(var(--primary))"
-                strokeWidth={3}
-                dot={{ r: 5, fill: "hsl(var(--primary))" }}
-                activeDot={{ r: 7 }}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "hsl(var(--card))" }}
               />
             </LineChart>
           </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>

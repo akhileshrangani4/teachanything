@@ -25,7 +25,7 @@ export function StatCard({
   spinnerColor = "border-primary",
 }: StatCardProps) {
   return (
-    <Card className="border-2 hover:border-primary/50 transition-all duration-200 hover:shadow-lg">
+    <Card className="border border-border/60 bg-card card-hover-lift shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           {title}

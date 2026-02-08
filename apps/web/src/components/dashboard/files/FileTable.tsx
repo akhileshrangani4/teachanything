@@ -333,6 +333,222 @@ function FileTableRow<T extends BaseFile>({
   );
 }
 
+// Mobile card view for individual files
+function FileCardMobile<T extends BaseFile>({
+  file,
+  showCheckbox = false,
+  isSelected = false,
+  onToggleSelect,
+  actionType = "none",
+  onAction,
+  actionDisabled = false,
+  onRetry,
+  retryDisabled = false,
+  showCreatedDate = false,
+}: FileTableRowProps<T>) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const isStuck =
+    file.processingStatus === "processing" &&
+    file.metadata?.processingProgress?.lastUpdatedAt &&
+    Date.now() -
+      new Date(file.metadata.processingProgress.lastUpdatedAt).getTime() >
+      30 * 60 * 1000;
+
+  const canRetry =
+    file.processingStatus === "failed" ||
+    file.processingStatus === "pending" ||
+    file.processingStatus === "processing";
+
+  const canView = file.processingStatus === "completed";
+  const isViewable = file.fileType === "application/pdf";
+
+  const handleFileClick = async (
+    e: React.MouseEvent,
+    forceDownload = false,
+  ) => {
+    e.stopPropagation();
+    if (!canView) {
+      toast.error("File is not ready", {
+        description: "Please wait for the file to finish processing",
+      });
+      return;
+    }
+    setIsDownloading(true);
+    try {
+      const downloadParam =
+        forceDownload || !isViewable ? "?download=true" : "";
+      const url = `/api/files/${file.id}/download${downloadParam}`;
+      if (forceDownload || !isViewable) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Download started");
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch (error) {
+      toast.error("Failed to access file", {
+        description:
+          error instanceof Error ? error.message : "Please try again",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  return (
+    <div
+      className="border border-border/60 rounded-lg p-4 bg-card space-y-3"
+      onClick={() => {
+        if (showCheckbox && onToggleSelect) {
+          onToggleSelect(file.id);
+        }
+      }}
+    >
+      {/* Top row: checkbox + icon + name */}
+      <div className="flex items-center gap-3">
+        {showCheckbox && onToggleSelect && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelect(file.id);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer flex-shrink-0"
+            aria-label={`Select ${file.fileName}`}
+          />
+        )}
+        <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+          <FileText className="h-4 w-4 text-blue-600" />
+        </div>
+        <span className="font-medium truncate flex-1">{file.fileName}</span>
+      </div>
+
+      {/* Metadata badges */}
+      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+        <span className="bg-muted px-2 py-0.5 rounded">
+          {getFileTypeDisplayName(file.fileType)}
+        </span>
+        <span className="bg-muted px-2 py-0.5 rounded">
+          {formatFileSize(file.fileSize)}
+        </span>
+        {showCreatedDate && file.createdAt && (
+          <span className="bg-muted px-2 py-0.5 rounded">
+            {formatDate(file.createdAt)}
+          </span>
+        )}
+      </div>
+
+      {/* Status + actions row */}
+      <div className="flex items-center justify-between gap-2">
+        <FileStatusBadge
+          status={file.processingStatus}
+          metadata={file.metadata}
+          showProgress={true}
+          size="sm"
+        />
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {canView && (
+            <>
+              {isViewable && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => handleFileClick(e, false)}
+                  disabled={isDownloading}
+                  className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                  title="View in new tab"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => handleFileClick(e, true)}
+                disabled={isDownloading}
+                className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          {canRetry && onRetry && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRetry(file.id);
+              }}
+              disabled={retryDisabled}
+              className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+              title={
+                file.processingStatus === "processing" && !isStuck
+                  ? "Cancel and restart"
+                  : "Retry processing"
+              }
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
+          {actionType === "delete" && onAction && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction(file.id);
+              }}
+              disabled={actionDisabled}
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+          {actionType === "remove" && onAction && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction(file.id);
+              }}
+              disabled={actionDisabled}
+              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Remove
+            </Button>
+          )}
+          {actionType === "add" && onAction && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAction(file.id);
+              }}
+              disabled={actionDisabled}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface FileTableProps<T extends BaseFile> {
   files: T[];
   // Checkbox props
@@ -420,47 +636,83 @@ export function FileTable<T extends BaseFile>({
   const fileNameWidth = 100 - fixedWidth;
 
   return (
-    <Table style={{ tableLayout: "fixed" }}>
-      <colgroup>
-        {hasCheckbox && <col style={{ width: "3%" }} />}
-        <col style={{ width: `${fileNameWidth}%` }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "20%" }} />
-        {hasCreated && <col style={{ width: "15%" }} />}
-        <col style={{ width: "12%" }} />
-      </colgroup>
-      <TableHeader>
-        <TableRow>
-          {showCheckbox && onSelectAll && (
-            <TableHead>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={onSelectAll}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                aria-label="Select all files"
+    <>
+      {/* Desktop table view */}
+      <div className="hidden md:block">
+        <Table style={{ tableLayout: "fixed" }}>
+          <colgroup>
+            {hasCheckbox && <col style={{ width: "3%" }} />}
+            <col style={{ width: `${fileNameWidth}%` }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "20%" }} />
+            {hasCreated && <col style={{ width: "15%" }} />}
+            <col style={{ width: "12%" }} />
+          </colgroup>
+          <TableHeader>
+            <TableRow>
+              {showCheckbox && onSelectAll && (
+                <TableHead>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={onSelectAll}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    aria-label="Select all files"
+                  />
+                </TableHead>
+              )}
+              {renderColumnHeader("fileName", "File Name")}
+              {renderColumnHeader("fileType", "Type", "whitespace-nowrap")}
+              {renderColumnHeader("fileSize", "Size", "whitespace-nowrap")}
+              {renderColumnHeader(
+                "processingStatus",
+                "Status",
+                "whitespace-nowrap",
+              )}
+              {showCreatedDate &&
+                renderColumnHeader("createdAt", "Created", "whitespace-nowrap")}
+              <TableHead className="whitespace-nowrap text-right">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {files.map((file) => (
+              <FileTableRow
+                key={file.id}
+                file={file}
+                showCheckbox={showCheckbox}
+                isSelected={selectedFiles?.has(file.id)}
+                onToggleSelect={onToggleSelect}
+                actionType={actionType}
+                onAction={onAction}
+                actionDisabled={actionDisabled}
+                onRetry={onRetry}
+                retryDisabled={retryDisabled}
+                showCreatedDate={showCreatedDate}
               />
-            </TableHead>
-          )}
-          {renderColumnHeader("fileName", "File Name")}
-          {renderColumnHeader("fileType", "Type", "whitespace-nowrap")}
-          {renderColumnHeader("fileSize", "Size", "whitespace-nowrap")}
-          {renderColumnHeader(
-            "processingStatus",
-            "Status",
-            "whitespace-nowrap",
-          )}
-          {showCreatedDate &&
-            renderColumnHeader("createdAt", "Created", "whitespace-nowrap")}
-          <TableHead className="whitespace-nowrap text-right">
-            Actions
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile card view */}
+      <div className="md:hidden space-y-3">
+        {showCheckbox && onSelectAll && (
+          <div className="flex items-center gap-2 px-1">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onSelectAll}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+              aria-label="Select all files"
+            />
+            <span className="text-sm text-muted-foreground">Select all</span>
+          </div>
+        )}
         {files.map((file) => (
-          <FileTableRow
+          <FileCardMobile
             key={file.id}
             file={file}
             showCheckbox={showCheckbox}
@@ -474,7 +726,7 @@ export function FileTable<T extends BaseFile>({
             showCreatedDate={showCreatedDate}
           />
         ))}
-      </TableBody>
-    </Table>
+      </div>
+    </>
   );
 }

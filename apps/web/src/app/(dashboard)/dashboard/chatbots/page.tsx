@@ -89,10 +89,10 @@ export default function ChatbotsPage() {
   const showInlineLoading = isFetching && !chatbotsLoading;
 
   return (
-    <div className="flex-1 p-8 bg-gradient-to-b from-background to-muted/20">
+    <div className="flex-1 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
               Chatbots

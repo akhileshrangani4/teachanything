@@ -86,7 +86,7 @@ export default function ChatbotDetailPage() {
   // Not found
   if (!chatbot) {
     return (
-      <div className="flex-1 p-8 bg-gradient-to-b from-background to-muted/20">
+      <div className="flex-1 p-4 md:p-6 lg:p-8 min-w-0">
         <div className="max-w-7xl mx-auto">
           <Card>
             <CardHeader>
@@ -107,8 +107,8 @@ export default function ChatbotDetailPage() {
   }
 
   return (
-    <div className="flex-1 p-8 bg-gradient-to-b from-background to-muted/20">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="flex-1 p-4 md:p-6 lg:p-8 min-w-0">
+      <div className="max-w-7xl mx-auto space-y-8 overflow-hidden">
         {/* Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
