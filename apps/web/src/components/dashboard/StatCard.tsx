@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { LucideIcon } from "lucide-react";
 
 interface StatCardProps {
@@ -11,7 +12,6 @@ interface StatCardProps {
   iconColor?: string;
   iconBgColor?: string;
   isLoading?: boolean;
-  spinnerColor?: string;
 }
 
 export function StatCard({
@@ -22,7 +22,6 @@ export function StatCard({
   iconColor = "text-primary",
   iconBgColor = "bg-primary/10",
   isLoading = false,
-  spinnerColor = "border-primary",
 }: StatCardProps) {
   return (
     <Card className="border border-border/60 bg-card card-hover-lift shadow-sm">
@@ -38,13 +37,7 @@ export function StatCard({
       </CardHeader>
       <CardContent>
         <div className="text-4xl font-bold text-foreground mb-1">
-          {isLoading ? (
-            <span
-              className={`inline-block w-8 h-8 border-2 ${spinnerColor} border-t-transparent rounded-full animate-spin`}
-            />
-          ) : (
-            value
-          )}
+          {isLoading ? <Skeleton className="h-10 w-24 rounded" /> : value}
         </div>
         <p className="text-xs text-muted-foreground mt-2">{description}</p>
       </CardContent>

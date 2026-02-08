@@ -18,6 +18,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { RouterOutputs } from "@/lib/trpc";
 
 type MessageData = RouterOutputs["analytics"]["getTotalMessagesPerMonth"];
@@ -108,11 +109,19 @@ export function MessagesChart({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="h-[250px] sm:h-[350px] flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <span className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="text-muted-foreground">Loading chart data...</p>
-            </div>
+          <div className="h-[250px] sm:h-[350px] flex items-end gap-3 px-4 pb-6 pt-4">
+            <Skeleton className="h-[40%] flex-1 rounded" />
+            <Skeleton className="h-[65%] flex-1 rounded" />
+            <Skeleton className="h-[45%] flex-1 rounded" />
+            <Skeleton className="h-[80%] flex-1 rounded" />
+            <Skeleton className="h-[55%] flex-1 rounded" />
+            <Skeleton className="h-[70%] flex-1 rounded" />
+            <Skeleton className="h-[35%] flex-1 rounded" />
+            <Skeleton className="h-[60%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[50%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[75%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[45%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[85%] flex-1 rounded" />
           </div>
         ) : chartData.length === 0 ? (
           <div className="h-[250px] sm:h-[350px] flex items-center justify-center border border-dashed border-muted rounded-lg">

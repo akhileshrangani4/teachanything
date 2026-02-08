@@ -3,6 +3,7 @@
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
+import { DashboardShellSkeleton } from "@/components/ui/skeletons";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MobileSidebarOverlay } from "@/components/dashboard/MobileSidebarOverlay";
@@ -57,11 +58,7 @@ export default function DashboardLayout({
   }, [session, sessionLoading, router]);
 
   if (sessionLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
+    return <DashboardShellSkeleton />;
   }
 
   if (!session) {

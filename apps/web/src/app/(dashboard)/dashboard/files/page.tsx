@@ -13,6 +13,7 @@ import { PaginationControls } from "@/components/dashboard/files/PaginationContr
 import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { Button } from "@/components/ui/button";
+import { FileTableSkeleton } from "@/components/ui/skeletons";
 import { Trash2 } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 
@@ -270,10 +271,11 @@ export default function FilesPage() {
 
         {/* Display all files */}
         {showFullLoading ? (
-          <div className="text-center py-16">
-            <div className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading files...</p>
-          </div>
+          <Card>
+            <CardContent className="p-6">
+              <FileTableSkeleton />
+            </CardContent>
+          </Card>
         ) : files.length === 0 && !state.search && !searchInput ? (
           <EmptyFilesState />
         ) : (

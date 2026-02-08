@@ -96,7 +96,6 @@ export default function DashboardPage() {
             icon={MessageSquare}
             iconColor="text-blue-600"
             iconBgColor="bg-blue-500/10"
-            spinnerColor="border-blue-600"
             isLoading={messagesLoading}
           />
 

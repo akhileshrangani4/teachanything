@@ -19,6 +19,7 @@ import { PaginationControls } from "@/components/dashboard/files/PaginationContr
 import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { X } from "lucide-react";
+import { FileTableSkeleton } from "@/components/ui/skeletons";
 import { useFilePolling } from "@/hooks/useFilePolling";
 import { keepPreviousData } from "@tanstack/react-query";
 
@@ -276,10 +277,7 @@ export function ChatbotFilesTab({
       </CardHeader>
       <CardContent>
         {(filesLoading || associatedFilesLoading) && !associatedFilesData ? (
-          <div className="text-center py-8">
-            <div className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading files...</p>
-          </div>
+          <FileTableSkeleton />
         ) : associatedFiles.length === 0 && !state.search && !searchInput ? (
           // Truly empty state - no files and not searching
           <EmptyChatbotFilesState
