@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/akhileshrangani4/teachanything/compare/v1.8.0...v1.9.0) (2026-02-08)
+
+
+### Features
+
+* **seo:** add sitemap.xml and robots.txt generation ([#119](https://github.com/akhileshrangani4/teachanything/issues/119)) ([5b3a1df](https://github.com/akhileshrangani4/teachanything/commit/5b3a1df9e115d55f6b2b59c87e3e0c927a7ae779))
+
 ## [1.8.0](https://github.com/akhileshrangani4/teachanything/compare/v1.7.0...v1.8.0) (2026-02-08)
 
 
