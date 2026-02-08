@@ -134,21 +134,36 @@ export function FileTableSkeleton({
 }
 
 /**
- * Shared chat page skeleton — header, chat area with input, and footer.
- * Used by the /chat/[shareToken] page while the chatbot data loads.
+ * Shared chat page skeleton — matches the /chat/[shareToken] page layout:
+ * centered card on desktop with header, chat area, and input.
+ * Used while the chatbot data loads.
  */
 export function SharedChatSkeleton() {
   return (
-    <div className="h-dvh w-full bg-background flex flex-col overflow-hidden">
-      {/* Messages area */}
-      <div className="flex-1 p-4 space-y-4">
-        <div className="flex justify-start">
-          <Skeleton className="h-16 w-3/4 max-w-sm rounded-lg" />
+    <div className="h-dvh w-full overflow-hidden bg-secondary flex justify-center">
+      <div className="h-full w-full max-w-6xl flex flex-col bg-background md:my-6 md:rounded-xl md:h-[calc(100dvh-48px)] md:border md:shadow-lg">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-2 md:px-4 py-2 md:py-2.5 border-b bg-muted/30 flex-shrink-0">
+          <Skeleton className="h-3 w-32" />
+          <div className="ml-auto flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-8 w-20 rounded-md hidden md:block" />
+          </div>
         </div>
-      </div>
-      {/* Input area */}
-      <div className="flex-shrink-0 border-t p-3">
-        <Skeleton className="h-[60px] md:h-[120px] w-full rounded-md" />
+        {/* Messages area */}
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto p-2 md:p-3">
+            <div className="space-y-3 md:space-y-4">
+              <div className="flex justify-start">
+                <Skeleton className="h-16 w-3/4 max-w-sm rounded-lg" />
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Input area */}
+        <div className="flex-shrink-0 border-t p-2 md:p-4">
+          <Skeleton className="h-[60px] md:h-[120px] w-full rounded-md" />
+        </div>
       </div>
     </div>
   );
