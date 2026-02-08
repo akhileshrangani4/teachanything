@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/akhileshrangani4/teachanything/compare/v1.7.0...v1.8.0) (2026-02-08)
+
+
+### Features
+
+* **seo:** update metadata for open source education branding ([#117](https://github.com/akhileshrangani4/teachanything/issues/117)) ([3f512e6](https://github.com/akhileshrangani4/teachanything/commit/3f512e65b24f3eb2c26751d3bd4121a58d480ae4))
+
 ## [1.7.0](https://github.com/akhileshrangani4/teachanything/compare/v1.6.1...v1.7.0) (2026-02-08)
 
 
