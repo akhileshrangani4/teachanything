@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0](https://github.com/akhileshrangani4/teachanything/compare/v1.6.1...v1.7.0) (2026-02-08)
+
+
+### Features
+
+* **user:** add country field and rename faculty labels ([#116](https://github.com/akhileshrangani4/teachanything/issues/116)) ([28177c2](https://github.com/akhileshrangani4/teachanything/commit/28177c2c4c3c0df8cbd785ae6fe36bce409dc409))
+
+
+### Bug Fixes
+
+* **chat:** redesign shared chat page as full-screen chatbot ([#114](https://github.com/akhileshrangani4/teachanything/issues/114)) ([849b337](https://github.com/akhileshrangani4/teachanything/commit/849b337d76423aa6bedbaaf973f32bfb49683d91))
+
 ## [1.6.1](https://github.com/akhileshrangani4/teachanything/compare/v1.6.0...v1.6.1) (2026-02-08)
 
 
