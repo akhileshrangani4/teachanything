@@ -44,7 +44,7 @@ export function ChatInput({
       <div className="flex items-end gap-2 w-full">
         <PromptInputTextarea
           placeholder="Ask me anything..."
-          className="flex-1 text-foreground text-sm md:text-base min-h-[80px] md:min-h-[120px] scrollbar-thin"
+          className="flex-1 text-foreground text-base min-h-[60px] md:min-h-[120px] scrollbar-thin"
         />
         <PromptInputActions>
           {isStreaming && onStopStreaming ? (

@@ -134,6 +134,27 @@ export function FileTableSkeleton({
 }
 
 /**
+ * Shared chat page skeleton — header, chat area with input, and footer.
+ * Used by the /chat/[shareToken] page while the chatbot data loads.
+ */
+export function SharedChatSkeleton() {
+  return (
+    <div className="h-dvh w-full bg-background flex flex-col overflow-hidden">
+      {/* Messages area */}
+      <div className="flex-1 p-4 space-y-4">
+        <div className="flex justify-start">
+          <Skeleton className="h-16 w-3/4 max-w-sm rounded-lg" />
+        </div>
+      </div>
+      {/* Input area */}
+      <div className="flex-shrink-0 border-t p-3">
+        <Skeleton className="h-[60px] md:h-[120px] w-full rounded-md" />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Centered auth-card skeleton — matches the login / register / reset-password forms.
  *
  * @param fields     - Number of form field placeholders (default 2)
