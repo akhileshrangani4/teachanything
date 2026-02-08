@@ -175,7 +175,7 @@ export function QuickAddFilesSection({
               >
                 <Skeleton className="h-4 w-40 shrink-0" />
                 <Skeleton className="h-4 w-14 shrink-0" />
-                <Skeleton className="h-5 w-18 rounded-full shrink-0" />
+                <Skeleton className="h-5 w-20 rounded-full shrink-0" />
                 <Skeleton className="h-8 w-16 rounded-md shrink-0 ml-auto" />
               </div>
             ))}

@@ -279,7 +279,7 @@ export function PendingUsersTab() {
                   <Skeleton className="h-4 w-14 shrink-0" />
                   <Skeleton className="h-4 w-14 shrink-0" />
                   <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-18 shrink-0" />
+                  <Skeleton className="h-4 w-20 shrink-0" />
                   <Skeleton className="h-4 w-14 shrink-0 ml-auto" />
                 </>
               }

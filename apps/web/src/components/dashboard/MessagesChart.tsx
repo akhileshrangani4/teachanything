@@ -31,6 +31,16 @@ interface MessagesChartProps {
   onNextPeriod: () => void;
 }
 
+// Recharts requires CSS color strings (not Tailwind classes) for SVG attributes.
+// Extract theme tokens so they're referenced in one place.
+const chartColors = {
+  grid: "hsl(var(--muted))",
+  tick: "hsl(var(--muted-foreground))",
+  card: "hsl(var(--card))",
+  border: "hsl(var(--border))",
+  primary: "hsl(var(--primary))",
+} as const;
+
 export function MessagesChart({
   data,
   isLoading,
@@ -144,42 +154,42 @@ export function MessagesChart({
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="hsl(var(--muted))"
+                stroke={chartColors.grid}
                 opacity={0.3}
                 vertical={false}
               />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: 11, fill: chartColors.tick }}
                 tickLine={false}
                 axisLine={false}
                 dy={8}
                 interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: 11, fill: chartColors.tick }}
                 tickLine={false}
                 axisLine={false}
                 allowDecimals={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: chartColors.card,
+                  border: `1px solid ${chartColors.border}`,
                   borderRadius: "8px",
                   boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                   fontSize: "13px",
                   padding: "8px 12px",
                 }}
-                cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+                cursor={{ stroke: chartColors.border, strokeWidth: 1 }}
               />
               <Line
                 type="monotone"
                 dataKey="messages"
-                stroke="hsl(var(--primary))"
+                stroke={chartColors.primary}
                 strokeWidth={2.5}
                 dot={false}
-                activeDot={{ r: 5, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "hsl(var(--card))" }}
+                activeDot={{ r: 5, fill: chartColors.primary, strokeWidth: 2, stroke: chartColors.card }}
               />
             </LineChart>
           </ResponsiveContainer>

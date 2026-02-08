@@ -172,7 +172,7 @@ export function AllUsersTab() {
                   <Skeleton className="h-4 w-14 shrink-0" />
                   <Skeleton className="h-4 w-10 shrink-0" />
                   <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-18 shrink-0" />
+                  <Skeleton className="h-4 w-20 shrink-0" />
                   <Skeleton className="h-4 w-14 shrink-0 ml-auto" />
                 </>
               }
@@ -184,7 +184,7 @@ export function AllUsersTab() {
                   </div>
                   <Skeleton className="h-4 w-32 shrink-0" />
                   <Skeleton className="h-5 w-14 rounded-full shrink-0" />
-                  <Skeleton className="h-5 w-18 rounded-full shrink-0" />
+                  <Skeleton className="h-5 w-20 rounded-full shrink-0" />
                   <Skeleton className="h-4 w-20 shrink-0" />
                   <Skeleton className="h-8 w-20 rounded-md shrink-0 ml-auto" />
                 </>

@@ -288,7 +288,7 @@ export function AllowedDomainsTab() {
                 header={
                   <>
                     <Skeleton className="h-4 w-16 shrink-0" />
-                    <Skeleton className="h-4 w-18 shrink-0 hidden sm:block" />
+                    <Skeleton className="h-4 w-20 shrink-0 hidden sm:block" />
                     <Skeleton className="h-4 w-14 shrink-0 ml-auto" />
                   </>
                 }
