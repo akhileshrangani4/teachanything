@@ -13,6 +13,7 @@ export const authClient = createAuthClient({
         title: { type: "string", required: false },
         institutionalAffiliation: { type: "string" },
         department: { type: "string" },
+        country: { type: "string", required: false },
         facultyWebpage: { type: "string", required: false },
       },
     }),

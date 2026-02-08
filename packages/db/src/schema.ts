@@ -37,6 +37,7 @@ export const user = pgTable("user", {
   institutionalAffiliation: text("institutional_affiliation"),
   department: text("department"),
   facultyWebpage: text("faculty_webpage"),
+  country: text("country"),
   status: userStatusEnum("status").default("pending").notNull(),
   role: userRoleEnum("role").default("user").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

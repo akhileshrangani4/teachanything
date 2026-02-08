@@ -98,6 +98,10 @@ export const auth = betterAuth({
         type: "string",
         required: false,
       },
+      country: {
+        type: "string",
+        required: false,
+      },
     },
   },
 

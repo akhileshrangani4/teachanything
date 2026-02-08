@@ -56,6 +56,7 @@ type PendingUser = {
   institutionalAffiliation: string | null;
   department: string | null;
   facultyWebpage: string | null;
+  country: string | null;
   status: "pending" | "approved" | "rejected";
   createdAt: Date;
 };
@@ -198,6 +199,7 @@ export function PendingUsersTab() {
           institutionalAffiliation: user.institutionalAffiliation,
           department: user.department,
           facultyWebpage: user.facultyWebpage,
+          country: user.country,
           status: user.status,
           createdAt: user.createdAt,
         },

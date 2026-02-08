@@ -868,6 +868,7 @@ export const adminRouter = router({
         institutionalAffiliation: user.institutionalAffiliation,
         department: user.department,
         facultyWebpage: user.facultyWebpage,
+        country: user.country,
         role: user.role,
         status: user.status,
         createdAt: user.createdAt,

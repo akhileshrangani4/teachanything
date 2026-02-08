@@ -15,6 +15,7 @@ import {
   Building2,
   GraduationCap,
   Globe,
+  MapPin,
   Calendar,
   ExternalLink,
 } from "lucide-react";
@@ -66,7 +67,7 @@ export function UserDetailsDialog({
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
               <Mail className="h-3 w-3" />
-              University Faculty Email
+              University Email
             </label>
             <p className="text-sm">{user.email}</p>
           </div>
@@ -101,11 +102,26 @@ export function UserDetailsDialog({
             </p>
           </div>
 
-          {/* Faculty Webpage */}
+          {/* Country */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              Country
+            </label>
+            <p className="text-sm">
+              {user.country || (
+                <span className="text-muted-foreground italic">
+                  Not provided
+                </span>
+              )}
+            </p>
+          </div>
+
+          {/* University Webpage */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
               <Globe className="h-3 w-3" />
-              University Faculty Webpage
+              University Webpage About You
             </label>
             {user.facultyWebpage ? (
               <Button
@@ -120,7 +136,7 @@ export function UserDetailsDialog({
                   rel="noopener noreferrer"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  Visit Faculty Page
+                  Visit Webpage
                 </a>
               </Button>
             ) : (
