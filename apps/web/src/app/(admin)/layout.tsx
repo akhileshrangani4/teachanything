@@ -49,7 +49,7 @@ export default function AdminLayout({
 
   return (
     <SidebarProvider isOpen={isOpen} setIsOpen={setIsOpen}>
-      <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="h-dvh bg-background flex flex-col overflow-hidden">
         {/* Header - Full Width */}
         <DashboardHeader />
 
