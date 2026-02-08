@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthCardSkeleton } from "@/components/ui/skeletons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -134,11 +135,7 @@ export default function LoginPage() {
 
   // Don't render login form if session is loading or user is already authenticated
   if (sessionLoading || session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary">
-        <p>Loading...</p>
-      </div>
-    );
+    return <AuthCardSkeleton />;
   }
 
   return (

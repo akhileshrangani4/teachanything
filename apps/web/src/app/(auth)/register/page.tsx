@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthCardSkeleton } from "@/components/ui/skeletons";
 import {
   Select,
   SelectContent,
@@ -239,9 +240,12 @@ export default function RegisterPage() {
   // Don't render registration form if session is loading or user is already authenticated
   if (sessionLoading || session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary">
-        <p>Loading...</p>
-      </div>
+      <AuthCardSkeleton
+        fields={4}
+        titleWidth="w-36"
+        descWidth="w-64"
+        className="px-4 py-8"
+      />
     );
   }
 

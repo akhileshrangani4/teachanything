@@ -8,6 +8,7 @@ import { FileTable } from "@/components/dashboard/files/FileTable";
 import { PaginationControls } from "@/components/dashboard/files/PaginationControls";
 import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useFilePolling } from "@/hooks/useFilePolling";
 import { keepPreviousData } from "@tanstack/react-query";
 import type { RouterOutputs } from "@/lib/trpc";
@@ -164,9 +165,36 @@ export function QuickAddFilesSection({
       </div>
 
       {filesLoading && !filesData ? (
-        <div className="text-center py-4">
-          <div className="inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-2" />
-          <p className="text-sm text-muted-foreground">Loading files...</p>
+        <div>
+          {/* Desktop skeleton */}
+          <div className="hidden md:block space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 py-2 border-b border-border/50 last:border-0"
+              >
+                <Skeleton className="h-4 w-40 shrink-0" />
+                <Skeleton className="h-4 w-14 shrink-0" />
+                <Skeleton className="h-5 w-20 rounded-full shrink-0" />
+                <Skeleton className="h-8 w-16 rounded-md shrink-0 ml-auto" />
+              </div>
+            ))}
+          </div>
+          {/* Mobile skeleton */}
+          <div className="md:hidden space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="border border-border/60 rounded-lg p-3 space-y-2"
+              >
+                <Skeleton className="h-4 w-full max-w-[160px]" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-7 w-14 rounded-md ml-auto" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : availableFiles.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">

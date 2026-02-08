@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/akhileshrangani4/teachanything/compare/v1.5.3...v1.6.0) (2026-02-08)
+
+
+### Features
+
+* **dashboard:** responsive UI redesign with skeleton loading states ([#110](https://github.com/akhileshrangani4/teachanything/issues/110)) ([e313ee0](https://github.com/akhileshrangani4/teachanything/commit/e313ee0c3c89c7d0a29ba457ffcb5376705de90c))
+
 ## [1.5.3](https://github.com/akhileshrangani4/teachanything/compare/v1.5.2...v1.5.3) (2026-02-07)
 
 

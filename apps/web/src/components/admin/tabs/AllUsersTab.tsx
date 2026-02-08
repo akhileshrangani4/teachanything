@@ -29,6 +29,8 @@ import { UserDetailsDialog } from "../components/UserDetailsDialog";
 import type { UserDetailsDialogState } from "../types/user-details";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeletons";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -162,10 +164,32 @@ export function AllUsersTab() {
           />
 
           {usersLoading && !usersData ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-muted-foreground">Loading users...</p>
-            </div>
+            <TableSkeleton
+              minWidth={700}
+              header={
+                <>
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                  <Skeleton className="h-4 w-10 shrink-0" />
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                  <Skeleton className="h-4 w-20 shrink-0" />
+                  <Skeleton className="h-4 w-14 shrink-0 ml-auto" />
+                </>
+              }
+              row={
+                <>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Skeleton className="h-4 w-32 shrink-0" />
+                  <Skeleton className="h-5 w-14 rounded-full shrink-0" />
+                  <Skeleton className="h-5 w-20 rounded-full shrink-0" />
+                  <Skeleton className="h-4 w-20 shrink-0" />
+                  <Skeleton className="h-8 w-20 rounded-md shrink-0 ml-auto" />
+                </>
+              }
+            />
           ) : allUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Users className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />

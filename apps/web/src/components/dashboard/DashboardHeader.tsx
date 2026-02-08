@@ -19,12 +19,15 @@ import {
   Settings,
   LogOut,
   Shield,
+  Menu,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSidebar } from "@/components/dashboard/sidebar-context";
 
 export function DashboardHeader() {
   const { data: session } = useSession();
   const router = useRouter();
+  const { setIsOpen } = useSidebar();
 
   const handleSignOut = async () => {
     await signOut();
@@ -47,8 +50,15 @@ export function DashboardHeader() {
   const isAdmin = user?.role === "admin";
 
   return (
-    <header className="h-16 border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 flex items-center justify-between px-6 shadow-sm">
+    <header className="h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 flex items-center justify-between px-4 md:px-6 shadow-sm">
       <div className="flex items-center gap-3">
+        <button
+          onClick={() => setIsOpen(true)}
+          className="lg:hidden p-2 -ml-2 rounded-md hover:bg-muted transition-colors"
+          aria-label="Open navigation menu"
+        >
+          <Menu className="h-5 w-5 text-foreground" />
+        </button>
         <Link
           href="/"
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"
@@ -74,7 +84,7 @@ export function DashboardHeader() {
         </Link>
         <Link
           href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || ""}`}
-          className="ml-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+          className="ml-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium hidden md:inline-block"
         >
           Support
         </Link>

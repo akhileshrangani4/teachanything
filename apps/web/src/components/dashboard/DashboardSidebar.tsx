@@ -29,7 +29,11 @@ const navigation = [
   },
 ];
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
@@ -39,7 +43,7 @@ export function DashboardSidebar() {
   const isAdminActive = pathname === "/admin" || pathname?.startsWith("/admin");
 
   return (
-    <aside className="w-64 bg-white border-r border-border flex flex-col shadow-lg overflow-hidden">
+    <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full overflow-hidden">
       {/* Navigation */}
       <div className="flex-1 flex flex-col pt-8 pb-4 overflow-y-auto">
         <nav className="flex-1 px-3 space-y-1">
@@ -54,22 +58,23 @@ export function DashboardSidebar() {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={onNavigate}
                 className={cn(
                   "group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative",
                   isActive
-                    ? "bg-primary/10 text-primary shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 )}
               >
                 {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sidebar-primary rounded-r-full" />
                 )}
                 <item.icon
                   className={cn(
                     "mr-3 h-5 w-5 flex-shrink-0 transition-colors",
                     isActive
-                      ? "text-primary"
-                      : "text-muted-foreground group-hover:text-foreground",
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                   )}
                 />
                 <span
@@ -87,25 +92,26 @@ export function DashboardSidebar() {
           {/* Admin Link - Only visible for admins */}
           {isAdmin && (
             <>
-              <div className="my-2 mx-3 border-t border-border" />
+              <div className="my-2 mx-3 border-t border-sidebar-border" />
               <Link
                 href="/admin"
+                onClick={onNavigate}
                 className={cn(
                   "group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative",
                   isAdminActive
-                    ? "bg-primary/10 text-primary shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 )}
               >
                 {isAdminActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-sidebar-primary rounded-r-full" />
                 )}
                 <Shield
                   className={cn(
                     "mr-3 h-5 w-5 flex-shrink-0 transition-colors",
                     isAdminActive
-                      ? "text-primary"
-                      : "text-muted-foreground group-hover:text-foreground",
+                      ? "text-sidebar-primary"
+                      : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground",
                   )}
                 />
                 <span
@@ -123,8 +129,8 @@ export function DashboardSidebar() {
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-border bg-gradient-to-r from-muted/50 to-transparent flex-shrink-0">
-        <p className="text-xs text-muted-foreground font-medium">
+      <div className="px-6 py-4 border-t border-sidebar-border flex-shrink-0">
+        <p className="text-xs text-sidebar-foreground/50 font-medium">
           Built by{" "}
           <a
             href={
@@ -133,7 +139,7 @@ export function DashboardSidebar() {
             }
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:underline font-medium"
+            className="text-sidebar-primary hover:underline font-medium"
           >
             Akhilesh Rangani
           </a>

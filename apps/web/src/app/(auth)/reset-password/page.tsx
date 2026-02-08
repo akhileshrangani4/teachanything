@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthCardSkeleton } from "@/components/ui/skeletons";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense, useMemo } from "react";
@@ -374,11 +375,7 @@ function ResetPasswordContent() {
 export default function ResetPasswordPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-secondary">
-          <p>Loading...</p>
-        </div>
-      }
+      fallback={<AuthCardSkeleton titleWidth="w-36" />}
     >
       <ResetPasswordContent />
     </Suspense>

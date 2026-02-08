@@ -27,6 +27,8 @@ import {
 import { useServerTable } from "@/hooks/useServerTable";
 import { PaginationControls } from "../../dashboard/files/PaginationControls";
 import { StatsHeader } from "../components/StatsHeader";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeletons";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -282,9 +284,22 @@ export function AllowedDomainsTab() {
             />
 
             {domainsLoading && !domainsData ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Loading domains...
-              </div>
+              <TableSkeleton
+                header={
+                  <>
+                    <Skeleton className="h-4 w-16 shrink-0" />
+                    <Skeleton className="h-4 w-20 shrink-0 hidden sm:block" />
+                    <Skeleton className="h-4 w-14 shrink-0 ml-auto" />
+                  </>
+                }
+                row={
+                  <>
+                    <Skeleton className="h-5 w-28 rounded-full shrink-0" />
+                    <Skeleton className="h-4 w-24 shrink-0 hidden sm:block" />
+                    <Skeleton className="h-8 w-20 rounded-md shrink-0 ml-auto" />
+                  </>
+                }
+              />
             ) : domains.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 {state.search || searchInput

@@ -51,10 +51,10 @@ export default function DashboardPage() {
     ) || 0;
 
   return (
-    <div className="flex-1 p-8 bg-gradient-to-b from-background to-muted/20">
+    <div className="flex-1 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
               Dashboard
@@ -78,7 +78,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <StatCard
             title="Total Chatbots"
             value={chatbots?.totalCount || 0}
@@ -96,7 +96,6 @@ export default function DashboardPage() {
             icon={MessageSquare}
             iconColor="text-blue-600"
             iconBgColor="bg-blue-500/10"
-            spinnerColor="border-blue-600"
             isLoading={messagesLoading}
           />
 

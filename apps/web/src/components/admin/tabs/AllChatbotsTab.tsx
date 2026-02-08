@@ -23,6 +23,8 @@ import {
 } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { StatsHeader } from "../components/StatsHeader";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/ui/skeletons";
 import { Bot } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 
@@ -137,11 +139,14 @@ export function AllChatbotsTab() {
         </CardHeader>
         <CardContent>
           {/* Admin Capabilities Info */}
-          <Alert className="mb-4 border-border bg-muted/30 flex items-center">
-            <AlertDescription className="text-xs leading-relaxed flex items-center gap-1">
-              <strong>Quick Guide:</strong> Feature public chatbots for homepage
-              (max 4) • Click owner name to edit (your chatbots only) • Delete
-              to remove permanently
+          <Alert className="mb-4 border-border bg-muted/30">
+            <AlertDescription className="text-xs leading-relaxed">
+              <strong>Quick Guide:</strong>
+              <ul className="mt-1 list-disc list-inside space-y-0.5">
+                <li>Feature public chatbots for homepage (max 4)</li>
+                <li>Click owner name to edit (your chatbots only)</li>
+                <li>Delete to remove permanently</li>
+              </ul>
             </AlertDescription>
           </Alert>
 
@@ -163,10 +168,31 @@ export function AllChatbotsTab() {
           />
 
           {chatbotsLoading && !chatbotsData ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-muted-foreground">Loading chatbots...</p>
-            </div>
+            <TableSkeleton
+              minWidth={700}
+              header={
+                <>
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                  <Skeleton className="h-4 w-10 shrink-0" />
+                  <Skeleton className="h-4 w-16 shrink-0" />
+                  <Skeleton className="h-4 w-20 shrink-0" />
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                </>
+              }
+              row={
+                <>
+                  <Skeleton className="h-4 w-28 shrink-0" />
+                  <Skeleton className="h-4 w-24 shrink-0" />
+                  <Skeleton className="h-4 w-20 shrink-0" />
+                  <Skeleton className="h-4 w-8 shrink-0" />
+                  <Skeleton className="h-4 w-20 shrink-0" />
+                  <Skeleton className="h-5 w-12 rounded-full shrink-0" />
+                  <Skeleton className="h-8 w-16 rounded-md shrink-0" />
+                </>
+              }
+            />
           ) : allChatbots.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Bot className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />

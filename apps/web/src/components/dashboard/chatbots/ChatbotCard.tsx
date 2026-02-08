@@ -21,7 +21,7 @@ interface ChatbotCardProps {
 
 export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
   return (
-    <Card className="border-2 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group">
+    <Card className="border border-border/60 bg-card card-hover-lift shadow-sm group">
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-4">
           <Link
@@ -42,7 +42,7 @@ export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pl-[52px]">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap pl-0 sm:pl-[52px]">
               <span className="font-mono bg-muted px-2 py-1 rounded">
                 {chatbot.id.slice(0, 8)}...
               </span>

@@ -14,6 +14,7 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Save } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TITLE_OPTIONS } from "@/lib/constants/title-options";
 
 /**
@@ -48,7 +49,16 @@ export function InstitutionalSection() {
   const { data: profile, isLoading } = trpc.auth.getProfile.useQuery();
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>;
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (!profile) {

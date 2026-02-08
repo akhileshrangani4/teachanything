@@ -12,6 +12,7 @@ import { TableToolbar, type ChatbotSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { keepPreviousData } from "@tanstack/react-query";
 
 const ITEMS_PER_PAGE = 4;
@@ -89,10 +90,10 @@ export default function ChatbotsPage() {
   const showInlineLoading = isFetching && !chatbotsLoading;
 
   return (
-    <div className="flex-1 p-8 bg-gradient-to-b from-background to-muted/20">
+    <div className="flex-1 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
               Chatbots
@@ -122,9 +123,25 @@ export default function ChatbotsPage() {
 
         {/* Chatbots List */}
         {showFullLoading ? (
-          <div className="text-center py-16">
-            <div className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading chatbots...</p>
+          <div className="grid gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="border border-border/60 rounded-lg p-6 space-y-3"
+              >
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : chatbots.length === 0 && !state.search && !searchInput ? (
           <EmptyChatbotsState onCreateClick={() => setCreateDialogOpen(true)} />

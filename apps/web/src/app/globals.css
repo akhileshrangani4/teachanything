@@ -4,11 +4,11 @@
 
 @layer base {
   :root {
-    /* Backgrounds - Clean white and light gray */
-    --background: 0 0% 100%;
+    /* Backgrounds - Warm off-white */
+    --background: 40 20% 98%;
     --foreground: 220 26% 11%;
 
-    /* Cards - White with subtle shadows */
+    /* Cards - White with warmth */
     --card: 0 0% 100%;
     --card-foreground: 220 26% 11%;
 
@@ -24,8 +24,8 @@
     --secondary: 210 20% 98%;
     --secondary-foreground: 220 26% 11%;
 
-    /* Muted - Gray for subtle elements */
-    --muted: 210 20% 98%;
+    /* Muted - Warm gray for subtle elements */
+    --muted: 40 15% 95%;
     --muted-foreground: 220 13% 34%;
 
     /* Accent - Green variations */
@@ -36,9 +36,9 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders and inputs - Light gray */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    /* Borders and inputs - Warm gray */
+    --border: 40 10% 88%;
+    --input: 40 10% 88%;
     --ring: 142 72% 29%;
 
     /* Border radius - Slightly larger for modern look */
@@ -50,14 +50,16 @@
     --chart-3: 173 58% 39%;
     --chart-4: 197 37% 24%;
     --chart-5: 142 64% 24%;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Sidebar - Light green-tinted */
+    --sidebar-background: 140 20% 96%;
+    --sidebar-foreground: 220 26% 14%;
+    --sidebar-primary: 142 72% 29%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 140 25% 92%;
+    --sidebar-accent-foreground: 220 26% 14%;
+    --sidebar-border: 140 12% 88%;
+    --sidebar-ring: 142 72% 29%;
   }
 
   .dark {
@@ -177,6 +179,35 @@
     right: 0.75rem !important;
     top: 0.75rem !important;
     transform: none !important;
+  }
+}
+
+@layer utilities {
+  .card-hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.07),
+      0 2px 4px -2px rgb(0 0 0 / 0.05);
+  }
+
+  .bg-noise {
+    position: relative;
+  }
+
+  .bg-noise::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.03;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
   }
 }
 

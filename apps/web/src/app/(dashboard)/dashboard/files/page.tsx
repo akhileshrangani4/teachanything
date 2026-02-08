@@ -13,6 +13,7 @@ import { PaginationControls } from "@/components/dashboard/files/PaginationContr
 import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { Button } from "@/components/ui/button";
+import { FileTableSkeleton } from "@/components/ui/skeletons";
 import { Trash2 } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 
@@ -233,10 +234,10 @@ export default function FilesPage() {
   const showInlineLoading = isFetching && !filesLoading;
 
   return (
-    <div className="flex-1 p-8 bg-gradient-to-b from-background to-muted/20">
+    <div className="flex-1 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
               Files
@@ -253,9 +254,9 @@ export default function FilesPage() {
         </div>
 
         {/* Upload Section */}
-        <Card className="border-2">
+        <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
               <div>
                 <h2 className="text-xl font-semibold">Upload Files</h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -270,17 +271,18 @@ export default function FilesPage() {
 
         {/* Display all files */}
         {showFullLoading ? (
-          <div className="text-center py-16">
-            <div className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-muted-foreground">Loading files...</p>
-          </div>
+          <Card>
+            <CardContent className="p-6">
+              <FileTableSkeleton />
+            </CardContent>
+          </Card>
         ) : files.length === 0 && !state.search && !searchInput ? (
           <EmptyFilesState />
         ) : (
           <Card>
             <CardContent className="p-6">
               <div className="space-y-4">
-                <div className="flex items-center gap-4 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                   <TableToolbar
                     searchValue={searchInput}
                     onSearchChange={actions.setSearch}
@@ -288,7 +290,7 @@ export default function FilesPage() {
                     isLoading={showInlineLoading}
                     className="mb-0 flex-1"
                   />
-                  <div className="flex items-center gap-4 ml-auto">
+                  <div className="flex items-center gap-4 sm:ml-auto">
                     {selectedFiles.size > 0 && (
                       <Button
                         size="sm"

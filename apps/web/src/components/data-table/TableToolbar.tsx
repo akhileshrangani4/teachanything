@@ -36,9 +36,9 @@ export function TableToolbar({
 }: TableToolbarProps) {
   return (
     <div
-      className={cn("flex items-center justify-between gap-4 mb-4", className)}
+      className={cn("flex flex-col sm:flex-row sm:items-center gap-3 mb-4", className)}
     >
-      <div className="relative w-full max-w-sm">
+      <div className="relative w-full sm:max-w-sm">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center">
           {isLoading ? (
             <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />

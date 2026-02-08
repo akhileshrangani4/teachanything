@@ -18,6 +18,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { RouterOutputs } from "@/lib/trpc";
 
 type MessageData = RouterOutputs["analytics"]["getTotalMessagesPerMonth"];
@@ -29,6 +30,16 @@ interface MessagesChartProps {
   onPreviousPeriod: () => void;
   onNextPeriod: () => void;
 }
+
+// Recharts requires CSS color strings (not Tailwind classes) for SVG attributes.
+// Extract theme tokens so they're referenced in one place.
+const chartColors = {
+  grid: "hsl(var(--muted))",
+  tick: "hsl(var(--muted-foreground))",
+  card: "hsl(var(--card))",
+  border: "hsl(var(--border))",
+  primary: "hsl(var(--primary))",
+} as const;
 
 export function MessagesChart({
   data,
@@ -68,11 +79,11 @@ export function MessagesChart({
       new Date(data.accountCreatedAt).getTime();
 
   return (
-    <Card className="border-2">
+    <Card className="border border-border/60 shadow-sm">
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <CardTitle className="text-xl font-semibold">
+            <CardTitle className="text-lg sm:text-xl font-semibold">
               Messages Sent Over Time
             </CardTitle>
             <CardDescription className="text-base">
@@ -108,14 +119,22 @@ export function MessagesChart({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="h-[350px] flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <span className="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="text-muted-foreground">Loading chart data...</p>
-            </div>
+          <div className="h-[250px] sm:h-[350px] flex items-end gap-3 px-4 pb-6 pt-4">
+            <Skeleton className="h-[40%] flex-1 rounded" />
+            <Skeleton className="h-[65%] flex-1 rounded" />
+            <Skeleton className="h-[45%] flex-1 rounded" />
+            <Skeleton className="h-[80%] flex-1 rounded" />
+            <Skeleton className="h-[55%] flex-1 rounded" />
+            <Skeleton className="h-[70%] flex-1 rounded" />
+            <Skeleton className="h-[35%] flex-1 rounded" />
+            <Skeleton className="h-[60%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[50%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[75%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[45%] flex-1 rounded" />
+            <Skeleton className="hidden sm:block h-[85%] flex-1 rounded" />
           </div>
         ) : chartData.length === 0 ? (
-          <div className="h-[350px] flex items-center justify-center border-2 border-dashed border-muted rounded-lg">
+          <div className="h-[250px] sm:h-[350px] flex items-center justify-center border border-dashed border-muted rounded-lg">
             <div className="text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
               <p className="text-muted-foreground font-medium">
@@ -127,46 +146,54 @@ export function MessagesChart({
             </div>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={350}>
+          <div className="h-[250px] sm:h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
-              margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+              margin={{ top: 5, right: 16, left: -10, bottom: 5 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="hsl(var(--muted))"
+                stroke={chartColors.grid}
                 opacity={0.3}
+                vertical={false}
               />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                stroke="hsl(var(--border))"
+                tick={{ fontSize: 11, fill: chartColors.tick }}
+                tickLine={false}
+                axisLine={false}
+                dy={8}
+                interval="preserveStartEnd"
               />
               <YAxis
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                stroke="hsl(var(--border))"
+                tick={{ fontSize: 11, fill: chartColors.tick }}
+                tickLine={false}
+                axisLine={false}
+                allowDecimals={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: chartColors.card,
+                  border: `1px solid ${chartColors.border}`,
                   borderRadius: "8px",
                   boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  fontSize: "13px",
+                  padding: "8px 12px",
                 }}
+                cursor={{ stroke: chartColors.border, strokeWidth: 1 }}
               />
               <Line
                 type="monotone"
                 dataKey="messages"
-                stroke="hsl(var(--primary))"
-                strokeWidth={3}
-                dot={{ r: 5, fill: "hsl(var(--primary))" }}
-                activeDot={{ r: 7 }}
+                stroke={chartColors.primary}
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, fill: chartColors.primary, strokeWidth: 2, stroke: chartColors.card }}
               />
             </LineChart>
           </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>
