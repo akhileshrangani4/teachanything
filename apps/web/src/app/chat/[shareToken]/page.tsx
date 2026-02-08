@@ -85,6 +85,7 @@ export default function SharedChatPage() {
         resetChat={resetChat}
         stopStreaming={stopStreaming}
         height="flex-1 min-h-0"
+        showFrame={false}
         showSources={chatbot.showSources ?? false}
         brandingText="Powered by Teach anything"
       />

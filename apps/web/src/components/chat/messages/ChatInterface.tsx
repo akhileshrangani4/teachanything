@@ -25,6 +25,7 @@ interface ChatInterfaceProps {
   height?: string;
   hideHeader?: boolean;
   embedMode?: boolean;
+  showFrame?: boolean;
   showSources?: boolean;
   brandingText?: string;
 }
@@ -43,12 +44,13 @@ export function ChatInterface({
   height = "h-[600px]",
   hideHeader = false,
   embedMode = false,
+  showFrame,
   showSources = false,
   brandingText,
 }: ChatInterfaceProps) {
   return (
     <div
-      className={`flex flex-col ${height} ${embedMode ? "" : "border rounded-lg"} bg-background overflow-hidden`}
+      className={`flex flex-col ${height} ${(showFrame ?? !embedMode) ? "border rounded-lg" : ""} bg-background overflow-hidden`}
       style={{
         height: height === "h-full" ? "100%" : undefined,
         maxHeight: "100%",
