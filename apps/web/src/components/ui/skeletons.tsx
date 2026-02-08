@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function DashboardShellSkeleton() {
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="h-dvh bg-background flex flex-col overflow-hidden">
       <div className="h-14 border-b border-border bg-card px-4 flex items-center gap-4">
         <Skeleton className="h-8 w-32" />
         <div className="ml-auto flex items-center gap-3">

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/akhileshrangani4/teachanything/compare/v1.6.0...v1.6.1) (2026-02-08)
+
+
+### Bug Fixes
+
+* **layout:** use h-dvh instead of h-screen for mobile viewport ([#112](https://github.com/akhileshrangani4/teachanything/issues/112)) ([4bbb71c](https://github.com/akhileshrangani4/teachanything/commit/4bbb71c3c477899b3ecdabe2d4bcd6c758647ba0))
+
 ## [1.6.0](https://github.com/akhileshrangani4/teachanything/compare/v1.5.3...v1.6.0) (2026-02-08)
 
 
