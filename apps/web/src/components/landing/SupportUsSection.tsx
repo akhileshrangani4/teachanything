@@ -9,6 +9,12 @@ import Image from "next/image";
 
 const FEATURED_IN = [
   {
+    name: "New York Times",
+    url: "/assets/press/nyt-article.pdf",
+    logo: "/assets/logos/nyt-logo.png",
+    alt: "The New York Times logo - Link to article about AI in education",
+  },
+  {
     name: "JSTOR",
     url: "https://about.jstor.org/blog/fostering-trust-in-ai/",
     logo: "/assets/logos/jstor-logo.svg",
@@ -55,6 +61,18 @@ const FEATURED_IN = [
     url: "https://youtu.be/Sl2wkXK9llk?si=mZfGAEO-eYMx9wvR",
     logo: "/assets/logos/fulbright-logo.png",
     alt: "Fulbright logo - Link to presentation about open-access AI",
+  },
+  {
+    name: "GW Today",
+    url: "https://gwtoday.gwu.edu/ai-action-faculty-experiment-tech-teaching-tools",
+    logo: "/assets/logos/gw-today-logo.png",
+    alt: "GW Today logo - Link to article about faculty experimenting with AI teaching tools",
+  },
+  {
+    name: "Higher Ed Dive",
+    url: "https://www.highereddive.com/news/google-ai-initiative-texas-am/807899/",
+    logo: "/assets/logos/higher-ed-logo.svg",
+    alt: "Higher Ed Dive logo - Link to article about Google AI initiative",
   },
 ];
 
@@ -159,14 +177,14 @@ export default function SupportUsSection() {
             <h3 className="text-2xl md:text-3xl font-serif font-light text-foreground mb-8">
               Our open-access project has been featured in
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 items-center justify-items-center max-w-3xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-8 max-w-3xl mx-auto">
               {FEATURED_IN.map((feature, index) => (
                 <motion.a
                   key={feature.name}
                   href={feature.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100"
+                  className="grayscale hover:grayscale-0 transition-[filter] duration-200 will-change-[filter,transform]"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 0.6, y: 0 }}
                   viewport={{ once: true, margin: "-100px" }}
@@ -174,7 +192,7 @@ export default function SupportUsSection() {
                   whileHover={{
                     scale: 1.1,
                     opacity: 1,
-                    transition: { duration: 0.2 },
+                    transition: { duration: 0.15 },
                   }}
                 >
                   <Image
