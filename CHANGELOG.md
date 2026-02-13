@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/akhileshrangani4/teachanything/compare/v1.9.0...v1.9.1) (2026-02-13)
+
+
+### Miscellaneous Chores
+
+* add more featured links ([#122](https://github.com/akhileshrangani4/teachanything/issues/122)) ([cf22d69](https://github.com/akhileshrangani4/teachanything/commit/cf22d69c5e6f619fc16859832b969a2a11aabcc8))
+
 ## [1.9.0](https://github.com/akhileshrangani4/teachanything/compare/v1.8.0...v1.9.0) (2026-02-08)
 
 
