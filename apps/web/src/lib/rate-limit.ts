@@ -72,6 +72,15 @@ export const authenticatedChatRateLimit = new Ratelimit({
   prefix: "@ratelimit/authenticated-chat",
 });
 
+// Rate limiter for password reset requests
+// 2 requests per 2 minutes per email (prevents email bombing)
+export const passwordResetRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(2, "120 s"),
+  analytics: true,
+  prefix: "@ratelimit/password-reset",
+});
+
 // Rate limiter for admin actions
 // 20 actions per minute per admin (prevents abuse)
 export const adminActionRateLimit = new Ratelimit({
