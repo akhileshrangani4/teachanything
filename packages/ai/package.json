@@ -20,7 +20,7 @@
     "langchain": "^1.2.24",
     "mammoth": "^1.8.0",
     "nanoid": "^5.0.9",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
