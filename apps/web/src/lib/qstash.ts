@@ -2,6 +2,7 @@ import { Client, Receiver } from "@upstash/qstash";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
 
+
 // Create QStash client
 export const qstash = new Client({
   token: env.QSTASH_TOKEN,
@@ -52,7 +53,7 @@ export async function publishEmailJob(params: {
 }): Promise<{ messageId: string }> {
   try {
     const result = await qstash.publishJSON({
-      url: `${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/send-email`,
+      url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/send-email`,
       body: params.body,
       retries: 5,
       headers: {

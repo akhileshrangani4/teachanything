@@ -31,6 +31,8 @@ const STATUS_PRIORITY: Record<string, number> = {
   delivered: 3,
 };
 
+// "failed" is set by the QStash job endpoint, not by Resend webhooks,
+// but we still treat it as terminal to prevent webhooks from overwriting it.
 const TERMINAL_STATUSES = new Set(["bounced", "complained", "failed"]);
 
 const EVENT_TO_STATUS: Record<string, string> = {
