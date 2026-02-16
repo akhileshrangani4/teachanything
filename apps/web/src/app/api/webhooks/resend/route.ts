@@ -62,6 +62,9 @@ function verifyWebhookSignature(
 
   // Check timestamp is within tolerance (replay protection)
   const timestampSeconds = parseInt(timestamp, 10);
+  if (Number.isNaN(timestampSeconds)) {
+    return false;
+  }
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - timestampSeconds) > WEBHOOK_TOLERANCE_SECONDS) {
     return false;

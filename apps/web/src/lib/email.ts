@@ -60,32 +60,47 @@ async function queueEmail(params: {
   const deliveryId = rows[0]!.id;
 
   // Publish to QStash
-  const { messageId } = await publishEmailJob({
-    body: {
+  try {
+    const { messageId } = await publishEmailJob({
+      body: {
+        deliveryId,
+        idempotencyKey,
+        from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
+        to: params.to,
+        subject: params.subject,
+        html,
+        ...(params.replyTo && { replyTo: params.replyTo }),
+      },
+    });
+
+    // Store QStash message ID for correlation
+    await db
+      .update(emailDeliveries)
+      .set({ qstashMessageId: messageId, updatedAt: new Date() })
+      .where(eq(emailDeliveries.id, deliveryId));
+
+    logInfo("Email queued for delivery", {
       deliveryId,
-      idempotencyKey,
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.to,
-      subject: params.subject,
-      html,
-      ...(params.replyTo && { replyTo: params.replyTo }),
-    },
-  });
+      emailType: params.emailType,
+      recipientEmail,
+      qstashMessageId: messageId,
+    });
 
-  // Store QStash message ID for correlation
-  await db
-    .update(emailDeliveries)
-    .set({ qstashMessageId: messageId })
-    .where(eq(emailDeliveries.id, deliveryId));
+    return { deliveryId };
+  } catch (error) {
+    // Mark delivery as failed so it doesn't stay stuck in "queued"
+    await db
+      .update(emailDeliveries)
+      .set({
+        deliveryStatus: "failed",
+        errorMessage:
+          error instanceof Error ? error.message : "Failed to publish to QStash",
+        updatedAt: new Date(),
+      })
+      .where(eq(emailDeliveries.id, deliveryId));
 
-  logInfo("Email queued for delivery", {
-    deliveryId,
-    emailType: params.emailType,
-    recipientEmail,
-    qstashMessageId: messageId,
-  });
-
-  return { deliveryId };
+    throw error;
+  }
 }
 
 /**
