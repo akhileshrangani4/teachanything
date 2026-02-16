@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.2](https://github.com/akhileshrangani4/teachanything/compare/v1.10.1...v1.10.2) (2026-02-16)
+
+
+### Documentation
+
+* add CONTRIBUTING.md to guide new contributors ([#138](https://github.com/akhileshrangani4/teachanything/issues/138)) ([7653abe](https://github.com/akhileshrangani4/teachanything/commit/7653abe440a35e5c8956113c221ab75d5765293b))
+
 ## [1.10.1](https://github.com/akhileshrangani4/teachanything/compare/v1.10.0...v1.10.1) (2026-02-16)
 
 
