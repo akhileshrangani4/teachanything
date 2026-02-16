@@ -20,10 +20,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.text();
-    const requestUrl = new URL(req.url);
-    requestUrl.search = "";
-    const url = requestUrl.toString();
-    const isValid = await verifyQStashSignature(signature, body, url);
+    // Use NEXT_PUBLIC_APP_URL as the base for verification because QStash signs
+    // the destination URL it was given (e.g., ngrok URL), which differs from
+    // req.url in local dev (localhost:3000).
+    const verificationUrl = `${env.NEXT_PUBLIC_APP_URL}/api/jobs/send-email`;
+    const isValid = await verifyQStashSignature(signature, body, verificationUrl);
 
     if (!isValid) {
       logError(
