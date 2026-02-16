@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.10.0](https://github.com/akhileshrangani4/teachanything/compare/v1.9.1...v1.10.0) (2026-02-16)
+
+
+### Features
+
+* **email:** route all emails through QStash with delivery tracking ([#134](https://github.com/akhileshrangani4/teachanything/issues/134)) ([ebf87ef](https://github.com/akhileshrangani4/teachanything/commit/ebf87ef5859ce256e78b3aac711666039999d8ab))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump @langchain/community from 1.1.4 to 1.1.14 ([#121](https://github.com/akhileshrangani4/teachanything/issues/121)) ([5207191](https://github.com/akhileshrangani4/teachanything/commit/5207191dc885e3c7dc932deb704c12f1d0f4af74))
+* **deps:** bump @supabase/supabase-js from 2.90.1 to 2.91.0 in the supabase group ([#101](https://github.com/akhileshrangani4/teachanything/issues/101)) ([e8d6aa3](https://github.com/akhileshrangani4/teachanything/commit/e8d6aa30a005476c51668116c4ee96ec75725f41))
+* **deps:** bump @tanstack/react-query from 5.90.19 to 5.90.20 in the tanstack group ([#100](https://github.com/akhileshrangani4/teachanything/issues/100)) ([52dc815](https://github.com/akhileshrangani4/teachanything/commit/52dc815cba504390872dbc8617e6fe00cd15f2b6))
+* **deps:** bump the ai-sdk group with 2 updates ([#96](https://github.com/akhileshrangani4/teachanything/issues/96)) ([5c7a893](https://github.com/akhileshrangani4/teachanything/commit/5c7a893f16e7a26d5c813f90c2ee39209bc6395d))
+* **deps:** bump the next group across 1 directory with 2 updates ([#106](https://github.com/akhileshrangani4/teachanything/issues/106)) ([34986e4](https://github.com/akhileshrangani4/teachanything/commit/34986e497af11f3135128ca0bbc1c425e444b7b1))
+
 ## [1.9.1](https://github.com/akhileshrangani4/teachanything/compare/v1.9.0...v1.9.1) (2026-02-13)
 
 

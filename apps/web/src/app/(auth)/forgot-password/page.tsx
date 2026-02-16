@@ -12,31 +12,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+
+const COOLDOWN_SECONDS = 60;
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const requestReset = useCallback(async (emailAddress: string) => {
     setLoading(true);
 
     try {
-      // Use Better Auth's forgetPassword method for consistency with other auth operations
-      // Note: TypeScript types may not expose this method, but it maps to POST /request-password-reset
       const { error: resetError } = await authClient.$fetch<{
         status: boolean;
       }>("/request-password-reset", {
         method: "POST",
         body: {
-          email,
+          email: emailAddress,
           redirectTo: "/reset-password",
         },
       });
@@ -46,14 +52,10 @@ export default function ForgotPasswordPage() {
         toast.error("Error", {
           description: resetError.message || "Failed to send reset email",
         });
-      } else {
-        // Always show success to prevent email enumeration attacks
-        // Even if user doesn't exist, we don't reveal that information
-        setSuccess(true);
-        toast.success("Request submitted!", {
-          description: "If an account exists, you'll receive a reset link",
-        });
+        return false;
       }
+
+      return true;
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error
@@ -63,8 +65,35 @@ export default function ForgotPasswordPage() {
       toast.error("Error", {
         description: errorMessage,
       });
+      return false;
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    const sent = await requestReset(email);
+    if (sent) {
+      setSuccess(true);
+      setCooldown(COOLDOWN_SECONDS);
+      toast.success("Request submitted!", {
+        description: "If an account exists, you'll receive a reset link",
+      });
+    }
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0 || loading) return;
+
+    const sent = await requestReset(email);
+    if (sent) {
+      setCooldown(COOLDOWN_SECONDS);
+      toast.success("New reset link sent!", {
+        description: "Check your inbox for the new link",
+      });
     }
   };
 
@@ -88,17 +117,33 @@ export default function ForgotPasswordPage() {
               Click the link in the email to reset your password. The link will
               expire in 1 hour.
             </p>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                Didn&apos;t receive the email? Check your spam folder or
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResend}
+                disabled={cooldown > 0 || loading}
+              >
+                {loading
+                  ? "Sending..."
+                  : cooldown > 0
+                    ? `Resend available in ${cooldown}s`
+                    : "Resend reset link"}
+              </Button>
+            </div>
             <p className="text-sm text-muted-foreground text-center">
-              Didn&apos;t receive the email? Check your spam folder, verify the
-              email address is correct, or{" "}
               <button
                 onClick={() => {
                   setSuccess(false);
                   setEmail("");
+                  setCooldown(0);
                 }}
                 className="text-primary hover:underline"
               >
-                try again
+                Try with a different email address
               </button>
             </p>
             <div className="pt-2">

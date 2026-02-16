@@ -2,6 +2,7 @@ import { Client, Receiver } from "@upstash/qstash";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
 
+
 // Create QStash client
 export const qstash = new Client({
   token: env.QSTASH_TOKEN,
@@ -40,6 +41,33 @@ export async function publishQStashJob(params: {
     logError(error, "Failed to publish QStash job", {
       url: params.url,
     });
+    throw error;
+  }
+}
+
+/**
+ * Publish an email job to QStash with more retries than standard jobs
+ */
+export async function publishEmailJob(params: {
+  body: Record<string, unknown>;
+}): Promise<{ messageId: string }> {
+  try {
+    const result = await qstash.publishJSON({
+      url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/send-email`,
+      body: params.body,
+      retries: 5,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    logInfo("Email job published to QStash", {
+      messageId: result.messageId,
+    });
+
+    return { messageId: result.messageId };
+  } catch (error) {
+    logError(error, "Failed to publish email job to QStash");
     throw error;
   }
 }

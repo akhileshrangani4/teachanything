@@ -10,6 +10,7 @@ import {
   sendRejectionEmail,
   sendPasswordResetEmail,
 } from "./email";
+import { passwordResetRateLimit, checkRateLimit } from "./rate-limit";
 import { eq } from "drizzle-orm";
 import * as bcrypt from "bcryptjs";
 
@@ -48,8 +49,23 @@ export const auth = betterAuth({
      * to determine whether an email address exists in our system (valid emails
      * would take longer due to the email send). By returning immediately
      * regardless of email validity, response times remain consistent.
+     *
+     * Rate limiting is checked but failures are not surfaced to the caller
+     * to maintain consistent timing regardless of rate limit state.
      */
     sendResetPassword: async ({ user, url }) => {
+      // Rate limit by email address to prevent email bombing
+      const { success } = await checkRateLimit(
+        passwordResetRateLimit,
+        user.email,
+        { email: user.email, endpoint: "sendResetPassword" },
+      );
+
+      if (!success) {
+        // Don't send but also don't reveal rate limiting to prevent enumeration
+        return;
+      }
+
       void sendPasswordResetEmail({
         email: user.email,
         name: user.name || "User",

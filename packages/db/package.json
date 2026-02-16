@@ -16,7 +16,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.90.1",
+    "@supabase/supabase-js": "^2.95.2",
     "drizzle-orm": "^0.45.1",
     "postgres": "^3.4.5"
   },

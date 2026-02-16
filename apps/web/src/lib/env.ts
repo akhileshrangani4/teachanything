@@ -26,6 +26,7 @@ const envSchema = z.object({
   // Resend
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
+  RESEND_WEBHOOK_SECRET: z.string().min(1),
 
   // Upstash Redis
   UPSTASH_REDIS_REST_URL: z.string().url(),

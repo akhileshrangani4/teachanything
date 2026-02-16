@@ -1,0 +1,1 @@
+CREATE INDEX "email_deliveries_resend_message_id_idx" ON "email_deliveries" USING btree ("resend_message_id");

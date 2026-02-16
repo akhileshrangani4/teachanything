@@ -8,6 +8,7 @@ import {
   integer,
   boolean,
   pgEnum,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -23,6 +24,28 @@ export const processingStatusEnum = pgEnum("processing_status", [
   "processing",
   "completed",
   "failed",
+]);
+
+export const emailDeliveryStatusEnum = pgEnum("email_delivery_status", [
+  "queued",
+  "sent",
+  "delivered",
+  "delayed",
+  "bounced",
+  "complained",
+  "failed",
+]);
+
+export const emailTypeEnum = pgEnum("email_type", [
+  "admin_notification",
+  "approval",
+  "rejection",
+  "promote_admin",
+  "demote_admin",
+  "account_disabled",
+  "account_enabled",
+  "account_deleted",
+  "password_reset",
 ]);
 
 // Better Auth: Users table
@@ -294,6 +317,29 @@ export const analytics = pgTable("analytics", {
   sessionId: text("session_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Email delivery tracking table
+export const emailDeliveries = pgTable(
+  "email_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    emailType: emailTypeEnum("email_type").notNull(),
+    recipientEmail: text("recipient_email").notNull(),
+    subject: text("subject").notNull(),
+    idempotencyKey: text("idempotency_key").notNull().unique(),
+    resendMessageId: text("resend_message_id"),
+    qstashMessageId: text("qstash_message_id"),
+    deliveryStatus: emailDeliveryStatusEnum("delivery_status")
+      .default("queued")
+      .notNull(),
+    errorMessage: text("error_message"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+    lastEventAt: timestamp("last_event_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("email_deliveries_resend_message_id_idx").on(table.resendMessageId)],
+);
 
 // Relations
 export const userRelations = relations(user, ({ many }) => ({

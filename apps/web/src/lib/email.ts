@@ -1,6 +1,7 @@
-import { Resend } from "resend";
+import { render } from "@react-email/render";
 import { env, getAdminEmails } from "./env";
 import { logInfo, logError } from "./logger";
+import { publishEmailJob } from "./qstash";
 import { UserRegistrationNotification } from "@/components/emails/UserRegistrationNotification";
 import { ApprovalConfirmation } from "@/components/emails/ApprovalConfirmation";
 import { RejectionNotification } from "@/components/emails/RejectionNotification";
@@ -11,8 +12,13 @@ import { AccountEnabled } from "@/components/emails/AccountEnabled";
 import { AccountDeleted } from "@/components/emails/AccountDeleted";
 import { PasswordReset } from "@/components/emails/PasswordReset";
 import { db } from "@teachanything/db";
-import { user } from "@teachanything/db/schema";
+import {
+  user,
+  emailDeliveries,
+  type emailTypeEnum,
+} from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
+import { randomUUID } from "crypto";
 
 // Support email - computed once at module load
 const supportEmail =
@@ -20,11 +26,86 @@ const supportEmail =
   getAdminEmails()[0] ||
   "no admin email found";
 
-const resend = new Resend(env.RESEND_API_KEY);
+type EmailType = (typeof emailTypeEnum.enumValues)[number];
 
 /**
- * Get admin emails from the database
- * Falls back to environment variable if no admins found in database (for initial setup)
+ * Queue an email for delivery via QStash.
+ * Creates a delivery tracking record and publishes the job.
+ */
+async function queueEmail(params: {
+  emailType: EmailType;
+  to: string | string[];
+  subject: string;
+  reactComponent: React.ReactElement;
+  replyTo?: string;
+}): Promise<{ deliveryId: string }> {
+  const idempotencyKey = randomUUID();
+  const html = await render(params.reactComponent);
+  const recipientEmail = Array.isArray(params.to)
+    ? params.to.join(", ")
+    : params.to;
+
+  // Create delivery tracking record
+  const rows = await db
+    .insert(emailDeliveries)
+    .values({
+      emailType: params.emailType,
+      recipientEmail,
+      subject: params.subject,
+      idempotencyKey,
+      deliveryStatus: "queued",
+    })
+    .returning({ id: emailDeliveries.id });
+
+  const deliveryId = rows[0]!.id;
+
+  // Publish to QStash
+  try {
+    const { messageId } = await publishEmailJob({
+      body: {
+        deliveryId,
+        idempotencyKey,
+        from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
+        to: params.to,
+        subject: params.subject,
+        html,
+        ...(params.replyTo && { replyTo: params.replyTo }),
+      },
+    });
+
+    // Store QStash message ID for correlation
+    await db
+      .update(emailDeliveries)
+      .set({ qstashMessageId: messageId, updatedAt: new Date() })
+      .where(eq(emailDeliveries.id, deliveryId));
+
+    logInfo("Email queued for delivery", {
+      deliveryId,
+      emailType: params.emailType,
+      recipientEmail,
+      qstashMessageId: messageId,
+    });
+
+    return { deliveryId };
+  } catch (error) {
+    // Mark delivery as failed so it doesn't stay stuck in "queued"
+    await db
+      .update(emailDeliveries)
+      .set({
+        deliveryStatus: "failed",
+        errorMessage:
+          error instanceof Error ? error.message : "Failed to publish to QStash",
+        updatedAt: new Date(),
+      })
+      .where(eq(emailDeliveries.id, deliveryId));
+
+    throw error;
+  }
+}
+
+/**
+ * Get admin emails from the database.
+ * Falls back to environment variable if no admins found in database (for initial setup).
  */
 async function getAdminEmailsFromDatabase(): Promise<string[]> {
   try {
@@ -37,8 +118,6 @@ async function getAdminEmailsFromDatabase(): Promise<string[]> {
       .map((u) => u.email)
       .filter((email): email is string => !!email);
 
-    // If no admins found in database, fall back to environment variable
-    // This is useful for initial setup before any admins are created
     if (adminEmails.length === 0) {
       logInfo(
         "No admins found in database, falling back to ADMIN_EMAILS env variable",
@@ -52,7 +131,6 @@ async function getAdminEmailsFromDatabase(): Promise<string[]> {
       error,
       "Failed to fetch admin emails from database, falling back to env variable",
     );
-    // Fall back to environment variable on error
     return getAdminEmails();
   }
 }
@@ -65,43 +143,21 @@ export async function sendAdminNotificationEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const adminEmails = await getAdminEmailsFromDatabase();
-    const adminUrl = `${env.NEXT_PUBLIC_APP_URL}/admin`;
+  const adminEmails = await getAdminEmailsFromDatabase();
+  const adminUrl = `${env.NEXT_PUBLIC_APP_URL}/admin`;
 
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: adminEmails,
-      subject: "New User Registration - Approval Required",
-      react: UserRegistrationNotification({
-        userName: params.name,
-        userEmail: params.email,
-        registrationDate: new Date().toLocaleString(),
-        adminUrl,
-        supportEmail,
-      }),
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Admin notification email sent", {
-      userId: params.userId,
-      email: params.email,
-      adminEmails,
-      adminCount: adminEmails.length,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send admin notification email", {
-      userId: params.userId,
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "admin_notification",
+    to: adminEmails,
+    subject: "New User Registration - Approval Required",
+    reactComponent: UserRegistrationNotification({
+      userName: params.name,
+      userEmail: params.email,
+      registrationDate: new Date().toLocaleString(),
+      adminUrl,
+      supportEmail,
+    }),
+  });
 }
 
 /**
@@ -111,35 +167,18 @@ export async function sendApprovalEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.email,
-      subject: "Your Account Has Been Approved",
-      react: ApprovalConfirmation({
-        userName: params.name,
-        loginUrl,
-        supportEmail,
-      }),
-    });
+  const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
 
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Approval email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send approval email", {
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "approval",
+    to: params.email,
+    subject: "Your Account Has Been Approved",
+    reactComponent: ApprovalConfirmation({
+      userName: params.name,
+      loginUrl,
+      supportEmail,
+    }),
+  });
 }
 
 /**
@@ -149,33 +188,15 @@ export async function sendRejectionEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.email,
-      subject: "Account Registration Update",
-      react: RejectionNotification({
-        userName: params.name,
-        supportEmail,
-      }),
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Rejection email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send rejection email", {
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "rejection",
+    to: params.email,
+    subject: "Account Registration Update",
+    reactComponent: RejectionNotification({
+      userName: params.name,
+      supportEmail,
+    }),
+  });
 }
 
 /**
@@ -185,35 +206,18 @@ export async function sendPromoteToAdminEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/admin`;
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.email,
-      subject: "Admin Privileges Granted!",
-      react: PromoteToAdmin({
-        userName: params.name,
-        loginUrl,
-        supportEmail,
-      }),
-    });
+  const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/admin`;
 
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Promote to admin email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send promote to admin email", {
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "promote_admin",
+    to: params.email,
+    subject: "Admin Privileges Granted!",
+    reactComponent: PromoteToAdmin({
+      userName: params.name,
+      loginUrl,
+      supportEmail,
+    }),
+  });
 }
 
 /**
@@ -223,35 +227,18 @@ export async function sendDemoteFromAdminEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.email,
-      subject: "Account Role Update",
-      react: DemoteFromAdmin({
-        userName: params.name,
-        loginUrl,
-        supportEmail,
-      }),
-    });
+  const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
 
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Demote from admin email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send demote from admin email", {
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "demote_admin",
+    to: params.email,
+    subject: "Account Role Update",
+    reactComponent: DemoteFromAdmin({
+      userName: params.name,
+      loginUrl,
+      supportEmail,
+    }),
+  });
 }
 
 /**
@@ -261,33 +248,15 @@ export async function sendAccountDisabledEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.email,
-      subject: "Account Access Suspended",
-      react: AccountDisabled({
-        userName: params.name,
-        supportEmail,
-      }),
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Account disabled email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send account disabled email", {
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "account_disabled",
+    to: params.email,
+    subject: "Account Access Suspended",
+    reactComponent: AccountDisabled({
+      userName: params.name,
+      supportEmail,
+    }),
+  });
 }
 
 /**
@@ -297,75 +266,46 @@ export async function sendAccountEnabledEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.email,
-      subject: "Account Re-enabled!",
-      react: AccountEnabled({
-        userName: params.name,
-        loginUrl,
-        supportEmail,
-      }),
-    });
+  const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
 
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Account enabled email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send account enabled email", {
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "account_enabled",
+    to: params.email,
+    subject: "Account Re-enabled!",
+    reactComponent: AccountEnabled({
+      userName: params.name,
+      loginUrl,
+      supportEmail,
+    }),
+  });
 }
 
 /**
- * Send account deleted notification email to user
+ * Send account deleted notification email to user.
+ * Payload is fully self-contained (pre-rendered HTML) so it works
+ * even if the user is deleted from the DB before QStash delivers.
  */
 export async function sendAccountDeletedEmail(params: {
   email: string;
   name: string;
 }) {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
-      to: params.email,
-      subject: "Account Deletion Confirmation",
-      react: AccountDeleted({
-        userName: params.name,
-        supportEmail,
-      }),
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Account deleted email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
-  } catch (error) {
-    logError(error, "Failed to send account deleted email", {
-      email: params.email,
-    });
-    throw error;
-  }
+  return queueEmail({
+    emailType: "account_deleted",
+    to: params.email,
+    subject: "Account Deletion Confirmation",
+    reactComponent: AccountDeleted({
+      userName: params.name,
+      supportEmail,
+    }),
+  });
 }
 
 /**
- * Send password reset email to user
+ * Send password reset email to user.
+ *
+ * Called with `void` in auth.ts to prevent timing attacks.
+ * Errors are caught and logged but not re-thrown, since thrown
+ * errors would become unhandled promise rejections.
  */
 export async function sendPasswordResetEmail(params: {
   email: string;
@@ -373,31 +313,20 @@ export async function sendPasswordResetEmail(params: {
   resetUrl: string;
 }) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
+    return await queueEmail({
+      emailType: "password_reset",
       to: params.email,
       subject: "Reset Your Password",
-      react: PasswordReset({
+      reactComponent: PasswordReset({
         userName: params.name,
         resetUrl: params.resetUrl,
         supportEmail,
       }),
     });
-
-    if (error) {
-      throw error;
-    }
-
-    logInfo("Password reset email sent", {
-      email: params.email,
-      messageId: data?.id,
-    });
-
-    return data;
   } catch (error) {
-    // Log the error but don't re-throw - this function is called with void (not awaited)
+    // Log the error but don't re-throw — this function is called with void (not awaited)
     // in auth.ts to prevent timing attacks, so thrown errors would be unhandled rejections
-    logError(error, "Failed to send password reset email", {
+    logError(error, "Failed to queue password reset email", {
       email: params.email,
     });
   }
