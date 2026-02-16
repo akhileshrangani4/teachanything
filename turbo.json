@@ -41,6 +41,7 @@
         "OPENAI_API_KEY",
         "RESEND_API_KEY",
         "RESEND_FROM_EMAIL",
+        "RESEND_WEBHOOK_SECRET",
         "UPSTASH_REDIS_REST_URL",
         "UPSTASH_REDIS_REST_TOKEN",
         "QSTASH_URL",
