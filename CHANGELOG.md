@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.1](https://github.com/akhileshrangani4/teachanything/compare/v1.10.0...v1.10.1) (2026-02-16)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump the langchain group across 1 directory with 3 updates ([#133](https://github.com/akhileshrangani4/teachanything/issues/133)) ([8a2782e](https://github.com/akhileshrangani4/teachanything/commit/8a2782e58077cb348bd99f88b8376d5a57cd6b04))
+* **deps:** bump the react group across 1 directory with 3 updates ([#105](https://github.com/akhileshrangani4/teachanything/issues/105)) ([121b836](https://github.com/akhileshrangani4/teachanything/commit/121b836a75b250a571d0a5694bc32d29ea4c53e9))
+
 ## [1.10.0](https://github.com/akhileshrangani4/teachanything/compare/v1.9.1...v1.10.0) (2026-02-16)
 
 
