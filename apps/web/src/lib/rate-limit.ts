@@ -89,6 +89,13 @@ export const adminActionRateLimit = createLimiter({
   prefix: "@ratelimit/admin-action",
 });
 
+// Rate limiter for file downloads
+// 30 downloads per minute per user (prevents abuse)
+export const downloadRateLimit = createLimiter({
+  window: [30, "1 m"],
+  prefix: "@ratelimit/download",
+});
+
 /**
  * Check rate limit and log if exceeded.
  * When limiter is null (Redis not configured), returns success as a noop.

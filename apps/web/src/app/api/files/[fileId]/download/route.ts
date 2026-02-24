@@ -6,22 +6,8 @@ import { eq, and } from "drizzle-orm";
 import { createSupabaseClient } from "@/lib/supabase";
 import { isLocalStorageMode, readLocalFile } from "@/lib/local-storage";
 import { logError, logInfo } from "@/lib/logger";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-import { env, isServiceAvailable } from "@/lib/env";
-
-// Rate limit: 30 downloads per minute per user (only when Redis is available)
-const downloadRateLimit = isServiceAvailable("redis")
-  ? new Ratelimit({
-      redis: new Redis({
-        url: env.UPSTASH_REDIS_REST_URL!,
-        token: env.UPSTASH_REDIS_REST_TOKEN!,
-      }),
-      limiter: Ratelimit.slidingWindow(30, "1 m"),
-      analytics: true,
-      prefix: "ratelimit:download",
-    })
-  : null;
+import { downloadRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { env } from "@/lib/env";
 
 /**
  * Secure file download endpoint
@@ -47,24 +33,24 @@ export async function GET(
     }
 
     // Rate limiting (skipped when Redis is not configured)
-    if (downloadRateLimit) {
-      const { success, reset } = await downloadRateLimit.limit(
-        session.user.id,
+    const { success, reset } = await checkRateLimit(
+      downloadRateLimit,
+      session.user.id,
+      { context: "file-download" },
+    );
+    if (!success) {
+      const retryAfter = Math.ceil((reset - Date.now()) / 1000);
+      return NextResponse.json(
+        {
+          error: `Too many downloads. Please try again in ${retryAfter} seconds.`,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": retryAfter.toString(),
+          },
+        },
       );
-      if (!success) {
-        const retryAfter = Math.ceil((reset - Date.now()) / 1000);
-        return NextResponse.json(
-          {
-            error: `Too many downloads. Please try again in ${retryAfter} seconds.`,
-          },
-          {
-            status: 429,
-            headers: {
-              "Retry-After": retryAfter.toString(),
-            },
-          },
-        );
-      }
     }
 
     // Get file record and verify ownership
