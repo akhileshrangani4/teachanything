@@ -121,6 +121,31 @@ refactor/analytics-queries
 - Use strict TypeScript — no `any`
 - Add Zod validation on all tRPC inputs
 - Add ownership checks on protected resources
+- Add tests for new utility/validation logic (see [Testing in AGENTS.md](./AGENTS.md#12-testing))
+
+### Writing Tests
+
+Tests live in `__tests__` directories mirroring the source structure. Name files `<module>.test.ts`.
+
+**Important:** All packages use ESM. Always import Jest globals explicitly:
+
+```typescript
+import { describe, it, expect } from "@jest/globals";
+```
+
+For mocking external deps (Redis, env, database), use `jest.mock()` before dynamic `await import()`:
+
+```typescript
+import { jest, describe, it, expect } from "@jest/globals";
+
+jest.mock("@/lib/env", () => ({
+  env: { NEXT_PUBLIC_MAX_FILE_SIZE_MB: "50" },
+}));
+
+const { myFunction } = await import("@/lib/my-module");
+```
+
+See [AGENTS.md § Testing](./AGENTS.md#12-testing) for the full guide.
 
 ### 4. Run Quality Checks
 
@@ -219,6 +244,7 @@ Before requesting review, verify:
 - [ ] Ownership checks on protected resources
 - [ ] Screenshots attached for visual changes
 - [ ] New dependencies justified in PR description
+- [ ] Tests added for new utility/validation logic
 - [ ] Database migrations generated (`npm run db:generate`) if schema changed
 
 ## Database Changes
