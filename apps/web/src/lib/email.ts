@@ -1,5 +1,5 @@
 import { render } from "@react-email/render";
-import { env, getAdminEmails } from "./env";
+import { env, getAdminEmails, isServiceAvailable } from "./env";
 import { logInfo, logError } from "./logger";
 import { publishEmailJob } from "./qstash";
 import { UserRegistrationNotification } from "@/components/emails/UserRegistrationNotification";
@@ -31,6 +31,9 @@ type EmailType = (typeof emailTypeEnum.enumValues)[number];
 /**
  * Queue an email for delivery via QStash.
  * Creates a delivery tracking record and publishes the job.
+ *
+ * When QStash is not configured (local dev), logs the email to console
+ * and marks delivery as "sent" so downstream code (auth hooks) succeeds.
  */
 async function queueEmail(params: {
   emailType: EmailType;
@@ -44,6 +47,7 @@ async function queueEmail(params: {
   const recipientEmail = Array.isArray(params.to)
     ? params.to.join(", ")
     : params.to;
+  const fromEmail = env.RESEND_FROM_EMAIL || "dev@localhost";
 
   // Create delivery tracking record
   const rows = await db
@@ -59,13 +63,27 @@ async function queueEmail(params: {
 
   const deliveryId = rows[0]!.id;
 
+  // When QStash is not configured, log email and mark as sent
+  if (!isServiceAvailable("qstash")) {
+    console.warn(
+      `[dev] Email (${params.emailType}) → ${recipientEmail}: "${params.subject}"`,
+    );
+
+    await db
+      .update(emailDeliveries)
+      .set({ deliveryStatus: "sent", updatedAt: new Date() })
+      .where(eq(emailDeliveries.id, deliveryId));
+
+    return { deliveryId };
+  }
+
   // Publish to QStash
   try {
     const { messageId } = await publishEmailJob({
       body: {
         deliveryId,
         idempotencyKey,
-        from: `Teach anything. <${env.RESEND_FROM_EMAIL}>`,
+        from: `Teach anything. <${fromEmail}>`,
         to: params.to,
         subject: params.subject,
         html,

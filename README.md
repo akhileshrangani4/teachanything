@@ -29,12 +29,16 @@ Teach Anything is a production-ready platform for creating AI chatbots that answ
 git clone https://github.com/akhileshrangani4/teachanything.git
 cd teachanything
 npm install
-cp apps/web/.env.example apps/web/.env  # Configure environment
+docker compose up -d                     # Start PostgreSQL (port 5433)
+cp apps/web/.env.example apps/web/.env   # Configure environment
 npm run db:push                          # Push database schema
+npm run db:seed                          # Seed demo data (users, chatbots, files)
 npm run dev                              # Start development server
 ```
 
-See [SETUP.md](./SETUP.md) for detailed configuration.
+Visit http://localhost:3000 and login with the credentials printed by `db:seed`.
+
+Only Docker, an [OpenRouter API key](https://openrouter.ai/), and an [OpenAI API key](https://platform.openai.com/) (for embeddings) are required to get started. See [SETUP.md](./SETUP.md) for detailed configuration.
 
 ## Tech Stack
 
@@ -67,16 +71,15 @@ teachanything/
 npm run dev          # Start dev server (port 3000)
 npm run build        # Build all packages
 npm run lint         # Lint codebase
+npm run db:push      # Push schema to database
+npm run db:seed      # Seed demo data
 npm run db:studio    # Open Drizzle Studio
+npm run stop         # Stop PostgreSQL container
 ```
 
 ## Contributing
 
-1. Follow existing code patterns
-2. Keep functions small and type-safe
-3. Run `npm run lint` and `npm run check-types` before committing
-
-See [AGENTS.md](./AGENTS.md) for detailed coding guidelines.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, [SETUP.md](./SETUP.md) for environment configuration, and [AGENTS.md](./AGENTS.md) for coding guidelines.
 
 ## License
 

@@ -1,26 +1,35 @@
 import { Client, Receiver } from "@upstash/qstash";
-import { env } from "./env";
+import { isServiceAvailable, env } from "./env";
 import { logInfo, logError } from "./logger";
 
+// Conditionally create QStash client and receiver
+export const qstash = isServiceAvailable("qstash")
+  ? new Client({ token: env.QSTASH_TOKEN! })
+  : null;
 
-// Create QStash client
-export const qstash = new Client({
-  token: env.QSTASH_TOKEN,
-});
-
-// Create QStash receiver for signature verification
-export const qstashReceiver = new Receiver({
-  currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY,
-  nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY,
-});
+export const qstashReceiver = isServiceAvailable("qstash")
+  ? new Receiver({
+      currentSigningKey: env.QSTASH_CURRENT_SIGNING_KEY!,
+      nextSigningKey: env.QSTASH_NEXT_SIGNING_KEY!,
+    })
+  : null;
 
 /**
- * Publish a QStash job
+ * Publish a QStash job.
+ * When QStash is not configured, logs to console and returns a fake messageId.
  */
 export async function publishQStashJob(params: {
   url: string;
   body: Record<string, unknown>;
 }): Promise<{ messageId: string }> {
+  if (!qstash) {
+    logInfo("[dev] QStash not configured — job skipped", {
+      url: params.url,
+      body: params.body,
+    });
+    return { messageId: `dev-noop-${Date.now()}` };
+  }
+
   try {
     const result = await qstash.publishJSON({
       url: params.url,
@@ -46,11 +55,20 @@ export async function publishQStashJob(params: {
 }
 
 /**
- * Publish an email job to QStash with more retries than standard jobs
+ * Publish an email job to QStash with more retries than standard jobs.
+ * When QStash is not configured, logs to console and returns a fake messageId.
  */
 export async function publishEmailJob(params: {
   body: Record<string, unknown>;
 }): Promise<{ messageId: string }> {
+  if (!qstash) {
+    const { to, subject } = params.body;
+    console.warn(
+      `[dev] Email job skipped (no QStash). To: ${JSON.stringify(to)}, Subject: ${subject}`,
+    );
+    return { messageId: `dev-noop-${Date.now()}` };
+  }
+
   try {
     const result = await qstash.publishJSON({
       url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/send-email`,
@@ -73,13 +91,18 @@ export async function publishEmailJob(params: {
 }
 
 /**
- * Verify QStash signature for incoming requests
+ * Verify QStash signature for incoming requests.
+ * Returns false when receiver is not configured.
  */
 export async function verifyQStashSignature(
   signature: string,
   body: string,
   url: string,
 ): Promise<boolean> {
+  if (!qstashReceiver) {
+    return false;
+  }
+
   try {
     const isValid = await qstashReceiver.verify({
       signature,

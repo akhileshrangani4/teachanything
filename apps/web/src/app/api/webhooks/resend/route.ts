@@ -106,6 +106,14 @@ function verifyWebhookSignature(
 
 export async function POST(req: NextRequest) {
   try {
+    // Guard: Resend webhook secret must be configured
+    if (!env.RESEND_WEBHOOK_SECRET) {
+      return NextResponse.json(
+        { error: "Resend webhook is not configured" },
+        { status: 503 },
+      );
+    }
+
     // Read raw body FIRST — critical for signature verification
     const payload = await req.text();
 

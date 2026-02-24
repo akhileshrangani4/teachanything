@@ -6,7 +6,78 @@ Production-ready AI chatbot platform built with Next.js 16, tRPC, Better Auth, a
 
 ---
 
-## Quick Start
+## Quick Local Setup (5 minutes)
+
+Get the app running locally with just Docker, an OpenRouter API key, and an OpenAI API key.
+
+### What works without external services
+
+| Feature | Requirement |
+|---------|------------|
+| Auth, login, admin panel | Docker only |
+| Chat with AI + RAG | Docker + OpenRouter key + OpenAI key |
+| File upload + processing | Docker + OpenAI key (files stored locally) |
+| Emails | Logged to console (no Resend needed) |
+| Rate limiting | Disabled locally (no Redis needed) |
+| Async file processing | Runs inline in dev (no QStash needed) |
+
+File uploads use a local filesystem fallback (`./uploads/`) when Supabase is not configured.
+
+### 1. Start PostgreSQL
+
+```bash
+docker compose up -d
+```
+
+This starts PostgreSQL on port **5433** (to avoid conflicts with any local PostgreSQL on the default 5432).
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Environment
+
+```bash
+cp apps/web/.env.example apps/web/.env
+```
+
+Edit `apps/web/.env` — set these required values:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/teachanything
+BETTER_AUTH_SECRET=your_random_32_char_secret  # Generate: openssl rand -base64 32
+BETTER_AUTH_URL=http://localhost:3000
+OPENROUTER_API_KEY=sk-or-v1-...               # Get from openrouter.ai
+OPENAI_API_KEY=sk-...                         # Get from platform.openai.com (for embeddings)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+ADMIN_EMAILS=admin@example.com
+```
+
+### 4. Push Schema & Seed Demo Data
+
+```bash
+npm run db:push    # Push schema (auto-enables pgvector)
+npm run db:seed    # Create demo users, chatbots, and files
+```
+
+The seed script creates:
+- **Admin** — email from `ADMIN_EMAILS`, password `admin123`
+- **Professor** (`professor@demo.edu` / `demo123`) — 3 chatbots with sample files in every supported format (PDF, DOCX, TXT, Markdown, JSON, CSV), pre-generated embeddings for RAG
+- **Pending user** (`student@demo.edu` / `demo123`) — for testing the admin approval workflow
+
+### 5. Start Development
+
+```bash
+npm run dev
+```
+
+Visit http://localhost:3000 and login with your seeded admin credentials.
+
+---
+
+## Full Setup (All Services)
 
 ### Prerequisites
 
@@ -46,6 +117,7 @@ BETTER_AUTH_URL=http://localhost:3000
 # Resend Email
 RESEND_API_KEY=re_...
 RESEND_FROM_EMAIL=noreply@yourdomain.com
+RESEND_WEBHOOK_SECRET=whsec_your_webhook_secret
 
 # Upstash QStash (Async Jobs)
 QSTASH_TOKEN=your_qstash_token
@@ -59,7 +131,8 @@ UPSTASH_REDIS_REST_TOKEN=your_redis_token
 
 # Application
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-MAX_FILE_SIZE_MB=10
+NEXT_PUBLIC_MAX_FILE_SIZE_MB=50
+ALLOWED_EMAIL_DOMAINS=.edu,.ac.in,.edu.in
 ADMIN_EMAILS=admin@yourdomain.com
 ```
 
@@ -487,6 +560,9 @@ npm run db:generate       # Generate migrations
 npm run db:setup-extensions  # Enable PostgreSQL extensions (pgvector)
 npm run db:setup-rls      # Disable RLS on file tables (run after migrations)
 npm run db:studio         # Open Drizzle Studio
+
+# Infrastructure
+npm run stop             # Stop PostgreSQL container
 
 # Linting
 npm run lint

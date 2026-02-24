@@ -1,0 +1,21 @@
+student_id,student_name,problem_set_1,problem_set_2,problem_set_3,problem_set_4,midterm,problem_set_5,problem_set_6,final_exam,total_grade,letter_grade
+STU001,Alice Chen,95,88,92,90,87,94,91,89,90.8,A-
+STU002,Bob Williams,78,82,75,80,72,77,81,74,77.4,C+
+STU003,Carol Davis,100,98,95,97,94,99,96,92,96.4,A
+STU004,David Kim,85,79,88,82,78,84,86,80,82.8,B
+STU005,Eva Martinez,92,90,87,91,89,93,88,91,90.1,A-
+STU006,Frank Johnson,65,70,72,68,60,66,71,58,66.3,D
+STU007,Grace Lee,88,91,94,89,85,90,92,87,89.5,B+
+STU008,Henry Brown,76,74,71,78,69,73,75,72,73.5,C
+STU009,Iris Patel,97,95,93,96,91,98,94,95,94.9,A
+STU010,Jack Thompson,83,80,86,81,77,82,84,79,81.5,B-
+STU011,Kate Wilson,90,87,89,92,84,88,90,86,88.3,B+
+STU012,Liam Garcia,72,68,74,70,65,71,69,63,69.0,D+
+STU013,Mia Anderson,94,96,91,93,90,95,93,88,92.5,A-
+STU014,Noah Taylor,81,78,83,79,75,80,82,76,79.3,C+
+STU015,Olivia White,98,99,97,95,93,97,98,96,96.6,A
+STU016,Peter Robinson,86,84,80,87,82,85,83,81,83.5,B
+STU017,Quinn Harris,70,73,69,75,67,72,74,70,71.3,C-
+STU018,Rachel Clark,93,91,95,89,88,92,90,87,90.6,A-
+STU019,Sam Lewis,77,75,79,76,71,78,76,73,75.6,C
+STU020,Tina Walker,89,92,90,88,86,91,87,85,88.5,B+

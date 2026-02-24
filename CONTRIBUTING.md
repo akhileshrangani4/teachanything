@@ -10,7 +10,7 @@ Thanks for your interest in contributing! This guide covers setup and workflow e
 
 - Node.js >= 20
 - npm
-- PostgreSQL (via Supabase or Docker)
+- Docker (for PostgreSQL)
 
 ### 1. Clone and Install
 
@@ -20,27 +20,41 @@ cd teachanything
 npm install
 ```
 
-### 2. Configure Environment
+### 2. Start PostgreSQL
+
+```bash
+docker compose up -d
+```
+
+### 3. Configure Environment
 
 ```bash
 cp apps/web/.env.example apps/web/.env
 ```
 
-See [SETUP.md](./SETUP.md) for detailed environment variable configuration.
+Edit `apps/web/.env` and add your API keys:
 
-### 3. Set Up Database
+- `OPENROUTER_API_KEY` — get from [openrouter.ai](https://openrouter.ai/)
+- `OPENAI_API_KEY` — get from [platform.openai.com](https://platform.openai.com/) (required for embeddings/RAG)
+
+The other required values (DATABASE_URL, BETTER_AUTH_SECRET, etc.) already have working defaults for local Docker. See [SETUP.md](./SETUP.md) for details.
+
+### 4. Set Up Database & Seed Demo Data
 
 ```bash
-npm run db:push
+npm run db:push    # Push schema (auto-enables pgvector)
+npm run db:seed    # Create demo users, chatbots, and files
 ```
 
-### 4. Start Development Server
+The seed creates an admin, a professor with 3 chatbots and 6 sample files (PDF, DOCX, TXT, MD, JSON, CSV), and a pending user for testing the approval workflow. Credentials are printed to the console.
+
+### 5. Start Development Server
 
 ```bash
 npm run dev
 ```
 
-The app will be available at http://localhost:3000.
+Visit http://localhost:3000 and login with the credentials printed by `db:seed`.
 
 ## Common Commands
 
@@ -58,6 +72,9 @@ npm run db:push          # Push schema to database
 npm run db:generate      # Generate migrations
 npm run db:migrate       # Run migrations
 npm run db:studio        # Open Drizzle Studio GUI
+
+# Infrastructure
+npm run stop             # Stop PostgreSQL container
 ```
 
 ## Repository Structure

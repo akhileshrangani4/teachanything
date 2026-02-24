@@ -4,18 +4,10 @@ import { db } from "@teachanything/db";
 import { userFiles } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
 import { createSupabaseClient } from "@/lib/supabase";
+import { isLocalStorageMode, readLocalFile } from "@/lib/local-storage";
 import { logError, logInfo } from "@/lib/logger";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { downloadRateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
-
-// Rate limit: 30 downloads per minute per user
-const downloadRateLimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(30, "1 m"),
-  analytics: true,
-  prefix: "ratelimit:download",
-});
 
 /**
  * Secure file download endpoint
@@ -40,8 +32,12 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Rate limiting
-    const { success, reset } = await downloadRateLimit.limit(session.user.id);
+    // Rate limiting (skipped when Redis is not configured)
+    const { success, reset } = await checkRateLimit(
+      downloadRateLimit,
+      session.user.id,
+      { context: "file-download" },
+    );
     if (!success) {
       const retryAfter = Math.ceil((reset - Date.now()) / 1000);
       return NextResponse.json(
@@ -70,14 +66,23 @@ export async function GET(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    // Get file from Supabase Storage
-    const supabase = createSupabaseClient();
-    const { data, error } = await supabase.storage
-      .from("chatbot-files")
-      .download(file.storagePath);
+    // Get file data from storage
+    let fileData: Blob;
 
-    if (error || !data) {
-      throw new Error(`Failed to download file: ${error?.message}`);
+    if (isLocalStorageMode()) {
+      const buffer = await readLocalFile(file.storagePath);
+      fileData = new Blob([new Uint8Array(buffer)], { type: file.fileType });
+    } else {
+      const supabase = createSupabaseClient();
+      const { data, error } = await supabase.storage
+        .from("chatbot-files")
+        .download(file.storagePath);
+
+      if (error || !data) {
+        throw new Error(`Failed to download file: ${error?.message}`);
+      }
+
+      fileData = data;
     }
 
     // Check if this is a download request (from query param)
@@ -121,7 +126,7 @@ export async function GET(
       });
     }
 
-    return new NextResponse(data, {
+    return new NextResponse(fileData, {
       status: 200,
       headers,
     });

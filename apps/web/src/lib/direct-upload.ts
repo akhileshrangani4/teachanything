@@ -1,5 +1,6 @@
 /**
- * Direct client-to-Supabase file upload utilities
+ * Direct file upload utilities
+ * Uploads to Supabase Storage (production) or local API (development)
  * This bypasses API body size limits and provides better performance
  */
 
@@ -37,7 +38,7 @@ export function useDirectUpload() {
 
     const { uploadUrl, fileId, storagePath } = uploadUrlData;
 
-    // Step 2: Upload directly to Supabase
+    // Step 2: Upload file to storage (Supabase or local API)
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 

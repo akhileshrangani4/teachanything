@@ -1,13 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
-import { env } from "./env";
+import { env, isServiceAvailable } from "./env";
 
 /**
- * Create Supabase client for server-side operations
+ * Create Supabase client for server-side operations.
+ * Throws a descriptive error when Supabase env vars are missing.
  */
 export function createSupabaseClient() {
+  if (!isServiceAvailable("supabase-storage")) {
+    throw new Error(
+      "Supabase Storage is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to enable file uploads.",
+    );
+  }
+
   return createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.SUPABASE_SERVICE_ROLE_KEY,
+    env.NEXT_PUBLIC_SUPABASE_URL!,
+    env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       auth: {
         persistSession: false,
@@ -17,9 +24,16 @@ export function createSupabaseClient() {
 }
 
 /**
- * Create Supabase client for client-side operations
+ * Create Supabase client for client-side operations.
+ * Throws a descriptive error when Supabase env vars are missing.
  */
 export function createSupabaseClientBrowser() {
+  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    throw new Error(
+      "Supabase Storage is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to enable file uploads.",
+    );
+  }
+
   return createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

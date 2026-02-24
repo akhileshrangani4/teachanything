@@ -13,6 +13,7 @@
     "db:setup-extensions": "tsx scripts/setup-extensions.ts",
     "db:setup-rls": "tsx scripts/setup-rls-policies.ts",
     "db:push": "npm run db:setup-extensions && drizzle-kit push --force",
+    "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -21,10 +22,14 @@
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.8",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.2",
-    "typescript": "^5.7.2",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "drizzle-kit": "^0.31.8",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1",
     "tsx": "^4.19.2",
-    "dotenv": "^16.4.7"
+    "typescript": "^5.7.2"
   }
 }

@@ -2,6 +2,7 @@ import { db } from "@teachanything/db";
 import { userFiles, fileChunks } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
 import { createSupabaseClient } from "./supabase";
+import { isLocalStorageMode, readLocalFile } from "./local-storage";
 import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
@@ -102,37 +103,48 @@ export async function processFile(params: {
       };
     }
 
-    // Stage 1: Download file from Supabase Storage (0-10%)
+    // Stage 1: Download file from storage (0-10%)
     await updateProgress(fileId, "downloading", 5);
-    const supabase = createSupabaseClient();
-    const { data, error } = await supabase.storage
-      .from("chatbot-files")
-      .download(file.storagePath);
 
-    if (error || !data) {
-      // File might have been deleted from storage
-      if (
-        error.message?.includes("not found") ||
-        error.message?.includes("does not exist")
-      ) {
-        logInfo(
-          "File storage not found (likely deleted), skipping processing",
-          {
-            fileId,
-            storagePath: file.storagePath,
-          },
-        );
-        return {
-          success: false,
-          chunkCount: 0,
-        };
+    let buffer: Buffer;
+
+    if (isLocalStorageMode()) {
+      try {
+        buffer = await readLocalFile(file.storagePath);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          logInfo(
+            "File not found in local storage (likely deleted), skipping processing",
+            { fileId, storagePath: file.storagePath },
+          );
+          return { success: false, chunkCount: 0 };
+        }
+        throw err;
       }
-      throw new Error(`Failed to download file: ${error?.message}`);
+    } else {
+      const supabase = createSupabaseClient();
+      const { data, error } = await supabase.storage
+        .from("chatbot-files")
+        .download(file.storagePath);
+
+      if (error || !data) {
+        if (
+          error.message?.includes("not found") ||
+          error.message?.includes("does not exist")
+        ) {
+          logInfo(
+            "File storage not found (likely deleted), skipping processing",
+            { fileId, storagePath: file.storagePath },
+          );
+          return { success: false, chunkCount: 0 };
+        }
+        throw new Error(`Failed to download file: ${error?.message}`);
+      }
+
+      const arrayBuffer = await data.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
     }
 
-    // Convert Blob to Buffer
-    const arrayBuffer = await data.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
     await updateProgress(fileId, "downloading", 10);
 
     // Stage 2: Extract text content (10-30%)

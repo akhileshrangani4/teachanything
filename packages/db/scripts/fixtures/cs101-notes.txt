@@ -1,0 +1,79 @@
+Introduction to Computer Science - CS101
+
+Chapter 1: What is Computer Science?
+
+Computer science is the study of computation, information, and automation. It spans theoretical disciplines such as algorithms, theory of computation, and information theory to applied disciplines including the design and implementation of hardware and software.
+
+Algorithms and data structures are central to computer science. The theory of computation concerns the ability to solve computational problems using a specific model of computation such as an algorithm.
+
+Chapter 2: Variables and Data Types
+
+A variable is a named storage location in a computer's memory that holds a value. Variables are fundamental to programming because they allow programs to store and manipulate data.
+
+Common data types include:
+- Integers: Whole numbers like 1, 42, -7
+- Floating-point numbers: Decimal numbers like 3.14, -0.5
+- Strings: Text data like "Hello, World!"
+- Booleans: True or false values
+- Arrays: Collections of values stored in a single variable
+
+Variables must be declared before use in most programming languages. The declaration specifies the variable's name and usually its type.
+
+Chapter 3: Control Flow
+
+Control flow refers to the order in which individual statements, instructions, or function calls are executed. The three basic control flow structures are:
+
+1. Sequential execution: Statements are executed one after another in order.
+2. Conditional statements (if/else): Allow the program to make decisions.
+   - if statements execute code only when a condition is true
+   - else clauses provide alternative code when the condition is false
+   - else if chains allow multiple conditions to be tested
+3. Loops: Allow code to be repeated.
+   - for loops: Execute a block of code a specific number of times
+   - while loops: Execute a block of code while a condition is true
+   - do-while loops: Execute at least once, then repeat while condition is true
+
+Chapter 4: Functions
+
+A function is a reusable block of code that performs a specific task. Functions help organize code, reduce repetition, and make programs easier to understand and maintain.
+
+Key concepts:
+- Function declaration: Defining what a function does
+- Parameters: Input values that a function accepts
+- Return values: Output that a function produces
+- Function calls: Using a function in your code
+- Scope: Where variables are accessible within a program
+
+Functions can call other functions, and even call themselves (recursion). Recursion is a powerful technique where a function solves a problem by breaking it into smaller instances of the same problem.
+
+Chapter 5: Data Structures
+
+Data structures are ways of organizing and storing data for efficient access and modification. Common data structures include:
+
+- Arrays: Fixed-size collections with index-based access
+- Linked Lists: Dynamic collections where each element points to the next
+- Stacks: Last-In-First-Out (LIFO) collections
+- Queues: First-In-First-Out (FIFO) collections
+- Trees: Hierarchical structures with parent-child relationships
+- Hash Tables: Key-value stores with fast lookup times
+- Graphs: Networks of nodes connected by edges
+
+Choosing the right data structure is crucial for writing efficient programs. Each data structure has its own strengths and weaknesses in terms of time and space complexity.
+
+Chapter 6: Algorithms
+
+An algorithm is a step-by-step procedure for solving a problem or accomplishing a task. Key properties of algorithms include correctness, efficiency, and clarity.
+
+Common algorithm categories:
+- Sorting: Bubble sort, merge sort, quicksort
+- Searching: Linear search, binary search
+- Graph algorithms: BFS, DFS, Dijkstra's shortest path
+- Dynamic programming: Breaking problems into overlapping subproblems
+
+Algorithm complexity is measured using Big O notation:
+- O(1): Constant time
+- O(log n): Logarithmic time
+- O(n): Linear time
+- O(n log n): Linearithmic time
+- O(n^2): Quadratic time
+- O(2^n): Exponential time
