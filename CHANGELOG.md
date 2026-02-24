@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1](https://github.com/akhileshrangani4/teachanything/compare/v1.12.0...v1.12.1) (2026-02-24)
+
+
+### Tests
+
+* **web:** add 242 tests for validation, password, domain, and file utils ([#155](https://github.com/akhileshrangani4/teachanything/issues/155)) ([7062ede](https://github.com/akhileshrangani4/teachanything/commit/7062edeb23316644de4d8a594af63e330eff67cf))
+
 ## [1.12.0](https://github.com/akhileshrangani4/teachanything/compare/v1.11.0...v1.12.0) (2026-02-24)
 
 

@@ -49,6 +49,10 @@ npm run lint             # Lint codebase
 npm run format           # Format with Prettier
 npm run check-types      # TypeScript type check
 
+# Testing
+npm run test             # Run all tests
+npm run test -- -- --coverage  # Run with coverage
+
 # Database (Drizzle ORM)
 npm run db:push          # Push schema to database
 npm run db:generate      # Generate migrations
@@ -209,7 +213,84 @@ if (!success) {
 }
 ```
 
-## 12. Git Workflow
+## 12. Testing
+
+### Strategy
+
+- **Unit tests** for pure logic: validation, utilities, helpers, data transformations
+- **Unit tests with mocks** for modules with external deps (Redis, database, APIs)
+- Skip component/page tests unless they contain significant logic
+
+### Test File Layout
+
+- Tests live in `__tests__` directories mirroring the source structure
+- File names: `<module>.test.ts` (e.g., `validation.test.ts`)
+- Each package has its own Jest config and runs independently via Turborepo
+
+```
+apps/web/src/__tests__/
+├── lib/
+│   ├── validation.test.ts         # tests for src/lib/validation.ts
+│   ├── password-rules.test.ts     # tests for src/lib/password/password-rules.ts
+│   └── domain-validation.test.ts  # tests for src/lib/domain-validation.ts
+└── server/
+    ├── utils.test.ts              # tests for src/server/utils.ts
+    └── files-validation.test.ts   # tests for src/server/routers/files/validation.ts
+```
+
+### ESM Import Pattern (Required)
+
+All packages use `"type": "module"`. Jest globals are **not** auto-injected. Always import them explicitly:
+
+```typescript
+import { describe, it, expect } from "@jest/globals";
+```
+
+If you need `jest.fn()`, `jest.mock()`, or `jest.spyOn()`, also import `jest`:
+
+```typescript
+import { jest, describe, it, expect } from "@jest/globals";
+```
+
+### Mocking External Dependencies
+
+When a module imports external services (Redis, env, database), mock them **before** importing the module under test using dynamic `await import()`:
+
+```typescript
+import { jest, describe, it, expect } from "@jest/globals";
+
+// 1. Set up mocks FIRST
+jest.mock("@/lib/env", () => ({
+  env: { NEXT_PUBLIC_MAX_FILE_SIZE_MB: "50" },
+}));
+
+// 2. THEN dynamically import the module under test
+const { myFunction } = await import("@/lib/my-module");
+
+// 3. Write tests as normal
+describe("myFunction", () => {
+  it("does the thing", () => {
+    expect(myFunction("input")).toBe("output");
+  });
+});
+```
+
+### Mocking Guidelines
+
+- **Only mock at system boundaries** — external APIs, databases, Redis, file system
+- **Don't mock pure functions** — call them directly
+- **Don't over-mock** — if you're mocking internal helpers, you're testing implementation details
+
+### Running Tests
+
+```bash
+npm run test                       # All packages
+npm run test -- -- --coverage      # With coverage
+cd apps/web && npm test            # Single package
+cd apps/web && npx jest --watch    # Watch mode (single package)
+```
+
+## 13. Git Workflow
 
 **Commit format** (conventional commits):
 
@@ -225,21 +306,23 @@ Examples:
 - `fix(auth): prevent duplicate session creation`
 - `refactor(files): extract chunking logic to separate function`
 
-## 13. Pre-Commit Checklist
+## 14. Pre-Commit Checklist
 
 Before committing:
 
 ```bash
 npm run check-types    # Must pass
 npm run lint           # Must pass
+npm run test           # Must pass
 ```
 
 - [ ] No `console.log` statements (use `lib/logger.ts`)
 - [ ] Zod validation on all tRPC inputs
 - [ ] Ownership checks on protected resources
+- [ ] Tests for new utility/validation logic
 - [ ] Backwards-compatible changes when possible
 
-## 14. Agent Behavior
+## 15. Agent Behavior
 
 **Do not** (unless explicitly asked):
 

@@ -66,6 +66,7 @@ npm run build            # Build all packages
 # Quality (required before PRs)
 npm run lint             # Lint codebase
 npm run check-types      # TypeScript type check
+npm run test             # Run test suite
 
 # Database
 npm run db:push          # Push schema to database
@@ -120,14 +121,40 @@ refactor/analytics-queries
 - Use strict TypeScript — no `any`
 - Add Zod validation on all tRPC inputs
 - Add ownership checks on protected resources
+- Add tests for new utility/validation logic (see [Testing in AGENTS.md](./AGENTS.md#12-testing))
+
+### Writing Tests
+
+Tests live in `__tests__` directories mirroring the source structure. Name files `<module>.test.ts`.
+
+**Important:** All packages use ESM. Always import Jest globals explicitly:
+
+```typescript
+import { describe, it, expect } from "@jest/globals";
+```
+
+For mocking external deps (Redis, env, database), use `jest.mock()` before dynamic `await import()`:
+
+```typescript
+import { jest, describe, it, expect } from "@jest/globals";
+
+jest.mock("@/lib/env", () => ({
+  env: { NEXT_PUBLIC_MAX_FILE_SIZE_MB: "50" },
+}));
+
+const { myFunction } = await import("@/lib/my-module");
+```
+
+See [AGENTS.md § Testing](./AGENTS.md#12-testing) for the full guide.
 
 ### 4. Run Quality Checks
 
-Both must pass before opening a PR:
+All must pass before opening a PR:
 
 ```bash
 npm run lint
 npm run check-types
+npm run test
 ```
 
 Also verify:
@@ -211,11 +238,13 @@ Before requesting review, verify:
 - [ ] Linked to an issue (or context provided)
 - [ ] `npm run lint` passes
 - [ ] `npm run check-types` passes
+- [ ] `npm run test` passes
 - [ ] No `console.log` statements
 - [ ] Zod validation on all new tRPC inputs
 - [ ] Ownership checks on protected resources
 - [ ] Screenshots attached for visual changes
 - [ ] New dependencies justified in PR description
+- [ ] Tests added for new utility/validation logic
 - [ ] Database migrations generated (`npm run db:generate`) if schema changed
 
 ## Database Changes
