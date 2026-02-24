@@ -19,7 +19,7 @@ export function isLocalStorageMode(): boolean {
 /** Resolve a storage path to an absolute filesystem path */
 function resolveStoragePath(storagePath: string): string {
   const resolved = resolve(UPLOADS_DIR, storagePath);
-  if (!resolved.startsWith(UPLOADS_DIR)) {
+  if (!resolved.startsWith(UPLOADS_DIR + "/")) {
     throw new Error("Invalid storage path");
   }
   return resolved;

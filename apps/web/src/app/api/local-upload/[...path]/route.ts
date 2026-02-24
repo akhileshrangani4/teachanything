@@ -28,6 +28,12 @@ export async function PUT(
   }
 
   const { path } = await params;
+
+  // Reject path traversal segments
+  if (path.some((segment) => segment === ".." || segment === ".")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const storagePath = path.join("/");
 
   // Verify the path starts with the user's ID
