@@ -111,12 +111,15 @@ export async function processFile(params: {
     if (isLocalStorageMode()) {
       try {
         buffer = await readLocalFile(file.storagePath);
-      } catch {
-        logInfo(
-          "File not found in local storage (likely deleted), skipping processing",
-          { fileId, storagePath: file.storagePath },
-        );
-        return { success: false, chunkCount: 0 };
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          logInfo(
+            "File not found in local storage (likely deleted), skipping processing",
+            { fileId, storagePath: file.storagePath },
+          );
+          return { success: false, chunkCount: 0 };
+        }
+        throw err;
       }
     } else {
       const supabase = createSupabaseClient();
