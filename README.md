@@ -42,15 +42,15 @@ Only Docker, an [OpenRouter API key](https://openrouter.ai/), and an [OpenAI API
 
 ## Tech Stack
 
-| Category | Technologies |
-|----------|-------------|
-| **Framework** | Next.js 16, React 19, TypeScript, Turborepo |
-| **API** | tRPC (end-to-end type-safe) |
-| **Database** | PostgreSQL, Drizzle ORM, pgvector |
-| **Auth** | Better Auth (email/password + approval) |
-| **AI** | OpenRouter, Vercel AI SDK, LangChain |
+| Category           | Technologies                                   |
+| ------------------ | ---------------------------------------------- |
+| **Framework**      | Next.js 16, React 19, TypeScript, Turborepo    |
+| **API**            | tRPC (end-to-end type-safe)                    |
+| **Database**       | PostgreSQL, Drizzle ORM, pgvector              |
+| **Auth**           | Better Auth (email/password + approval)        |
+| **AI**             | OpenRouter, Vercel AI SDK, LangChain           |
 | **Infrastructure** | Upstash Redis/QStash, Supabase Storage, Resend |
-| **UI** | Shadcn UI, Tailwind CSS |
+| **UI**             | Shadcn UI, Tailwind CSS                        |
 
 ## Repository Structure
 

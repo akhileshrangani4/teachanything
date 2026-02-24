@@ -117,10 +117,7 @@ export function isServiceAvailable(
     case "resend":
       return !!env.RESEND_API_KEY;
     case "supabase-storage":
-      return !!(
-        env.NEXT_PUBLIC_SUPABASE_URL &&
-        env.SUPABASE_SERVICE_ROLE_KEY
-      );
+      return !!(env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
   }
 }
 

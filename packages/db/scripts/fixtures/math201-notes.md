@@ -10,11 +10,11 @@ A vector in R^n is an ordered n-tuple of real numbers:
 
 ### Vector Operations
 
-| Operation | Formula | Example |
-|-----------|---------|---------|
-| Addition | (a1, a2) + (b1, b2) = (a1+b1, a2+b2) | (1,2) + (3,4) = (4,6) |
-| Scalar mult. | c * (a1, a2) = (c*a1, c*a2) | 3 * (1,2) = (3,6) |
-| Dot product | (a1, a2) . (b1, b2) = a1*b1 + a2*b2 | (1,2) . (3,4) = 11 |
+| Operation    | Formula                              | Example               |
+| ------------ | ------------------------------------ | --------------------- |
+| Addition     | (a1, a2) + (b1, b2) = (a1+b1, a2+b2) | (1,2) + (3,4) = (4,6) |
+| Scalar mult. | c * (a1, a2) = (c*a1, c\*a2)         | 3 \* (1,2) = (3,6)    |
+| Dot product  | (a1, a2) . (b1, b2) = a1*b1 + a2*b2  | (1,2) . (3,4) = 11    |
 
 ### Properties of Vector Addition
 
@@ -41,7 +41,7 @@ A **matrix** is a rectangular array of numbers arranged in rows and columns. An 
 - **Zero matrix**: All elements are zero
 - **Diagonal matrix**: Non-zero elements only on the main diagonal
 - **Symmetric matrix**: A = A^T
-- **Orthogonal matrix**: A^T * A = I
+- **Orthogonal matrix**: A^T \* A = I
 
 ---
 
@@ -53,7 +53,7 @@ A system of linear equations can be represented in matrix form as **Ax = b**.
 
 1. **Gaussian Elimination**: Transform to row echelon form
 2. **Gauss-Jordan Elimination**: Transform to reduced row echelon form
-3. **Matrix Inverse**: If A is invertible, x = A^(-1) * b
+3. **Matrix Inverse**: If A is invertible, x = A^(-1) \* b
 4. **Cramer's Rule**: Uses determinants (small systems only)
 
 ### Types of Solutions
@@ -68,13 +68,13 @@ A system of linear equations can be represented in matrix form as **Ax = b**.
 
 An **eigenvector** of a square matrix A is a non-zero vector v such that:
 
-> Av = lambda * v
+> Av = lambda \* v
 
 where lambda is the **eigenvalue** corresponding to v.
 
 ### Finding Eigenvalues
 
-1. Solve det(A - lambda * I) = 0 (the characteristic equation)
+1. Solve det(A - lambda \* I) = 0 (the characteristic equation)
 2. The roots are the eigenvalues
 
 ### Applications
@@ -96,11 +96,11 @@ A **linear transformation** T: V -> W preserves addition and scalar multiplicati
 
 ### Key Concepts
 
-| Concept | Definition |
-|---------|-----------|
+| Concept             | Definition                    |
+| ------------------- | ----------------------------- |
 | Kernel (null space) | Set of vectors mapped to zero |
-| Image (range) | Set of all possible outputs |
-| Rank | Dimension of the image |
-| Nullity | Dimension of the kernel |
+| Image (range)       | Set of all possible outputs   |
+| Rank                | Dimension of the image        |
+| Nullity             | Dimension of the kernel       |
 
 > **Rank-Nullity Theorem**: rank(T) + nullity(T) = dim(V)

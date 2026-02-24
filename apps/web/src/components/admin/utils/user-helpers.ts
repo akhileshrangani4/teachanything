@@ -11,4 +11,3 @@ export function getUserInitials(name: string | null, email: string): string {
   }
   return email[0]?.toUpperCase() || "?";
 }
-

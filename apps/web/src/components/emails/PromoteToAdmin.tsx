@@ -6,7 +6,11 @@ interface PromoteToAdminProps {
   supportEmail: string;
 }
 
-export function PromoteToAdmin({ userName, loginUrl, supportEmail }: PromoteToAdminProps) {
+export function PromoteToAdmin({
+  userName,
+  loginUrl,
+  supportEmail,
+}: PromoteToAdminProps) {
   return (
     <html>
       {/* eslint-disable-next-line @next/next/no-head-element */}

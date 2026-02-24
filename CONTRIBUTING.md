@@ -131,6 +131,7 @@ npm run check-types
 ```
 
 Also verify:
+
 - [ ] No `console.log` statements (use `lib/logger.ts`)
 - [ ] Backwards-compatible changes when possible
 
@@ -158,6 +159,7 @@ PR titles **must** use [Conventional Commits](https://www.conventionalcommits.or
 **Scopes:** `files`, `ai`, `chat`, `auth`, `admin`, `analytics`, `crawler`, `web`, `db`
 
 **Examples:**
+
 - `feat(files): add OCR support for image uploads`
 - `fix(analytics): calculate actual RAG usage percentage`
 - `feat(crawler): add web crawler for site content ingestion`
@@ -185,6 +187,7 @@ Brief description of what this PR does and why.
 ## Library Choices (if applicable)
 
 If you introduced new dependencies, briefly explain:
+
 - What you chose and why
 - What alternatives you considered
 - Maintenance status of the chosen library
@@ -233,23 +236,23 @@ If your PR modifies `packages/db/src/schema.ts`:
 
 ## Code Style Quick Reference
 
-| Item | Convention |
-|------|-----------|
-| Files/directories | `kebab-case` |
-| Components/Classes | `PascalCase` |
-| Variables/functions | `camelCase` |
-| Environment variables | `UPPER_SNAKE_CASE` |
-| Booleans | Prefix with `is`/`has`/`can`/`should` |
+| Item                  | Convention                            |
+| --------------------- | ------------------------------------- |
+| Files/directories     | `kebab-case`                          |
+| Components/Classes    | `PascalCase`                          |
+| Variables/functions   | `camelCase`                           |
+| Environment variables | `UPPER_SNAKE_CASE`                    |
+| Booleans              | Prefix with `is`/`has`/`can`/`should` |
 
 For the full coding standards, see [AGENTS.md](./AGENTS.md).
 
 ## Related Documentation
 
-| Document | Purpose |
-|----------|---------|
+| Document                 | Purpose                                  |
+| ------------------------ | ---------------------------------------- |
 | [AGENTS.md](./AGENTS.md) | Coding standards, architecture, patterns |
-| [SETUP.md](./SETUP.md) | Detailed setup and configuration |
-| [README.md](./README.md) | Project overview |
+| [SETUP.md](./SETUP.md)   | Detailed setup and configuration         |
+| [README.md](./README.md) | Project overview                         |
 
 ## Questions?
 

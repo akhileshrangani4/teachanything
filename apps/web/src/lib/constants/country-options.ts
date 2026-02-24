@@ -37,7 +37,10 @@ export const COUNTRY_OPTIONS = [
   { value: "China", label: "China" },
   { value: "Colombia", label: "Colombia" },
   { value: "Comoros", label: "Comoros" },
-  { value: "Congo (Democratic Republic)", label: "Congo (Democratic Republic)" },
+  {
+    value: "Congo (Democratic Republic)",
+    label: "Congo (Democratic Republic)",
+  },
   { value: "Congo (Republic)", label: "Congo (Republic)" },
   { value: "Costa Rica", label: "Costa Rica" },
   { value: "Croatia", label: "Croatia" },
@@ -147,7 +150,10 @@ export const COUNTRY_OPTIONS = [
   { value: "Rwanda", label: "Rwanda" },
   { value: "Saint Kitts and Nevis", label: "Saint Kitts and Nevis" },
   { value: "Saint Lucia", label: "Saint Lucia" },
-  { value: "Saint Vincent and the Grenadines", label: "Saint Vincent and the Grenadines" },
+  {
+    value: "Saint Vincent and the Grenadines",
+    label: "Saint Vincent and the Grenadines",
+  },
   { value: "Samoa", label: "Samoa" },
   { value: "San Marino", label: "San Marino" },
   { value: "Sao Tome and Principe", label: "Sao Tome and Principe" },

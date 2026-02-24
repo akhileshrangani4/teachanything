@@ -143,7 +143,8 @@ export default function RegisterPage() {
     } catch {
       setError("Please enter a valid URL for your university webpage");
       toast.error("Invalid URL", {
-        description: "Please enter a valid URL (e.g., university.edu/your-name)",
+        description:
+          "Please enter a valid URL (e.g., university.edu/your-name)",
       });
       return;
     }
@@ -380,7 +381,9 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="facultyWebpage">University webpage about you</Label>
+              <Label htmlFor="facultyWebpage">
+                University webpage about you
+              </Label>
               <Input
                 id="facultyWebpage"
                 type="url"

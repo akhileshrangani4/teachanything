@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
     // the destination URL it was given (e.g., ngrok URL), which differs from
     // req.url in local dev (localhost:3000).
     const verificationUrl = `${env.NEXT_PUBLIC_APP_URL}/api/jobs/send-email`;
-    const isValid = await verifyQStashSignature(signature, body, verificationUrl);
+    const isValid = await verifyQStashSignature(
+      signature,
+      body,
+      verificationUrl,
+    );
 
     if (!isValid) {
       logError(
@@ -91,10 +95,7 @@ export async function POST(req: NextRequest) {
           "Email validation failed, not retrying",
           { deliveryId },
         );
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: error.message }, { status: 400 });
       }
 
       // Transient errors — return 500 so QStash retries

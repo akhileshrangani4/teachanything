@@ -16,8 +16,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ),
   title: {
-    default:
-      "Teach Anything — Open Source LLMs for Open Access Education",
+    default: "Teach Anything — Open Source LLMs for Open Access Education",
     template: "%s | Teach Anything",
   },
   description:

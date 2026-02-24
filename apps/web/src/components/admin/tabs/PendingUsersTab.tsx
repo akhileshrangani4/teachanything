@@ -15,13 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import {
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye,
-  MoreHorizontal,
-} from "lucide-react";
+import { Clock, CheckCircle, XCircle, Eye, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,11 +86,10 @@ export function PendingUsersTab() {
     userEmail: null,
   });
 
-  const [detailsDialog, setDetailsDialog] =
-    useState<UserDetailsDialogState>({
-      isOpen: false,
-      user: null,
-    });
+  const [detailsDialog, setDetailsDialog] = useState<UserDetailsDialogState>({
+    isOpen: false,
+    user: null,
+  });
 
   const {
     data: pendingUsersData,
@@ -375,7 +368,9 @@ export function PendingUsersTab() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <div className="text-sm">
-                            <p>{new Date(user.createdAt).toLocaleDateString()}</p>
+                            <p>
+                              {new Date(user.createdAt).toLocaleDateString()}
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {new Date(user.createdAt).toLocaleTimeString()}
                             </p>
@@ -437,7 +432,8 @@ export function PendingUsersTab() {
                                   variant="outline"
                                   size="sm"
                                   disabled={
-                                    approveUser.isPending || rejectUser.isPending
+                                    approveUser.isPending ||
+                                    rejectUser.isPending
                                   }
                                   aria-label="Open user actions menu"
                                 >

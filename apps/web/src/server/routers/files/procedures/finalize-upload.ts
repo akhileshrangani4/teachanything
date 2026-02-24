@@ -5,7 +5,11 @@ import { TRPCError } from "@trpc/server";
 import { userFiles } from "@teachanything/db/schema";
 import { createSupabaseClient } from "@/lib/supabase";
 import { isServiceAvailable } from "@/lib/env";
-import { localFileExists, getLocalFileSize, deleteLocalFile } from "@/lib/local-storage";
+import {
+  localFileExists,
+  getLocalFileSize,
+  deleteLocalFile,
+} from "@/lib/local-storage";
 import { publishQStashJob } from "@/lib/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
@@ -38,9 +42,7 @@ export const finalizeUploadProcedure = protectedProcedure
         await deleteLocalFile(storagePath);
       } else {
         const supabase = createSupabaseClient();
-        await supabase.storage
-          .from("chatbot-files")
-          .remove([storagePath]);
+        await supabase.storage.from("chatbot-files").remove([storagePath]);
       }
     }
 

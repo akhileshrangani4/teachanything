@@ -115,7 +115,14 @@ function useFileActions<T extends BaseFile>(file: T) {
     }
   };
 
-  return { isStuck, canRetry, canView, isViewable, isDownloading, handleFileClick };
+  return {
+    isStuck,
+    canRetry,
+    canView,
+    isViewable,
+    isDownloading,
+    handleFileClick,
+  };
 }
 
 // ── Shared action buttons (view, download, retry, delete/remove/add) ─
@@ -337,10 +344,7 @@ function FileTableRow<T extends BaseFile>({
           </span>
         </TableCell>
       )}
-      <TableCell
-        onClick={(e) => e.stopPropagation()}
-        className="text-right"
-      >
+      <TableCell onClick={(e) => e.stopPropagation()} className="text-right">
         <div className="flex items-center justify-end gap-5">
           <FileActionButtons
             file={file}
@@ -425,7 +429,10 @@ function FileCardMobile<T extends BaseFile>({
           showProgress={true}
           size="sm"
         />
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <FileActionButtons
             file={file}
             actionType={actionType}

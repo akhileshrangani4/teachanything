@@ -76,11 +76,10 @@ export function AllUsersTab() {
 
   const { dialogs, handlers, closers } = useUserDialogs();
 
-  const [detailsDialog, setDetailsDialog] =
-    useState<UserDetailsDialogState>({
-      isOpen: false,
-      user: null,
-    });
+  const [detailsDialog, setDetailsDialog] = useState<UserDetailsDialogState>({
+    isOpen: false,
+    user: null,
+  });
 
   const confirmPromote = async () => {
     if (!dialogs.promote.userId) return;
@@ -269,7 +268,8 @@ export function AllUsersTab() {
                               name: u.name,
                               email: u.email,
                               title: u.title,
-                              institutionalAffiliation: u.institutionalAffiliation,
+                              institutionalAffiliation:
+                                u.institutionalAffiliation,
                               department: u.department,
                               facultyWebpage: u.facultyWebpage,
                               country: u.country,

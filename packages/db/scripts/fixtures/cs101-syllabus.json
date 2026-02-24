@@ -11,21 +11,96 @@
     }
   },
   "schedule": [
-    { "week": 1, "topic": "What is Computer Science?", "readings": "Chapter 1", "assignment": null },
-    { "week": 2, "topic": "Variables and Data Types", "readings": "Chapter 2", "assignment": "HW1: Variable declarations" },
-    { "week": 3, "topic": "Control Flow - Conditionals", "readings": "Chapter 3 (Part 1)", "assignment": null },
-    { "week": 4, "topic": "Control Flow - Loops", "readings": "Chapter 3 (Part 2)", "assignment": "HW2: FizzBuzz and loop exercises" },
-    { "week": 5, "topic": "Functions and Scope", "readings": "Chapter 4", "assignment": null },
-    { "week": 6, "topic": "Recursion", "readings": "Chapter 4 (Advanced)", "assignment": "HW3: Recursive functions" },
-    { "week": 7, "topic": "Arrays and Linked Lists", "readings": "Chapter 5 (Part 1)", "assignment": "Midterm Review" },
-    { "week": 8, "topic": "MIDTERM EXAM", "readings": null, "assignment": "Midterm Exam (Chapters 1-4)" },
-    { "week": 9, "topic": "Stacks and Queues", "readings": "Chapter 5 (Part 2)", "assignment": null },
-    { "week": 10, "topic": "Trees and Graphs", "readings": "Chapter 5 (Part 3)", "assignment": "HW4: Data structure implementations" },
-    { "week": 11, "topic": "Sorting Algorithms", "readings": "Chapter 6 (Part 1)", "assignment": null },
-    { "week": 12, "topic": "Searching Algorithms", "readings": "Chapter 6 (Part 2)", "assignment": "HW5: Algorithm analysis" },
-    { "week": 13, "topic": "Algorithm Complexity and Big O", "readings": "Chapter 6 (Part 3)", "assignment": null },
-    { "week": 14, "topic": "Review and Final Exam Prep", "readings": "All chapters", "assignment": "Final Exam Review" },
-    { "week": 15, "topic": "FINAL EXAM", "readings": null, "assignment": "Final Exam (Comprehensive)" }
+    {
+      "week": 1,
+      "topic": "What is Computer Science?",
+      "readings": "Chapter 1",
+      "assignment": null
+    },
+    {
+      "week": 2,
+      "topic": "Variables and Data Types",
+      "readings": "Chapter 2",
+      "assignment": "HW1: Variable declarations"
+    },
+    {
+      "week": 3,
+      "topic": "Control Flow - Conditionals",
+      "readings": "Chapter 3 (Part 1)",
+      "assignment": null
+    },
+    {
+      "week": 4,
+      "topic": "Control Flow - Loops",
+      "readings": "Chapter 3 (Part 2)",
+      "assignment": "HW2: FizzBuzz and loop exercises"
+    },
+    {
+      "week": 5,
+      "topic": "Functions and Scope",
+      "readings": "Chapter 4",
+      "assignment": null
+    },
+    {
+      "week": 6,
+      "topic": "Recursion",
+      "readings": "Chapter 4 (Advanced)",
+      "assignment": "HW3: Recursive functions"
+    },
+    {
+      "week": 7,
+      "topic": "Arrays and Linked Lists",
+      "readings": "Chapter 5 (Part 1)",
+      "assignment": "Midterm Review"
+    },
+    {
+      "week": 8,
+      "topic": "MIDTERM EXAM",
+      "readings": null,
+      "assignment": "Midterm Exam (Chapters 1-4)"
+    },
+    {
+      "week": 9,
+      "topic": "Stacks and Queues",
+      "readings": "Chapter 5 (Part 2)",
+      "assignment": null
+    },
+    {
+      "week": 10,
+      "topic": "Trees and Graphs",
+      "readings": "Chapter 5 (Part 3)",
+      "assignment": "HW4: Data structure implementations"
+    },
+    {
+      "week": 11,
+      "topic": "Sorting Algorithms",
+      "readings": "Chapter 6 (Part 1)",
+      "assignment": null
+    },
+    {
+      "week": 12,
+      "topic": "Searching Algorithms",
+      "readings": "Chapter 6 (Part 2)",
+      "assignment": "HW5: Algorithm analysis"
+    },
+    {
+      "week": 13,
+      "topic": "Algorithm Complexity and Big O",
+      "readings": "Chapter 6 (Part 3)",
+      "assignment": null
+    },
+    {
+      "week": 14,
+      "topic": "Review and Final Exam Prep",
+      "readings": "All chapters",
+      "assignment": "Final Exam Review"
+    },
+    {
+      "week": 15,
+      "topic": "FINAL EXAM",
+      "readings": null,
+      "assignment": "Final Exam (Comprehensive)"
+    }
   ],
   "grading": {
     "homework": "30%",

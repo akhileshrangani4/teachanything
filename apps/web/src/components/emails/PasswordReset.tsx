@@ -6,7 +6,11 @@ interface PasswordResetProps {
   supportEmail: string;
 }
 
-export function PasswordReset({ userName, resetUrl, supportEmail }: PasswordResetProps) {
+export function PasswordReset({
+  userName,
+  resetUrl,
+  supportEmail,
+}: PasswordResetProps) {
   return (
     <html>
       {/* eslint-disable-next-line @next/next/no-head-element */}

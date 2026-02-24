@@ -131,7 +131,10 @@ function InstitutionalForm({
   });
 
   // Derive current title and check for changes
-  const currentTitle = resolveTitleFromForm(form.titleSelection, form.customTitle);
+  const currentTitle = resolveTitleFromForm(
+    form.titleSelection,
+    form.customTitle,
+  );
   const hasChanges =
     currentTitle !== saved.title ||
     form.institution !== saved.institution ||
@@ -141,7 +144,7 @@ function InstitutionalForm({
 
   const updateField = <K extends keyof FormValues>(
     field: K,
-    value: FormValues[K]
+    value: FormValues[K],
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
