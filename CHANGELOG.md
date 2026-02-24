@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.11.0](https://github.com/akhileshrangani4/teachanything/compare/v1.10.2...v1.11.0) (2026-02-24)
+
+
+### Features
+
+* **web:** simplify local development setup with Docker and graceful degradation ([#148](https://github.com/akhileshrangani4/teachanything/issues/148)) ([c055e8d](https://github.com/akhileshrangani4/teachanything/commit/c055e8ddf17f647472b95040c5d7db769bedf088))
+
+
+### Bug Fixes
+
+* **security:** harden local storage path traversal checks ([#151](https://github.com/akhileshrangani4/teachanything/issues/151)) ([cc5b636](https://github.com/akhileshrangani4/teachanything/commit/cc5b636c311926eac14399d1559177f6694563b2))
+
+
+### Documentation
+
+* **readme:** link Contributing section to CONTRIBUTING.md, SETUP.md, AGENTS.md ([#150](https://github.com/akhileshrangani4/teachanything/issues/150)) ([47d4f42](https://github.com/akhileshrangani4/teachanything/commit/47d4f42f6f077e62b25a69941df7db609ac22665))
+
 ## [1.10.2](https://github.com/akhileshrangani4/teachanything/compare/v1.10.1...v1.10.2) (2026-02-16)
 
 
