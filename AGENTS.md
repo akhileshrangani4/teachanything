@@ -49,6 +49,10 @@ npm run lint             # Lint codebase
 npm run format           # Format with Prettier
 npm run check-types      # TypeScript type check
 
+# Testing
+npm run test             # Run all tests
+npm run test -- -- --coverage  # Run with coverage
+
 # Database (Drizzle ORM)
 npm run db:push          # Push schema to database
 npm run db:generate      # Generate migrations
@@ -232,11 +236,13 @@ Before committing:
 ```bash
 npm run check-types    # Must pass
 npm run lint           # Must pass
+npm run test           # Must pass
 ```
 
 - [ ] No `console.log` statements (use `lib/logger.ts`)
 - [ ] Zod validation on all tRPC inputs
 - [ ] Ownership checks on protected resources
+- [ ] Tests for new utility/validation logic
 - [ ] Backwards-compatible changes when possible
 
 ## 14. Agent Behavior

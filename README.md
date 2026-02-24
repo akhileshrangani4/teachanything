@@ -71,6 +71,7 @@ teachanything/
 npm run dev          # Start dev server (port 3000)
 npm run build        # Build all packages
 npm run lint         # Lint codebase
+npm run test         # Run test suite
 npm run db:push      # Push schema to database
 npm run db:seed      # Seed demo data
 npm run db:studio    # Open Drizzle Studio

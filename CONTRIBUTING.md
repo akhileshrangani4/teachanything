@@ -66,6 +66,7 @@ npm run build            # Build all packages
 # Quality (required before PRs)
 npm run lint             # Lint codebase
 npm run check-types      # TypeScript type check
+npm run test             # Run test suite
 
 # Database
 npm run db:push          # Push schema to database
@@ -123,11 +124,12 @@ refactor/analytics-queries
 
 ### 4. Run Quality Checks
 
-Both must pass before opening a PR:
+All must pass before opening a PR:
 
 ```bash
 npm run lint
 npm run check-types
+npm run test
 ```
 
 Also verify:
@@ -211,6 +213,7 @@ Before requesting review, verify:
 - [ ] Linked to an issue (or context provided)
 - [ ] `npm run lint` passes
 - [ ] `npm run check-types` passes
+- [ ] `npm run test` passes
 - [ ] No `console.log` statements
 - [ ] Zod validation on all new tRPC inputs
 - [ ] Ownership checks on protected resources
