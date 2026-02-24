@@ -1,0 +1,56 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+        paths:
+          - apps/web/**
+          - packages/db/**
+          - packages/ai/**
+
+comment:
+  layout: "header, diff, files, components"
+  behavior: default
+  require_changes: true
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+
+  individual_components:
+    - component_id: web
+      name: Web
+      paths:
+        - apps/web/**
+
+    - component_id: db
+      name: Database
+      paths:
+        - packages/db/**
+
+    - component_id: ai
+      name: AI
+      paths:
+        - packages/ai/**
+
+ignore:
+  - ".github/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/__tests__/**"
+  - "**/__mocks__/**"
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/.next/**"

@@ -52,6 +52,10 @@
         "ADMIN_EMAILS"
       ]
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "lint": {
       "dependsOn": ["^lint"]
     },
