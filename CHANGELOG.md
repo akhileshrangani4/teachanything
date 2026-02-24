@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.0](https://github.com/akhileshrangani4/teachanything/compare/v1.11.0...v1.12.0) (2026-02-24)
+
+
+### Features
+
+* **test:** add Jest test suite with CI and Codecov ([#152](https://github.com/akhileshrangani4/teachanything/issues/152)) ([d3be5f3](https://github.com/akhileshrangani4/teachanything/commit/d3be5f34794cc96dca632720c54f64db18f4c46d))
+
+
+### Bug Fixes
+
+* **ci:** ignore release-please generated files in prettier ([#154](https://github.com/akhileshrangani4/teachanything/issues/154)) ([dd06b81](https://github.com/akhileshrangani4/teachanything/commit/dd06b813f1f77d7304f395f299604273b566f467))
+
 ## [1.11.0](https://github.com/akhileshrangani4/teachanything/compare/v1.10.2...v1.11.0) (2026-02-24)
 
 ### Features
