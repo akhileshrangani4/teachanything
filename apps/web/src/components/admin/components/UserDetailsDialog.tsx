@@ -124,12 +124,7 @@ export function UserDetailsDialog({
               University Webpage About You
             </label>
             {user.facultyWebpage ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 h-8"
-                asChild
-              >
+              <Button variant="outline" size="sm" className="gap-2 h-8" asChild>
                 <a
                   href={user.facultyWebpage}
                   target="_blank"

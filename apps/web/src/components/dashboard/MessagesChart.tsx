@@ -147,52 +147,57 @@ export function MessagesChart({
           </div>
         ) : (
           <div className="h-[250px] sm:h-[350px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={chartData}
-              margin={{ top: 5, right: 16, left: -10, bottom: 5 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke={chartColors.grid}
-                opacity={0.3}
-                vertical={false}
-              />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 11, fill: chartColors.tick }}
-                tickLine={false}
-                axisLine={false}
-                dy={8}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: chartColors.tick }}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: chartColors.card,
-                  border: `1px solid ${chartColors.border}`,
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                  fontSize: "13px",
-                  padding: "8px 12px",
-                }}
-                cursor={{ stroke: chartColors.border, strokeWidth: 1 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="messages"
-                stroke={chartColors.primary}
-                strokeWidth={2.5}
-                dot={false}
-                activeDot={{ r: 5, fill: chartColors.primary, strokeWidth: 2, stroke: chartColors.card }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{ top: 5, right: 16, left: -10, bottom: 5 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={chartColors.grid}
+                  opacity={0.3}
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: chartColors.tick }}
+                  tickLine={false}
+                  axisLine={false}
+                  dy={8}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: chartColors.tick }}
+                  tickLine={false}
+                  axisLine={false}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: chartColors.card,
+                    border: `1px solid ${chartColors.border}`,
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                    fontSize: "13px",
+                    padding: "8px 12px",
+                  }}
+                  cursor={{ stroke: chartColors.border, strokeWidth: 1 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="messages"
+                  stroke={chartColors.primary}
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{
+                    r: 5,
+                    fill: chartColors.primary,
+                    strokeWidth: 2,
+                    stroke: chartColors.card,
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         )}
       </CardContent>

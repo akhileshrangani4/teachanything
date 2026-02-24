@@ -130,10 +130,7 @@ export async function POST(req: NextRequest) {
 
     if (!isValid) {
       logWarn("Invalid Resend webhook signature");
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const event = JSON.parse(payload) as ResendWebhookEvent;

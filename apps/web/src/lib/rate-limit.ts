@@ -11,9 +11,10 @@ const redis = isServiceAvailable("redis")
     })
   : null;
 
-function createLimiter(
-  config: { window: [number, string]; prefix: string },
-): Ratelimit | null {
+function createLimiter(config: {
+  window: [number, string];
+  prefix: string;
+}): Ratelimit | null {
   if (!redis) return null;
   return new Ratelimit({
     redis,

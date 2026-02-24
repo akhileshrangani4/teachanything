@@ -9,7 +9,8 @@ global.ResizeObserver = class ResizeObserver {
 };
 
 // Polyfill scrollIntoView for jsdom
-Element.prototype.scrollIntoView = jest.fn() as unknown as typeof Element.prototype.scrollIntoView;
+Element.prototype.scrollIntoView =
+  jest.fn() as unknown as typeof Element.prototype.scrollIntoView;
 
 // Mock navigator.clipboard
 Object.assign(navigator, {

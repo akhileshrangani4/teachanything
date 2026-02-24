@@ -30,8 +30,12 @@ export function EmbedCode({ shareToken }: EmbedCodeProps) {
   return (
     <Tabs defaultValue="widget" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="widget" className="text-xs sm:text-sm">Widget (Floating Button)</TabsTrigger>
-        <TabsTrigger value="window" className="text-xs sm:text-sm">Window (Always Visible)</TabsTrigger>
+        <TabsTrigger value="widget" className="text-xs sm:text-sm">
+          Widget (Floating Button)
+        </TabsTrigger>
+        <TabsTrigger value="window" className="text-xs sm:text-sm">
+          Window (Always Visible)
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="widget" className="space-y-4 mt-6">

@@ -12,14 +12,14 @@ Get the app running locally with just Docker, an OpenRouter API key, and an Open
 
 ### What works without external services
 
-| Feature | Requirement |
-|---------|------------|
-| Auth, login, admin panel | Docker only |
-| Chat with AI + RAG | Docker + OpenRouter key + OpenAI key |
+| Feature                  | Requirement                                |
+| ------------------------ | ------------------------------------------ |
+| Auth, login, admin panel | Docker only                                |
+| Chat with AI + RAG       | Docker + OpenRouter key + OpenAI key       |
 | File upload + processing | Docker + OpenAI key (files stored locally) |
-| Emails | Logged to console (no Resend needed) |
-| Rate limiting | Disabled locally (no Redis needed) |
-| Async file processing | Runs inline in dev (no QStash needed) |
+| Emails                   | Logged to console (no Resend needed)       |
+| Rate limiting            | Disabled locally (no Redis needed)         |
+| Async file processing    | Runs inline in dev (no QStash needed)      |
 
 File uploads use a local filesystem fallback (`./uploads/`) when Supabase is not configured.
 
@@ -63,6 +63,7 @@ npm run db:seed    # Create demo users, chatbots, and files
 ```
 
 The seed script creates:
+
 - **Admin** — email from `ADMIN_EMAILS`, password `admin123`
 - **Professor** (`professor@demo.edu` / `demo123`) — 3 chatbots with sample files in every supported format (PDF, DOCX, TXT, Markdown, JSON, CSV), pre-generated embeddings for RAG
 - **Pending user** (`student@demo.edu` / `demo123`) — for testing the admin approval workflow

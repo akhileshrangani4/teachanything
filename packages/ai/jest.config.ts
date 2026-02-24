@@ -35,9 +35,7 @@ const config: JestConfigWithTsJest = {
   clearMocks: true,
   resetMocks: true,
 
-  transformIgnorePatterns: [
-    "/node_modules/(?!nanoid|langchain|@langchain)/",
-  ],
+  transformIgnorePatterns: ["/node_modules/(?!nanoid|langchain|@langchain)/"],
 
   testPathIgnorePatterns: ["/node_modules/", "/dist/"],
 };

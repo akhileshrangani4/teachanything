@@ -35,7 +35,10 @@ describe("checkRateLimit", () => {
 
     const mockLimiter = { limit: mockLimit };
 
-    const result = await checkRateLimit(mockLimiter as unknown as Parameters<typeof checkRateLimit>[0], "test-user");
+    const result = await checkRateLimit(
+      mockLimiter as unknown as Parameters<typeof checkRateLimit>[0],
+      "test-user",
+    );
 
     expect(mockLimit).toHaveBeenCalledWith("test-user");
     expect(result.success).toBe(true);
@@ -51,9 +54,13 @@ describe("checkRateLimit", () => {
 
     const mockLimiter = { limit: mockLimit };
 
-    const result = await checkRateLimit(mockLimiter as unknown as Parameters<typeof checkRateLimit>[0], "test-user", {
-      action: "login",
-    });
+    const result = await checkRateLimit(
+      mockLimiter as unknown as Parameters<typeof checkRateLimit>[0],
+      "test-user",
+      {
+        action: "login",
+      },
+    );
 
     expect(mockLimit).toHaveBeenCalledWith("test-user");
     expect(result.success).toBe(false);

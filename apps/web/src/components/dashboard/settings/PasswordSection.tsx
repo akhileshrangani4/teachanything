@@ -114,7 +114,9 @@ export function PasswordSection() {
       {newPassword && confirmPassword && (
         <p
           className={`text-xs flex items-center gap-1 ${
-            newPassword === confirmPassword ? "text-green-600" : "text-destructive"
+            newPassword === confirmPassword
+              ? "text-green-600"
+              : "text-destructive"
           }`}
         >
           {newPassword === confirmPassword ? (

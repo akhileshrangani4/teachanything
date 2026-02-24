@@ -338,7 +338,9 @@ export const emailDeliveries = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("email_deliveries_resend_message_id_idx").on(table.resendMessageId)],
+  (table) => [
+    index("email_deliveries_resend_message_id_idx").on(table.resendMessageId),
+  ],
 );
 
 // Relations

@@ -144,10 +144,7 @@ function chunkText(content: string): string[] {
 }
 
 /** Extract text from a fixture file for chunking. Binary formats use extractors. */
-async function extractText(
-  buf: Buffer,
-  mime: string,
-): Promise<string> {
+async function extractText(buf: Buffer, mime: string): Promise<string> {
   switch (mime) {
     case "application/pdf": {
       // Import lib directly to avoid pdf-parse's index.js loading a test file on import
@@ -329,7 +326,9 @@ async function seed() {
       if (openaiApiKey) {
         console.log("  OpenAI key found — generating embeddings...");
       } else {
-        console.log("  No OPENAI_API_KEY — chunks saved without embeddings (RAG search will not work)");
+        console.log(
+          "  No OPENAI_API_KEY — chunks saved without embeddings (RAG search will not work)",
+        );
       }
 
       for (let fi = 0; fi < FIXTURES.length; fi++) {

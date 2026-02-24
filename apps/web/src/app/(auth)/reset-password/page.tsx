@@ -374,9 +374,7 @@ function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={<AuthCardSkeleton titleWidth="w-36" />}
-    >
+    <Suspense fallback={<AuthCardSkeleton titleWidth="w-36" />}>
       <ResetPasswordContent />
     </Suspense>
   );

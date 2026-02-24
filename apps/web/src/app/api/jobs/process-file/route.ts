@@ -8,7 +8,10 @@ export async function POST(req: NextRequest) {
     // When QStash is not configured, signature verification is impossible
     if (!qstashReceiver) {
       return NextResponse.json(
-        { error: "QStash is not configured — file processing jobs are unavailable" },
+        {
+          error:
+            "QStash is not configured — file processing jobs are unavailable",
+        },
         { status: 503 },
       );
     }

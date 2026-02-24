@@ -112,7 +112,9 @@ async function queueEmail(params: {
       .set({
         deliveryStatus: "failed",
         errorMessage:
-          error instanceof Error ? error.message : "Failed to publish to QStash",
+          error instanceof Error
+            ? error.message
+            : "Failed to publish to QStash",
         updatedAt: new Date(),
       })
       .where(eq(emailDeliveries.id, deliveryId));
