@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyQStashSignature } from "@/lib/qstash";
+import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
 import { logError } from "@/lib/logger";
 import { processFile } from "@/lib/file-processor";
 
 export async function POST(req: NextRequest) {
   try {
+    // When QStash is not configured, signature verification is impossible
+    if (!qstashReceiver) {
+      return NextResponse.json(
+        { error: "QStash is not configured — file processing jobs are unavailable" },
+        { status: 503 },
+      );
+    }
+
     // Verify QStash signature
     // Check both header cases (some platforms lowercase headers)
     const signature =

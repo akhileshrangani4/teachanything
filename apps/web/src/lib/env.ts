@@ -8,10 +8,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   DIRECT_URL: z.string().min(1).optional(),
 
-  // Supabase
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // Supabase (optional — file uploads disabled without these)
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(32),
@@ -21,22 +21,22 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().min(1),
 
   // OpenAI (for embeddings - OpenRouter doesn't support embeddings)
-  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: z.string().min(1),
 
-  // Resend
-  RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.string().email(),
-  RESEND_WEBHOOK_SECRET: z.string().min(1),
+  // Resend (optional — emails logged to console without these)
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().email().optional(),
+  RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
 
-  // Upstash Redis
-  UPSTASH_REDIS_REST_URL: z.string().url(),
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
+  // Upstash Redis (optional — rate limiting disabled without these)
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 
-  // Upstash QStash
-  QSTASH_URL: z.string().url().optional(), // Optional - only needed for local development
-  QSTASH_TOKEN: z.string().min(1),
-  QSTASH_CURRENT_SIGNING_KEY: z.string().min(1),
-  QSTASH_NEXT_SIGNING_KEY: z.string().min(1),
+  // Upstash QStash (optional — async jobs run inline without these)
+  QSTASH_URL: z.string().url().optional(),
+  QSTASH_TOKEN: z.string().min(1).optional(),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().min(1).optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().min(1).optional(),
 
   // App Config
   NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -97,6 +97,32 @@ function validateEnv(): Env {
 
 // Validate env on module load (server-side only)
 export const env = typeof window === "undefined" ? validateEnv() : ({} as Env);
+
+/**
+ * Check whether an optional external service is configured.
+ * Use this to gate features that depend on third-party APIs.
+ */
+export function isServiceAvailable(
+  service: "redis" | "qstash" | "resend" | "supabase-storage",
+): boolean {
+  switch (service) {
+    case "redis":
+      return !!(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN);
+    case "qstash":
+      return !!(
+        env.QSTASH_TOKEN &&
+        env.QSTASH_CURRENT_SIGNING_KEY &&
+        env.QSTASH_NEXT_SIGNING_KEY
+      );
+    case "resend":
+      return !!env.RESEND_API_KEY;
+    case "supabase-storage":
+      return !!(
+        env.NEXT_PUBLIC_SUPABASE_URL &&
+        env.SUPABASE_SERVICE_ROLE_KEY
+      );
+  }
+}
 
 // Helper to get approved email domains as array
 export function getApprovedDomains(): string[] {

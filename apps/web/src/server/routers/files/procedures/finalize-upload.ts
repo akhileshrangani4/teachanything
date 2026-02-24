@@ -4,14 +4,17 @@ import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { userFiles } from "@teachanything/db/schema";
 import { createSupabaseClient } from "@/lib/supabase";
+import { isServiceAvailable } from "@/lib/env";
+import { localFileExists, getLocalFileSize, deleteLocalFile } from "@/lib/local-storage";
 import { publishQStashJob } from "@/lib/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/lib/file-processor";
 
 /**
- * Finalize upload after client has uploaded directly to Supabase
- * Creates database record and triggers file processing
+ * Finalize upload after client has uploaded to storage.
+ * Creates database record and triggers file processing.
+ * Supports both Supabase Storage and local filesystem.
  */
 export const finalizeUploadProcedure = protectedProcedure
   .input(
@@ -27,6 +30,20 @@ export const finalizeUploadProcedure = protectedProcedure
     }),
   )
   .mutation(async ({ ctx, input }) => {
+    const isLocal = !isServiceAvailable("supabase-storage");
+
+    /** Remove a file from whichever storage backend is active */
+    async function cleanupFile(storagePath: string) {
+      if (isLocal) {
+        await deleteLocalFile(storagePath);
+      } else {
+        const supabase = createSupabaseClient();
+        await supabase.storage
+          .from("chatbot-files")
+          .remove([storagePath]);
+      }
+    }
+
     try {
       // Validate storage path matches expected pattern: {userId}/{fileId}
       const expectedPath = `${ctx.session.user.id}/${input.fileId}`;
@@ -37,37 +54,55 @@ export const finalizeUploadProcedure = protectedProcedure
         });
       }
 
-      // Verify the file was actually uploaded to Supabase
-      const supabase = createSupabaseClient();
-      const { data: fileExists, error: checkError } = await supabase.storage
-        .from("chatbot-files")
-        .list(ctx.session.user.id, {
-          limit: 1,
-          search: input.fileId,
-        });
+      if (isLocal) {
+        // Verify file exists on local filesystem
+        const exists = await localFileExists(input.storagePath);
+        if (!exists) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "File was not found in storage. Upload may have failed.",
+          });
+        }
 
-      if (checkError || !fileExists || fileExists.length === 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "File was not found in storage. Upload may have failed.",
-        });
-      }
-
-      // Verify the uploaded file size matches what was declared
-      const uploadedFile = fileExists[0];
-      if (uploadedFile && uploadedFile.metadata?.size) {
-        const actualSize = uploadedFile.metadata.size;
-        // Allow 1% tolerance for rounding/metadata differences
+        // Verify file size
+        const actualSize = await getLocalFileSize(input.storagePath);
         const tolerance = input.fileSize * 0.01;
         if (Math.abs(actualSize - input.fileSize) > tolerance) {
-          // Clean up mismatched file
-          await supabase.storage
-            .from("chatbot-files")
-            .remove([input.storagePath]);
+          await cleanupFile(input.storagePath);
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
           });
+        }
+      } else {
+        // Verify the file was actually uploaded to Supabase
+        const supabase = createSupabaseClient();
+        const { data: fileExists, error: checkError } = await supabase.storage
+          .from("chatbot-files")
+          .list(ctx.session.user.id, {
+            limit: 1,
+            search: input.fileId,
+          });
+
+        if (checkError || !fileExists || fileExists.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "File was not found in storage. Upload may have failed.",
+          });
+        }
+
+        // Verify the uploaded file size matches what was declared
+        const uploadedFile = fileExists[0];
+        if (uploadedFile && uploadedFile.metadata?.size) {
+          const actualSize = uploadedFile.metadata.size;
+          const tolerance = input.fileSize * 0.01;
+          if (Math.abs(actualSize - input.fileSize) > tolerance) {
+            await cleanupFile(input.storagePath);
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
+            });
+          }
         }
       }
 
@@ -84,10 +119,7 @@ export const finalizeUploadProcedure = protectedProcedure
         .limit(1);
 
       if (existingFiles.length > 0) {
-        // Clean up the uploaded file since we can't use it
-        await supabase.storage
-          .from("chatbot-files")
-          .remove([input.storagePath]);
+        await cleanupFile(input.storagePath);
 
         throw new TRPCError({
           code: "CONFLICT",
@@ -113,10 +145,7 @@ export const finalizeUploadProcedure = protectedProcedure
       const fileRecord = fileRecords[0];
 
       if (!fileRecord) {
-        // Clean up uploaded file since DB record creation failed
-        await supabase.storage
-          .from("chatbot-files")
-          .remove([input.storagePath]);
+        await cleanupFile(input.storagePath);
         throw new Error("Failed to create file record");
       }
 

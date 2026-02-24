@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { createSupabaseClient } from "@/lib/supabase";
 import { checkRateLimit, fileUploadRateLimit } from "@/lib/rate-limit";
+import { isServiceAvailable } from "@/lib/env";
 import { userFiles } from "@teachanything/db/schema";
 import {
   validateFileName,
@@ -15,7 +16,9 @@ import { randomUUID } from "crypto";
 
 /**
  * Generate a signed upload URL for direct client-to-Supabase uploads
- * This bypasses API body size limits and provides better performance
+ * This bypasses API body size limits and provides better performance.
+ *
+ * When Supabase is not configured, returns a local upload URL instead.
  */
 export const createUploadUrlProcedure = protectedProcedure
   .input(
@@ -77,6 +80,17 @@ export const createUploadUrlProcedure = protectedProcedure
       // Generate a unique UUID for the file
       const fileId = randomUUID();
       const storagePath = `${ctx.session.user.id}/${fileId}`;
+
+      // Local filesystem mode when Supabase is not configured
+      if (!isServiceAvailable("supabase-storage")) {
+        return {
+          uploadUrl: `/api/local-upload/${storagePath}`,
+          fileId,
+          storagePath,
+          token: "local",
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        };
+      }
 
       const supabase = createSupabaseClient();
 

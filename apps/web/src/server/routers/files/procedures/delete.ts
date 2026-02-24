@@ -8,6 +8,8 @@ import {
   fileChunks,
 } from "@teachanything/db/schema";
 import { createSupabaseClient } from "@/lib/supabase";
+import { isServiceAvailable } from "@/lib/env";
+import { deleteLocalFile } from "@/lib/local-storage";
 import { logInfo, logError } from "@/lib/logger";
 
 /**
@@ -36,17 +38,21 @@ export const deleteProcedure = protectedProcedure
     }
 
     try {
-      // Delete from Supabase Storage
-      const supabase = createSupabaseClient();
-      const { error: storageError } = await supabase.storage
-        .from("chatbot-files")
-        .remove([file.storagePath]);
+      // Delete from storage
+      if (isServiceAvailable("supabase-storage")) {
+        const supabase = createSupabaseClient();
+        const { error: storageError } = await supabase.storage
+          .from("chatbot-files")
+          .remove([file.storagePath]);
 
-      if (storageError) {
-        logError(storageError, "Failed to delete file from storage", {
-          fileId: input.fileId,
-          storagePath: file.storagePath,
-        });
+        if (storageError) {
+          logError(storageError, "Failed to delete file from storage", {
+            fileId: input.fileId,
+            storagePath: file.storagePath,
+          });
+        }
+      } else {
+        await deleteLocalFile(file.storagePath);
       }
 
       // Delete file chunks from database

@@ -11,7 +11,9 @@
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
     "db:push": "turbo run db:push",
-    "db:studio": "turbo run db:studio"
+    "db:seed": "turbo run db:seed",
+    "db:studio": "turbo run db:studio",
+    "stop": "docker compose down"
   },
   "devDependencies": {
     "baseline-browser-mapping": "^2.9.15",
