@@ -1,6 +1,13 @@
+# Managed by release-please
+.release-please-manifest.json
+**/CHANGELOG.md
+
+# Build outputs
 package-lock.json
 node_modules
 .next
 dist
 coverage
+
+# Generated files
 packages/db/drizzle
