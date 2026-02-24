@@ -79,11 +79,7 @@ npm run stop         # Stop PostgreSQL container
 
 ## Contributing
 
-1. Follow existing code patterns
-2. Keep functions small and type-safe
-3. Run `npm run lint` and `npm run check-types` before committing
-
-See [AGENTS.md](./AGENTS.md) for detailed coding guidelines.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, [SETUP.md](./SETUP.md) for environment configuration, and [AGENTS.md](./AGENTS.md) for coding guidelines.
 
 ## License
 
