@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/akhileshrangani4/teachanything/compare/v1.12.1...v1.13.0) (2026-03-03)
+
+
+### Features
+
+* **web:** add Hong Kong to country dropdown list ([#161](https://github.com/akhileshrangani4/teachanything/issues/161)) ([fa00ece](https://github.com/akhileshrangani4/teachanything/commit/fa00ece672957dd49435f3327329bafca8a136aa))
+
 ## [1.12.1](https://github.com/akhileshrangani4/teachanything/compare/v1.12.0...v1.12.1) (2026-02-24)
 
 
