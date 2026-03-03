@@ -76,6 +76,7 @@ export const COUNTRY_OPTIONS = [
   { value: "Guyana", label: "Guyana" },
   { value: "Haiti", label: "Haiti" },
   { value: "Honduras", label: "Honduras" },
+  { value: "Hong Kong", label: "Hong Kong" },
   { value: "Hungary", label: "Hungary" },
   { value: "Iceland", label: "Iceland" },
   { value: "India", label: "India" },
