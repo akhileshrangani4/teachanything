@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",
-    "@langchain/community": "^1.1.15",
+    "@langchain/community": "^1.1.18",
     "@langchain/core": "^1.1.15",
     "@langchain/textsplitters": "^1.0.0",
     "@openrouter/ai-sdk-provider": "^1.5.4",
