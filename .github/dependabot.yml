@@ -101,8 +101,6 @@ updates:
           - "zod"
           - "superjson"
           - "nanoid"
-          - "pino"
-          - "pino-pretty"
           - "sonner"
           - "framer-motion"
       markdown:
