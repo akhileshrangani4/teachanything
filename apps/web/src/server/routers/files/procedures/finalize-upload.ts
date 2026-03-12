@@ -23,7 +23,7 @@ import { processFile } from "@/lib/file-processor";
 export const finalizeUploadProcedure = protectedProcedure
   .input(
     z.object({
-      fileId: z.string().uuid("Invalid file ID format"),
+      fileId: z.string().uuid({ error: "Invalid file ID format" }),
       fileName: z
         .string()
         .min(1, "File name is required")
