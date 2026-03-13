@@ -112,7 +112,7 @@ export default function ChatbotsPage() {
             trigger={
               <Button
                 size="lg"
-                className="shadow-md hover:shadow-lg transition-shadow"
+                className="shadow-sm hover:shadow-md transition-shadow"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Chatbot

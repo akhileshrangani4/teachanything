@@ -79,7 +79,7 @@ export function MessagesChart({
       new Date(data.accountCreatedAt).getTime();
 
   return (
-    <Card className="border border-border/60 shadow-sm">
+    <Card className="border border-border/60 shadow-xs">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>

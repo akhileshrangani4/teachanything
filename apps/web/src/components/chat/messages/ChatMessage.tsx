@@ -48,7 +48,7 @@ export function ChatMessage({
         <div className="flex flex-col items-end gap-1 md:gap-2 max-w-[85%] md:max-w-[80%] min-w-0">
           <MessageContent
             markdown={false}
-            className="bg-primary/10 text-foreground whitespace-pre-wrap shadow-sm border border-primary/20"
+            className="bg-primary/10 text-foreground whitespace-pre-wrap shadow-xs border border-primary/20"
           >
             {message.content}
           </MessageContent>
@@ -79,7 +79,7 @@ export function ChatMessage({
             imageClassName="grayscale"
           />
           <div className="flex-1 min-w-0">
-            <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 shadow-sm border border-border/50 w-fit">
+            <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 shadow-xs border border-border/50 w-fit">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
                 <StopCircle className="h-3 w-3" />
                 <span>Cancelled</span>
@@ -194,7 +194,7 @@ export function StreamingMessage({ content }: StreamingMessageProps) {
             alt="Teach anything"
             imageClassName="grayscale"
           />
-          <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-sm border border-border/50">
+          <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-xs border border-border/50">
             <TypingLoader size="md" className="opacity-60" />
           </div>
         </div>

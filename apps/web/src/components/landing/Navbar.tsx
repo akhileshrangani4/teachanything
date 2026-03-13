@@ -46,7 +46,7 @@ export default function Navbar() {
       <div
         className={`w-full max-w-7xl mx-auto transition-all duration-500 ease-out ${
           scrolled || mobileMenuOpen
-            ? "bg-white/15 backdrop-blur-xl rounded-2xl md:rounded-full shadow-lg border border-white/30"
+            ? "bg-white/15 backdrop-blur-xl rounded-2xl md:rounded-full shadow-md border border-white/30"
             : "bg-transparent"
         }`}
       >

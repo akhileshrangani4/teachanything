@@ -16,7 +16,7 @@ interface FileCardProps {
 
 export function FileCard({ file, onDelete }: FileCardProps) {
   return (
-    <Card className="border-2 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group">
+    <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all duration-200 group">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1 space-y-3">

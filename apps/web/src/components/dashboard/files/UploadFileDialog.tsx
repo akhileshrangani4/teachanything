@@ -296,7 +296,7 @@ export function UploadFileDialog({
       <DialogTrigger asChild>
         <Button
           size="lg"
-          className="shadow-md hover:shadow-lg transition-shadow"
+          className="shadow-sm hover:shadow-md transition-shadow"
         >
           <Upload className="h-4 w-4 mr-2" />
           Upload File

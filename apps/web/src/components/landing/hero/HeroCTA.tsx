@@ -19,7 +19,7 @@ export default function HeroCTA({ delay = 0.6 }: HeroCTAProps) {
       <Button
         asChild
         size="lg"
-        className="bg-black text-white hover:bg-black/90 rounded-lg px-8 py-6 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+        className="bg-black text-white hover:bg-black/90 rounded-lg px-8 py-6 text-base font-medium shadow-md hover:shadow-lg transition-all duration-300"
       >
         <Link href="/register">Get Started Free</Link>
       </Button>

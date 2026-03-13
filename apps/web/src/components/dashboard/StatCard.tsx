@@ -24,7 +24,7 @@ export function StatCard({
   isLoading = false,
 }: StatCardProps) {
   return (
-    <Card className="border border-border/60 bg-card card-hover-lift shadow-sm">
+    <Card className="border border-border/60 bg-card card-hover-lift shadow-xs">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           {title}

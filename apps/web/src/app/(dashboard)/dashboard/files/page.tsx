@@ -254,7 +254,7 @@ export default function FilesPage() {
         </div>
 
         {/* Upload Section */}
-        <Card className="border border-border/60 shadow-sm">
+        <Card className="border border-border/60 shadow-xs">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
               <div>

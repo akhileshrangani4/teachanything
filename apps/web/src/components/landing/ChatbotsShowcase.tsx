@@ -86,7 +86,7 @@ export default function ChatbotsShowcase() {
                         hasShareToken
                           ? "cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                           : ""
-                      } transition-all duration-300 shadow-lg hover:shadow-2xl`}
+                      } transition-all duration-300 shadow-md hover:shadow-xl`}
                     >
                       {/* Background image */}
                       <Image
@@ -242,7 +242,7 @@ export default function ChatbotsShowcase() {
                         hasShareToken
                           ? "cursor-pointer hover:scale-[1.02] hover:-translate-y-1 active:scale-[0.98]"
                           : ""
-                      } transition-all duration-300 shadow-lg hover:shadow-2xl`}
+                      } transition-all duration-300 shadow-md hover:shadow-xl`}
                     >
                       {/* Background image */}
                       <Image
