@@ -1,6 +1,20 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Tailwind 4 removed automatic cursor:pointer on interactive elements — restore it */
+@layer base {
+  button,
+  [role="button"],
+  a,
+  select,
+  summary,
+  [type="button"],
+  [type="reset"],
+  [type="submit"] {
+    cursor: pointer;
+  }
+}
+
 @theme inline {
   /* Colors -- map CSS vars to Tailwind namespace */
   --color-background: var(--background);
