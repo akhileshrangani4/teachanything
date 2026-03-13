@@ -72,7 +72,7 @@ export default function UsedBySection({ delay = 0.6 }: UsedBySectionProps) {
                       width: `${university.width * 0.7}px`,
                       height: "auto",
                     }}
-                    className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 drop-shadow-sm"
+                    className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 drop-shadow-xs"
                     quality={95}
                   />
                 </Link>

@@ -50,7 +50,7 @@ export function DashboardHeader() {
   const isAdmin = user?.role === "admin";
 
   return (
-    <header className="h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 flex items-center justify-between px-4 md:px-6 shadow-sm">
+    <header className="h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 flex items-center justify-between px-4 md:px-6 shadow-xs">
       <div className="flex items-center gap-3">
         <button
           onClick={() => setIsOpen(true)}

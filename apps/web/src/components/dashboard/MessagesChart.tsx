@@ -34,11 +34,11 @@ interface MessagesChartProps {
 // Recharts requires CSS color strings (not Tailwind classes) for SVG attributes.
 // Extract theme tokens so they're referenced in one place.
 const chartColors = {
-  grid: "hsl(var(--muted))",
-  tick: "hsl(var(--muted-foreground))",
-  card: "hsl(var(--card))",
-  border: "hsl(var(--border))",
-  primary: "hsl(var(--primary))",
+  grid: "var(--muted)",
+  tick: "var(--muted-foreground)",
+  card: "var(--card)",
+  border: "var(--border)",
+  primary: "var(--primary)",
 } as const;
 
 export function MessagesChart({
@@ -79,7 +79,7 @@ export function MessagesChart({
       new Date(data.accountCreatedAt).getTime();
 
   return (
-    <Card className="border border-border/60 shadow-sm">
+    <Card className="border border-border/60 shadow-xs">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>

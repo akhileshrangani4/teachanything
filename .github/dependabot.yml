@@ -88,8 +88,9 @@ updates:
           - "tailwindcss"
           - "tailwind-*"
           - "@tailwindcss/*"
+          - "tw-animate-css"
+          - "tailwind-merge"
           - "postcss"
-          - "autoprefixer"
       small-safe-packages:
         # These are generally safe to update unconditionally
         patterns:
@@ -97,12 +98,9 @@ updates:
           - "prettier"
           - "clsx"
           - "class-variance-authority"
-          - "tailwind-merge"
           - "zod"
           - "superjson"
           - "nanoid"
-          - "pino"
-          - "pino-pretty"
           - "sonner"
           - "framer-motion"
       markdown:

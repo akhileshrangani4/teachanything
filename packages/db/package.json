@@ -22,7 +22,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
     "drizzle-orm": "^0.45.1",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

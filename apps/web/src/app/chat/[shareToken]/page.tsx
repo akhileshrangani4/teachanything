@@ -72,7 +72,7 @@ export default function SharedChatPage() {
 
   return (
     <div className="h-dvh w-full overflow-hidden bg-secondary flex justify-center">
-      <div className="h-full w-full max-w-6xl flex flex-col bg-background md:my-6 md:rounded-xl md:h-[calc(100dvh-48px)] md:border md:shadow-lg">
+      <div className="h-full w-full max-w-6xl flex flex-col bg-background md:my-6 md:rounded-xl md:h-[calc(100dvh-48px)] md:border md:shadow-md">
         <ChatInterface
           messages={messages}
           isStreaming={isStreaming}

@@ -141,7 +141,7 @@ export function FileTableSkeleton({
 export function SharedChatSkeleton() {
   return (
     <div className="h-dvh w-full overflow-hidden bg-secondary flex justify-center">
-      <div className="h-full w-full max-w-6xl flex flex-col bg-background md:my-6 md:rounded-xl md:h-[calc(100dvh-48px)] md:border md:shadow-lg">
+      <div className="h-full w-full max-w-6xl flex flex-col bg-background md:my-6 md:rounded-xl md:h-[calc(100dvh-48px)] md:border md:shadow-md">
         {/* Header */}
         <div className="flex items-center gap-2 px-2 md:px-4 py-2 md:py-2.5 border-b bg-muted/30 flex-shrink-0">
           <Skeleton className="h-3 w-32" />

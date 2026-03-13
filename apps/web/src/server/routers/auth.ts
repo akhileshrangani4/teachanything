@@ -102,9 +102,9 @@ export const authRouter = router({
     // Check if profile is complete (all fields required)
     const isProfileComplete = Boolean(
       userData.title &&
-        userData.institutionalAffiliation &&
-        userData.department &&
-        userData.facultyWebpage,
+      userData.institutionalAffiliation &&
+      userData.department &&
+      userData.facultyWebpage,
     );
 
     return {

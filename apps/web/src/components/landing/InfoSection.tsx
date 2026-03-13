@@ -37,7 +37,7 @@ export default function InfoSection() {
 
         {/* Large Image */}
         <motion.div
-          className="aspect-[21/9] rounded-2xl overflow-hidden shadow-xl relative"
+          className="aspect-[21/9] rounded-2xl overflow-hidden shadow-lg relative"
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true, margin: "-100px" }}

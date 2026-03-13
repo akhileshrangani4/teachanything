@@ -11,7 +11,7 @@ import { processFile } from "@/lib/file-processor";
 export const retryProcedure = protectedProcedure
   .input(
     z.object({
-      fileId: z.string().uuid("Invalid file ID"),
+      fileId: z.string().uuid({ error: "Invalid file ID" }),
     }),
   )
   .mutation(async ({ ctx, input }) => {

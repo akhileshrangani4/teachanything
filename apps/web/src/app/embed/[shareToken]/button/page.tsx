@@ -41,7 +41,7 @@ export default function EmbedButtonPage() {
     <div className="w-full h-full flex items-center justify-center bg-transparent p-0 m-0 overflow-hidden">
       <button
         onClick={handleClick}
-        className="w-full h-full aspect-square flex items-center justify-center rounded-full hover:opacity-80 transition-opacity shadow-lg border-2 border-border bg-transparent p-0 m-0 min-w-0 min-h-0"
+        className="w-full h-full aspect-square flex items-center justify-center rounded-full hover:opacity-80 transition-opacity shadow-md border-2 border-border bg-transparent p-0 m-0 min-w-0 min-h-0"
         aria-label={isChatOpen ? "Close chat" : "Open chat"}
       >
         <MessageSquare className="w-6 h-6 flex-shrink-0" />

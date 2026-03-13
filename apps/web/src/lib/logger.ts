@@ -1,4 +1,4 @@
-// Simple console-based logger (pino disabled for cleaner output)
+// Simple console-based logger
 const isDev = process.env.NODE_ENV === "development";
 const LOG_ENABLED = process.env.ENABLE_LOGGING === "true";
 

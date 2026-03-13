@@ -21,7 +21,7 @@ interface ChatbotCardProps {
 
 export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
   return (
-    <Card className="border border-border/60 bg-card card-hover-lift shadow-sm group">
+    <Card className="border border-border/60 bg-card card-hover-lift shadow-xs group">
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-4">
           <Link
