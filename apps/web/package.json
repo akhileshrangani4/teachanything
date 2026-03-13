@@ -46,7 +46,7 @@
     "drizzle-orm": "^0.45.1",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.474.0",
-    "marked": "^17.0.1",
+    "marked": "^17.0.4",
     "nanoid": "^5.0.9",
     "next": "^16.1.6",
     "postcss": "^8.5.8",
