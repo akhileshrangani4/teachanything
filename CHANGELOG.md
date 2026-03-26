@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.14.0](https://github.com/akhileshrangani4/teachanything/compare/v1.13.2...v1.14.0) (2026-03-26)
+
+
+### Features
+
+* **ai:** add slide boundaries and speaker notes to PowerPoint extraction ([#159](https://github.com/akhileshrangani4/teachanything/issues/159)) ([42e4d21](https://github.com/akhileshrangani4/teachanything/commit/42e4d219a0c047ef72f6415c0717ce21a96e0b5a))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump @types/node from 22.18.11 to 25.4.0 ([#195](https://github.com/akhileshrangani4/teachanything/issues/195)) ([755f9c7](https://github.com/akhileshrangani4/teachanything/commit/755f9c7b9021df31276af508d344c7ba20d6b9b8))
+* **deps-dev:** bump picomatch from 2.3.1 to 2.3.2 ([#203](https://github.com/akhileshrangani4/teachanything/issues/203)) ([5fc3f85](https://github.com/akhileshrangani4/teachanything/commit/5fc3f8596859c11df62d97ae6d7de1e2ab9d5e74))
+* **deps-dev:** bump turbo from 2.8.16 to 2.8.17 in the turbo group ([#192](https://github.com/akhileshrangani4/teachanything/issues/192)) ([a048456](https://github.com/akhileshrangani4/teachanything/commit/a048456cf36930706e2392bc0648fa6087a7c345))
+* **deps-dev:** bump typescript from 5.9.2 to 5.9.3 ([#193](https://github.com/akhileshrangani4/teachanything/issues/193)) ([ed4ea5c](https://github.com/akhileshrangani4/teachanything/commit/ed4ea5cd7ba106e7414bde71ae913fc2fd082ed1))
+* **deps:** bump @supabase/supabase-js from 2.98.0 to 2.99.1 in the supabase group ([#190](https://github.com/akhileshrangani4/teachanything/issues/190)) ([79a4fd8](https://github.com/akhileshrangani4/teachanything/commit/79a4fd8b694ca29b5dc5f9f574b85cdb6a5795b1))
+* **deps:** bump bcryptjs and @types/bcryptjs ([#197](https://github.com/akhileshrangani4/teachanything/issues/197)) ([367497f](https://github.com/akhileshrangani4/teachanything/commit/367497fff7397bd25ff780dbad17491fc8e02a92))
+* **deps:** bump mammoth from 1.11.0 to 1.12.0 ([#196](https://github.com/akhileshrangani4/teachanything/issues/196)) ([8919746](https://github.com/akhileshrangani4/teachanything/commit/89197469f6e6ae15d4a89564fa5ea5555c799723))
+* **deps:** bump next from 16.1.6 to 16.1.7 ([#198](https://github.com/akhileshrangani4/teachanything/issues/198)) ([8fc2072](https://github.com/akhileshrangani4/teachanything/commit/8fc207265a47b5f0260ad906e7c4c8ded10d725e))
+* **deps:** bump next from 16.1.7 to 16.2.0 ([#204](https://github.com/akhileshrangani4/teachanything/issues/204)) ([47083ae](https://github.com/akhileshrangani4/teachanything/commit/47083ae705d48b9ee734920cbefc018ef9baad59))
+* **deps:** bump the langchain group across 1 directory with 3 updates ([#201](https://github.com/akhileshrangani4/teachanything/issues/201)) ([fc3da89](https://github.com/akhileshrangani4/teachanything/commit/fc3da89cd713f3a1a87c9744c1a42e17f7853307))
+* **deps:** bump the upstash group across 1 directory with 2 updates ([#200](https://github.com/akhileshrangani4/teachanything/issues/200)) ([b2e1306](https://github.com/akhileshrangani4/teachanything/commit/b2e1306468667d6ddd10f94fbda3306270e44489))
+* **deps:** bump ytanikin/pr-conventional-commits from 1.5.1 to 1.5.2 in the actions group ([#199](https://github.com/akhileshrangani4/teachanything/issues/199)) ([395fc22](https://github.com/akhileshrangani4/teachanything/commit/395fc22faadb06825d0e72efb9d46eea52d22a28))
+
 ## [1.13.2](https://github.com/akhileshrangani4/teachanything/compare/v1.13.1...v1.13.2) (2026-03-13)
 
 
