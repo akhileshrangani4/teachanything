@@ -92,7 +92,7 @@ export function UploadFileDialog({
         )
       ) {
         const displayName = getFileTypeDisplayName(file.type);
-        return `File type "${displayName}" is not supported. Please upload PDF, Word (.doc, .docx), Text, Markdown, JSON, or CSV files.`;
+        return `File type "${displayName}" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, or CSV files.`;
       }
 
       // Check for duplicate file name
@@ -306,8 +306,8 @@ export function UploadFileDialog({
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
           <DialogDescription>
-            Upload one or more PDF, Word, TXT, Markdown, JSON, or CSV files (max{" "}
-            {MAX_FILE_SIZE / 1024 / 1024}MB each)
+            Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, or
+            CSV files (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
           </DialogDescription>
         </DialogHeader>
 
@@ -337,7 +337,7 @@ export function UploadFileDialog({
               type="file"
               ref={fileInputRef}
               onChange={handleInputChange}
-              accept=".pdf,.doc,.docx,.txt,.md,.json,.csv"
+              accept=".pdf,.doc,.docx,.pptx,.txt,.md,.json,.csv"
               multiple
               className="hidden"
             />
@@ -451,7 +451,7 @@ export function UploadFileDialog({
                   or drag and drop
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PDF, Word, TXT, Markdown, JSON, or CSV (max{" "}
+                  PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV (max{" "}
                   {MAX_FILE_SIZE / 1024 / 1024}MB each)
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">

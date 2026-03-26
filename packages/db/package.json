@@ -20,19 +20,19 @@
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0",
+    "@supabase/supabase-js": "^2.99.3",
     "drizzle-orm": "^0.45.1",
     "postgres": "^3.4.8"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22.10.2",
-    "bcryptjs": "^2.4.3",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/node": "^25.5.0",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.7",
     "drizzle-kit": "^0.31.9",
-    "mammoth": "^1.8.0",
+    "mammoth": "^1.12.0",
     "pdf-parse": "^1.1.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
   }
 }

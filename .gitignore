@@ -40,6 +40,9 @@ uploads/
 .DS_Store
 *.pem
 
+# IDE
+.idea/
+
 # playwright mcp files
 .playwright-mcp
 
