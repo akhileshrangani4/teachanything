@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.14.1](https://github.com/akhileshrangani4/teachanything/compare/v1.14.0...v1.14.1) (2026-03-27)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump brace-expansion from 1.1.12 to 1.1.13 ([#207](https://github.com/akhileshrangani4/teachanything/issues/207)) ([af8d199](https://github.com/akhileshrangani4/teachanything/commit/af8d199eecb4ded09beb67b8d7aa51d510ea650a))
+* **deps:** bump handlebars from 4.7.8 to 4.7.9 ([#206](https://github.com/akhileshrangani4/teachanything/issues/206)) ([d3afe97](https://github.com/akhileshrangani4/teachanything/commit/d3afe97e46783a7a5a23efac649e32d7b59c7804))
+* **deps:** bump next from 16.2.0 to 16.2.1 ([#205](https://github.com/akhileshrangani4/teachanything/issues/205)) ([f0d0c3b](https://github.com/akhileshrangani4/teachanything/commit/f0d0c3ba019cbc7476d19c45f3c3425e229f3c6d))
+
 ## [1.14.0](https://github.com/akhileshrangani4/teachanything/compare/v1.13.2...v1.14.0) (2026-03-26)
 
 
