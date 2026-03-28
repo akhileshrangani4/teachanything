@@ -163,14 +163,14 @@ export const chatRouter = router({
                   .orderBy(
                     sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`,
                   )
-                  .limit(5)
+                  .limit(20)
               : [];
 
           if (relevantChunks.length > 0) {
             contextText = "\n\nRelevant context from uploaded documents:\n\n";
             relevantChunks.forEach((chunk, index: number) => {
               const fileName = chunk.fileName || "Unknown";
-              contextText += `[${index + 1}] ${chunk.content}\n\n`;
+              contextText += `[${index + 1}] (Source: ${fileName}) ${chunk.content}\n\n`;
               sources.push({
                 fileName,
                 chunkIndex: chunk.chunkIndex,
@@ -396,7 +396,7 @@ export const chatRouter = router({
                 .orderBy(
                   sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`,
                 )
-                .limit(5)
+                .limit(20)
             : [];
 
         // Build context from RAG chunks
@@ -411,7 +411,7 @@ export const chatRouter = router({
           contextText = "\n\nRelevant context from uploaded documents:\n\n";
           relevantChunks.forEach((chunk, index: number) => {
             const fileName = chunk.fileName || "Unknown";
-            contextText += `[${index + 1}] ${chunk.content}\n\n`;
+            contextText += `[${index + 1}] (Source: ${fileName}) ${chunk.content}\n\n`;
             sources.push({
               fileName,
               chunkIndex: chunk.chunkIndex,
