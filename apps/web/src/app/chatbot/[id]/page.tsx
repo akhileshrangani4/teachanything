@@ -22,6 +22,7 @@ import { WrappableText } from "@/components/ui/wrappable-text";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { useFilePolling } from "@/hooks/useFilePolling";
+import { WebSourcesTab } from "@/components/chatbot/WebSourcesTab";
 
 export default function ChatbotDetailPage() {
   const router = useRouter();
@@ -158,6 +159,7 @@ export default function ChatbotDetailPage() {
           <TabsList className="bg-muted-foreground/10 border border-border">
             <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="web-sources">Web Sources</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             {chatbot.sharingEnabled && chatbot.shareToken && (
               <TabsTrigger value="embed">Embed</TabsTrigger>
@@ -188,6 +190,11 @@ export default function ChatbotDetailPage() {
               filesLoading={filesLoading}
               onRefetch={refetchFiles}
             />
+          </TabsContent>
+
+          {/* Web Sources Tab */}
+          <TabsContent value="web-sources" className="mt-6">
+            <WebSourcesTab chatbotId={chatbotId} />
           </TabsContent>
 
           {/* Settings Tab */}
