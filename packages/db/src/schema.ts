@@ -48,6 +48,23 @@ export const emailTypeEnum = pgEnum("email_type", [
   "password_reset",
 ]);
 
+export const crawlStatusEnum = pgEnum("crawl_status", [
+  "pending",
+  "discovering",
+  "crawling",
+  "completed",
+  "failed",
+]);
+
+export const crawledPageStatusEnum = pgEnum("crawled_page_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+  "blocked",
+  "skipped",
+]);
+
 // Better Auth: Users table
 // Note: Better Auth uses nanoid for IDs, not UUIDs
 export const user = pgTable("user", {
@@ -343,7 +360,54 @@ export const emailDeliveries = pgTable(
   ],
 );
 
-// Relations
+export const crawlSources = pgTable("crawl_sources", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  chatbotId: uuid("chatbot_id")
+    .references(() => chatbots.id, { onDelete: "cascade" })
+    .notNull(),
+  rootUrl: text("root_url").notNull(),
+  status: crawlStatusEnum("status").default("pending").notNull(),
+  crawlDepth: integer("crawl_depth").default(3).notNull(),
+  maxPages: integer("max_pages").default(10).notNull(),
+  includePatterns: jsonb("include_patterns").$type<string[]>().default([]),
+  excludePatterns: jsonb("exclude_patterns").$type<string[]>().default([]),
+  lastCrawledAt: timestamp("last_crawled_at"),
+  metadata: jsonb("metadata")
+    .$type<{
+      pageCount?: number;
+      errorCount?: number;
+      errors?: Array<{ url: string; error: string }>;
+    }>()
+    .default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const crawledPages = pgTable("crawled_pages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  crawlSourceId: uuid("crawl_source_id")
+    .references(() => crawlSources.id, { onDelete: "cascade" })
+    .notNull(),
+  userFileId: uuid("user_file_id").references(() => userFiles.id, {
+    onDelete: "cascade",
+  }),
+  url: text("url").notNull(),
+  title: text("title"),
+  contentHash: text("content_hash"),
+  depth: integer("depth").default(0).notNull(),
+  status: crawledPageStatusEnum("status").default("pending").notNull(),
+  metadata: jsonb("metadata")
+    .$type<{
+      statusCode?: number;
+      contentType?: string;
+      wordCount?: number;
+      error?: string;
+    }>()
+    .default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const userRelations = relations(user, ({ many }) => ({
   chatbots: many(chatbots),
   sessions: many(session),
@@ -384,6 +448,7 @@ export const chatbotsRelations = relations(chatbots, ({ one, many }) => ({
   fileAssociations: many(chatbotFileAssociations),
   conversations: many(conversations),
   analytics: many(analytics),
+  crawlSources: many(crawlSources),
 }));
 
 export const userFilesRelations = relations(userFiles, ({ one, many }) => ({
@@ -449,5 +514,24 @@ export const analyticsRelations = relations(analytics, ({ one }) => ({
   chatbot: one(chatbots, {
     fields: [analytics.chatbotId],
     references: [chatbots.id],
+  }),
+}));
+
+export const crawlSourcesRelations = relations(crawlSources, ({ one, many }) => ({
+  chatbot: one(chatbots, {
+    fields: [crawlSources.chatbotId],
+    references: [chatbots.id],
+  }),
+  pages: many(crawledPages),
+}));
+
+export const crawledPagesRelations = relations(crawledPages, ({ one }) => ({
+  crawlSource: one(crawlSources, {
+    fields: [crawledPages.crawlSourceId],
+    references: [crawlSources.id],
+  }),
+  userFile: one(userFiles, {
+    fields: [crawledPages.userFileId],
+    references: [userFiles.id],
   }),
 }));
