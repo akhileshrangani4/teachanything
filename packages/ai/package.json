@@ -6,22 +6,27 @@
   "exports": {
     ".": "./src/index.ts",
     "./openrouter": "./src/openrouter-client.ts",
-    "./rag": "./src/rag-service.ts"
+    "./rag": "./src/rag-service.ts",
+    "./crawler": "./src/crawler.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",
     "@langchain/community": "^1.1.24",
     "@langchain/core": "^1.1.15",
     "@langchain/textsplitters": "^1.0.0",
+    "@mozilla/readability": "^0.6.0",
     "@openrouter/ai-sdk-provider": "^1.5.4",
     "@types/pdf-parse": "^1.1.4",
     "ai": "^6.0.116",
+    "cheerio": "^1.2.0",
     "js-tiktoken": "^1.0.12",
+    "jsdom": "^26.1.0",
     "langchain": "^1.2.36",
     "mammoth": "^1.12.0",
     "nanoid": "^5.0.9",
     "officeparser": "^6.0.4",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "robots-parser": "^3.0.1"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
@@ -29,6 +34,7 @@
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^25.5.0",
     "typescript": "^5.9.3"
   }
