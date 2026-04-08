@@ -46,36 +46,62 @@ export const removeCrawlSourceProcedure = protectedProcedure
     }
 
     try {
-      const pagesWithFiles = await ctx.db
-        .select({ userFileId: crawledPages.userFileId })
-        .from(crawledPages)
-        .where(
-          and(
-            eq(crawledPages.crawlSourceId, input.crawlSourceId),
-            isNotNull(crawledPages.userFileId),
+      await ctx.db.transaction(async (tx) => {
+        const pagesWithFiles = await tx
+          .select({ userFileId: crawledPages.userFileId })
+          .from(crawledPages)
+          .where(
+            and(
+              eq(crawledPages.crawlSourceId, input.crawlSourceId),
+              isNotNull(crawledPages.userFileId),
+            ),
+          );
+
+        const fileIds = [
+          ...new Set(
+            pagesWithFiles
+              .map((p) => p.userFileId)
+              .filter((id): id is string => id !== null),
           ),
-        );
+        ];
 
-      const fileIds = pagesWithFiles
-        .map((p) => p.userFileId)
-        .filter((id): id is string => id !== null);
+        if (fileIds.length > 0) {
+          await tx
+            .delete(chatbotFileAssociations)
+            .where(
+              and(
+                eq(chatbotFileAssociations.chatbotId, source.chatbotId),
+                inArray(chatbotFileAssociations.fileId, fileIds),
+              ),
+            );
 
-      if (fileIds.length > 0) {
-        await ctx.db
-          .delete(chatbotFileAssociations)
-          .where(inArray(chatbotFileAssociations.fileId, fileIds));
+          const remainingAssociations = await tx
+            .select({ fileId: chatbotFileAssociations.fileId })
+            .from(chatbotFileAssociations)
+            .where(inArray(chatbotFileAssociations.fileId, fileIds));
 
-        await ctx.db.delete(userFiles).where(inArray(userFiles.id, fileIds));
-      }
+          const remainingFileIds = new Set(
+            remainingAssociations.map((a) => a.fileId),
+          );
+          const orphanedFileIds = fileIds.filter(
+            (id) => !remainingFileIds.has(id),
+          );
 
-      await ctx.db
-        .delete(crawlSources)
-        .where(eq(crawlSources.id, input.crawlSourceId));
+          if (orphanedFileIds.length > 0) {
+            await tx
+              .delete(userFiles)
+              .where(inArray(userFiles.id, orphanedFileIds));
+          }
+        }
+
+        await tx
+          .delete(crawlSources)
+          .where(eq(crawlSources.id, input.crawlSourceId));
+      });
 
       logInfo("Crawl source removed", {
         crawlSourceId: input.crawlSourceId,
         chatbotId: source.chatbotId,
-        deletedFileCount: fileIds.length,
       });
 
       return { success: true };

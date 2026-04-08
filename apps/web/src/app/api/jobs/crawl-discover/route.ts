@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
 import { logError } from "@/lib/logger";
 import { processCrawlDiscovery } from "@/lib/crawl-processor";
+
+const payloadSchema = z.object({ crawlSourceId: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,10 +19,7 @@ export async function POST(req: NextRequest) {
       req.headers.get("Upstash-Signature") ||
       req.headers.get("upstash-signature");
     if (!signature) {
-      return NextResponse.json(
-        { error: "Missing signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Missing signature" }, { status: 401 });
     }
 
     const body = await req.text();
@@ -36,16 +36,20 @@ export async function POST(req: NextRequest) {
         new Error("Invalid QStash signature"),
         "Crawl discover job rejected",
       );
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    const { crawlSourceId } = JSON.parse(body);
-    await processCrawlDiscovery({ crawlSourceId });
+    const parsed = payloadSchema.safeParse(JSON.parse(body));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
 
-    return NextResponse.json({ success: true, crawlSourceId });
+    await processCrawlDiscovery({ crawlSourceId: parsed.data.crawlSourceId });
+
+    return NextResponse.json({
+      success: true,
+      crawlSourceId: parsed.data.crawlSourceId,
+    });
   } catch (error) {
     logError(error, "Crawl discover job failed");
     return NextResponse.json(

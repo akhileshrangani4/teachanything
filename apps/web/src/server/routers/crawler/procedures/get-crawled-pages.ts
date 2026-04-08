@@ -49,6 +49,7 @@ export const getCrawledPagesProcedure = protectedProcedure
       .select()
       .from(crawledPages)
       .where(eq(crawledPages.crawlSourceId, input.crawlSourceId))
+      .orderBy(crawledPages.createdAt, crawledPages.id)
       .limit(input.limit)
       .offset(input.offset);
 

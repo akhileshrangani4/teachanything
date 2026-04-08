@@ -31,4 +31,7 @@ CREATE TABLE "crawled_pages" (
 --> statement-breakpoint
 ALTER TABLE "crawl_sources" ADD CONSTRAINT "crawl_sources_chatbot_id_chatbots_id_fk" FOREIGN KEY ("chatbot_id") REFERENCES "public"."chatbots"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "crawled_pages" ADD CONSTRAINT "crawled_pages_crawl_source_id_crawl_sources_id_fk" FOREIGN KEY ("crawl_source_id") REFERENCES "public"."crawl_sources"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "crawled_pages" ADD CONSTRAINT "crawled_pages_user_file_id_user_files_id_fk" FOREIGN KEY ("user_file_id") REFERENCES "public"."user_files"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "crawled_pages" ADD CONSTRAINT "crawled_pages_user_file_id_user_files_id_fk" FOREIGN KEY ("user_file_id") REFERENCES "public"."user_files"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_crawl_sources_chatbot_id" ON "crawl_sources" ("chatbot_id");--> statement-breakpoint
+CREATE INDEX "idx_crawled_pages_source_status" ON "crawled_pages" ("crawl_source_id", "status");--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_crawled_pages_source_url" ON "crawled_pages" ("crawl_source_id", "url");

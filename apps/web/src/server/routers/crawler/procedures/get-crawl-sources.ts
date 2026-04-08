@@ -1,6 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { chatbots, crawlSources, crawledPages } from "@teachanything/db/schema";
 
@@ -30,59 +30,48 @@ export const getCrawlSourcesProcedure = protectedProcedure
       .from(crawlSources)
       .where(eq(crawlSources.chatbotId, input.chatbotId));
 
-    const sourcesWithCounts = await Promise.all(
-      sources.map(async (source) => {
-        const [pending] = await ctx.db
-          .select({ count: sql<number>`count(*)` })
-          .from(crawledPages)
-          .where(
-            and(
-              eq(crawledPages.crawlSourceId, source.id),
-              eq(crawledPages.status, "pending"),
-            ),
-          );
+    if (sources.length === 0) return [];
 
-        const [processing] = await ctx.db
-          .select({ count: sql<number>`count(*)` })
-          .from(crawledPages)
-          .where(
-            and(
-              eq(crawledPages.crawlSourceId, source.id),
-              eq(crawledPages.status, "processing"),
-            ),
-          );
+    const sourceIds = sources.map((s) => s.id);
 
-        const [completed] = await ctx.db
-          .select({ count: sql<number>`count(*)` })
-          .from(crawledPages)
-          .where(
-            and(
-              eq(crawledPages.crawlSourceId, source.id),
-              eq(crawledPages.status, "completed"),
-            ),
-          );
+    const statusCounts = await ctx.db
+      .select({
+        crawlSourceId: crawledPages.crawlSourceId,
+        status: crawledPages.status,
+        count: sql<number>`count(*)`,
+      })
+      .from(crawledPages)
+      .where(inArray(crawledPages.crawlSourceId, sourceIds))
+      .groupBy(crawledPages.crawlSourceId, crawledPages.status);
 
-        const [failed] = await ctx.db
-          .select({ count: sql<number>`count(*)` })
-          .from(crawledPages)
-          .where(
-            and(
-              eq(crawledPages.crawlSourceId, source.id),
-              eq(crawledPages.status, "failed"),
-            ),
-          );
+    const countMap = new Map<
+      string,
+      { pending: number; processing: number; completed: number; failed: number }
+    >();
 
-        return {
-          ...source,
-          pageCounts: {
-            pending: Number(pending?.count ?? 0),
-            processing: Number(processing?.count ?? 0),
-            completed: Number(completed?.count ?? 0),
-            failed: Number(failed?.count ?? 0),
-          },
-        };
-      }),
-    );
+    for (const row of statusCounts) {
+      if (!countMap.has(row.crawlSourceId)) {
+        countMap.set(row.crawlSourceId, {
+          pending: 0,
+          processing: 0,
+          completed: 0,
+          failed: 0,
+        });
+      }
+      const counts = countMap.get(row.crawlSourceId)!;
+      const status = row.status as keyof typeof counts;
+      if (status in counts) {
+        counts[status] = Number(row.count);
+      }
+    }
 
-    return sourcesWithCounts;
+    return sources.map((source) => ({
+      ...source,
+      pageCounts: countMap.get(source.id) ?? {
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+      },
+    }));
   });

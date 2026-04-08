@@ -5,6 +5,7 @@ import { chatbots, crawlSources } from "@teachanything/db/schema";
 import { env } from "@/lib/env";
 import { publishQStashJob } from "@/lib/qstash";
 import { logInfo, logError } from "@/lib/logger";
+import { checkRateLimit, recrawlRateLimit } from "@/lib/rate-limit";
 import { crawlSourceIdInput } from "../validation";
 
 export const recrawlProcedure = protectedProcedure
@@ -38,6 +39,25 @@ export const recrawlProcedure = protectedProcedure
       throw new TRPCError({
         code: "NOT_FOUND",
         message: "Chatbot not found",
+      });
+    }
+
+    const { success } = await checkRateLimit(
+      recrawlRateLimit,
+      ctx.session.user.id,
+      { action: "recrawl" },
+    );
+    if (!success) {
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many recrawl requests. Please try again later.",
+      });
+    }
+
+    if (["pending", "discovering", "crawling"].includes(source.status)) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "A crawl is already in progress",
       });
     }
 

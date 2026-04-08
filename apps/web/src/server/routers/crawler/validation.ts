@@ -5,8 +5,24 @@ export const crawlSourceInput = z.object({
   rootUrl: z.string().url(),
   crawlDepth: z.number().int().min(1).max(5).default(3),
   maxPages: z.number().int().min(1).max(500).default(100),
-  includePatterns: z.array(z.string()).default([]),
-  excludePatterns: z.array(z.string()).default([]),
+  includePatterns: z
+    .array(
+      z
+        .string()
+        .max(200)
+        .regex(/^[a-zA-Z0-9\-_/.* ]+$/),
+    )
+    .max(10)
+    .default([]),
+  excludePatterns: z
+    .array(
+      z
+        .string()
+        .max(200)
+        .regex(/^[a-zA-Z0-9\-_/.* ]+$/),
+    )
+    .max(10)
+    .default([]),
 });
 
 export const manualUrlInput = z.object({

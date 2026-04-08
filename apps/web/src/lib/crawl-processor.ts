@@ -7,8 +7,13 @@ import {
   chatbotFileAssociations,
   chatbots,
 } from "@teachanything/db/schema";
-import { eq } from "drizzle-orm";
-import { discoverPages } from "@teachanything/ai/crawler";
+import { eq, and, inArray, sql } from "drizzle-orm";
+import {
+  discoverPages,
+  fetchRobots,
+  isRobotsAllowed,
+  isUrlSafe,
+} from "@teachanything/ai/crawler";
 import { env } from "./env";
 import { publishQStashJob } from "./qstash";
 import { logInfo, logError } from "./logger";
@@ -56,7 +61,7 @@ export async function processCrawlDiscovery(params: {
       .set({ status: "discovering", updatedAt: new Date() })
       .where(eq(crawlSources.id, crawlSourceId));
 
-    const DISCOVERY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const DISCOVERY_TIMEOUT_MS = 5 * 60 * 1000;
     const discovered = await Promise.race([
       discoverPages({
         rootUrl: source.rootUrl,
@@ -81,7 +86,13 @@ export async function processCrawlDiscovery(params: {
           metadata: {
             pageCount: 0,
             errorCount: 1,
-            errors: [{ url: source.rootUrl, error: "No pages could be scraped. The site may require JavaScript to render content." }],
+            errors: [
+              {
+                url: source.rootUrl,
+                error:
+                  "No pages could be scraped. The site may require JavaScript to render content.",
+              },
+            ],
           },
           updatedAt: new Date(),
         })
@@ -106,7 +117,11 @@ export async function processCrawlDiscovery(params: {
       if (existing) {
         await db
           .update(crawledPages)
-          .set({ status: "pending", depth: page.depth, updatedAt: new Date() })
+          .set({
+            status: "pending",
+            depth: page.depth,
+            updatedAt: new Date(),
+          })
           .where(eq(crawledPages.id, existing.id));
         pageRecords.push({ id: existing.id, url: page.url });
       } else {
@@ -117,6 +132,14 @@ export async function processCrawlDiscovery(params: {
             url: page.url,
             depth: page.depth,
             status: "pending",
+          })
+          .onConflictDoUpdate({
+            target: [crawledPages.crawlSourceId, crawledPages.url],
+            set: {
+              status: "pending" as const,
+              depth: page.depth,
+              updatedAt: new Date(),
+            },
           })
           .returning();
         if (record) pageRecords.push({ id: record.id, url: page.url });
@@ -134,8 +157,8 @@ export async function processCrawlDiscovery(params: {
 
     const isDevMode = env.NODE_ENV === "development";
 
-    for (const page of pageRecords) {
-      if (isDevMode) {
+    if (isDevMode) {
+      for (const page of pageRecords) {
         try {
           await processCrawlPage({ crawledPageId: page.id });
         } catch (error) {
@@ -143,16 +166,21 @@ export async function processCrawlDiscovery(params: {
             crawledPageId: page.id,
           });
         }
-      } else {
-        await publishQStashJob({
-          url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/crawl-process-page`,
-          body: { crawledPageId: page.id },
-        });
       }
-    }
-
-    if (isDevMode) {
       await finalizeCrawlSource(crawlSourceId);
+    } else {
+      const BATCH_SIZE = 20;
+      for (let i = 0; i < pageRecords.length; i += BATCH_SIZE) {
+        const batch = pageRecords.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map((page) =>
+            publishQStashJob({
+              url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/crawl-process-page`,
+              body: { crawledPageId: page.id },
+            }),
+          ),
+        );
+      }
     }
   } catch (error) {
     logError(error, "Crawl discovery failed", { crawlSourceId });
@@ -199,6 +227,31 @@ export async function processCrawlPage(params: {
 
     if (!chatbot) return;
 
+    if (!isUrlSafe(page.url)) {
+      await db
+        .update(crawledPages)
+        .set({
+          status: "blocked",
+          metadata: { error: "URL targets a private or disallowed address" },
+          updatedAt: new Date(),
+        })
+        .where(eq(crawledPages.id, crawledPageId));
+      return;
+    }
+
+    const robots = await fetchRobots(source.rootUrl);
+    if (!isRobotsAllowed(robots, page.url)) {
+      await db
+        .update(crawledPages)
+        .set({
+          status: "blocked",
+          metadata: { error: "Blocked by robots.txt" },
+          updatedAt: new Date(),
+        })
+        .where(eq(crawledPages.id, crawledPageId));
+      return;
+    }
+
     await db
       .update(crawledPages)
       .set({ status: "processing", updatedAt: new Date() })
@@ -228,9 +281,7 @@ export async function processCrawlPage(params: {
     }
 
     if (page.userFileId) {
-      await db
-        .delete(fileChunks)
-        .where(eq(fileChunks.fileId, page.userFileId));
+      await db.delete(fileChunks).where(eq(fileChunks.fileId, page.userFileId));
       await db
         .update(userFiles)
         .set({
@@ -268,9 +319,8 @@ export async function processCrawlPage(params: {
         .where(eq(crawledPages.id, crawledPageId));
     }
 
-    const { createRAGService, createOpenRouterClient } = await import(
-      "@teachanything/ai"
-    );
+    const { createRAGService, createOpenRouterClient } =
+      await import("@teachanything/ai");
     const ragService = createRAGService();
     const chunks = await ragService.chunkText(pageContent.content);
 
@@ -279,11 +329,14 @@ export async function processCrawlPage(params: {
       env.OPENAI_API_KEY,
     );
 
-    const BATCH_SIZE = 50;
+    const EMBED_BATCH_SIZE = 50;
     const embeddings: number[][] = [];
 
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-      const batch = chunks.slice(i, Math.min(i + BATCH_SIZE, chunks.length));
+    for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
+      const batch = chunks.slice(
+        i,
+        Math.min(i + EMBED_BATCH_SIZE, chunks.length),
+      );
       const batchEmbeddings = await ragService.generateEmbeddingsForChunks(
         batch,
         openrouterClient,
@@ -354,22 +407,33 @@ export async function processCrawlPage(params: {
 export async function finalizeCrawlSource(
   crawlSourceId: string,
 ): Promise<void> {
-  const pages = await db
-    .select({ status: crawledPages.status })
+  const [inProgressResult] = await db
+    .select({ count: sql<number>`count(*)` })
     .from(crawledPages)
-    .where(eq(crawledPages.crawlSourceId, crawlSourceId));
+    .where(
+      and(
+        eq(crawledPages.crawlSourceId, crawlSourceId),
+        inArray(crawledPages.status, ["pending", "processing"]),
+      ),
+    );
 
-  const hasInProgress = pages.some(
-    (p) => p.status === "pending" || p.status === "processing",
+  if (Number(inProgressResult?.count ?? 0) > 0) return;
+
+  const statusCounts = await db
+    .select({
+      status: crawledPages.status,
+      count: sql<number>`count(*)`,
+    })
+    .from(crawledPages)
+    .where(eq(crawledPages.crawlSourceId, crawlSourceId))
+    .groupBy(crawledPages.status);
+
+  const counts = Object.fromEntries(
+    statusCounts.map((r) => [r.status, Number(r.count)]),
   );
 
-  if (hasInProgress) return;
-
-  const completedCount = pages.filter(
-    (p) => p.status === "completed" || p.status === "skipped",
-  ).length;
-  const failedCount = pages.filter((p) => p.status === "failed").length;
-  const blockedCount = pages.filter((p) => p.status === "blocked").length;
+  const completedCount = (counts["completed"] ?? 0) + (counts["skipped"] ?? 0);
+  const failedCount = (counts["failed"] ?? 0) + (counts["blocked"] ?? 0);
 
   await db
     .update(crawlSources)
@@ -378,7 +442,7 @@ export async function finalizeCrawlSource(
       lastCrawledAt: new Date(),
       metadata: {
         pageCount: completedCount,
-        errorCount: failedCount + blockedCount,
+        errorCount: failedCount,
       },
       updatedAt: new Date(),
     })

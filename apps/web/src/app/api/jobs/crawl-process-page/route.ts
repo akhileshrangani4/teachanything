@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
 import { logError } from "@/lib/logger";
-import {
-  processCrawlPage,
-  finalizeCrawlSource,
-} from "@/lib/crawl-processor";
+import { processCrawlPage, finalizeCrawlSource } from "@/lib/crawl-processor";
 import { db } from "@teachanything/db";
 import { crawledPages } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
+
+const payloadSchema = z.object({ crawledPageId: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,10 +22,7 @@ export async function POST(req: NextRequest) {
       req.headers.get("Upstash-Signature") ||
       req.headers.get("upstash-signature");
     if (!signature) {
-      return NextResponse.json(
-        { error: "Missing signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Missing signature" }, { status: 401 });
     }
 
     const body = await req.text();
@@ -42,13 +39,15 @@ export async function POST(req: NextRequest) {
         new Error("Invalid QStash signature"),
         "Crawl page job rejected",
       );
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    const { crawledPageId } = JSON.parse(body);
+    const parsed = payloadSchema.safeParse(JSON.parse(body));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    const { crawledPageId } = parsed.data;
     await processCrawlPage({ crawledPageId });
 
     const [page] = await db

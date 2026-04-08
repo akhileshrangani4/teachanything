@@ -6,6 +6,7 @@ import { isUrlSafe } from "@teachanything/ai/crawler";
 import { env } from "@/lib/env";
 import { publishQStashJob } from "@/lib/qstash";
 import { logInfo, logError } from "@/lib/logger";
+import { checkRateLimit, crawlSourceRateLimit } from "@/lib/rate-limit";
 import { crawlSourceInput } from "../validation";
 
 export const addCrawlSourceProcedure = protectedProcedure
@@ -26,6 +27,18 @@ export const addCrawlSourceProcedure = protectedProcedure
       throw new TRPCError({
         code: "NOT_FOUND",
         message: "Chatbot not found",
+      });
+    }
+
+    const { success } = await checkRateLimit(
+      crawlSourceRateLimit,
+      ctx.session.user.id,
+      { action: "addCrawlSource" },
+    );
+    if (!success) {
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many crawl sources created. Please try again later.",
       });
     }
 
@@ -54,7 +67,8 @@ export const addCrawlSourceProcedure = protectedProcedure
       if (e instanceof TRPCError) throw e;
       throw new TRPCError({
         code: "BAD_REQUEST",
-        message: "Could not reach that URL. Please check it's correct and publicly accessible.",
+        message:
+          "Could not reach that URL. Please check it's correct and publicly accessible.",
       });
     }
 

@@ -9,6 +9,7 @@ import {
   boolean,
   pgEnum,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -360,53 +361,70 @@ export const emailDeliveries = pgTable(
   ],
 );
 
-export const crawlSources = pgTable("crawl_sources", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  rootUrl: text("root_url").notNull(),
-  status: crawlStatusEnum("status").default("pending").notNull(),
-  crawlDepth: integer("crawl_depth").default(3).notNull(),
-  maxPages: integer("max_pages").default(10).notNull(),
-  includePatterns: jsonb("include_patterns").$type<string[]>().default([]),
-  excludePatterns: jsonb("exclude_patterns").$type<string[]>().default([]),
-  lastCrawledAt: timestamp("last_crawled_at"),
-  metadata: jsonb("metadata")
-    .$type<{
-      pageCount?: number;
-      errorCount?: number;
-      errors?: Array<{ url: string; error: string }>;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const crawlSources = pgTable(
+  "crawl_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    rootUrl: text("root_url").notNull(),
+    status: crawlStatusEnum("status").default("pending").notNull(),
+    crawlDepth: integer("crawl_depth").default(3).notNull(),
+    maxPages: integer("max_pages").default(10).notNull(),
+    includePatterns: jsonb("include_patterns").$type<string[]>().default([]),
+    excludePatterns: jsonb("exclude_patterns").$type<string[]>().default([]),
+    lastCrawledAt: timestamp("last_crawled_at"),
+    metadata: jsonb("metadata")
+      .$type<{
+        pageCount?: number;
+        errorCount?: number;
+        errors?: Array<{ url: string; error: string }>;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("idx_crawl_sources_chatbot_id").on(table.chatbotId)],
+);
 
-export const crawledPages = pgTable("crawled_pages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  crawlSourceId: uuid("crawl_source_id")
-    .references(() => crawlSources.id, { onDelete: "cascade" })
-    .notNull(),
-  userFileId: uuid("user_file_id").references(() => userFiles.id, {
-    onDelete: "cascade",
-  }),
-  url: text("url").notNull(),
-  title: text("title"),
-  contentHash: text("content_hash"),
-  depth: integer("depth").default(0).notNull(),
-  status: crawledPageStatusEnum("status").default("pending").notNull(),
-  metadata: jsonb("metadata")
-    .$type<{
-      statusCode?: number;
-      contentType?: string;
-      wordCount?: number;
-      error?: string;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const crawledPages = pgTable(
+  "crawled_pages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    crawlSourceId: uuid("crawl_source_id")
+      .references(() => crawlSources.id, { onDelete: "cascade" })
+      .notNull(),
+    userFileId: uuid("user_file_id").references(() => userFiles.id, {
+      onDelete: "cascade",
+    }),
+    url: text("url").notNull(),
+    title: text("title"),
+    contentHash: text("content_hash"),
+    depth: integer("depth").default(0).notNull(),
+    status: crawledPageStatusEnum("status").default("pending").notNull(),
+    metadata: jsonb("metadata")
+      .$type<{
+        statusCode?: number;
+        contentType?: string;
+        wordCount?: number;
+        error?: string;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_crawled_pages_source_status").on(
+      table.crawlSourceId,
+      table.status,
+    ),
+    uniqueIndex("idx_crawled_pages_source_url").on(
+      table.crawlSourceId,
+      table.url,
+    ),
+  ],
+);
 
 export const userRelations = relations(user, ({ many }) => ({
   chatbots: many(chatbots),
@@ -517,13 +535,16 @@ export const analyticsRelations = relations(analytics, ({ one }) => ({
   }),
 }));
 
-export const crawlSourcesRelations = relations(crawlSources, ({ one, many }) => ({
-  chatbot: one(chatbots, {
-    fields: [crawlSources.chatbotId],
-    references: [chatbots.id],
+export const crawlSourcesRelations = relations(
+  crawlSources,
+  ({ one, many }) => ({
+    chatbot: one(chatbots, {
+      fields: [crawlSources.chatbotId],
+      references: [chatbots.id],
+    }),
+    pages: many(crawledPages),
   }),
-  pages: many(crawledPages),
-}));
+);
 
 export const crawledPagesRelations = relations(crawledPages, ({ one }) => ({
   crawlSource: one(crawlSources, {

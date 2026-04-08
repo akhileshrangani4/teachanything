@@ -3,6 +3,7 @@ import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import robotsParser from "robots-parser";
 import { createHash } from "crypto";
+import { resolve4, resolve6 } from "dns/promises";
 
 const USER_AGENT = "TeachAnythingBot/1.0";
 const DEFAULT_DELAY_MS = 1500;
@@ -75,6 +76,35 @@ function normalizeUrl(rawUrl: string, baseUrl: string): string | null {
   }
 }
 
+function isPrivateIp(ip: string): boolean {
+  const ipv4Match = ip.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (ipv4Match) {
+    const a = parseInt(ipv4Match[1]!, 10);
+    const b = parseInt(ipv4Match[2]!, 10);
+    if (
+      a === 10 ||
+      a === 127 ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254) ||
+      a === 0
+    ) {
+      return true;
+    }
+  }
+
+  if (
+    ip === "::1" ||
+    ip.startsWith("fe80:") ||
+    ip.startsWith("fc00:") ||
+    ip.startsWith("fd")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function isUrlSafe(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -102,22 +132,40 @@ function isUrlSafe(url: string): boolean {
       return false;
     }
 
-    const ipv4Match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-    if (ipv4Match) {
-      const a = parseInt(ipv4Match[1]!, 10);
-      const b = parseInt(ipv4Match[2]!, 10);
-      if (
-        a === 10 ||
-        a === 127 ||
-        (a === 172 && b >= 16 && b <= 31) ||
-        (a === 192 && b === 168) ||
-        (a === 169 && b === 254) ||
-        a === 0
-      ) {
-        return false;
-      }
+    if (isPrivateIp(hostname)) {
+      return false;
     }
 
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isUrlSafeWithDns(url: string): Promise<boolean> {
+  if (!isUrlSafe(url)) return false;
+
+  try {
+    const hostname = new URL(url).hostname;
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname)) return true;
+
+    const ips: string[] = [];
+    try {
+      const v4 = await resolve4(hostname);
+      ips.push(...v4);
+    } catch {
+      // no A records
+    }
+    try {
+      const v6 = await resolve6(hostname);
+      ips.push(...v6);
+    } catch {
+      // no AAAA records
+    }
+
+    for (const ip of ips) {
+      if (isPrivateIp(ip)) return false;
+    }
     return true;
   } catch {
     return false;
@@ -204,7 +252,10 @@ function extractLinks(
   return Array.from(links);
 }
 
-function extractTextFromNode($: ReturnType<typeof cheerio.load>, selector: string): string {
+function extractTextFromNode(
+  $: ReturnType<typeof cheerio.load>,
+  selector: string,
+): string {
   return $(selector)
     .map((_, el) => $(el).text().replace(/\s+/g, " ").trim())
     .get()
@@ -223,16 +274,16 @@ function extractContent(
   // Remove purely decorative/non-content elements
   $(
     "script, style, noscript, iframe, " +
-    "[aria-hidden='true'], .sr-only, .visually-hidden",
+      "[aria-hidden='true'], .sr-only, .visually-hidden",
   ).remove();
 
   // Try Readability on a clean clone for article-style pages
   try {
     const dom = new JSDOM(html, { url });
     // Remove same non-content elements
-    dom.window.document.querySelectorAll(
-      "script, style, noscript, iframe, [aria-hidden='true']"
-    ).forEach((el) => el.remove());
+    dom.window.document
+      .querySelectorAll("script, style, noscript, iframe, [aria-hidden='true']")
+      .forEach((el) => el.remove());
 
     const reader = new Readability(dom.window.document, { charThreshold: 20 });
     const article = reader.parse();
@@ -244,7 +295,9 @@ function extractContent(
         const text = $(el).text().replace(/\s+/g, " ").trim();
         if (text.length > 30) extras.push(text);
       });
-      const combined = [article.textContent.trim(), ...extras].join("\n").trim();
+      const combined = [article.textContent.trim(), ...extras]
+        .join("\n")
+        .trim();
       return { title: article.title ?? title, content: combined };
     }
   } catch {
@@ -254,8 +307,8 @@ function extractContent(
   // Full cheerio extraction — keep all meaningful text
   $(
     "nav, header, footer, aside, " +
-    '[role="navigation"], [role="banner"], [role="contentinfo"], ' +
-    ".nav, .navbar, .header, .footer, .sidebar, .menu, .cookie-banner, .ad, .advertisement",
+      '[role="navigation"], [role="banner"], [role="contentinfo"], ' +
+      ".nav, .navbar, .header, .footer, .sidebar, .menu, .cookie-banner, .ad, .advertisement",
   ).remove();
 
   const sections: string[] = [];
@@ -377,6 +430,8 @@ export async function discoverPages(
   while (queue.length > 0 && discovered.length < options.maxPages) {
     const entry = queue.shift()!;
 
+    if (!isUrlSafe(entry.url)) continue;
+
     const isAllowed = robots.isAllowed(entry.url, USER_AGENT);
     if (isAllowed === false) continue;
 
@@ -454,4 +509,11 @@ export function isRobotsAllowed(
   return result !== false;
 }
 
-export { normalizeUrl, isUrlSafe, isSameDomain, fetchRobots, USER_AGENT };
+export {
+  normalizeUrl,
+  isUrlSafe,
+  isUrlSafeWithDns,
+  isSameDomain,
+  fetchRobots,
+  USER_AGENT,
+};

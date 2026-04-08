@@ -6,6 +6,7 @@ import { isUrlSafe } from "@teachanything/ai/crawler";
 import { env } from "@/lib/env";
 import { publishQStashJob } from "@/lib/qstash";
 import { logInfo, logError } from "@/lib/logger";
+import { checkRateLimit, manualUrlRateLimit } from "@/lib/rate-limit";
 import { manualUrlInput } from "../validation";
 
 export const addManualUrlProcedure = protectedProcedure
@@ -26,6 +27,36 @@ export const addManualUrlProcedure = protectedProcedure
       throw new TRPCError({
         code: "NOT_FOUND",
         message: "Chatbot not found",
+      });
+    }
+
+    const { success } = await checkRateLimit(
+      manualUrlRateLimit,
+      ctx.session.user.id,
+      { action: "addManualUrl" },
+    );
+    if (!success) {
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many manual URL additions. Please try again later.",
+      });
+    }
+
+    const [existingSource] = await ctx.db
+      .select()
+      .from(crawlSources)
+      .where(
+        and(
+          eq(crawlSources.chatbotId, input.chatbotId),
+          eq(crawlSources.rootUrl, input.url),
+        ),
+      )
+      .limit(1);
+
+    if (existingSource) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "This URL has already been added to this chatbot",
       });
     }
 
@@ -54,7 +85,8 @@ export const addManualUrlProcedure = protectedProcedure
       if (e instanceof TRPCError) throw e;
       throw new TRPCError({
         code: "BAD_REQUEST",
-        message: "Could not reach that URL. Please check it's correct and publicly accessible.",
+        message:
+          "Could not reach that URL. Please check it's correct and publicly accessible.",
       });
     }
 
@@ -104,15 +136,17 @@ export const addManualUrlProcedure = protectedProcedure
         url: input.url,
       });
 
-      import("@/lib/crawl-processor")
-        .then(({ processCrawlPage }) =>
-          processCrawlPage({ crawledPageId: page.id }),
-        )
-        .catch((error) => {
-          logError(error, "Inline crawl page processing failed", {
-            crawledPageId: page.id,
-          });
+      try {
+        const { processCrawlPage, finalizeCrawlSource } =
+          await import("@/lib/crawl-processor");
+        await processCrawlPage({ crawledPageId: page.id });
+        await finalizeCrawlSource(source.id);
+      } catch (error) {
+        logError(error, "Inline crawl page processing failed", {
+          crawlSourceId: source.id,
+          crawledPageId: page.id,
         });
+      }
     } else {
       await publishQStashJob({
         url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/crawl-process-page`,
