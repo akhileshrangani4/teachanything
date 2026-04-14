@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./models": "./src/models.ts",
     "./openrouter": "./src/openrouter-client.ts",
     "./rag": "./src/rag-service.ts"
   },
