@@ -233,6 +233,27 @@ async function fetchRobots(
   }
 }
 
+async function fetchRobotsText(rootUrl: string): Promise<string> {
+  const robotsUrl = new URL("/robots.txt", rootUrl).href;
+  try {
+    const response = await fetch(robotsUrl, {
+      headers: { "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(10000),
+    });
+    return response.ok ? await response.text() : "";
+  } catch {
+    return "";
+  }
+}
+
+function parseRobots(
+  rootUrl: string,
+  text: string,
+): ReturnType<typeof robotsParser> {
+  const robotsUrl = new URL("/robots.txt", rootUrl).href;
+  return robotsParser(robotsUrl, text);
+}
+
 function extractLinks(
   html: string,
   pageUrl: string,
@@ -532,5 +553,7 @@ export {
   isUrlSafeWithDns,
   isSameDomain,
   fetchRobots,
+  fetchRobotsText,
+  parseRobots,
   USER_AGENT,
 };

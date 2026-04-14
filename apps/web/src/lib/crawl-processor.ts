@@ -11,6 +11,8 @@ import { eq, and, inArray, sql } from "drizzle-orm";
 import {
   discoverPages,
   fetchRobots,
+  fetchRobotsText,
+  parseRobots,
   isRobotsAllowed,
   isUrlSafeWithDns,
 } from "@teachanything/ai/crawler";
@@ -60,6 +62,8 @@ export async function processCrawlDiscovery(params: {
       .update(crawlSources)
       .set({ status: "discovering", updatedAt: new Date() })
       .where(eq(crawlSources.id, crawlSourceId));
+
+    const robotsText = await fetchRobotsText(source.rootUrl);
 
     const DISCOVERY_TIMEOUT_MS = 5 * 60 * 1000;
     const discovered = await Promise.race([
@@ -150,7 +154,12 @@ export async function processCrawlDiscovery(params: {
       .update(crawlSources)
       .set({
         status: "crawling",
-        metadata: { pageCount: pageRecords.length, errorCount: 0, errors: [] },
+        metadata: {
+          pageCount: pageRecords.length,
+          errorCount: 0,
+          errors: [],
+          robotsText,
+        },
         updatedAt: new Date(),
       })
       .where(eq(crawlSources.id, crawlSourceId));
@@ -239,7 +248,11 @@ export async function processCrawlPage(params: {
       return;
     }
 
-    const robots = await fetchRobots(source.rootUrl);
+    const cachedRobotsText = source.metadata?.robotsText ?? null;
+    const robots =
+      cachedRobotsText !== null
+        ? parseRobots(source.rootUrl, cachedRobotsText)
+        : await fetchRobots(source.rootUrl);
     if (!isRobotsAllowed(robots, page.url)) {
       await db
         .update(crawledPages)

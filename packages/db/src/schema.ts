@@ -380,6 +380,7 @@ export const crawlSources = pgTable(
         pageCount?: number;
         errorCount?: number;
         errors?: Array<{ url: string; error: string }>;
+        robotsText?: string;
       }>()
       .default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
