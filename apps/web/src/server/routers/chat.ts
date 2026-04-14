@@ -9,8 +9,14 @@ import {
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { TRPCError } from "@trpc/server";
-import { createOpenRouterClient, resolveModel } from "@teachanything/ai";
-import { logInfo, logError } from "@/lib/logger";
+import {
+  createOpenRouterClient,
+  resolveModel,
+  MODEL_REGISTRY,
+  calculateChunkLimit,
+  allocateTokenBudget,
+} from "@teachanything/ai";
+import { logInfo, logError, logWarn } from "@/lib/logger";
 import { env } from "@/lib/env";
 import { buildRAGContext } from "../rag-context";
 
@@ -28,6 +34,21 @@ function clampMaxTokens(maxTokens: number | null | undefined): number {
   }
 
   return Math.max(MIN_TOKENS, Math.min(MAX_TOKENS, maxTokens));
+}
+
+/**
+ * Initialize js-tiktoken encoder and return a synchronous token counter.
+ * Falls back to char/4 estimate if encoder fails to load.
+ */
+async function initTokenCounter(): Promise<(text: string) => number> {
+  try {
+    const { encodingForModel } = await import("js-tiktoken");
+    const encoder = encodingForModel("gpt-4o-mini");
+    return (text: string) => encoder.encode(text).length;
+  } catch {
+    logWarn("Failed to initialize tiktoken encoder, using char/4 fallback");
+    return (text: string) => Math.ceil(text.length / 4);
+  }
 }
 
 export const chatRouter = router({
@@ -99,24 +120,71 @@ export const chatRouter = router({
           });
         }
 
-        // Get last 10 messages for context
+        // Resolve model and get context window for budget allocation
+        const modelId = resolveModel(chatbot.model);
+        const { contextWindow } = MODEL_REGISTRY[modelId];
+        const maxOutputTokens = clampMaxTokens(chatbot.maxTokens);
+
+        // Initialize token counter
+        const countTokens = await initTokenCounter();
+
+        // Pass 1: estimate chunk limit before DB query
+        const systemPromptTokens = countTokens(chatbot.systemPrompt);
+        const userMessageTokens = countTokens(input.message);
+        const estimatedChunkLimit = calculateChunkLimit({
+          contextWindow,
+          maxOutputTokens,
+          systemPromptTokens,
+          fileManifestTokens: 0,
+          userMessageTokens,
+        });
+
+        // Fetch history (up to 50, trimmed to budget below)
         const historyMessages = await ctx.db
           .select()
           .from(messages)
           .where(eq(messages.conversationId, conversation.id))
           .orderBy(desc(messages.createdAt))
-          .limit(10);
+          .limit(50);
 
         historyMessages.reverse();
 
-        // Build RAG context (file manifest, vector search, source attribution)
+        // Build RAG context with budget-derived chunk limit
         const ragResult = await buildRAGContext({
           chatbotId: input.chatbotId,
           message: input.message,
           db: ctx.db,
           openrouterApiKey: env.OPENROUTER_API_KEY,
           openaiApiKey: env.OPENAI_API_KEY,
+          chunkLimit: estimatedChunkLimit,
         });
+
+        // Pass 2: allocate budget with actual token counts
+        const fileManifestTokens = countTokens(ragResult.fileManifest);
+        const ragContextTokens = countTokens(ragResult.contextText);
+        const ragFailureNoteTokens = countTokens(ragResult.ragFailureNote);
+
+        const budget = allocateTokenBudget({
+          contextWindow,
+          maxOutputTokens,
+          systemPromptTokens: systemPromptTokens + ragFailureNoteTokens,
+          fileManifestTokens: fileManifestTokens + ragContextTokens,
+          userMessageTokens,
+          availableChunks: [],
+          availableHistory: historyMessages.map((m) => ({
+            tokens: countTokens(m.content),
+          })),
+        });
+
+        // Trim history to budget (keep newest messages)
+        const trimmedHistory = budget.historyLimit > 0
+          ? historyMessages.slice(historyMessages.length - budget.historyLimit)
+          : [];
+
+        // Log truncation warnings
+        for (const warning of budget.warnings) {
+          logWarn(warning, { chatbotId: input.chatbotId, modelId });
+        }
 
         // Send metadata
         yield {
@@ -125,8 +193,8 @@ export const chatRouter = router({
           sources: ragResult.sources,
         };
 
-        // Build message history for AI
-        const conversationHistory = historyMessages.map((msg) => ({
+        // Build message history for AI (budget-trimmed)
+        const conversationHistory = trimmedHistory.map((msg) => ({
           role: msg.role as "system" | "user" | "assistant",
           content: msg.content,
         }));
@@ -152,7 +220,7 @@ export const chatRouter = router({
         let fullResponse = "";
 
         const result = await aiClient.streamText({
-          model: resolveModel(chatbot.model),
+          model: modelId,
           messages: [
             { role: "system", content: systemPrompt },
             ...conversationHistory,
