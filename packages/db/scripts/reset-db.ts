@@ -70,7 +70,6 @@ async function resetDatabase() {
       DROP TABLE IF EXISTS "conversations" CASCADE;
       DROP TABLE IF EXISTS "file_chunks" CASCADE;
       DROP TABLE IF EXISTS "chatbot_file_associations" CASCADE;
-      DROP TABLE IF EXISTS "chatbot_files" CASCADE;
       DROP TABLE IF EXISTS "user_files" CASCADE;
       DROP TABLE IF EXISTS "analytics" CASCADE;
       DROP TABLE IF EXISTS "chatbots" CASCADE;

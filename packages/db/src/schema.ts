@@ -216,43 +216,6 @@ export const chatbotFileAssociations = pgTable(
   ],
 );
 
-// Legacy chatbot files table (kept for backward compatibility during migration)
-export const chatbotFiles = pgTable("chatbot_files", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  fileName: text("file_name").notNull(),
-  fileType: text("file_type").notNull(),
-  fileSize: integer("file_size").notNull(), // in bytes
-  storagePath: text("storage_path").notNull(), // Supabase Storage path
-  processingStatus: processingStatusEnum("processing_status")
-    .default("pending")
-    .notNull(),
-  metadata: jsonb("metadata")
-    .$type<{
-      error?: string;
-      chunkCount?: number;
-      processedAt?: string;
-      // Processing progress tracking
-      processingProgress?: {
-        stage:
-          | "downloading"
-          | "extracting"
-          | "chunking"
-          | "embedding"
-          | "storing";
-        percentage: number; // 0-100
-        currentChunk?: number;
-        totalChunks?: number;
-        startedAt?: string;
-        lastUpdatedAt?: string;
-      };
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
 // File chunks table for RAG
 export const fileChunks = pgTable(
   "file_chunks",
@@ -435,17 +398,6 @@ export const chatbotFileAssociationsRelations = relations(
     file: one(userFiles, {
       fields: [chatbotFileAssociations.fileId],
       references: [userFiles.id],
-    }),
-  }),
-);
-
-// Legacy relations (kept for backward compatibility)
-export const chatbotFilesRelations = relations(
-  chatbotFiles,
-  ({ one, many }) => ({
-    chatbot: one(chatbots, {
-      fields: [chatbotFiles.chatbotId],
-      references: [chatbots.id],
     }),
   }),
 );
