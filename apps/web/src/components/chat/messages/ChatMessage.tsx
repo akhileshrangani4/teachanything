@@ -30,11 +30,19 @@ export function ChatMessage({
 
     return sources.reduce(
       (acc, source) => {
-        const existing = acc.find((s) => s.fileName === source.fileName);
-        if (!existing) {
-          acc.push({ ...source });
-        } else if (source.similarity > existing.similarity) {
-          existing.similarity = source.similarity;
+        const existingIndex = acc.findIndex(
+          (s) => s.fileName === source.fileName,
+        );
+        if (existingIndex === -1) {
+          return [...acc, { ...source }];
+        }
+        const existing = acc[existingIndex];
+        if (existing && source.similarity > existing.similarity) {
+          return acc.map((item, i) =>
+            i === existingIndex
+              ? { ...item, similarity: source.similarity }
+              : item,
+          );
         }
         return acc;
       },
