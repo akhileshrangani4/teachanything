@@ -42,8 +42,9 @@ function clampMaxTokens(maxTokens: number | null | undefined): number {
  */
 async function initTokenCounter(): Promise<(text: string) => number> {
   try {
-    const { encodingForModel } = await import("js-tiktoken");
-    const encoder = encodingForModel("gpt-4o-mini");
+    // Use encoding name directly instead of model name to avoid deprecation issues
+    const { getEncoding } = await import("js-tiktoken");
+    const encoder = getEncoding("o200k_base");
     return (text: string) => encoder.encode(text).length;
   } catch {
     logWarn("Failed to initialize tiktoken encoder, using char/4 fallback");

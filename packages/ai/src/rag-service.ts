@@ -41,8 +41,9 @@ export class RAGService {
 
     try {
       // Use js-tiktoken for better serverless compatibility (pure JS, no WASM)
-      const { encodingForModel } = await import("js-tiktoken");
-      this.encoder = encodingForModel("gpt-4o-mini");
+      // Use encoding name directly instead of model name to avoid deprecation issues
+      const { getEncoding } = await import("js-tiktoken");
+      this.encoder = getEncoding("o200k_base");
     } catch (error) {
       logWarn("Failed to initialize tiktoken, using fallback token counter");
       this.encoder = null;
