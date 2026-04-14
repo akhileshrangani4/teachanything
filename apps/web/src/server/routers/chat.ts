@@ -358,24 +358,71 @@ export const chatRouter = router({
           });
         }
 
-        // Get last 10 messages for context
+        // Resolve model and get context window for budget allocation
+        const modelId = resolveModel(chatbot.model);
+        const { contextWindow } = MODEL_REGISTRY[modelId];
+        const maxOutputTokens = clampMaxTokens(chatbot.maxTokens);
+
+        // Initialize token counter
+        const countTokens = await initTokenCounter();
+
+        // Pass 1: estimate chunk limit before DB query
+        const systemPromptTokens = countTokens(chatbot.systemPrompt);
+        const userMessageTokens = countTokens(input.message);
+        const estimatedChunkLimit = calculateChunkLimit({
+          contextWindow,
+          maxOutputTokens,
+          systemPromptTokens,
+          fileManifestTokens: 0,
+          userMessageTokens,
+        });
+
+        // Fetch history (up to 50, trimmed to budget below)
         const historyMessages = await ctx.db
           .select()
           .from(messages)
           .where(eq(messages.conversationId, conversation.id))
           .orderBy(desc(messages.createdAt))
-          .limit(10);
+          .limit(50);
 
         historyMessages.reverse();
 
-        // Build RAG context (file manifest, vector search, source attribution)
+        // Build RAG context with budget-derived chunk limit
         const ragResult = await buildRAGContext({
           chatbotId: chatbot.id,
           message: input.message,
           db: ctx.db,
           openrouterApiKey: env.OPENROUTER_API_KEY,
           openaiApiKey: env.OPENAI_API_KEY,
+          chunkLimit: estimatedChunkLimit,
         });
+
+        // Pass 2: allocate budget with actual token counts
+        const fileManifestTokens = countTokens(ragResult.fileManifest);
+        const ragContextTokens = countTokens(ragResult.contextText);
+        const ragFailureNoteTokens = countTokens(ragResult.ragFailureNote);
+
+        const budget = allocateTokenBudget({
+          contextWindow,
+          maxOutputTokens,
+          systemPromptTokens: systemPromptTokens + ragFailureNoteTokens,
+          fileManifestTokens: fileManifestTokens + ragContextTokens,
+          userMessageTokens,
+          availableChunks: [],
+          availableHistory: historyMessages.map((m) => ({
+            tokens: countTokens(m.content),
+          })),
+        });
+
+        // Trim history to budget (keep newest messages)
+        const trimmedHistory = budget.historyLimit > 0
+          ? historyMessages.slice(historyMessages.length - budget.historyLimit)
+          : [];
+
+        // Log truncation warnings
+        for (const warning of budget.warnings) {
+          logWarn(warning, { chatbotId: chatbot.id, modelId });
+        }
 
         // Send metadata
         yield {
@@ -384,8 +431,8 @@ export const chatRouter = router({
           sources: ragResult.sources,
         };
 
-        // Build message history for AI
-        const conversationHistory = historyMessages.map((msg) => ({
+        // Build message history for AI (budget-trimmed)
+        const conversationHistory = trimmedHistory.map((msg) => ({
           role: msg.role as "system" | "user" | "assistant",
           content: msg.content,
         }));
@@ -411,7 +458,7 @@ export const chatRouter = router({
         let fullResponse = "";
 
         const result = await aiClient.streamText({
-          model: resolveModel(chatbot.model),
+          model: modelId,
           messages: [
             { role: "system", content: systemPrompt },
             ...conversationHistory,
