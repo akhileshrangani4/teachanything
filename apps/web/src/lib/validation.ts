@@ -7,6 +7,9 @@ export const VALIDATION_LIMITS = {
   NAME_WARNING_THRESHOLD: 90, // 90% of max
   DESCRIPTION_MAX_LENGTH: 200,
   DESCRIPTION_WARNING_THRESHOLD: 180, // 90% of max
+  MESSAGE_MAX_LENGTH: 16_000,
+  MESSAGE_WARNING_THRESHOLD: 0.8, // 80% of max (orange)
+  MESSAGE_CRITICAL_THRESHOLD: 0.95, // 95% of max (red)
 } as const;
 
 export interface ValidationResult {
