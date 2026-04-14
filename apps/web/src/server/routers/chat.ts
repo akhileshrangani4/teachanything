@@ -4,17 +4,15 @@ import {
   chatbots,
   conversations,
   messages,
-  fileChunks,
   analytics,
-  chatbotFileAssociations,
-  userFiles,
 } from "@teachanything/db/schema";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { TRPCError } from "@trpc/server";
 import { createOpenRouterClient } from "@teachanything/ai";
 import { logInfo, logError } from "@/lib/logger";
 import { env } from "@/lib/env";
+import { buildRAGContext } from "../rag-context";
 
 /**
  * Clamp maxTokens to valid range (100-4000)
@@ -111,82 +109,20 @@ export const chatRouter = router({
 
         historyMessages.reverse();
 
-        // Search for relevant file chunks
-        const aiClient = createOpenRouterClient(
-          env.OPENROUTER_API_KEY,
-          env.OPENAI_API_KEY,
-        );
-
-        let queryEmbedding: number[] | null = null;
-        try {
-          queryEmbedding = await aiClient.generateEmbedding(input.message);
-        } catch (error) {
-          logError(
-            error,
-            "Failed to generate embeddings - continuing without RAG",
-            {
-              chatbotId: input.chatbotId,
-            },
-          );
-        }
-
-        // Build context from RAG chunks
-        let contextText = "";
-        const sources: Array<{
-          fileName: string;
-          chunkIndex: number;
-          similarity: number;
-        }> = [];
-
-        if (queryEmbedding) {
-          // Get file IDs associated with this chatbot
-          const associatedFileIds = await ctx.db
-            .select({ fileId: chatbotFileAssociations.fileId })
-            .from(chatbotFileAssociations)
-            .where(eq(chatbotFileAssociations.chatbotId, input.chatbotId));
-
-          const fileIds = associatedFileIds.map((a) => a.fileId);
-
-          const relevantChunks =
-            fileIds.length > 0
-              ? await ctx.db
-                  .select({
-                    id: fileChunks.id,
-                    content: fileChunks.content,
-                    chunkIndex: fileChunks.chunkIndex,
-                    metadata: fileChunks.metadata,
-                    fileName: userFiles.fileName,
-                  })
-                  .from(fileChunks)
-                  .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-                  .where(inArray(fileChunks.fileId, fileIds))
-                  .orderBy(
-                    sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`,
-                  )
-                  .limit(5)
-              : [];
-
-          if (relevantChunks.length > 0) {
-            contextText = "\n\nRelevant context from uploaded documents:\n\n";
-            relevantChunks.forEach((chunk, index: number) => {
-              const fileName = chunk.fileName || "Unknown";
-              contextText += `[${index + 1}] ${chunk.content}\n\n`;
-              sources.push({
-                fileName,
-                chunkIndex: chunk.chunkIndex,
-                similarity: 1 - index * 0.1,
-              });
-            });
-          }
-        }
-
-        const ragUsed = queryEmbedding !== null && sources.length > 0;
+        // Build RAG context (file manifest, vector search, source attribution)
+        const ragResult = await buildRAGContext({
+          chatbotId: input.chatbotId,
+          message: input.message,
+          db: ctx.db,
+          openrouterApiKey: env.OPENROUTER_API_KEY,
+          openaiApiKey: env.OPENAI_API_KEY,
+        });
 
         // Send metadata
         yield {
           type: "metadata" as const,
           sessionId,
-          sources,
+          sources: ragResult.sources,
         };
 
         // Build message history for AI
@@ -195,8 +131,9 @@ export const chatRouter = router({
           content: msg.content,
         }));
 
-        // Create system prompt with context
-        const systemPrompt = chatbot.systemPrompt + contextText;
+        // D-01: systemPrompt + fileManifest + contextText
+        const systemPrompt =
+          chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
 
         // Save user message
         await ctx.db.insert(messages).values({
@@ -207,6 +144,10 @@ export const chatRouter = router({
         });
 
         // Call OpenRouter with streaming
+        const aiClient = createOpenRouterClient(
+          env.OPENROUTER_API_KEY,
+          env.OPENAI_API_KEY,
+        );
         const startTime = Date.now();
         let fullResponse = "";
 
@@ -241,14 +182,22 @@ export const chatRouter = router({
           conversationId: conversation.id,
           role: "assistant",
           content: fullResponse,
-          metadata: { sources, responseTime, ragUsed },
+          metadata: {
+            sources: ragResult.sources,
+            responseTime,
+            ragUsed: ragResult.ragUsed,
+          },
         });
 
         // Track analytics
         await ctx.db.insert(analytics).values({
           chatbotId: input.chatbotId,
           eventType: "message_sent",
-          eventData: { responseTime, messageLength: input.message.length, ragUsed },
+          eventData: {
+            responseTime,
+            messageLength: input.message.length,
+            ragUsed: ragResult.ragUsed,
+          },
           sessionId,
         });
 
@@ -355,80 +304,20 @@ export const chatRouter = router({
 
         historyMessages.reverse();
 
-        // Search for relevant file chunks
-        const aiClient = createOpenRouterClient(
-          env.OPENROUTER_API_KEY,
-          env.OPENAI_API_KEY,
-        );
-
-        let queryEmbedding: number[] | null = null;
-        try {
-          queryEmbedding = await aiClient.generateEmbedding(input.message);
-        } catch (error) {
-          logError(
-            error,
-            "Failed to generate embeddings - continuing without RAG",
-            {
-              chatbotId: chatbot.id,
-            },
-          );
-        }
-
-        // Get file IDs associated with this chatbot
-        const associatedFileIds = await ctx.db
-          .select({ fileId: chatbotFileAssociations.fileId })
-          .from(chatbotFileAssociations)
-          .where(eq(chatbotFileAssociations.chatbotId, chatbot.id));
-
-        const fileIds = associatedFileIds.map((a) => a.fileId);
-
-        const relevantChunks =
-          queryEmbedding && fileIds.length > 0
-            ? await ctx.db
-                .select({
-                  id: fileChunks.id,
-                  content: fileChunks.content,
-                  chunkIndex: fileChunks.chunkIndex,
-                  metadata: fileChunks.metadata,
-                  fileName: userFiles.fileName,
-                })
-                .from(fileChunks)
-                .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-                .where(inArray(fileChunks.fileId, fileIds))
-                .orderBy(
-                  sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`,
-                )
-                .limit(5)
-            : [];
-
-        // Build context from RAG chunks
-        let contextText = "";
-        const sources: Array<{
-          fileName: string;
-          chunkIndex: number;
-          similarity: number;
-        }> = [];
-
-        if (relevantChunks.length > 0) {
-          contextText = "\n\nRelevant context from uploaded documents:\n\n";
-          relevantChunks.forEach((chunk, index: number) => {
-            const fileName = chunk.fileName || "Unknown";
-            contextText += `[${index + 1}] ${chunk.content}\n\n`;
-            sources.push({
-              fileName,
-              chunkIndex: chunk.chunkIndex,
-              similarity: 1 - index * 0.1,
-            });
-          });
-        }
-
-        const ragUsed = queryEmbedding !== null && sources.length > 0;
+        // Build RAG context (file manifest, vector search, source attribution)
+        const ragResult = await buildRAGContext({
+          chatbotId: chatbot.id,
+          message: input.message,
+          db: ctx.db,
+          openrouterApiKey: env.OPENROUTER_API_KEY,
+          openaiApiKey: env.OPENAI_API_KEY,
+        });
 
         // Send metadata
         yield {
           type: "metadata" as const,
           sessionId,
-          sources,
+          sources: ragResult.sources,
         };
 
         // Build message history for AI
@@ -437,8 +326,9 @@ export const chatRouter = router({
           content: msg.content,
         }));
 
-        // Create system prompt with context
-        const systemPrompt = chatbot.systemPrompt + contextText;
+        // D-01: systemPrompt + fileManifest + contextText
+        const systemPrompt =
+          chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
 
         // Save user message
         await ctx.db.insert(messages).values({
@@ -449,6 +339,10 @@ export const chatRouter = router({
         });
 
         // Call OpenRouter with streaming
+        const aiClient = createOpenRouterClient(
+          env.OPENROUTER_API_KEY,
+          env.OPENAI_API_KEY,
+        );
         const startTime = Date.now();
         let fullResponse = "";
 
@@ -483,14 +377,22 @@ export const chatRouter = router({
           conversationId: conversation.id,
           role: "assistant",
           content: fullResponse,
-          metadata: { sources, responseTime, ragUsed },
+          metadata: {
+            sources: ragResult.sources,
+            responseTime,
+            ragUsed: ragResult.ragUsed,
+          },
         });
 
         // Track analytics
         await ctx.db.insert(analytics).values({
           chatbotId: chatbot.id,
           eventType: "shared_message_sent",
-          eventData: { responseTime, messageLength: input.message.length, ragUsed },
+          eventData: {
+            responseTime,
+            messageLength: input.message.length,
+            ragUsed: ragResult.ragUsed,
+          },
           sessionId,
         });
 
