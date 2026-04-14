@@ -84,6 +84,16 @@ export const MODEL_REGISTRY = {
   },
 } as const satisfies Record<string, ModelMetadata>;
 
+/**
+ * Embedding model configuration.
+ * Centralized here so changing the embedding model is a single edit.
+ */
+export const EMBEDDING_MODEL = {
+  id: "text-embedding-3-small",
+  dimensions: 1536,
+  maxInputTokens: 8191,
+} as const;
+
 /** Union of all valid model IDs, derived from MODEL_REGISTRY keys. */
 export type SupportedModel = keyof typeof MODEL_REGISTRY;
 

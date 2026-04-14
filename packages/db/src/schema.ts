@@ -226,7 +226,7 @@ export const fileChunks = pgTable(
       .notNull(),
     chunkIndex: integer("chunk_index").notNull(),
     content: text("content").notNull(),
-    embedding: vector("embedding", { dimensions: 1536 }), // OpenAI text-embedding-3-small
+    embedding: vector("embedding", { dimensions: 1536 }), // Must match EMBEDDING_MODEL.dimensions in packages/ai/src/models.ts
     tokenCount: integer("token_count"),
     metadata: jsonb("metadata")
       .$type<{
