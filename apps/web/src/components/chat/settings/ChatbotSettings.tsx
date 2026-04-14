@@ -8,7 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -20,9 +22,10 @@ import { trpc } from "@/lib/trpc";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
-  SUPPORTED_MODELS,
+  MODEL_REGISTRY,
   type SupportedModel,
-} from "@teachanything/ai/openrouter";
+  formatContextWindow,
+} from "@teachanything/ai";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import {
@@ -30,6 +33,17 @@ import {
   validateDescription,
   VALIDATION_LIMITS,
 } from "@/lib/validation";
+
+// Group models by provider for the dropdown. Map preserves MODEL_REGISTRY insertion order.
+const modelsByProvider = Object.values(MODEL_REGISTRY).reduce(
+  (acc, model) => {
+    const group = acc.get(model.provider) ?? [];
+    group.push(model);
+    acc.set(model.provider, group);
+    return acc;
+  },
+  new Map<string, (typeof MODEL_REGISTRY)[keyof typeof MODEL_REGISTRY][]>(),
+);
 
 interface ChatbotSettingsProps {
   chatbot: {
@@ -385,16 +399,30 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SUPPORTED_MODELS.map((m: SupportedModel) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
-                  </SelectItem>
-                ))}
+                {Array.from(modelsByProvider.entries()).map(
+                  ([provider, models]) => (
+                    <SelectGroup key={provider}>
+                      <SelectLabel>{provider}</SelectLabel>
+                      {models.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.displayName} ({formatContextWindow(m.contextWindow)}
+                          )
+                          {(m.pricingTier as string) === "free"
+                            ? " (Free)"
+                            : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ),
+                )}
               </SelectContent>
             </Select>
           ) : (
             <div className="px-3 py-2 bg-background rounded-md border">
-              <p className="text-sm">{model}</p>
+              <p className="text-sm">
+                {MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]
+                  ?.displayName ?? model}
+              </p>
             </div>
           )}
         </div>
