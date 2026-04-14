@@ -318,7 +318,17 @@ export async function processFile(params: {
   } catch (error) {
     logError(error, "File processing failed", { fileId });
 
-    // Update file status to failed
+    // Clean up any orphaned chunks from partial processing (per D-02)
+    // Wrapped in its own try/catch so cleanup failure doesn't mask the original error (per D-03)
+    try {
+      await db.delete(fileChunks).where(eq(fileChunks.fileId, fileId));
+    } catch (cleanupError) {
+      logError(cleanupError, "Failed to clean up chunks after processing error", {
+        fileId,
+      });
+    }
+
+    // Mark file as failed (existing behavior)
     await db
       .update(userFiles)
       .set({
