@@ -9,6 +9,8 @@ import {
   boolean,
   pgEnum,
   index,
+  unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -192,16 +194,27 @@ export const userFiles = pgTable("user_files", {
 });
 
 // Junction table: Associates files with chatbots (many-to-many)
-export const chatbotFileAssociations = pgTable("chatbot_file_associations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  fileId: uuid("file_id")
-    .references(() => userFiles.id, { onDelete: "cascade" })
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const chatbotFileAssociations = pgTable(
+  "chatbot_file_associations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    fileId: uuid("file_id")
+      .references(() => userFiles.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // DB-03 + DB-04: Composite uniqueIndex serves as both B-tree index on chatbotId (leading column)
+    // and unique constraint on (chatbotId, fileId)
+    uniqueIndex("chatbot_file_associations_chatbot_id_file_id_idx").on(
+      table.chatbotId,
+      table.fileId,
+    ),
+  ],
+);
 
 // Legacy chatbot files table (kept for backward compatibility during migration)
 export const chatbotFiles = pgTable("chatbot_files", {
@@ -241,23 +254,39 @@ export const chatbotFiles = pgTable("chatbot_files", {
 });
 
 // File chunks table for RAG
-export const fileChunks = pgTable("file_chunks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  fileId: uuid("file_id")
-    .references(() => userFiles.id, { onDelete: "cascade" })
-    .notNull(),
-  chunkIndex: integer("chunk_index").notNull(),
-  content: text("content").notNull(),
-  embedding: vector("embedding", { dimensions: 1536 }), // OpenAI text-embedding-3-small
-  tokenCount: integer("token_count"),
-  metadata: jsonb("metadata")
-    .$type<{
-      pageNumber?: number;
-      section?: string;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const fileChunks = pgTable(
+  "file_chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fileId: uuid("file_id")
+      .references(() => userFiles.id, { onDelete: "cascade" })
+      .notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: 1536 }), // OpenAI text-embedding-3-small
+    tokenCount: integer("token_count"),
+    metadata: jsonb("metadata")
+      .$type<{
+        pageNumber?: number;
+        section?: string;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // DB-01: HNSW vector index for cosine similarity search (per D-02: m=24, ef_construction=128)
+    index("file_chunks_embedding_idx")
+      .using("hnsw", table.embedding.op("vector_cosine_ops"))
+      .with({ m: 24, ef_construction: 128 }),
+    // DB-02: B-tree index for fileId lookups
+    index("file_chunks_file_id_idx").on(table.fileId),
+    // DB-05: Unique constraint preventing duplicate chunks per file (per D-04: requires dedup first)
+    unique("file_chunks_file_id_chunk_index_unique").on(
+      table.fileId,
+      table.chunkIndex,
+    ),
+  ],
+);
 
 // Conversations table
 export const conversations = pgTable("conversations", {
