@@ -24,6 +24,18 @@ export function useChatState() {
   const [sessionId, setSessionId] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const streamingContentRef = useRef("");
+
+  const updateStreamingContent = (
+    updater: string | ((prev: string) => string),
+  ) => {
+    setStreamingContent((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      streamingContentRef.current = next;
+      return next;
+    });
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sourcesRef = useRef<
     Array<{ fileName: string; chunkIndex: number; similarity: number }>
@@ -60,14 +72,15 @@ export function useChatState() {
     setSessionId("");
     setIsStreaming(false);
     setStreamingContent("");
+    streamingContentRef.current = "";
     sourcesRef.current = [];
   };
 
   const stopStreaming = () => {
     if (!isStreaming) return;
 
-    // Finalize the current streaming content as a message
-    const finalContent = streamingContent;
+    // Finalize the current streaming content as a message (read from ref to avoid stale closure)
+    const finalContent = streamingContentRef.current;
     const finalSources = [...sourcesRef.current];
 
     // Clear streaming state
@@ -98,6 +111,8 @@ export function useChatState() {
     setIsStreaming,
     streamingContent,
     setStreamingContent,
+    streamingContentRef,
+    updateStreamingContent,
     messagesEndRef,
     sourcesRef,
     resetChat,
