@@ -166,8 +166,8 @@ export async function processFile(params: {
 
       if (error || !data) {
         if (
-          error.message?.includes("not found") ||
-          error.message?.includes("does not exist")
+          error?.message?.includes("not found") ||
+          error?.message?.includes("does not exist")
         ) {
           logInfo(
             "File storage not found (likely deleted), skipping processing",
