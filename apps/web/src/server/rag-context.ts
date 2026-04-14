@@ -5,7 +5,7 @@ import {
   userFiles,
 } from "@teachanything/db/schema";
 import { createOpenRouterClient } from "@teachanything/ai";
-import { logError, logInfo } from "@/lib/logger";
+import { logError, logInfo, logWarn } from "@/lib/logger";
 import type { db as dbType } from "@teachanything/db";
 
 export interface BuildRAGContextParams {
@@ -25,6 +25,7 @@ export interface RAGContextResult {
   }>;
   ragUsed: boolean;
   fileManifest: string;
+  ragFailureNote: string;
 }
 
 /**
@@ -65,7 +66,7 @@ export async function buildRAGContext(
 
   // 3. Short-circuit if no completed files
   if (fileIds.length === 0) {
-    return { contextText: "", sources: [], ragUsed: false, fileManifest };
+    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote: "" };
   }
 
   // 4. Generate query embedding (continue without RAG on failure)
@@ -75,16 +76,25 @@ export async function buildRAGContext(
   );
 
   let queryEmbedding: number[] | null = null;
+  let ragFailureNote = "";
   try {
     queryEmbedding = await aiClient.generateEmbedding(params.message);
   } catch (error) {
     logError(error, "Failed to generate embeddings - continuing without RAG", {
       chatbotId: params.chatbotId,
     });
+    ragFailureNote =
+      "[SYSTEM NOTICE: Document search is temporarily unavailable due to a technical issue. " +
+      "You MUST inform the user that you cannot search their uploaded documents right now. " +
+      "Respond using only your general knowledge. Do not reference, quote, or guess about " +
+      "content from uploaded files.]\n\n";
+    logWarn("RAG context degraded - continuing without document search", {
+      chatbotId: params.chatbotId,
+    });
   }
 
   if (!queryEmbedding) {
-    return { contextText: "", sources: [], ragUsed: false, fileManifest };
+    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote };
   }
 
   // 5. Vector similarity search with all fixes
@@ -119,7 +129,7 @@ export async function buildRAGContext(
   const sources: RAGContextResult["sources"] = [];
 
   if (relevantChunks.length === 0) {
-    return { contextText: "", sources: [], ragUsed: false, fileManifest };
+    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote: "" };
   }
 
   const contextText =
@@ -149,5 +159,5 @@ export async function buildRAGContext(
   });
 
   // 8. Return result
-  return { contextText, sources, ragUsed, fileManifest };
+  return { contextText, sources, ragUsed, fileManifest, ragFailureNote: "" };
 }
