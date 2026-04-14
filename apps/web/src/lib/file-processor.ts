@@ -85,6 +85,12 @@ export async function processFile(params: {
       })
       .where(eq(userFiles.id, fileId));
 
+    // Safety net: delete any existing chunks before reprocessing
+    // This catches QStash retries and any other processing path
+    await db.delete(fileChunks).where(eq(fileChunks.fileId, fileId));
+
+    logInfo("Cleared existing chunks before processing", { fileId });
+
     // Get file from database
     const [file] = await db
       .select()
