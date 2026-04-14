@@ -1,6 +1,7 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, embed, streamText } from "ai";
+import { logInfo } from "@teachanything/logger";
 
 // Supported models
 export const SUPPORTED_MODELS = [
@@ -130,9 +131,11 @@ export class OpenRouterClient {
         if (isRateLimit && attempt < retries - 1) {
           // Exponential backoff: 1s, 2s, 4s
           const delay = Math.pow(2, attempt) * 1000;
-          console.log(
-            `Rate limit hit, waiting ${delay}ms before retry ${attempt + 1}/${retries}`,
-          );
+          logInfo(`Rate limit hit, waiting ${delay}ms before retry`, {
+            attempt: attempt + 1,
+            retries,
+            delayMs: delay,
+          });
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }

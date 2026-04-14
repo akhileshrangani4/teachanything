@@ -1,4 +1,5 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { logWarn, logError } from "@teachanything/logger";
 import type { OpenRouterClient } from "./openrouter-client";
 
 /** Recursive node type for officeparser AST */
@@ -43,9 +44,7 @@ export class RAGService {
       const { encodingForModel } = await import("js-tiktoken");
       this.encoder = encodingForModel("gpt-4o-mini");
     } catch (error) {
-      console.warn(
-        "Failed to initialize tiktoken, using fallback token counter",
-      );
+      logWarn("Failed to initialize tiktoken, using fallback token counter");
       this.encoder = null;
     }
   }
@@ -93,7 +92,7 @@ export class RAGService {
           throw new Error(`Unsupported file type: ${mimeType}`);
       }
     } catch (error: any) {
-      console.error("Content extraction error:", error);
+      logError(error, "Content extraction error");
       throw new Error(`Failed to extract content: ${error.message}`);
     }
   }
@@ -139,7 +138,7 @@ export class RAGService {
 
       return sanitizedText;
     } catch (error) {
-      console.error("PDF extraction error:", error);
+      logError(error, "PDF extraction error");
       throw new Error(
         `Failed to extract PDF content: ${error instanceof Error ? error.message : String(error)}`,
       );
