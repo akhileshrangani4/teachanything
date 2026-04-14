@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useChatState } from "./useChatState";
 
@@ -29,7 +30,8 @@ export function useChat(shareToken: string) {
     isStreaming,
     setIsStreaming,
     streamingContent,
-    setStreamingContent,
+    streamingContentRef,
+    updateStreamingContent,
     messagesEndRef,
     sourcesRef,
     resetChat: resetChatState,
@@ -42,6 +44,15 @@ export function useChat(shareToken: string) {
     message: string;
     sessionId?: string;
   } | null>(null);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStreamingTimeout = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
 
   // Fetch chatbot info by share token
   const {
@@ -79,14 +90,16 @@ export function useChat(shareToken: string) {
             setSessionId(data.sessionId);
           }
         } else if (data.type === "text") {
-          setStreamingContent((prev) => prev + (data.content || ""));
+          updateStreamingContent((prev) => prev + (data.content || ""));
         } else if (data.type === "done") {
-          // Finalize the message
-          const finalContent = streamingContent;
+          clearStreamingTimeout();
+
+          // Finalize the message (read from ref to avoid stale closure)
+          const finalContent = streamingContentRef.current;
           const finalSources = [...sourcesRef.current];
 
           // Clear streaming content immediately to prevent duplicate display
-          setStreamingContent("");
+          updateStreamingContent("");
           setIsStreaming(false);
 
           setMessages((prev) => [
@@ -103,11 +116,11 @@ export function useChat(shareToken: string) {
           sourcesRef.current = [];
         }
       },
-      onError: (error) => {
-        console.error("Error sending message:", error);
-        alert("Failed to send message. Please try again.");
+      onError: () => {
+        clearStreamingTimeout();
+        toast.error("Failed to send message. Please try again.");
         setIsStreaming(false);
-        setStreamingContent("");
+        updateStreamingContent("");
         setMessageToSend(null);
         sourcesRef.current = [];
       },
@@ -117,8 +130,16 @@ export function useChat(shareToken: string) {
   // Send message function
   const sendMessageWithStreaming = (message: string) => {
     setIsStreaming(true);
-    setStreamingContent("");
+    updateStreamingContent("");
     sourcesRef.current = [];
+
+    clearStreamingTimeout();
+    timeoutRef.current = setTimeout(() => {
+      setMessageToSend(null);
+      stopStreamingState();
+      toast.error("Response timed out. Please try again.");
+    }, 300_000); // 5 minutes
+
     setMessageToSend({
       shareToken,
       message,
@@ -143,6 +164,7 @@ export function useChat(shareToken: string) {
   };
 
   const stopStreaming = () => {
+    clearStreamingTimeout();
     setMessageToSend(null);
     stopStreamingState();
   };
