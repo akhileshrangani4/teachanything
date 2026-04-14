@@ -180,6 +180,8 @@ export const chatRouter = router({
           }
         }
 
+        const ragUsed = queryEmbedding !== null && sources.length > 0;
+
         // Send metadata
         yield {
           type: "metadata" as const,
@@ -239,14 +241,14 @@ export const chatRouter = router({
           conversationId: conversation.id,
           role: "assistant",
           content: fullResponse,
-          metadata: { sources, responseTime },
+          metadata: { sources, responseTime, ragUsed },
         });
 
         // Track analytics
         await ctx.db.insert(analytics).values({
           chatbotId: input.chatbotId,
           eventType: "message_sent",
-          eventData: { responseTime, messageLength: input.message.length },
+          eventData: { responseTime, messageLength: input.message.length, ragUsed },
           sessionId,
         });
 
@@ -420,6 +422,8 @@ export const chatRouter = router({
           });
         }
 
+        const ragUsed = queryEmbedding !== null && sources.length > 0;
+
         // Send metadata
         yield {
           type: "metadata" as const,
@@ -479,14 +483,14 @@ export const chatRouter = router({
           conversationId: conversation.id,
           role: "assistant",
           content: fullResponse,
-          metadata: { sources, responseTime },
+          metadata: { sources, responseTime, ragUsed },
         });
 
         // Track analytics
         await ctx.db.insert(analytics).values({
           chatbotId: chatbot.id,
           eventType: "shared_message_sent",
-          eventData: { responseTime, messageLength: input.message.length },
+          eventData: { responseTime, messageLength: input.message.length, ragUsed },
           sessionId,
         });
 

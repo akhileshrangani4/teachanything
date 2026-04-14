@@ -322,6 +322,7 @@ export const messages = pgTable("messages", {
       }>;
       responseTime?: number;
       model?: string;
+      ragUsed?: boolean;
     }>()
     .default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
