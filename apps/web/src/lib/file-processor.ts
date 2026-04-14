@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { createSupabaseClient } from "./supabase";
 import { isLocalStorageMode, readLocalFile } from "./local-storage";
 import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
+import { EMBEDDING_MODEL } from "@teachanything/ai/models";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
 
@@ -217,8 +218,14 @@ export async function processFile(params: {
 
       // Validate embeddings
       for (let j = 0; j < batchEmbeddings.length; j++) {
-        if (!batchEmbeddings[j]) {
+        const embedding = batchEmbeddings[j];
+        if (!embedding) {
           throw new Error(`Failed to generate embedding for chunk ${i + j}`);
+        }
+        if (embedding.length !== EMBEDDING_MODEL.dimensions) {
+          throw new Error(
+            `Embedding dimension mismatch for chunk ${i + j}: got ${embedding.length}, expected ${EMBEDDING_MODEL.dimensions}`,
+          );
         }
       }
 
