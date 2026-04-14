@@ -14,6 +14,8 @@ export interface BuildRAGContextParams {
   db: typeof dbType;
   openrouterApiKey: string;
   openaiApiKey: string;
+  /** Budget-derived chunk limit. Falls back to min(fileCount * 2, 30) when omitted. */
+  chunkLimit?: number;
 }
 
 export interface RAGContextResult {
@@ -98,7 +100,7 @@ export async function buildRAGContext(
   }
 
   // 5. Vector similarity search with all fixes
-  const chunkLimit = Math.min(fileIds.length * 2, 30); // D-07, RAG-04
+  const effectiveChunkLimit = params.chunkLimit ?? Math.min(fileIds.length * 2, 30);
 
   // D-06, RAG-03: Real cosine similarity in SELECT
   const similarityExpr = sql<number>`1 - (${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)})`;
@@ -123,7 +125,7 @@ export async function buildRAGContext(
     .orderBy(
       sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`,
     )
-    .limit(chunkLimit);
+    .limit(effectiveChunkLimit);
 
   // 6. Format chunks with source attribution (D-04)
   const sources: RAGContextResult["sources"] = [];
@@ -154,7 +156,7 @@ export async function buildRAGContext(
     chatbotId: params.chatbotId,
     fileCount: fileIds.length,
     chunkCount: relevantChunks.length,
-    chunkLimit,
+    chunkLimit: effectiveChunkLimit,
     ragUsed,
   });
 

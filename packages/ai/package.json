@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./models": "./src/models.ts",
     "./openrouter": "./src/openrouter-client.ts",
-    "./rag": "./src/rag-service.ts"
+    "./rag": "./src/rag-service.ts",
+    "./token-budget": "./src/token-budget.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",
