@@ -7,6 +7,22 @@ import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
 
+const EXTRACTION_TIMEOUT_MS = 60_000;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() =>
+    clearTimeout(timeoutId),
+  );
+}
+
 /**
  * Helper to update file processing progress
  */
@@ -156,7 +172,11 @@ export async function processFile(params: {
     // Stage 2: Extract text content (10-30%)
     await updateProgress(fileId, "extracting", 10);
     const ragService = createRAGService();
-    const content = await ragService.extractContent(buffer, file.fileType);
+    const content = await withTimeout(
+      ragService.extractContent(buffer, file.fileType),
+      EXTRACTION_TIMEOUT_MS,
+      `File extraction timed out after ${EXTRACTION_TIMEOUT_MS / 1000}s`,
+    );
     await updateProgress(fileId, "extracting", 30);
 
     // Stage 3: Chunk text (30-40%)
