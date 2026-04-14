@@ -48,6 +48,7 @@ jest.unstable_mockModule("@teachanything/db", () => ({
 // ── Dynamic imports after mocks ────────────────────────────────────────────
 const { buildRAGContext } = await import("@/server/rag-context");
 const { logWarn } = await import("@/lib/logger");
+type BuildRAGContextParams = Parameters<typeof buildRAGContext>[0];
 
 // ── DB mock factory ────────────────────────────────────────────────────────
 let completedFilesResult: Array<{ fileId: string; fileName: string }> = [];
@@ -56,7 +57,7 @@ let completedFilesResult: Array<{ fileId: string; fileName: string }> = [];
  * Creates a mock db that returns completedFilesResult for the first
  * select chain (file query) and an empty array for the second (vector search).
  */
-function createMockDb() {
+function createMockDb(): BuildRAGContextParams["db"] {
   let selectCallCount = 0;
   return {
     select: () => {
@@ -80,6 +81,20 @@ function createMockDb() {
         }),
       };
     },
+  } as unknown as BuildRAGContextParams["db"];
+}
+
+/** Helper to build test params with mock db */
+function ragParams(
+  overrides: Partial<BuildRAGContextParams> = {},
+): BuildRAGContextParams {
+  return {
+    chatbotId: "chatbot-1",
+    message: "test query",
+    db: createMockDb(),
+    openrouterApiKey: "key",
+    openaiApiKey: "key",
+    ...overrides,
   };
 }
 
@@ -94,13 +109,7 @@ describe("ragFailureNote in buildRAGContext", () => {
     completedFilesResult = [{ fileId: "file-1", fileName: "test.pdf" }];
     mockGenerateEmbedding.mockResolvedValue(new Array(1536).fill(0.1));
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.ragFailureNote).toBe("");
   });
@@ -109,13 +118,7 @@ describe("ragFailureNote in buildRAGContext", () => {
     completedFilesResult = [{ fileId: "file-1", fileName: "test.pdf" }];
     mockGenerateEmbedding.mockRejectedValue(new Error("API error"));
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.ragFailureNote).not.toBe("");
     expect(result.ragFailureNote.length).toBeGreaterThan(0);
@@ -125,13 +128,7 @@ describe("ragFailureNote in buildRAGContext", () => {
     completedFilesResult = [{ fileId: "file-1", fileName: "test.pdf" }];
     mockGenerateEmbedding.mockRejectedValue(new Error("API error"));
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.ragFailureNote).toContain("[SYSTEM NOTICE:");
   });
@@ -140,13 +137,7 @@ describe("ragFailureNote in buildRAGContext", () => {
     completedFilesResult = [{ fileId: "file-1", fileName: "test.pdf" }];
     mockGenerateEmbedding.mockRejectedValue(new Error("API error"));
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.ragFailureNote).toContain("Do not reference");
   });
@@ -154,13 +145,7 @@ describe("ragFailureNote in buildRAGContext", () => {
   it("ragFailureNote is '' when no completed files exist (short-circuit path)", async () => {
     completedFilesResult = [];
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.ragFailureNote).toBe("");
     expect(mockGenerateEmbedding).not.toHaveBeenCalled();
@@ -170,13 +155,7 @@ describe("ragFailureNote in buildRAGContext", () => {
     completedFilesResult = [{ fileId: "file-1", fileName: "test.pdf" }];
     mockGenerateEmbedding.mockResolvedValue(new Array(1536).fill(0.1));
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.ragFailureNote).toBe("");
     expect(result.ragUsed).toBe(false);
@@ -189,13 +168,7 @@ describe("ragFailureNote in buildRAGContext", () => {
     ];
     mockGenerateEmbedding.mockRejectedValue(new Error("API error"));
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.fileManifest).toContain("lecture.pdf");
     expect(result.fileManifest).toContain("notes.docx");
@@ -206,13 +179,7 @@ describe("ragFailureNote in buildRAGContext", () => {
     completedFilesResult = [{ fileId: "file-1", fileName: "test.pdf" }];
     mockGenerateEmbedding.mockRejectedValue(new Error("API error"));
 
-    await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    await buildRAGContext(ragParams());
 
     expect(logWarn).toHaveBeenCalledWith(
       expect.stringContaining("degraded"),
@@ -226,13 +193,7 @@ describe("ragFailureNote in buildRAGContext", () => {
       new Error("500 Internal Server Error"),
     );
 
-    const result = await buildRAGContext({
-      chatbotId: "chatbot-1",
-      message: "test query",
-      db: createMockDb() as any,
-      openrouterApiKey: "key",
-      openaiApiKey: "key",
-    });
+    const result = await buildRAGContext(ragParams());
 
     expect(result.ragUsed).toBe(false);
     expect(result.ragFailureNote).toBeTruthy();

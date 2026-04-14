@@ -38,7 +38,7 @@ export const chatRouter = router({
     .input(
       z.object({
         chatbotId: z.string().uuid(),
-        message: z.string().min(1).max(4000),
+        message: z.string().min(1).max(16000),
         sessionId: z.string().optional(),
       }),
     )
@@ -131,9 +131,9 @@ export const chatRouter = router({
           content: msg.content,
         }));
 
-        // D-01: systemPrompt + fileManifest + contextText
+        // D-01: ragFailureNote + systemPrompt + fileManifest + contextText
         const systemPrompt =
-          chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
+          ragResult.ragFailureNote + chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
 
         // Save user message
         await ctx.db.insert(messages).values({
@@ -233,7 +233,7 @@ export const chatRouter = router({
     .input(
       z.object({
         shareToken: z.string(),
-        message: z.string().min(1).max(4000),
+        message: z.string().min(1).max(16000),
         sessionId: z.string().optional(),
       }),
     )
@@ -326,9 +326,9 @@ export const chatRouter = router({
           content: msg.content,
         }));
 
-        // D-01: systemPrompt + fileManifest + contextText
+        // D-01: ragFailureNote + systemPrompt + fileManifest + contextText
         const systemPrompt =
-          chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
+          ragResult.ragFailureNote + chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
 
         // Save user message
         await ctx.db.insert(messages).values({
