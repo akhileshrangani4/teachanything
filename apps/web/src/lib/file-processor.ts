@@ -1,6 +1,6 @@
 import { db } from "@teachanything/db";
 import { userFiles, fileChunks } from "@teachanything/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, ne, and } from "drizzle-orm";
 import { createSupabaseClient } from "./supabase";
 import { isLocalStorageMode, readLocalFile } from "./local-storage";
 import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
@@ -86,8 +86,8 @@ export async function processFile(params: {
     const startTime = new Date().toISOString();
     logInfo("File processing started", { fileId });
 
-    // Initialize processing with starting timestamp
-    await db
+    // Atomic status guard: only proceed if not already processing (per D-04, D-05)
+    const guardResult = await db
       .update(userFiles)
       .set({
         processingStatus: "processing",
@@ -100,7 +100,21 @@ export async function processFile(params: {
           },
         },
       })
-      .where(eq(userFiles.id, fileId));
+      .where(
+        and(
+          eq(userFiles.id, fileId),
+          ne(userFiles.processingStatus, "processing"),
+        ),
+      )
+      .returning({ id: userFiles.id });
+
+    if (guardResult.length === 0) {
+      // Another job is already processing this file -- exit early
+      logInfo("File already being processed by another job, skipping", {
+        fileId,
+      });
+      return { success: false, chunkCount: 0 };
+    }
 
     // Safety net: delete any existing chunks before reprocessing
     // This catches QStash retries and any other processing path
