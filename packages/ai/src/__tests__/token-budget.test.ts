@@ -108,9 +108,9 @@ describe("token-budget", () => {
         fileManifestTokens: 78,
         userMessageTokens: 21,
         availableChunks: Array.from({ length: 90 }, () => ({ tokens: 551 })),
-        // 10 history messages, each 5000 tokens -- only a few will fit
-        availableHistory: Array.from({ length: 10 }, (_, i) => ({
-          tokens: 5000,
+        // 10 history messages, each 8000 tokens -- not all will fit
+        availableHistory: Array.from({ length: 10 }, () => ({
+          tokens: 8000,
         })),
       };
 
