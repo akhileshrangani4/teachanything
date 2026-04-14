@@ -26,7 +26,8 @@
     "nanoid": "^5.0.9",
     "officeparser": "^6.0.4",
     "pdf-parse": "^1.1.1",
-    "robots-parser": "^3.0.1"
+    "robots-parser": "^3.0.1",
+    "@types/jsdom": "^21.1.7"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
@@ -34,7 +35,6 @@
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "devDependencies": {
-    "@types/jsdom": "^21.1.7",
     "@types/node": "^25.5.0",
     "typescript": "^5.9.3"
   }

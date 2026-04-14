@@ -77,7 +77,10 @@ function normalizeUrl(rawUrl: string, baseUrl: string): string | null {
 }
 
 function isPrivateIp(ip: string): boolean {
-  const ipv4Match = ip.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  // Unwrap IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1)
+  const mapped = ip.startsWith("::ffff:") ? ip.slice(7) : ip;
+
+  const ipv4Match = mapped.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
   if (ipv4Match) {
     const a = parseInt(ipv4Match[1]!, 10);
     const b = parseInt(ipv4Match[2]!, 10);
@@ -94,10 +97,10 @@ function isPrivateIp(ip: string): boolean {
   }
 
   if (
-    ip === "::1" ||
-    ip.startsWith("fe80:") ||
-    ip.startsWith("fc00:") ||
-    ip.startsWith("fd")
+    mapped === "::1" ||
+    mapped.startsWith("fe80:") ||
+    mapped.startsWith("fc00:") ||
+    mapped.startsWith("fd")
   ) {
     return true;
   }
@@ -347,40 +350,54 @@ function extractContent(
   return { title, content: sections.join("\n").trim() };
 }
 
-async function fetchPage(url: string): Promise<{
+const MAX_REDIRECTS = 5;
+
+async function fetchPageSafe(url: string): Promise<{
   html: string;
   statusCode: number;
   contentType: string;
 } | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let currentUrl = url;
 
-    const response = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT },
-      signal: controller.signal,
-      redirect: "follow",
-    });
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    if (!(await isUrlSafeWithDns(currentUrl))) return null;
 
-    clearTimeout(timeout);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/html")) return null;
+      const response = await fetch(currentUrl, {
+        headers: { "User-Agent": USER_AGENT },
+        signal: controller.signal,
+        redirect: "manual",
+      });
 
-    const contentLength = response.headers.get("content-length");
-    if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) return null;
+      clearTimeout(timeout);
 
-    const html = await response.text();
-    if (html.length > MAX_BODY_SIZE) return null;
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location) return null;
+        const next = new URL(location, currentUrl).href;
+        currentUrl = next;
+        continue;
+      }
 
-    return {
-      html,
-      statusCode: response.status,
-      contentType,
-    };
-  } catch {
-    return null;
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/html")) return null;
+
+      const contentLength = response.headers.get("content-length");
+      if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) return null;
+
+      const html = await response.text();
+      if (html.length > MAX_BODY_SIZE) return null;
+
+      return { html, statusCode: response.status, contentType };
+    } catch {
+      return null;
+    }
   }
+
+  return null;
 }
 
 async function fetchSitemapUrls(rootUrl: string): Promise<string[]> {
@@ -430,7 +447,7 @@ export async function discoverPages(
   while (queue.length > 0 && discovered.length < options.maxPages) {
     const entry = queue.shift()!;
 
-    if (!isUrlSafe(entry.url)) continue;
+    if (!(await isUrlSafeWithDns(entry.url))) continue;
 
     const isAllowed = robots.isAllowed(entry.url, USER_AGENT);
     if (isAllowed === false) continue;
@@ -451,7 +468,7 @@ export async function discoverPages(
 
     await delay(options.delayMs ?? DEFAULT_DELAY_MS);
 
-    const result = await fetchPage(entry.url);
+    const result = await fetchPageSafe(entry.url);
     if (!result) continue;
 
     let links = extractLinks(result.html, entry.url, rootDomain);
@@ -480,7 +497,7 @@ export async function discoverPages(
 export async function fetchAndExtractPage(
   url: string,
 ): Promise<PageContent | null> {
-  const result = await fetchPage(url);
+  const result = await fetchPageSafe(url);
   if (!result) return null;
 
   const extracted = extractContent(result.html, url);

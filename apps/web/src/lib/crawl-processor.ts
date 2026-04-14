@@ -12,7 +12,7 @@ import {
   discoverPages,
   fetchRobots,
   isRobotsAllowed,
-  isUrlSafe,
+  isUrlSafeWithDns,
 } from "@teachanything/ai/crawler";
 import { env } from "./env";
 import { publishQStashJob } from "./qstash";
@@ -227,7 +227,7 @@ export async function processCrawlPage(params: {
 
     if (!chatbot) return;
 
-    if (!isUrlSafe(page.url)) {
+    if (!(await isUrlSafeWithDns(page.url))) {
       await db
         .update(crawledPages)
         .set({
@@ -280,18 +280,6 @@ export async function processCrawlPage(params: {
       return;
     }
 
-    if (page.userFileId) {
-      await db.delete(fileChunks).where(eq(fileChunks.fileId, page.userFileId));
-      await db
-        .update(userFiles)
-        .set({
-          fileName: pageContent.title || page.url,
-          fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
-          processingStatus: "processing",
-        })
-        .where(eq(userFiles.id, page.userFileId));
-    }
-
     let userFileId = page.userFileId;
     if (!userFileId) {
       const [file] = await db
@@ -317,6 +305,15 @@ export async function processCrawlPage(params: {
         .update(crawledPages)
         .set({ userFileId })
         .where(eq(crawledPages.id, crawledPageId));
+    } else {
+      await db
+        .update(userFiles)
+        .set({
+          fileName: pageContent.title || page.url,
+          fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
+          processingStatus: "processing",
+        })
+        .where(eq(userFiles.id, userFileId));
     }
 
     const { createRAGService, createOpenRouterClient } =
@@ -355,6 +352,7 @@ export async function processCrawlPage(params: {
     );
 
     if (chunkRecords.length > 0) {
+      await db.delete(fileChunks).where(eq(fileChunks.fileId, userFileId!));
       await db.insert(fileChunks).values(chunkRecords);
     }
 
@@ -391,6 +389,20 @@ export async function processCrawlPage(params: {
     });
   } catch (error) {
     logError(error, "Crawl page processing failed", { crawledPageId });
+
+    const [failedPage] = await db
+      .select({ userFileId: crawledPages.userFileId })
+      .from(crawledPages)
+      .where(eq(crawledPages.id, crawledPageId))
+      .limit(1);
+
+    if (failedPage?.userFileId) {
+      await db
+        .update(userFiles)
+        .set({ processingStatus: "failed" })
+        .where(eq(userFiles.id, failedPage.userFileId));
+    }
+
     await db
       .update(crawledPages)
       .set({

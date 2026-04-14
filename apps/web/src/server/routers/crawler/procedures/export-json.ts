@@ -1,5 +1,5 @@
 import { protectedProcedure } from "@/server/trpc";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -45,57 +45,57 @@ export const exportJsonProcedure = protectedProcedure
       });
     }
 
-    const rows = await ctx.db
+    const completedPages = await ctx.db
       .select({
-        pageUrl: crawledPages.url,
-        pageTitle: crawledPages.title,
-        pageWordCount: crawledPages.metadata,
-        chunkContent: fileChunks.content,
-        chunkIndex: fileChunks.chunkIndex,
+        id: crawledPages.id,
+        url: crawledPages.url,
+        title: crawledPages.title,
+        metadata: crawledPages.metadata,
+        userFileId: crawledPages.userFileId,
       })
       .from(crawledPages)
-      .leftJoin(fileChunks, eq(fileChunks.fileId, crawledPages.userFileId))
       .where(
         and(
           eq(crawledPages.crawlSourceId, input.crawlSourceId),
           eq(crawledPages.status, "completed"),
         ),
       )
-      .orderBy(crawledPages.url, asc(fileChunks.chunkIndex))
-      .limit(MAX_EXPORT_PAGES * 50);
+      .orderBy(crawledPages.url)
+      .limit(MAX_EXPORT_PAGES);
 
-    const pageMap = new Map<
-      string,
-      {
-        url: string;
-        title: string | null;
-        wordCount?: number;
-        chunks: string[];
-      }
-    >();
+    const fileIds = completedPages
+      .map((p) => p.userFileId)
+      .filter((id): id is string => id !== null);
 
-    for (const row of rows) {
-      if (!pageMap.has(row.pageUrl)) {
-        pageMap.set(row.pageUrl, {
-          url: row.pageUrl,
-          title: row.pageTitle,
-          wordCount: (row.pageWordCount as { wordCount?: number })?.wordCount,
-          chunks: [],
-        });
-      }
-      if (row.chunkContent) {
-        pageMap.get(row.pageUrl)!.chunks.push(row.chunkContent);
-      }
+    const chunks =
+      fileIds.length > 0
+        ? await ctx.db
+            .select({
+              fileId: fileChunks.fileId,
+              content: fileChunks.content,
+              chunkIndex: fileChunks.chunkIndex,
+            })
+            .from(fileChunks)
+            .where(inArray(fileChunks.fileId, fileIds))
+            .orderBy(asc(fileChunks.chunkIndex))
+        : [];
+
+    const chunksByFileId = new Map<string, string[]>();
+    for (const chunk of chunks) {
+      const list = chunksByFileId.get(chunk.fileId) ?? [];
+      list.push(chunk.content);
+      chunksByFileId.set(chunk.fileId, list);
     }
 
-    const pages = [...pageMap.values()].slice(0, MAX_EXPORT_PAGES).map((p) => {
-      const content = p.chunks.join("\n\n");
-      return {
-        url: p.url,
-        title: p.title,
-        content,
-        wordCount: p.wordCount ?? content.split(/\s+/).filter(Boolean).length,
-      };
+    const pages = completedPages.map((p) => {
+      const pageChunks = p.userFileId
+        ? (chunksByFileId.get(p.userFileId) ?? [])
+        : [];
+      const content = pageChunks.join("\n\n");
+      const wordCount =
+        (p.metadata as { wordCount?: number } | null)?.wordCount ??
+        content.split(/\s+/).filter(Boolean).length;
+      return { url: p.url, title: p.title, content, wordCount };
     });
 
     return {

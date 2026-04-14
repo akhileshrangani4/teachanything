@@ -55,10 +55,16 @@ export const recrawlProcedure = protectedProcedure
     }
 
     if (["pending", "discovering", "crawling"].includes(source.status)) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: "A crawl is already in progress",
-      });
+      const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+      const stuckThreshold = new Date(Date.now() - TWO_HOURS_MS);
+      const isStuck =
+        source.updatedAt !== null && source.updatedAt < stuckThreshold;
+      if (!isStuck) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "A crawl is already in progress",
+        });
+      }
     }
 
     const [updatedSource] = await ctx.db

@@ -2,7 +2,7 @@ import { protectedProcedure } from "@/server/trpc";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { chatbots, crawlSources, crawledPages } from "@teachanything/db/schema";
-import { isUrlSafe } from "@teachanything/ai/crawler";
+import { isUrlSafeWithDns } from "@teachanything/ai/crawler";
 import { env } from "@/lib/env";
 import { publishQStashJob } from "@/lib/qstash";
 import { logInfo, logError } from "@/lib/logger";
@@ -60,7 +60,7 @@ export const addManualUrlProcedure = protectedProcedure
       });
     }
 
-    const safe = isUrlSafe(input.url);
+    const safe = await isUrlSafeWithDns(input.url);
     if (!safe) {
       throw new TRPCError({
         code: "BAD_REQUEST",
@@ -69,16 +69,33 @@ export const addManualUrlProcedure = protectedProcedure
     }
 
     try {
-      const response = await fetch(input.url, {
-        method: "HEAD",
-        headers: { "User-Agent": "TeachAnythingBot/1.0" },
-        signal: AbortSignal.timeout(10000),
-        redirect: "follow",
-      });
-      if (!response.ok) {
+      let currentUrl = input.url;
+      let response: Response | null = null;
+      for (let hop = 0; hop <= 5; hop++) {
+        if (!(await isUrlSafeWithDns(currentUrl))) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "URL is not allowed",
+          });
+        }
+        response = await fetch(currentUrl, {
+          method: "HEAD",
+          headers: { "User-Agent": "TeachAnythingBot/1.0" },
+          signal: AbortSignal.timeout(10000),
+          redirect: "manual",
+        });
+        if (response.status >= 300 && response.status < 400) {
+          const location = response.headers.get("location");
+          if (!location) break;
+          currentUrl = new URL(location, currentUrl).href;
+          continue;
+        }
+        break;
+      }
+      if (!response || !response.ok) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Could not reach that URL (${response.status}). Please check it's correct and publicly accessible.`,
+          message: `Could not reach that URL (${response?.status ?? "unknown"}). Please check it's correct and publicly accessible.`,
         });
       }
     } catch (e) {

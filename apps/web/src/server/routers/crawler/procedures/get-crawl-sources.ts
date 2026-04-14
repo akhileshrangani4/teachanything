@@ -46,7 +46,14 @@ export const getCrawlSourcesProcedure = protectedProcedure
 
     const countMap = new Map<
       string,
-      { pending: number; processing: number; completed: number; failed: number }
+      {
+        pending: number;
+        processing: number;
+        completed: number;
+        failed: number;
+        blocked: number;
+        skipped: number;
+      }
     >();
 
     for (const row of statusCounts) {
@@ -56,6 +63,8 @@ export const getCrawlSourcesProcedure = protectedProcedure
           processing: 0,
           completed: 0,
           failed: 0,
+          blocked: 0,
+          skipped: 0,
         });
       }
       const counts = countMap.get(row.crawlSourceId)!;
@@ -72,6 +81,8 @@ export const getCrawlSourcesProcedure = protectedProcedure
         processing: 0,
         completed: 0,
         failed: 0,
+        blocked: 0,
+        skipped: 0,
       },
     }));
   });

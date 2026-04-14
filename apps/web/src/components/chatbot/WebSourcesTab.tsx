@@ -175,7 +175,8 @@ function getFriendlyError(error: { message: string }): string {
             return `Crawl depth cannot exceed ${e.maximum}`;
           if (code === "too_small" && field === "crawlDepth")
             return `Crawl depth must be at least ${e.minimum}`;
-          if (field === "rootUrl" || field === "url") return "Please enter a valid URL";
+          if (field === "rootUrl" || field === "url")
+            return "Please enter a valid URL";
           return e.message ?? "Invalid input";
         })
         .join(". ");
@@ -227,7 +228,9 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
       toast.success("Crawl started");
     },
     onError: (error) => {
-      toast.error("Failed to start crawl", { description: getFriendlyError(error) });
+      toast.error("Failed to start crawl", {
+        description: getFriendlyError(error),
+      });
     },
   });
 
@@ -238,7 +241,9 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
       toast.success("URL added");
     },
     onError: (error) => {
-      toast.error("Failed to add URL", { description: getFriendlyError(error) });
+      toast.error("Failed to add URL", {
+        description: getFriendlyError(error),
+      });
     },
   });
 
@@ -248,7 +253,9 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
       toast.success("Web source removed");
     },
     onError: (error) => {
-      toast.error("Failed to remove source", { description: getFriendlyError(error) });
+      toast.error("Failed to remove source", {
+        description: getFriendlyError(error),
+      });
     },
   });
 
@@ -258,7 +265,9 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
       toast.success("Re-crawl started");
     },
     onError: (error) => {
-      toast.error("Failed to start re-crawl", { description: getFriendlyError(error) });
+      toast.error("Failed to start re-crawl", {
+        description: getFriendlyError(error),
+      });
     },
   });
 
@@ -453,20 +462,19 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
         ) : (
           <div className="space-y-3">
             {sources.map((source) => (
-                <CrawlSourceCard
-                  key={source.id}
-                  source={source}
-                  isExpanded={expandedSources.has(source.id)}
-                  onToggleExpand={() => toggleExpanded(source.id)}
-                  onRecrawl={() => recrawl.mutate({ crawlSourceId: source.id })}
-                  onRemove={() =>
-                    removeCrawlSource.mutate({ crawlSourceId: source.id })
-                  }
-                  isRecrawling={recrawl.isPending}
-                  isRemoving={removeCrawlSource.isPending}
-                />
-              ),
-            )}
+              <CrawlSourceCard
+                key={source.id}
+                source={source}
+                isExpanded={expandedSources.has(source.id)}
+                onToggleExpand={() => toggleExpanded(source.id)}
+                onRecrawl={() => recrawl.mutate({ crawlSourceId: source.id })}
+                onRemove={() =>
+                  removeCrawlSource.mutate({ crawlSourceId: source.id })
+                }
+                isRecrawling={recrawl.isPending}
+                isRemoving={removeCrawlSource.isPending}
+              />
+            ))}
           </div>
         )}
       </CardContent>
@@ -494,6 +502,8 @@ function CrawlSourceCard({
       processing: number;
       completed: number;
       failed: number;
+      blocked: number;
+      skipped: number;
     };
   };
   isExpanded: boolean;
@@ -548,9 +558,7 @@ function CrawlSourceCard({
               )}
               <Globe className="h-5 w-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">
-                  {source.rootUrl}
-                </p>
+                <p className="text-sm font-medium truncate">{source.rootUrl}</p>
                 <div className="flex items-center gap-2 mt-1">
                   {getSourceStatusBadge(source.status)}
                   {source.status === "completed" && (
@@ -640,34 +648,37 @@ function CrawlSourceCard({
           </div>
         </div>
 
-        {isActive && (() => {
-          const { pending, processing, completed, failed } = source.pageCounts;
-          const total = pending + processing + completed + failed;
-          let progress = 0;
-          let label = "Waiting to start...";
+        {isActive &&
+          (() => {
+            const { pending, processing, completed, failed, blocked, skipped } =
+              source.pageCounts;
+            const total =
+              pending + processing + completed + failed + blocked + skipped;
+            let progress = 0;
+            let label = "Waiting to start...";
 
-          if (source.status === "pending") {
-            progress = 5;
-            label = "Waiting to start...";
-          } else if (source.status === "discovering") {
-            progress = 15;
-            label = "Discovering pages...";
-          } else if (source.status === "crawling" && total > 0) {
-            const done = completed + failed;
-            progress = 20 + Math.round((done / total) * 80);
-            label = `Processing ${done} of ${total} pages...`;
-          } else if (source.status === "crawling") {
-            progress = 20;
-            label = "Processing pages...";
-          }
+            if (source.status === "pending") {
+              progress = 5;
+              label = "Waiting to start...";
+            } else if (source.status === "discovering") {
+              progress = 15;
+              label = "Discovering pages...";
+            } else if (source.status === "crawling" && total > 0) {
+              const done = completed + failed + blocked + skipped;
+              progress = 20 + Math.round((done / total) * 80);
+              label = `Processing ${done} of ${total} pages...`;
+            } else if (source.status === "crawling") {
+              progress = 20;
+              label = "Processing pages...";
+            }
 
-          return (
-            <div className="px-4 pb-3">
-              <Progress value={progress} className="h-2" />
-              <p className="text-xs text-muted-foreground mt-1">{label}</p>
-            </div>
-          );
-        })()}
+            return (
+              <div className="px-4 pb-3">
+                <Progress value={progress} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">{label}</p>
+              </div>
+            );
+          })()}
 
         <CollapsibleContent>
           <CrawledPagesList crawlSourceId={source.id} />
