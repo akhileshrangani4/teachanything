@@ -2,16 +2,10 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, embed, streamText } from "ai";
 import { logInfo } from "@teachanything/logger";
+import { SUPPORTED_MODELS, type SupportedModel } from "./models";
 
-// Supported models
-export const SUPPORTED_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct",
-  "mistralai/mistral-large",
-  "qwen/qwen-2.5-72b-instruct",
-  "openai/gpt-oss-120b",
-] as const;
-
-export type SupportedModel = (typeof SUPPORTED_MODELS)[number];
+// Re-export so consumers of @teachanything/ai/openrouter subpath still get these
+export { SUPPORTED_MODELS, type SupportedModel } from "./models";
 
 // OpenRouter client configuration
 export class OpenRouterClient {

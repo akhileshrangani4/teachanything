@@ -9,7 +9,7 @@ import {
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { TRPCError } from "@trpc/server";
-import { createOpenRouterClient } from "@teachanything/ai";
+import { createOpenRouterClient, resolveModel } from "@teachanything/ai";
 import { logInfo, logError } from "@/lib/logger";
 import { env } from "@/lib/env";
 import { buildRAGContext } from "../rag-context";
@@ -152,11 +152,7 @@ export const chatRouter = router({
         let fullResponse = "";
 
         const result = await aiClient.streamText({
-          model: chatbot.model as
-            | "meta-llama/llama-3.3-70b-instruct"
-            | "mistralai/mistral-large"
-            | "qwen/qwen-2.5-72b-instruct"
-            | "openai/gpt-oss-120b",
+          model: resolveModel(chatbot.model),
           messages: [
             { role: "system", content: systemPrompt },
             ...conversationHistory,
@@ -347,11 +343,7 @@ export const chatRouter = router({
         let fullResponse = "";
 
         const result = await aiClient.streamText({
-          model: chatbot.model as
-            | "meta-llama/llama-3.3-70b-instruct"
-            | "mistralai/mistral-large"
-            | "qwen/qwen-2.5-72b-instruct"
-            | "openai/gpt-oss-120b",
+          model: resolveModel(chatbot.model),
           messages: [
             { role: "system", content: systemPrompt },
             ...conversationHistory,
