@@ -15,7 +15,6 @@ import { isTransientError } from "@teachanything/ai/error-utils";
 
 // ── Test Suite: isTransientError ────────────────────────────────────────────
 describe("isTransientError", () => {
-
   it("matches 429 rate limit error", () => {
     expect(isTransientError("Rate limit exceeded")).toBe(true);
     expect(isTransientError("rate_limit: too many requests")).toBe(true);

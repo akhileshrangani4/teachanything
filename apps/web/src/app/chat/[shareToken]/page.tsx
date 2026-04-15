@@ -15,7 +15,8 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function SharedChatPage() {
   const params = useParams();
-  const shareToken = typeof params.shareToken === "string" ? params.shareToken : "";
+  const shareToken =
+    typeof params.shareToken === "string" ? params.shareToken : "";
 
   const {
     messages,

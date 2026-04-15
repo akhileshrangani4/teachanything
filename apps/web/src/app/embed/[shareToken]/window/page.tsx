@@ -12,7 +12,8 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function EmbedWindowPage() {
   const params = useParams();
-  const shareToken = typeof params.shareToken === "string" ? params.shareToken : "";
+  const shareToken =
+    typeof params.shareToken === "string" ? params.shareToken : "";
   const { isMounted, isVisible, withExitX, close } = useEmbedVisibility();
 
   const {

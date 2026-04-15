@@ -20,7 +20,9 @@ const allAcceptedModels = [...SUPPORTED_MODELS, ...DEPRECATED_MODELS] as [
 ];
 
 async function getChatbotByIdForUser(
-  db: Parameters<Parameters<typeof protectedProcedure.query>[0]>[0]["ctx"]["db"],
+  db: Parameters<
+    Parameters<typeof protectedProcedure.query>[0]
+  >[0]["ctx"]["db"],
   chatbotId: string,
   userId: string,
 ) {
