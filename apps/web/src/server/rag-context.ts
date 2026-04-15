@@ -4,7 +4,7 @@ import {
   chatbotFileAssociations,
   userFiles,
 } from "@teachanything/db/schema";
-import { createOpenRouterClient, type OpenRouterClient } from "@teachanything/ai";
+import { createOpenRouterClient, EMBEDDING_MODEL, type OpenRouterClient } from "@teachanything/ai";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import type { db as dbType } from "@teachanything/db";
 
@@ -102,6 +102,15 @@ export async function buildRAGContext(
       chatbotId: params.chatbotId,
     });
     return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote };
+  }
+
+  // 4b. Validate embedding dimensions and values (defense-in-depth)
+  if (queryEmbedding.length !== EMBEDDING_MODEL.dimensions || queryEmbedding.some((v) => !Number.isFinite(v))) {
+    logError(null, "Invalid query embedding received", {
+      chatbotId: params.chatbotId,
+      dimensions: queryEmbedding.length,
+    });
+    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote: "" };
   }
 
   // 5. Vector similarity search with all fixes
