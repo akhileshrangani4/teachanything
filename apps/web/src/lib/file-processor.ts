@@ -20,7 +20,8 @@ function sanitizeProcessingError(error: unknown): string {
   if (msg.includes("Unsupported file type")) return msg;
   if (msg.includes("no readable text")) return msg;
   if (msg.includes("Invalid PDF")) return "Invalid PDF format";
-  if (msg.includes("embedding") && msg.includes("dimension")) return "Embedding dimension mismatch";
+  if (msg.includes("embedding") && msg.includes("dimension"))
+    return "Embedding dimension mismatch";
   return "File processing failed due to an internal error";
 }
 
@@ -337,9 +338,13 @@ export async function processFile(params: {
     try {
       await db.delete(fileChunks).where(eq(fileChunks.fileId, fileId));
     } catch (cleanupError) {
-      logError(cleanupError, "Failed to clean up chunks after processing error", {
-        fileId,
-      });
+      logError(
+        cleanupError,
+        "Failed to clean up chunks after processing error",
+        {
+          fileId,
+        },
+      );
     }
 
     // Mark file as failed -- wrapped in try/catch so status update failure
@@ -355,9 +360,13 @@ export async function processFile(params: {
         })
         .where(eq(userFiles.id, fileId));
     } catch (statusError) {
-      logError(statusError, "Failed to mark file as failed after processing error", {
-        fileId,
-      });
+      logError(
+        statusError,
+        "Failed to mark file as failed after processing error",
+        {
+          fileId,
+        },
+      );
     }
 
     throw error;

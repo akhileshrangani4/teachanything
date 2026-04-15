@@ -43,10 +43,7 @@ export class ErrorBoundary extends Component<
             <p className="text-sm text-muted-foreground">
               An unexpected error occurred. Please try reloading the page.
             </p>
-            <Button
-              variant="outline"
-              onClick={() => window.location.reload()}
-            >
+            <Button variant="outline" onClick={() => window.location.reload()}>
               Reload
             </Button>
           </div>

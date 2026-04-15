@@ -35,15 +35,12 @@ import {
 } from "@/lib/validation";
 
 // Group models by provider for the dropdown. Map preserves MODEL_REGISTRY insertion order.
-const modelsByProvider = Object.values(MODEL_REGISTRY).reduce(
-  (acc, model) => {
-    const group = acc.get(model.provider) ?? [];
-    group.push(model);
-    acc.set(model.provider, group);
-    return acc;
-  },
-  new Map<string, (typeof MODEL_REGISTRY)[keyof typeof MODEL_REGISTRY][]>(),
-);
+const modelsByProvider = Object.values(MODEL_REGISTRY).reduce((acc, model) => {
+  const group = acc.get(model.provider) ?? [];
+  group.push(model);
+  acc.set(model.provider, group);
+  return acc;
+}, new Map<string, (typeof MODEL_REGISTRY)[keyof typeof MODEL_REGISTRY][]>());
 
 interface ChatbotSettingsProps {
   chatbot: {
@@ -405,7 +402,8 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
                       <SelectLabel>{provider}</SelectLabel>
                       {models.map((m) => (
                         <SelectItem key={m.id} value={m.id}>
-                          {m.displayName} ({formatContextWindow(m.contextWindow)})
+                          {m.displayName} (
+                          {formatContextWindow(m.contextWindow)})
                         </SelectItem>
                       ))}
                     </SelectGroup>

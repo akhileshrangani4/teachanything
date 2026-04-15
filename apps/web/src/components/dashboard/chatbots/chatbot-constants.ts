@@ -1,7 +1,4 @@
-import {
-  MODEL_REGISTRY,
-  type SupportedModel,
-} from "@teachanything/ai/models";
+import { MODEL_REGISTRY, type SupportedModel } from "@teachanything/ai/models";
 
 export const MODELS = Object.values(MODEL_REGISTRY).map((m) => ({
   value: m.id as SupportedModel,

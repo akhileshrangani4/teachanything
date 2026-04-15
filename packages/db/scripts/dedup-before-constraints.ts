@@ -64,9 +64,7 @@ async function dedup() {
       ) sub
     `;
 
-    console.log(
-      `  file_chunks: ${chunkDups.count} duplicate group(s) found`,
-    );
+    console.log(`  file_chunks: ${chunkDups.count} duplicate group(s) found`);
     console.log(
       `  chatbot_file_associations: ${assocDups.count} duplicate group(s) found`,
     );
@@ -121,9 +119,7 @@ async function dedup() {
     `;
 
     if (chunkVerify.count > 0 || assocVerify.count > 0) {
-      console.error(
-        `Verification failed! Duplicates still remain:`,
-      );
+      console.error(`Verification failed! Duplicates still remain:`);
       console.error(`  file_chunks: ${chunkVerify.count} duplicate group(s)`);
       console.error(
         `  chatbot_file_associations: ${assocVerify.count} duplicate group(s)`,

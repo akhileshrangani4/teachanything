@@ -27,9 +27,15 @@ export function ChatInput({
   const maxLength = VALIDATION_LIMITS.MESSAGE_MAX_LENGTH;
 
   const getCounterColor = () => {
-    if (messageLength >= maxLength * VALIDATION_LIMITS.MESSAGE_CRITICAL_THRESHOLD)
+    if (
+      messageLength >=
+      maxLength * VALIDATION_LIMITS.MESSAGE_CRITICAL_THRESHOLD
+    )
       return "text-destructive";
-    if (messageLength >= maxLength * VALIDATION_LIMITS.MESSAGE_WARNING_THRESHOLD)
+    if (
+      messageLength >=
+      maxLength * VALIDATION_LIMITS.MESSAGE_WARNING_THRESHOLD
+    )
       return "text-orange-500";
     return "text-muted-foreground";
   };

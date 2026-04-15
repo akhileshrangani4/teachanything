@@ -31,10 +31,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import type React from "react";
-import {
-  MODELS,
-  DEFAULT_FORM_DATA,
-} from "./chatbot-constants";
+import { MODELS, DEFAULT_FORM_DATA } from "./chatbot-constants";
 import type { SupportedModel } from "@teachanything/ai/models";
 
 interface CreateChatbotDialogProps {

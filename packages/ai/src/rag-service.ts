@@ -13,7 +13,10 @@ interface OfficeparserNode {
  */
 export class RAGService {
   private textSplitter: RecursiveCharacterTextSplitter;
-  private encoder: { encode: (text: string) => number[]; free?: () => void } | null;
+  private encoder: {
+    encode: (text: string) => number[];
+    free?: () => void;
+  } | null;
   private encoderInitialized: boolean = false;
 
   constructor() {
@@ -94,7 +97,9 @@ export class RAGService {
       }
     } catch (error: unknown) {
       logError(error, "Content extraction error");
-      throw new Error(`Failed to extract content: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to extract content: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

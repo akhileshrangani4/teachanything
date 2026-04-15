@@ -174,9 +174,10 @@ async function* processMessage(params: {
   });
 
   // Trim history to budget (keep newest messages)
-  const trimmedHistory = budget.historyLimit > 0
-    ? historyMessages.slice(historyMessages.length - budget.historyLimit)
-    : [];
+  const trimmedHistory =
+    budget.historyLimit > 0
+      ? historyMessages.slice(historyMessages.length - budget.historyLimit)
+      : [];
 
   // Log truncation warnings
   for (const warning of budget.warnings) {
@@ -198,7 +199,10 @@ async function* processMessage(params: {
 
   // ragFailureNote + systemPrompt + fileManifest + contextText
   const systemPrompt =
-    ragResult.ragFailureNote + chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
+    ragResult.ragFailureNote +
+    chatbot.systemPrompt +
+    ragResult.fileManifest +
+    ragResult.contextText;
 
   // Save user message
   await database.insert(messages).values({
@@ -281,7 +285,12 @@ export const chatRouter = router({
       z.object({
         chatbotId: z.string().uuid(),
         message: z.string().min(1).max(16000),
-        sessionId: z.string().min(10).max(30).regex(/^[a-zA-Z0-9_-]+$/).optional(),
+        sessionId: z
+          .string()
+          .min(10)
+          .max(30)
+          .regex(/^[a-zA-Z0-9_-]+$/)
+          .optional(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {
@@ -347,7 +356,12 @@ export const chatRouter = router({
       z.object({
         shareToken: z.string().min(1).max(100),
         message: z.string().min(1).max(16000),
-        sessionId: z.string().min(10).max(30).regex(/^[a-zA-Z0-9_-]+$/).optional(),
+        sessionId: z
+          .string()
+          .min(10)
+          .max(30)
+          .regex(/^[a-zA-Z0-9_-]+$/)
+          .optional(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {

@@ -94,8 +94,7 @@ describe("Database Schema", () => {
     it("defines unique index on chatbotFileAssociations(chatbotId, fileId)", () => {
       const cfaIndex = cfaConfig.indexes.find(
         (i) =>
-          i.config.name ===
-          "chatbot_file_associations_chatbot_id_file_id_idx",
+          i.config.name === "chatbot_file_associations_chatbot_id_file_id_idx",
       );
       expect(cfaIndex).toBeDefined();
       expect(cfaIndex!.config.unique).toBe(true);

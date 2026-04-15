@@ -78,7 +78,9 @@ export function calculateChunkLimit(input: {
  *   4. RAG chunks (fill remaining * CHUNK_SHARE)
  *   5. Conversation history (fill what's left, newest first)
  */
-export function allocateTokenBudget(input: TokenBudgetInput): TokenBudgetResult {
+export function allocateTokenBudget(
+  input: TokenBudgetInput,
+): TokenBudgetResult {
   const warnings: string[] = [];
   const inputBudget =
     Math.floor(input.contextWindow * BUDGET_RATIO) - input.maxOutputTokens;

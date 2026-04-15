@@ -2,10 +2,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, embed, streamText } from "ai";
 import { logInfo } from "@teachanything/logger";
-import {
-  EMBEDDING_MODEL,
-  type SupportedModel,
-} from "./models";
+import { EMBEDDING_MODEL, type SupportedModel } from "./models";
 
 // Re-export so consumers of @teachanything/ai/openrouter subpath still get these
 export { SUPPORTED_MODELS, type SupportedModel } from "./models";
