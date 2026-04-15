@@ -2,6 +2,7 @@
 
 import { Component, type ReactNode, type ErrorInfo } from "react";
 import { Button } from "@/components/ui/button";
+import { logError } from "@/lib/logger";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -26,11 +27,9 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Intentionally not logging to console per AGENTS.md (no console.log/error).
-    // Error boundary catches render-time crashes only.
-    // Production error tracking can be added here later if needed.
-    void error;
-    void errorInfo;
+    logError(error, "React ErrorBoundary caught render error", {
+      componentStack: errorInfo.componentStack ?? undefined,
+    });
   }
 
   render() {
