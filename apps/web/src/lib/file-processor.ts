@@ -59,6 +59,7 @@ async function updateProgress(
     .limit(1);
 
   const existingMetadata = currentFile?.metadata || {};
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { error: _prevError, ...cleanMetadata } = existingMetadata;
   const startedAt = existingMetadata?.processingProgress?.startedAt || now;
 
