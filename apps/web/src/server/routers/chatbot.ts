@@ -155,10 +155,20 @@ export const chatbotRouter = router({
    * Get chatbot by share token (public)
    */
   getByShareToken: publicProcedure
-    .input(z.object({ shareToken: z.string() }))
+    .input(z.object({ shareToken: z.string().min(1).max(100) }))
     .query(async ({ ctx, input }) => {
       const [chatbot] = await ctx.db
-        .select()
+        .select({
+          id: chatbots.id,
+          name: chatbots.name,
+          description: chatbots.description,
+          model: chatbots.model,
+          welcomeMessage: chatbots.welcomeMessage,
+          suggestedQuestions: chatbots.suggestedQuestions,
+          shareToken: chatbots.shareToken,
+          showSources: chatbots.showSources,
+          customAuthorName: chatbots.customAuthorName,
+        })
         .from(chatbots)
         .where(
           and(

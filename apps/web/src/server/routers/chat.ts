@@ -366,10 +366,13 @@ export const chatRouter = router({
     )
     .subscription(async function* ({ ctx, input }) {
       try {
-        // Rate limit by share token (public endpoint, no userId available)
+        // Rate limit by IP + share token (public endpoint, no userId available)
+        const clientIp =
+          ctx.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+          "unknown";
         const { success } = await checkRateLimit(
           publicChatRateLimit,
-          input.shareToken,
+          `${input.shareToken}:${clientIp}`,
         );
         if (!success) {
           throw new TRPCError({
