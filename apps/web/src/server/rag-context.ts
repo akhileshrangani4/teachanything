@@ -89,7 +89,7 @@ export async function buildRAGContext(
   }
 
   // 4. Handle embedding failure (RAG degrades gracefully)
-  let queryEmbedding = embeddingResult;
+  const queryEmbedding = embeddingResult;
   let ragFailureNote = "";
 
   if (!queryEmbedding) {
