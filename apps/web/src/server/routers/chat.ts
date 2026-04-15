@@ -24,10 +24,10 @@ import {
   publicChatRateLimit,
 } from "@/lib/rate-limit";
 import { buildRAGContext } from "../rag-context";
+import type { db as DbType } from "@teachanything/db";
 
 /**
  * Clamp maxTokens to valid range (100-4000)
- * Ensures runtime safety even if invalid data exists in database
  */
 function clampMaxTokens(maxTokens: number | null | undefined): number {
   const MIN_TOKENS = 100;
@@ -43,7 +43,6 @@ function clampMaxTokens(maxTokens: number | null | undefined): number {
 
 /**
  * Cached token counter -- initialized once, reused across all requests.
- * Avoids creating a new tiktoken encoder on every message.
  */
 let cachedCounter: ((text: string) => number) | null = null;
 
@@ -59,6 +58,213 @@ async function initTokenCounter(): Promise<(text: string) => number> {
     cachedCounter = (text: string) => Math.ceil(text.length / 4);
     return cachedCounter;
   }
+}
+
+/**
+ * Shared streaming message processor used by both authenticated and public endpoints.
+ * Handles: conversation management, token budgeting, RAG, streaming, persistence, analytics.
+ */
+async function* processMessage(params: {
+  chatbot: typeof chatbots.$inferSelect;
+  message: string;
+  sessionId: string | undefined;
+  db: typeof DbType;
+  eventType: "message_sent" | "shared_message_sent";
+}) {
+  const { chatbot, message, db: database, eventType } = params;
+  const sessionId = params.sessionId || nanoid();
+
+  // Get or create conversation
+  const existingConversation = await database
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.chatbotId, chatbot.id),
+        eq(conversations.sessionId, sessionId),
+      ),
+    )
+    .limit(1);
+
+  let conversation = existingConversation[0];
+
+  if (!conversation) {
+    const [newConv] = await database
+      .insert(conversations)
+      .values({
+        chatbotId: chatbot.id,
+        sessionId,
+        metadata: {},
+      })
+      .returning();
+    conversation = newConv;
+  }
+
+  if (!conversation) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to create conversation",
+    });
+  }
+
+  // Resolve model and get context window for budget allocation
+  const modelId = resolveModel(chatbot.model);
+  const { contextWindow } = MODEL_REGISTRY[modelId];
+  const maxOutputTokens = clampMaxTokens(chatbot.maxTokens);
+
+  // Initialize token counter
+  const countTokens = await initTokenCounter();
+
+  // Pass 1: estimate chunk limit before DB query
+  const systemPromptTokens = countTokens(chatbot.systemPrompt);
+  const userMessageTokens = countTokens(message);
+  const estimatedChunkLimit = calculateChunkLimit({
+    contextWindow,
+    maxOutputTokens,
+    systemPromptTokens,
+    fileManifestTokens: 0,
+    userMessageTokens,
+  });
+
+  // Fetch history (up to 50, trimmed to budget below)
+  const historyMessages = await database
+    .select()
+    .from(messages)
+    .where(eq(messages.conversationId, conversation.id))
+    .orderBy(desc(messages.createdAt))
+    .limit(50);
+
+  historyMessages.reverse();
+
+  // Build RAG context with budget-derived chunk limit
+  const ragResult = await buildRAGContext({
+    chatbotId: chatbot.id,
+    message,
+    db: database,
+    openrouterApiKey: env.OPENROUTER_API_KEY,
+    openaiApiKey: env.OPENAI_API_KEY,
+    chunkLimit: estimatedChunkLimit,
+  });
+
+  // Pass 2: allocate budget with actual token counts
+  const fileManifestTokens = countTokens(ragResult.fileManifest);
+  const ragContextTokens = countTokens(ragResult.contextText);
+  const ragFailureNoteTokens = countTokens(ragResult.ragFailureNote);
+
+  const budget = allocateTokenBudget({
+    contextWindow,
+    maxOutputTokens,
+    systemPromptTokens: systemPromptTokens + ragFailureNoteTokens,
+    // RAG context already fetched; pass its tokens as part of fixed budget
+    fileManifestTokens: fileManifestTokens + ragContextTokens,
+    userMessageTokens,
+    availableChunks: [],
+    availableHistory: historyMessages.map((m) => ({
+      tokens: countTokens(m.content),
+    })),
+  });
+
+  // Trim history to budget (keep newest messages)
+  const trimmedHistory = budget.historyLimit > 0
+    ? historyMessages.slice(historyMessages.length - budget.historyLimit)
+    : [];
+
+  // Log truncation warnings
+  for (const warning of budget.warnings) {
+    logWarn(warning, { chatbotId: chatbot.id, modelId });
+  }
+
+  // Send metadata
+  yield {
+    type: "metadata" as const,
+    sessionId,
+    sources: ragResult.sources,
+  };
+
+  // Build message history for AI (budget-trimmed)
+  const conversationHistory = trimmedHistory.map((msg) => ({
+    role: msg.role as "system" | "user" | "assistant",
+    content: msg.content,
+  }));
+
+  // ragFailureNote + systemPrompt + fileManifest + contextText
+  const systemPrompt =
+    ragResult.ragFailureNote + chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
+
+  // Save user message
+  await database.insert(messages).values({
+    conversationId: conversation.id,
+    role: "user",
+    content: message,
+    metadata: {},
+  });
+
+  // Call OpenRouter with streaming
+  const aiClient = createOpenRouterClient(
+    env.OPENROUTER_API_KEY,
+    env.OPENAI_API_KEY,
+  );
+  const startTime = Date.now();
+  let fullResponse = "";
+
+  const result = await aiClient.streamText({
+    model: modelId,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...conversationHistory,
+      { role: "user", content: message },
+    ],
+    temperature: (chatbot.temperature ?? 70) / 100,
+    maxTokens: maxOutputTokens,
+  });
+
+  // Stream the text
+  for await (const chunk of result.textStream) {
+    fullResponse += chunk;
+    yield {
+      type: "text" as const,
+      content: chunk,
+    };
+  }
+
+  const responseTime = Date.now() - startTime;
+
+  // Save assistant response
+  await database.insert(messages).values({
+    conversationId: conversation.id,
+    role: "assistant",
+    content: fullResponse,
+    metadata: {
+      sources: ragResult.sources,
+      responseTime,
+      ragUsed: ragResult.ragUsed,
+    },
+  });
+
+  // Track analytics
+  await database.insert(analytics).values({
+    chatbotId: chatbot.id,
+    eventType,
+    eventData: {
+      responseTime,
+      messageLength: message.length,
+      ragUsed: ragResult.ragUsed,
+    },
+    sessionId,
+  });
+
+  logInfo("Chat message processed", {
+    chatbotId: chatbot.id,
+    sessionId,
+    responseTime,
+    eventType,
+  });
+
+  // Send done signal
+  yield {
+    type: "done" as const,
+    responseTime,
+  };
 }
 
 export const chatRouter = router({
@@ -106,198 +312,13 @@ export const chatRouter = router({
           });
         }
 
-        // Generate or use existing sessionId
-        const sessionId = input.sessionId || nanoid();
-
-        // Get or create conversation
-        const existingConversation = await ctx.db
-          .select()
-          .from(conversations)
-          .where(
-            and(
-              eq(conversations.chatbotId, input.chatbotId),
-              eq(conversations.sessionId, sessionId),
-            ),
-          )
-          .limit(1);
-
-        let conversation = existingConversation[0];
-
-        if (!conversation) {
-          const [newConv] = await ctx.db
-            .insert(conversations)
-            .values({
-              chatbotId: input.chatbotId,
-              sessionId,
-              metadata: {},
-            })
-            .returning();
-          conversation = newConv;
-        }
-
-        if (!conversation) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to create conversation",
-          });
-        }
-
-        // Resolve model and get context window for budget allocation
-        const modelId = resolveModel(chatbot.model);
-        const { contextWindow } = MODEL_REGISTRY[modelId];
-        const maxOutputTokens = clampMaxTokens(chatbot.maxTokens);
-
-        // Initialize token counter
-        const countTokens = await initTokenCounter();
-
-        // Pass 1: estimate chunk limit before DB query
-        const systemPromptTokens = countTokens(chatbot.systemPrompt);
-        const userMessageTokens = countTokens(input.message);
-        const estimatedChunkLimit = calculateChunkLimit({
-          contextWindow,
-          maxOutputTokens,
-          systemPromptTokens,
-          fileManifestTokens: 0,
-          userMessageTokens,
-        });
-
-        // Fetch history (up to 50, trimmed to budget below)
-        const historyMessages = await ctx.db
-          .select()
-          .from(messages)
-          .where(eq(messages.conversationId, conversation.id))
-          .orderBy(desc(messages.createdAt))
-          .limit(50);
-
-        historyMessages.reverse();
-
-        // Build RAG context with budget-derived chunk limit
-        const ragResult = await buildRAGContext({
-          chatbotId: input.chatbotId,
+        yield* processMessage({
+          chatbot,
           message: input.message,
+          sessionId: input.sessionId,
           db: ctx.db,
-          openrouterApiKey: env.OPENROUTER_API_KEY,
-          openaiApiKey: env.OPENAI_API_KEY,
-          chunkLimit: estimatedChunkLimit,
-        });
-
-        // Pass 2: allocate budget with actual token counts
-        const fileManifestTokens = countTokens(ragResult.fileManifest);
-        const ragContextTokens = countTokens(ragResult.contextText);
-        const ragFailureNoteTokens = countTokens(ragResult.ragFailureNote);
-
-        const budget = allocateTokenBudget({
-          contextWindow,
-          maxOutputTokens,
-          systemPromptTokens: systemPromptTokens + ragFailureNoteTokens,
-          fileManifestTokens: fileManifestTokens + ragContextTokens,
-          userMessageTokens,
-          availableChunks: [],
-          availableHistory: historyMessages.map((m) => ({
-            tokens: countTokens(m.content),
-          })),
-        });
-
-        // Trim history to budget (keep newest messages)
-        const trimmedHistory = budget.historyLimit > 0
-          ? historyMessages.slice(historyMessages.length - budget.historyLimit)
-          : [];
-
-        // Log truncation warnings
-        for (const warning of budget.warnings) {
-          logWarn(warning, { chatbotId: input.chatbotId, modelId });
-        }
-
-        // Send metadata
-        yield {
-          type: "metadata" as const,
-          sessionId,
-          sources: ragResult.sources,
-        };
-
-        // Build message history for AI (budget-trimmed)
-        const conversationHistory = trimmedHistory.map((msg) => ({
-          role: msg.role as "system" | "user" | "assistant",
-          content: msg.content,
-        }));
-
-        // D-01: ragFailureNote + systemPrompt + fileManifest + contextText
-        const systemPrompt =
-          ragResult.ragFailureNote + chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
-
-        // Save user message
-        await ctx.db.insert(messages).values({
-          conversationId: conversation.id,
-          role: "user",
-          content: input.message,
-          metadata: {},
-        });
-
-        // Call OpenRouter with streaming
-        const aiClient = createOpenRouterClient(
-          env.OPENROUTER_API_KEY,
-          env.OPENAI_API_KEY,
-        );
-        const startTime = Date.now();
-        let fullResponse = "";
-
-        const result = await aiClient.streamText({
-          model: modelId,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...conversationHistory,
-            { role: "user", content: input.message },
-          ],
-          temperature: (chatbot.temperature ?? 70) / 100,
-          maxTokens: clampMaxTokens(chatbot.maxTokens),
-        });
-
-        // Stream the text
-        for await (const chunk of result.textStream) {
-          fullResponse += chunk;
-          yield {
-            type: "text" as const,
-            content: chunk,
-          };
-        }
-
-        const responseTime = Date.now() - startTime;
-
-        // Save assistant response
-        await ctx.db.insert(messages).values({
-          conversationId: conversation.id,
-          role: "assistant",
-          content: fullResponse,
-          metadata: {
-            sources: ragResult.sources,
-            responseTime,
-            ragUsed: ragResult.ragUsed,
-          },
-        });
-
-        // Track analytics
-        await ctx.db.insert(analytics).values({
-          chatbotId: input.chatbotId,
           eventType: "message_sent",
-          eventData: {
-            responseTime,
-            messageLength: input.message.length,
-            ragUsed: ragResult.ragUsed,
-          },
-          sessionId,
         });
-
-        logInfo("Chat message processed", {
-          chatbotId: input.chatbotId,
-          sessionId,
-          responseTime,
-        });
-
-        // Send done signal
-        yield {
-          type: "done" as const,
-          responseTime,
-        };
       } catch (error) {
         logError(error, "Error in sendMessageStream", {
           chatbotId: input.chatbotId,
@@ -306,8 +327,7 @@ export const chatRouter = router({
 
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error ? error.message : "Failed to send message",
+          message: "Failed to send message",
         });
       }
     }),
@@ -356,198 +376,13 @@ export const chatRouter = router({
           });
         }
 
-        // Generate or use existing sessionId
-        const sessionId = input.sessionId || nanoid();
-
-        // Get or create conversation
-        const existingConversation = await ctx.db
-          .select()
-          .from(conversations)
-          .where(
-            and(
-              eq(conversations.chatbotId, chatbot.id),
-              eq(conversations.sessionId, sessionId),
-            ),
-          )
-          .limit(1);
-
-        let conversation = existingConversation[0];
-
-        if (!conversation) {
-          const [newConv] = await ctx.db
-            .insert(conversations)
-            .values({
-              chatbotId: chatbot.id,
-              sessionId,
-              metadata: {},
-            })
-            .returning();
-          conversation = newConv;
-        }
-
-        if (!conversation) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to create conversation",
-          });
-        }
-
-        // Resolve model and get context window for budget allocation
-        const modelId = resolveModel(chatbot.model);
-        const { contextWindow } = MODEL_REGISTRY[modelId];
-        const maxOutputTokens = clampMaxTokens(chatbot.maxTokens);
-
-        // Initialize token counter
-        const countTokens = await initTokenCounter();
-
-        // Pass 1: estimate chunk limit before DB query
-        const systemPromptTokens = countTokens(chatbot.systemPrompt);
-        const userMessageTokens = countTokens(input.message);
-        const estimatedChunkLimit = calculateChunkLimit({
-          contextWindow,
-          maxOutputTokens,
-          systemPromptTokens,
-          fileManifestTokens: 0,
-          userMessageTokens,
-        });
-
-        // Fetch history (up to 50, trimmed to budget below)
-        const historyMessages = await ctx.db
-          .select()
-          .from(messages)
-          .where(eq(messages.conversationId, conversation.id))
-          .orderBy(desc(messages.createdAt))
-          .limit(50);
-
-        historyMessages.reverse();
-
-        // Build RAG context with budget-derived chunk limit
-        const ragResult = await buildRAGContext({
-          chatbotId: chatbot.id,
+        yield* processMessage({
+          chatbot,
           message: input.message,
+          sessionId: input.sessionId,
           db: ctx.db,
-          openrouterApiKey: env.OPENROUTER_API_KEY,
-          openaiApiKey: env.OPENAI_API_KEY,
-          chunkLimit: estimatedChunkLimit,
-        });
-
-        // Pass 2: allocate budget with actual token counts
-        const fileManifestTokens = countTokens(ragResult.fileManifest);
-        const ragContextTokens = countTokens(ragResult.contextText);
-        const ragFailureNoteTokens = countTokens(ragResult.ragFailureNote);
-
-        const budget = allocateTokenBudget({
-          contextWindow,
-          maxOutputTokens,
-          systemPromptTokens: systemPromptTokens + ragFailureNoteTokens,
-          fileManifestTokens: fileManifestTokens + ragContextTokens,
-          userMessageTokens,
-          availableChunks: [],
-          availableHistory: historyMessages.map((m) => ({
-            tokens: countTokens(m.content),
-          })),
-        });
-
-        // Trim history to budget (keep newest messages)
-        const trimmedHistory = budget.historyLimit > 0
-          ? historyMessages.slice(historyMessages.length - budget.historyLimit)
-          : [];
-
-        // Log truncation warnings
-        for (const warning of budget.warnings) {
-          logWarn(warning, { chatbotId: chatbot.id, modelId });
-        }
-
-        // Send metadata
-        yield {
-          type: "metadata" as const,
-          sessionId,
-          sources: ragResult.sources,
-        };
-
-        // Build message history for AI (budget-trimmed)
-        const conversationHistory = trimmedHistory.map((msg) => ({
-          role: msg.role as "system" | "user" | "assistant",
-          content: msg.content,
-        }));
-
-        // D-01: ragFailureNote + systemPrompt + fileManifest + contextText
-        const systemPrompt =
-          ragResult.ragFailureNote + chatbot.systemPrompt + ragResult.fileManifest + ragResult.contextText;
-
-        // Save user message
-        await ctx.db.insert(messages).values({
-          conversationId: conversation.id,
-          role: "user",
-          content: input.message,
-          metadata: {},
-        });
-
-        // Call OpenRouter with streaming
-        const aiClient = createOpenRouterClient(
-          env.OPENROUTER_API_KEY,
-          env.OPENAI_API_KEY,
-        );
-        const startTime = Date.now();
-        let fullResponse = "";
-
-        const result = await aiClient.streamText({
-          model: modelId,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...conversationHistory,
-            { role: "user", content: input.message },
-          ],
-          temperature: (chatbot.temperature ?? 70) / 100,
-          maxTokens: clampMaxTokens(chatbot.maxTokens),
-        });
-
-        // Stream the text
-        for await (const chunk of result.textStream) {
-          fullResponse += chunk;
-          yield {
-            type: "text" as const,
-            content: chunk,
-          };
-        }
-
-        const responseTime = Date.now() - startTime;
-
-        // Save assistant response
-        await ctx.db.insert(messages).values({
-          conversationId: conversation.id,
-          role: "assistant",
-          content: fullResponse,
-          metadata: {
-            sources: ragResult.sources,
-            responseTime,
-            ragUsed: ragResult.ragUsed,
-          },
-        });
-
-        // Track analytics
-        await ctx.db.insert(analytics).values({
-          chatbotId: chatbot.id,
           eventType: "shared_message_sent",
-          eventData: {
-            responseTime,
-            messageLength: input.message.length,
-            ragUsed: ragResult.ragUsed,
-          },
-          sessionId,
         });
-
-        logInfo("Shared chat message processed", {
-          chatbotId: chatbot.id,
-          sessionId,
-          responseTime,
-        });
-
-        // Send done signal
-        yield {
-          type: "done" as const,
-          responseTime,
-        };
       } catch (error) {
         logError(error, "Error in sendSharedMessageStream", {
           shareToken: input.shareToken,
@@ -555,8 +390,7 @@ export const chatRouter = router({
 
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message:
-            error instanceof Error ? error.message : "Failed to send message",
+          message: "Failed to send message",
         });
       }
     }),
