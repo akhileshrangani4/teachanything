@@ -42,20 +42,35 @@ export interface RAGContextResult {
 export async function buildRAGContext(
   params: BuildRAGContextParams,
 ): Promise<RAGContextResult> {
-  // 1. Query completed files BEFORE embedding (Pitfall 3: manifest doesn't depend on embeddings)
-  const completedFiles = await params.db
-    .select({
-      fileId: chatbotFileAssociations.fileId,
-      fileName: userFiles.fileName,
-    })
-    .from(chatbotFileAssociations)
-    .innerJoin(userFiles, eq(chatbotFileAssociations.fileId, userFiles.id))
-    .where(
-      and(
-        eq(chatbotFileAssociations.chatbotId, params.chatbotId),
-        eq(userFiles.processingStatus, "completed"),
+  // 1. Run file query and embedding generation in parallel (independent operations)
+  const aiClient = createOpenRouterClient(
+    params.openrouterApiKey,
+    params.openaiApiKey,
+  );
+
+  const [completedFiles, embeddingResult] = await Promise.all([
+    // File association query
+    params.db
+      .select({
+        fileId: chatbotFileAssociations.fileId,
+        fileName: userFiles.fileName,
+      })
+      .from(chatbotFileAssociations)
+      .innerJoin(userFiles, eq(chatbotFileAssociations.fileId, userFiles.id))
+      .where(
+        and(
+          eq(chatbotFileAssociations.chatbotId, params.chatbotId),
+          eq(userFiles.processingStatus, "completed"),
+        ),
       ),
-    );
+    // Embedding generation (returns null on failure)
+    aiClient.generateEmbedding(params.message).catch((error) => {
+      logError(error, "Failed to generate embeddings - continuing without RAG", {
+        chatbotId: params.chatbotId,
+      });
+      return null;
+    }),
+  ]);
 
   const fileIds = completedFiles.map((f) => f.fileId);
   const fileNames = completedFiles.map((f) => f.fileName);
@@ -71,20 +86,11 @@ export async function buildRAGContext(
     return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote: "" };
   }
 
-  // 4. Generate query embedding (continue without RAG on failure)
-  const aiClient = createOpenRouterClient(
-    params.openrouterApiKey,
-    params.openaiApiKey,
-  );
-
-  let queryEmbedding: number[] | null = null;
+  // 4. Handle embedding failure (RAG degrades gracefully)
+  let queryEmbedding = embeddingResult;
   let ragFailureNote = "";
-  try {
-    queryEmbedding = await aiClient.generateEmbedding(params.message);
-  } catch (error) {
-    logError(error, "Failed to generate embeddings - continuing without RAG", {
-      chatbotId: params.chatbotId,
-    });
+
+  if (!queryEmbedding) {
     ragFailureNote =
       "[SYSTEM NOTICE: Document search is temporarily unavailable due to a technical issue. " +
       "You MUST inform the user that you cannot search their uploaded documents right now. " +
@@ -93,9 +99,6 @@ export async function buildRAGContext(
     logWarn("RAG context degraded - continuing without document search", {
       chatbotId: params.chatbotId,
     });
-  }
-
-  if (!queryEmbedding) {
     return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote };
   }
 
