@@ -110,7 +110,6 @@ export function useChatState() {
     isStreaming,
     setIsStreaming,
     streamingContent,
-    setStreamingContent,
     streamingContentRef,
     updateStreamingContent,
     messagesEndRef,
