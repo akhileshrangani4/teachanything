@@ -325,6 +325,8 @@ export const chatRouter = router({
           eventType: "message_sent",
         });
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
+
         logError(error, "Error in sendMessageStream", {
           chatbotId: input.chatbotId,
           userId: ctx.session.user.id,
@@ -389,6 +391,8 @@ export const chatRouter = router({
           eventType: "shared_message_sent",
         });
       } catch (error) {
+        if (error instanceof TRPCError) throw error;
+
         logError(error, "Error in sendSharedMessageStream", {
           shareToken: input.shareToken,
         });
