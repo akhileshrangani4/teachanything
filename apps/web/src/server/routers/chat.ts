@@ -18,6 +18,11 @@ import {
 } from "@teachanything/ai";
 import { logInfo, logError, logWarn } from "@/lib/logger";
 import { env } from "@/lib/env";
+import {
+  checkRateLimit,
+  authenticatedChatRateLimit,
+  publicChatRateLimit,
+} from "@/lib/rate-limit";
 import { buildRAGContext } from "../rag-context";
 
 /**
@@ -70,6 +75,18 @@ export const chatRouter = router({
     )
     .subscription(async function* ({ ctx, input }) {
       try {
+        // Rate limit per user
+        const { success } = await checkRateLimit(
+          authenticatedChatRateLimit,
+          ctx.session.user.id,
+        );
+        if (!success) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Too many messages. Please slow down.",
+          });
+        }
+
         // Get chatbot
         const [chatbot] = await ctx.db
           .select()
@@ -308,6 +325,18 @@ export const chatRouter = router({
     )
     .subscription(async function* ({ ctx, input }) {
       try {
+        // Rate limit by share token (public endpoint, no userId available)
+        const { success } = await checkRateLimit(
+          publicChatRateLimit,
+          input.shareToken,
+        );
+        if (!success) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Too many messages. Please slow down.",
+          });
+        }
+
         // Get chatbot by share token
         const [chatbot] = await ctx.db
           .select()
