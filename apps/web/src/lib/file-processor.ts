@@ -10,6 +10,20 @@ import { logInfo, logError } from "./logger";
 
 const EXTRACTION_TIMEOUT_MS = 60_000;
 
+/**
+ * Sanitize error messages before storing in metadata visible to users.
+ * Prevents internal details (hostnames, connection strings, API keys) from leaking.
+ */
+function sanitizeProcessingError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("timed out")) return "File processing timed out";
+  if (msg.includes("Unsupported file type")) return msg;
+  if (msg.includes("no readable text")) return msg;
+  if (msg.includes("Invalid PDF")) return "Invalid PDF format";
+  if (msg.includes("embedding") && msg.includes("dimension")) return "Embedding dimension mismatch";
+  return "File processing failed due to an internal error";
+}
+
 function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
@@ -336,7 +350,7 @@ export async function processFile(params: {
         .set({
           processingStatus: "failed",
           metadata: {
-            error: error instanceof Error ? error.message : String(error),
+            error: sanitizeProcessingError(error),
           },
         })
         .where(eq(userFiles.id, fileId));
