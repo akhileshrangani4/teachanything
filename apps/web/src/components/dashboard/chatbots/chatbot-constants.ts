@@ -8,8 +8,6 @@ export const MODELS = Object.values(MODEL_REGISTRY).map((m) => ({
   label: m.displayName,
 }));
 
-export type ModelValue = SupportedModel;
-
 export const DEFAULT_FORM_DATA = {
   name: "",
   description: "",

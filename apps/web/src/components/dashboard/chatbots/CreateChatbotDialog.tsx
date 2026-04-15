@@ -34,8 +34,8 @@ import type React from "react";
 import {
   MODELS,
   DEFAULT_FORM_DATA,
-  type ModelValue,
 } from "./chatbot-constants";
+import type { SupportedModel } from "@teachanything/ai/models";
 
 interface CreateChatbotDialogProps {
   onSuccess?: () => void;
@@ -102,7 +102,7 @@ export function CreateChatbotDialog({
 
     createChatbot.mutate({
       name: formData.name,
-      model: formData.model as ModelValue,
+      model: formData.model as SupportedModel,
       systemPrompt: formData.systemPrompt,
       description: formData.description,
       temperature: formData.temperature,
@@ -166,7 +166,7 @@ export function CreateChatbotDialog({
             <Select
               value={formData.model}
               onValueChange={(value) =>
-                setFormData({ ...formData, model: value as ModelValue })
+                setFormData({ ...formData, model: value as SupportedModel })
               }
             >
               <SelectTrigger>
