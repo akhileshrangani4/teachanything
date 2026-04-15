@@ -281,7 +281,7 @@ export const chatRouter = router({
       z.object({
         chatbotId: z.string().uuid(),
         message: z.string().min(1).max(16000),
-        sessionId: z.string().optional(),
+        sessionId: z.string().min(10).max(30).regex(/^[a-zA-Z0-9_-]+$/).optional(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {
@@ -343,9 +343,9 @@ export const chatRouter = router({
   sendSharedMessageStream: publicProcedure
     .input(
       z.object({
-        shareToken: z.string(),
+        shareToken: z.string().min(1).max(100),
         message: z.string().min(1).max(16000),
-        sessionId: z.string().optional(),
+        sessionId: z.string().min(10).max(30).regex(/^[a-zA-Z0-9_-]+$/).optional(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {
