@@ -27,7 +27,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 export default function ChatbotDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const chatbotId = params.id as string;
+  const chatbotId = typeof params.id === "string" ? params.id : "";
   const { data: session, isPending: sessionLoading } = useSession();
 
   const {

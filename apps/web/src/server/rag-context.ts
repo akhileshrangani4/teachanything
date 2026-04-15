@@ -123,9 +123,10 @@ export async function buildRAGContext(
     queryEmbedding.length !== EMBEDDING_MODEL.dimensions ||
     queryEmbedding.some((v) => !Number.isFinite(v))
   ) {
-    logError(null, "Invalid query embedding received", {
+    logWarn("Invalid query embedding received", {
       chatbotId: params.chatbotId,
       dimensions: queryEmbedding.length,
+      expectedDimensions: EMBEDDING_MODEL.dimensions,
     });
     return {
       contextText: "",

@@ -15,6 +15,7 @@ import {
   MODEL_REGISTRY,
   calculateChunkLimit,
   allocateTokenBudget,
+  CHARS_PER_TOKEN,
 } from "@teachanything/ai";
 import { logInfo, logError, logWarn } from "@/lib/logger";
 import { env } from "@/lib/env";
@@ -55,7 +56,7 @@ async function initTokenCounter(): Promise<(text: string) => number> {
         return (text: string) => encoder.encode(text).length;
       } catch {
         logWarn("Failed to initialize tiktoken encoder, using char/4 fallback");
-        return (text: string) => Math.ceil(text.length / 4);
+        return (text: string) => Math.ceil(text.length / CHARS_PER_TOKEN);
       }
     })();
   }
@@ -171,7 +172,7 @@ async function* processMessage(params: {
     // Use char/4 estimate for history to avoid encoding 50 messages via tiktoken.
     // Exact counting is unnecessary here -- this is a budget allocation, not billing.
     availableHistory: historyMessages.map((m) => ({
-      tokens: Math.ceil(m.content.length / 4),
+      tokens: Math.ceil(m.content.length / CHARS_PER_TOKEN),
     })),
   });
 

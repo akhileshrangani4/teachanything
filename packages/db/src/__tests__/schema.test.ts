@@ -37,27 +37,27 @@ describe("Database Schema", () => {
 
   describe("Tables", () => {
     it("defines user table with required columns", () => {
-      const columns = Object.keys(user);
+      const columns = getTableConfig(user).columns.map((c) => c.name);
       expect(columns).toContain("id");
       expect(columns).toContain("email");
       expect(columns).toContain("name");
       expect(columns).toContain("status");
       expect(columns).toContain("role");
-      expect(columns).toContain("createdAt");
+      expect(columns).toContain("created_at");
     });
 
     it("defines session table with required columns", () => {
-      const columns = Object.keys(session);
+      const columns = getTableConfig(session).columns.map((c) => c.name);
       expect(columns).toContain("id");
-      expect(columns).toContain("userId");
+      expect(columns).toContain("user_id");
       expect(columns).toContain("token");
-      expect(columns).toContain("expiresAt");
+      expect(columns).toContain("expires_at");
     });
 
     it("defines chatbots table with required columns", () => {
-      const columns = Object.keys(chatbots);
+      const columns = getTableConfig(chatbots).columns.map((c) => c.name);
       expect(columns).toContain("id");
-      expect(columns).toContain("userId");
+      expect(columns).toContain("user_id");
       expect(columns).toContain("name");
     });
   });

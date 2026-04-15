@@ -11,7 +11,10 @@ export const BUDGET_RATIO = 0.8;
 /** 60% of remaining budget for RAG chunks, 40% for history (D-05). */
 export const CHUNK_SHARE = 0.6;
 
-/** Conservative average chunk token estimate: 2500 chars / 4 (D-05). */
+/** Approximate characters per token for fallback estimation. */
+export const CHARS_PER_TOKEN = 4;
+
+/** Conservative average chunk token estimate: 2500 chars / CHARS_PER_TOKEN (D-05). */
 export const AVG_CHUNK_TOKENS = 625;
 
 /** Input for the full budget allocation (Pass 2). */

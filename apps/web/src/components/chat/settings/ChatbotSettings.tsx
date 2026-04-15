@@ -59,7 +59,7 @@ interface ChatbotSettingsProps {
 export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   const params = useParams();
   const router = useRouter();
-  const chatbotId = params.id as string;
+  const chatbotId = typeof params.id === "string" ? params.id : "";
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [disableShareDialog, setDisableShareDialog] = useState(false);

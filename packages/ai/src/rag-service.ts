@@ -1,6 +1,7 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { logWarn, logError } from "@teachanything/logger";
 import type { OpenRouterClient } from "./openrouter-client";
+import { CHARS_PER_TOKEN } from "./token-budget";
 
 /** Recursive node type for officeparser AST */
 interface OfficeparserNode {
@@ -305,11 +306,11 @@ export class RAGService {
         return tokens.length;
       } catch (error) {
         // Fallback to approximate count
-        return Math.ceil(text.length / 4);
+        return Math.ceil(text.length / CHARS_PER_TOKEN);
       }
     }
     // Fallback: approximate 1 token per 4 characters
-    return Math.ceil(text.length / 4);
+    return Math.ceil(text.length / CHARS_PER_TOKEN);
   }
 
   /**
