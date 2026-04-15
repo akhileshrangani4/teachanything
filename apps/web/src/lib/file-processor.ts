@@ -328,16 +328,23 @@ export async function processFile(params: {
       });
     }
 
-    // Mark file as failed (existing behavior)
-    await db
-      .update(userFiles)
-      .set({
-        processingStatus: "failed",
-        metadata: {
-          error: error instanceof Error ? error.message : String(error),
-        },
-      })
-      .where(eq(userFiles.id, fileId));
+    // Mark file as failed -- wrapped in try/catch so status update failure
+    // doesn't mask the original processing error
+    try {
+      await db
+        .update(userFiles)
+        .set({
+          processingStatus: "failed",
+          metadata: {
+            error: error instanceof Error ? error.message : String(error),
+          },
+        })
+        .where(eq(userFiles.id, fileId));
+    } catch (statusError) {
+      logError(statusError, "Failed to mark file as failed after processing error", {
+        fileId,
+      });
+    }
 
     throw error;
   }
