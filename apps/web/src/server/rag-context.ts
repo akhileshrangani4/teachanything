@@ -4,7 +4,7 @@ import {
   chatbotFileAssociations,
   userFiles,
 } from "@teachanything/db/schema";
-import { createOpenRouterClient } from "@teachanything/ai";
+import { createOpenRouterClient, type OpenRouterClient } from "@teachanything/ai";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import type { db as dbType } from "@teachanything/db";
 
@@ -16,6 +16,8 @@ export interface BuildRAGContextParams {
   openaiApiKey: string;
   /** Budget-derived chunk limit. Falls back to min(fileCount * 2, 30) when omitted. */
   chunkLimit?: number;
+  /** Reuse an existing client instead of creating a new one per call. */
+  aiClient?: OpenRouterClient;
 }
 
 export interface RAGContextResult {
@@ -43,7 +45,7 @@ export async function buildRAGContext(
   params: BuildRAGContextParams,
 ): Promise<RAGContextResult> {
   // 1. Run file query and embedding generation in parallel (independent operations)
-  const aiClient = createOpenRouterClient(
+  const aiClient = params.aiClient ?? createOpenRouterClient(
     params.openrouterApiKey,
     params.openaiApiKey,
   );

@@ -137,6 +137,12 @@ async function* processMessage(params: {
   historyMessages.reverse();
 
   // Build RAG context with budget-derived chunk limit
+  // Create AI client once and reuse for both RAG embedding and LLM streaming
+  const aiClient = createOpenRouterClient(
+    env.OPENROUTER_API_KEY,
+    env.OPENAI_API_KEY,
+  );
+
   const ragResult = await buildRAGContext({
     chatbotId: chatbot.id,
     message,
@@ -144,6 +150,7 @@ async function* processMessage(params: {
     openrouterApiKey: env.OPENROUTER_API_KEY,
     openaiApiKey: env.OPENAI_API_KEY,
     chunkLimit: estimatedChunkLimit,
+    aiClient,
   });
 
   // Pass 2: allocate budget with actual token counts
@@ -199,11 +206,7 @@ async function* processMessage(params: {
     metadata: {},
   });
 
-  // Call OpenRouter with streaming
-  const aiClient = createOpenRouterClient(
-    env.OPENROUTER_API_KEY,
-    env.OPENAI_API_KEY,
-  );
+  // Stream response using the same client
   const startTime = Date.now();
   let fullResponse = "";
 
