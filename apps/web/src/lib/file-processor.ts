@@ -297,7 +297,7 @@ export async function processFile(params: {
       }),
     );
 
-    await db.insert(fileChunks).values(chunkRecords);
+    await db.insert(fileChunks).values(chunkRecords).onConflictDoNothing();
     await updateProgress(fileId, "storing", 95, chunks.length, chunks.length);
 
     // Update file status to completed
