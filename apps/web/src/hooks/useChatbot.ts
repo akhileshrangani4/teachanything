@@ -89,6 +89,9 @@ export function useChatbot(
         } else if (data.type === "done") {
           clearStreamingTimeout();
 
+          // Guard: if streaming was already stopped (e.g., user cancelled), skip
+          if (!streamingContentRef.current && !isStreaming) return;
+
           // Finalize the message (read from ref to avoid stale closure)
           const finalContent = streamingContentRef.current;
           const finalSources = [...sourcesRef.current];

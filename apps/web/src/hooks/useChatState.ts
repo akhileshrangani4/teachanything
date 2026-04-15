@@ -48,7 +48,7 @@ export function useChatState() {
       if (messagesEndRef.current) {
         // Find the scrollable parent container
         const scrollContainer = messagesEndRef.current.closest(
-          '[class*="overflow-y-auto"]',
+          "[data-scroll-container]",
         ) as HTMLElement;
         if (scrollContainer) {
           // Scroll the container to bottom

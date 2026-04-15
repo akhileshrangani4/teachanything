@@ -95,36 +95,9 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
     onSuccess: async () => {
       await utils.chatbot.get.invalidate({ id: chatbotId });
       await utils.chatbot.getById.invalidate({ id: chatbotId });
-      setIsEditing(false);
-      toast.success("Settings saved successfully", {
-        description: "Your chatbot configuration has been updated",
-      });
     },
     onError: (error) => {
       toast.error("Failed to save settings", {
-        description: error.message,
-      });
-    },
-  });
-
-  const updateShowSources = trpc.chatbot.update.useMutation({
-    onSuccess: async (_, variables) => {
-      const newValue = variables.data.showSources ?? false;
-      await utils.chatbot.get.invalidate({ id: chatbotId });
-      await utils.chatbot.getById.invalidate({ id: chatbotId });
-      toast.success(
-        newValue ? "Sources display enabled" : "Sources display disabled",
-        {
-          description: newValue
-            ? "Source citations will now be shown below assistant messages"
-            : "Source citations will no longer be displayed",
-        },
-      );
-    },
-    onError: (error) => {
-      // Revert the toggle on error
-      setShowSources(chatbot.showSources ?? false);
-      toast.error("Failed to update setting", {
         description: error.message,
       });
     },
@@ -204,10 +177,27 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
 
   const handleToggleShowSources = (checked: boolean) => {
     setShowSources(checked);
-    updateShowSources.mutate({
-      id: chatbotId,
-      data: { showSources: checked },
-    });
+    updateChatbot.mutate(
+      {
+        id: chatbotId,
+        data: { showSources: checked },
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            checked ? "Sources display enabled" : "Sources display disabled",
+            {
+              description: checked
+                ? "Source citations will now be shown below assistant messages"
+                : "Source citations will no longer be displayed",
+            },
+          );
+        },
+        onError: () => {
+          setShowSources(chatbot.showSources ?? false);
+        },
+      },
+    );
   };
 
   const handleSave = () => {
@@ -251,18 +241,28 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
       return;
     }
 
-    updateChatbot.mutate({
-      id: chatbotId,
-      data: {
-        name: name.trim(),
-        description: description.trim() || undefined,
-        model: model as SupportedModel,
-        systemPrompt,
-        temperature: tempValue,
-        maxTokens: tokensValue,
-        showSources: showSources,
+    updateChatbot.mutate(
+      {
+        id: chatbotId,
+        data: {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          model: model as SupportedModel,
+          systemPrompt,
+          temperature: tempValue,
+          maxTokens: tokensValue,
+          showSources: showSources,
+        },
       },
-    });
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+          toast.success("Settings saved successfully", {
+            description: "Your chatbot configuration has been updated",
+          });
+        },
+      },
+    );
   };
 
   const handleCancel = () => {
@@ -516,7 +516,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
             id="showSources"
             checked={showSources}
             onCheckedChange={handleToggleShowSources}
-            disabled={updateShowSources.isPending}
+            disabled={updateChatbot.isPending}
           />
         </div>
       </div>

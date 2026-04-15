@@ -32,6 +32,10 @@ export class ErrorBoundary extends Component<
     });
   }
 
+  handleRetry = () => {
+    this.setState({ hasError: false });
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -41,11 +45,19 @@ export class ErrorBoundary extends Component<
               Something went wrong
             </p>
             <p className="text-sm text-muted-foreground">
-              An unexpected error occurred. Please try reloading the page.
+              An unexpected error occurred. Please try again.
             </p>
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Reload
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={this.handleRetry}>
+                Try Again
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
+                Reload Page
+              </Button>
+            </div>
           </div>
         )
       );

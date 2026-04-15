@@ -59,6 +59,7 @@ async function updateProgress(
     .limit(1);
 
   const existingMetadata = currentFile?.metadata || {};
+  const { error: _prevError, ...cleanMetadata } = existingMetadata;
   const startedAt = existingMetadata?.processingProgress?.startedAt || now;
 
   await db
@@ -66,7 +67,7 @@ async function updateProgress(
     .set({
       processingStatus: "processing",
       metadata: {
-        ...existingMetadata,
+        ...cleanMetadata,
         processingProgress: {
           stage,
           percentage: Math.min(100, Math.max(0, percentage)),

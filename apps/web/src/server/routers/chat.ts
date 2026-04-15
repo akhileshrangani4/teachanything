@@ -44,20 +44,22 @@ function clampMaxTokens(maxTokens: number | null | undefined): number {
 /**
  * Cached token counter -- initialized once, reused across all requests.
  */
-let cachedCounter: ((text: string) => number) | null = null;
+let counterPromise: Promise<(text: string) => number> | null = null;
 
 async function initTokenCounter(): Promise<(text: string) => number> {
-  if (cachedCounter) return cachedCounter;
-  try {
-    const { getEncoding } = await import("js-tiktoken");
-    const encoder = getEncoding("o200k_base");
-    cachedCounter = (text: string) => encoder.encode(text).length;
-    return cachedCounter;
-  } catch {
-    logWarn("Failed to initialize tiktoken encoder, using char/4 fallback");
-    cachedCounter = (text: string) => Math.ceil(text.length / 4);
-    return cachedCounter;
+  if (!counterPromise) {
+    counterPromise = (async () => {
+      try {
+        const { getEncoding } = await import("js-tiktoken");
+        const encoder = getEncoding("o200k_base");
+        return (text: string) => encoder.encode(text).length;
+      } catch {
+        logWarn("Failed to initialize tiktoken encoder, using char/4 fallback");
+        return (text: string) => Math.ceil(text.length / 4);
+      }
+    })();
   }
+  return counterPromise;
 }
 
 /**

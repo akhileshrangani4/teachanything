@@ -150,6 +150,21 @@ describe("token-budget", () => {
       );
     });
 
+    it("handles empty chunks and empty history arrays", () => {
+      const input: TokenBudgetInput = {
+        ...typicalFixed,
+        availableChunks: [],
+        availableHistory: [],
+      };
+
+      const result = allocateTokenBudget(input);
+
+      expect(result.chunkLimit).toBe(0);
+      expect(result.historyLimit).toBe(0);
+      expect(result.truncated).toBe(false);
+      expect(result.warnings).toHaveLength(0);
+    });
+
     it("budgetCapacity equals floor(contextWindow * 0.8) - maxOutputTokens", () => {
       const input: TokenBudgetInput = {
         ...typicalFixed,

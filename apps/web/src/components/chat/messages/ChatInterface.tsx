@@ -125,7 +125,7 @@ export function ChatInterface({
               <div className="space-y-3 md:space-y-4">
                 {messages.map((msg, idx) => (
                   <ChatMessage
-                    key={idx}
+                    key={`${msg.role}-${idx}`}
                     message={msg}
                     showSources={showSources}
                   />

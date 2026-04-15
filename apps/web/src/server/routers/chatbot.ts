@@ -19,6 +19,24 @@ const allAcceptedModels = [...SUPPORTED_MODELS, ...DEPRECATED_MODELS] as [
   ...string[],
 ];
 
+async function getChatbotByIdForUser(
+  db: Parameters<Parameters<typeof protectedProcedure.query>[0]>[0]["ctx"]["db"],
+  chatbotId: string,
+  userId: string,
+) {
+  const [chatbot] = await db
+    .select()
+    .from(chatbots)
+    .where(and(eq(chatbots.id, chatbotId), eq(chatbots.userId, userId)))
+    .limit(1);
+
+  if (!chatbot) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Chatbot not found" });
+  }
+
+  return chatbot;
+}
+
 const createChatbotSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(200).optional(),
@@ -103,25 +121,7 @@ export const chatbotRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
-
-      return chatbot;
+      return getChatbotByIdForUser(ctx.db, input.id, ctx.session.user.id);
     }),
 
   /**
@@ -130,25 +130,7 @@ export const chatbotRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
-
-      return chatbot;
+      return getChatbotByIdForUser(ctx.db, input.id, ctx.session.user.id);
     }),
 
   /**

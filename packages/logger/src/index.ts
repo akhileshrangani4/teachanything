@@ -10,7 +10,7 @@ export const logger = {
     if (LOG_ENABLED) console.warn(`[WARN] ${message}`, context);
   },
   info: (context: Record<string, unknown>, message: string) => {
-    if (LOG_ENABLED && !isDev) console.log(`[INFO] ${message}`, context);
+    if (LOG_ENABLED) console.log(`[INFO] ${message}`, context);
   },
   debug: (context: Record<string, unknown>, message: string) => {
     if (LOG_ENABLED && isDev) console.debug(`[DEBUG] ${message}`, context);

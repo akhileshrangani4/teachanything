@@ -40,8 +40,6 @@ export class RAGService {
       return;
     }
 
-    this.encoderInitialized = true;
-
     try {
       // Use js-tiktoken for better serverless compatibility (pure JS, no WASM)
       // Use encoding name directly instead of model name to avoid deprecation issues
@@ -51,6 +49,7 @@ export class RAGService {
       logWarn("Failed to initialize tiktoken, using fallback token counter");
       this.encoder = null;
     }
+    this.encoderInitialized = true;
   }
 
   /**
@@ -382,10 +381,10 @@ export class RAGService {
   /**
    * Re-rank chunks by similarity score
    */
-  rerank(
-    chunks: Array<{ content: string; similarity: number; [key: string]: any }>,
+  rerank<T extends { content: string; similarity: number }>(
+    chunks: T[],
     topK: number = 5,
-  ): Array<{ content: string; similarity: number; [key: string]: any }> {
+  ): T[] {
     return chunks.sort((a, b) => b.similarity - a.similarity).slice(0, topK);
   }
 
