@@ -166,8 +166,10 @@ async function* processMessage(params: {
     fileManifestTokens: fileManifestTokens + ragContextTokens,
     userMessageTokens,
     availableChunks: [],
+    // Use char/4 estimate for history to avoid encoding 50 messages via tiktoken.
+    // Exact counting is unnecessary here -- this is a budget allocation, not billing.
     availableHistory: historyMessages.map((m) => ({
-      tokens: countTokens(m.content),
+      tokens: Math.ceil(m.content.length / 4),
     })),
   });
 
