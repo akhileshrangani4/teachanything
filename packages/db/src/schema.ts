@@ -269,27 +269,37 @@ export const conversations = pgTable("conversations", {
 });
 
 // Messages table
-export const messages = pgTable("messages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  conversationId: uuid("conversation_id")
-    .references(() => conversations.id, { onDelete: "cascade" })
-    .notNull(),
-  role: text("role").notNull(), // 'user', 'assistant', 'system'
-  content: text("content").notNull(),
-  metadata: jsonb("metadata")
-    .$type<{
-      sources?: Array<{
-        fileName: string;
-        chunkIndex: number;
-        similarity: number;
-      }>;
-      responseTime?: number;
-      model?: string;
-      ragUsed?: boolean;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    role: text("role").notNull(), // 'user', 'assistant', 'system'
+    content: text("content").notNull(),
+    metadata: jsonb("metadata")
+      .$type<{
+        sources?: Array<{
+          fileName: string;
+          chunkIndex: number;
+          similarity: number;
+        }>;
+        responseTime?: number;
+        model?: string;
+        ragUsed?: boolean;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Composite index for history queries: WHERE conversation_id = ? ORDER BY created_at DESC
+    index("messages_conversation_id_created_at_idx").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+  ],
+);
 
 // Analytics table
 export const analytics = pgTable("analytics", {

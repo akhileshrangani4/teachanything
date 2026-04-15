@@ -57,6 +57,13 @@
       "when": 1776135687100,
       "tag": "0007_wet_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776213227408,
+      "tag": "0008_peaceful_thunderbolts",
+      "breakpoints": true
     }
   ]
 }
