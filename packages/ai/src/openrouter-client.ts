@@ -113,20 +113,21 @@ export class OpenRouterClient {
           value: text,
         });
         return embedding;
-      } catch (error: any) {
-        lastError = error;
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
 
         // Check if it's a transient error (rate limit or server error)
+        const errorMessage = lastError.message;
         const isTransientError =
-          error.message?.includes("Rate limit") ||
-          error.message?.includes("rate_limit") ||
-          error.message?.includes("429") ||
-          error.message?.includes("500") ||
-          error.message?.includes("502") ||
-          error.message?.includes("503") ||
-          error.message?.includes("Internal Server Error") ||
-          error.message?.includes("Bad Gateway") ||
-          error.message?.includes("Service Unavailable");
+          errorMessage.includes("Rate limit") ||
+          errorMessage.includes("rate_limit") ||
+          /\b429\b/.test(errorMessage) ||
+          /\b500\b/.test(errorMessage) ||
+          /\b502\b/.test(errorMessage) ||
+          /\b503\b/.test(errorMessage) ||
+          errorMessage.includes("Internal Server Error") ||
+          errorMessage.includes("Bad Gateway") ||
+          errorMessage.includes("Service Unavailable");
 
         if (isTransientError && attempt < retries - 1) {
           // Exponential backoff: 1s, 2s, 4s
@@ -141,7 +142,7 @@ export class OpenRouterClient {
         }
 
         // If not transient or last attempt, throw
-        throw error;
+        throw lastError;
       }
     }
 
