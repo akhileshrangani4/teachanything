@@ -510,12 +510,7 @@ export const chatRouter = router({
         return { success: true };
       }
 
-      // Delete messages (cascade will handle this if set up, but explicit is safer)
-      await ctx.db
-        .delete(messages)
-        .where(eq(messages.conversationId, conversation.id));
-
-      // Delete conversation
+      // Delete conversation (messages cascade-delete via FK onDelete: "cascade")
       await ctx.db
         .delete(conversations)
         .where(eq(conversations.id, conversation.id));
