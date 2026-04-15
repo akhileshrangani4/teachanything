@@ -4,7 +4,11 @@ import {
   chatbotFileAssociations,
   userFiles,
 } from "@teachanything/db/schema";
-import { createOpenRouterClient, EMBEDDING_MODEL, type OpenRouterClient } from "@teachanything/ai";
+import {
+  createOpenRouterClient,
+  EMBEDDING_MODEL,
+  type OpenRouterClient,
+} from "@teachanything/ai";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import type { db as dbType } from "@teachanything/db";
 
@@ -44,35 +48,20 @@ export interface RAGContextResult {
 export async function buildRAGContext(
   params: BuildRAGContextParams,
 ): Promise<RAGContextResult> {
-  // 1. Run file query and embedding generation in parallel (independent operations)
-  const aiClient = params.aiClient ?? createOpenRouterClient(
-    params.openrouterApiKey,
-    params.openaiApiKey,
-  );
-
-  const [completedFiles, embeddingResult] = await Promise.all([
-    // File association query
-    params.db
-      .select({
-        fileId: chatbotFileAssociations.fileId,
-        fileName: userFiles.fileName,
-      })
-      .from(chatbotFileAssociations)
-      .innerJoin(userFiles, eq(chatbotFileAssociations.fileId, userFiles.id))
-      .where(
-        and(
-          eq(chatbotFileAssociations.chatbotId, params.chatbotId),
-          eq(userFiles.processingStatus, "completed"),
-        ),
+  // 1. Query completed files first (needed for manifest and to decide if embedding is needed)
+  const completedFiles = await params.db
+    .select({
+      fileId: chatbotFileAssociations.fileId,
+      fileName: userFiles.fileName,
+    })
+    .from(chatbotFileAssociations)
+    .innerJoin(userFiles, eq(chatbotFileAssociations.fileId, userFiles.id))
+    .where(
+      and(
+        eq(chatbotFileAssociations.chatbotId, params.chatbotId),
+        eq(userFiles.processingStatus, "completed"),
       ),
-    // Embedding generation (returns null on failure)
-    aiClient.generateEmbedding(params.message).catch((error) => {
-      logError(error, "Failed to generate embeddings - continuing without RAG", {
-        chatbotId: params.chatbotId,
-      });
-      return null;
-    }),
-  ]);
+    );
 
   const fileIds = completedFiles.map((f) => f.fileId);
   const fileNames = completedFiles.map((f) => f.fileName);
@@ -83,13 +72,32 @@ export async function buildRAGContext(
       ? `\n\nYou have access to these documents: [${fileNames.join(", ")}]. When asked about files, refer only to this list. Do not invent or guess file names.`
       : "";
 
-  // 3. Short-circuit if no completed files
+  // 3. Short-circuit if no completed files (skip embedding API call entirely)
   if (fileIds.length === 0) {
-    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote: "" };
+    return {
+      contextText: "",
+      sources: [],
+      ragUsed: false,
+      fileManifest,
+      ragFailureNote: "",
+    };
   }
 
-  // 4. Handle embedding failure (RAG degrades gracefully)
-  const queryEmbedding = embeddingResult;
+  // 4. Generate embedding (only when files exist to search)
+  const aiClient =
+    params.aiClient ??
+    createOpenRouterClient(params.openrouterApiKey, params.openaiApiKey);
+
+  const queryEmbedding = await aiClient
+    .generateEmbedding(params.message)
+    .catch((error) => {
+      logError(
+        error,
+        "Failed to generate embeddings - continuing without RAG",
+        { chatbotId: params.chatbotId },
+      );
+      return null;
+    });
   let ragFailureNote = "";
 
   if (!queryEmbedding) {
@@ -101,20 +109,36 @@ export async function buildRAGContext(
     logWarn("RAG context degraded - continuing without document search", {
       chatbotId: params.chatbotId,
     });
-    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote };
+    return {
+      contextText: "",
+      sources: [],
+      ragUsed: false,
+      fileManifest,
+      ragFailureNote,
+    };
   }
 
   // 4b. Validate embedding dimensions and values (defense-in-depth)
-  if (queryEmbedding.length !== EMBEDDING_MODEL.dimensions || queryEmbedding.some((v) => !Number.isFinite(v))) {
+  if (
+    queryEmbedding.length !== EMBEDDING_MODEL.dimensions ||
+    queryEmbedding.some((v) => !Number.isFinite(v))
+  ) {
     logError(null, "Invalid query embedding received", {
       chatbotId: params.chatbotId,
       dimensions: queryEmbedding.length,
     });
-    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote: "" };
+    return {
+      contextText: "",
+      sources: [],
+      ragUsed: false,
+      fileManifest,
+      ragFailureNote: "",
+    };
   }
 
   // 5. Vector similarity search with all fixes
-  const effectiveChunkLimit = params.chunkLimit ?? Math.min(fileIds.length * 2, 30);
+  const effectiveChunkLimit =
+    params.chunkLimit ?? Math.min(fileIds.length * 2, 30);
 
   // D-06, RAG-03: Real cosine similarity in SELECT
   const similarityExpr = sql<number>`1 - (${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)})`;
@@ -136,16 +160,20 @@ export async function buildRAGContext(
       ),
     )
     // CRITICAL: ORDER BY raw distance ascending to use HNSW index
-    .orderBy(
-      sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`,
-    )
+    .orderBy(sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`)
     .limit(effectiveChunkLimit);
 
   // 6. Format chunks with source attribution (D-04)
   const sources: RAGContextResult["sources"] = [];
 
   if (relevantChunks.length === 0) {
-    return { contextText: "", sources: [], ragUsed: false, fileManifest, ragFailureNote: "" };
+    return {
+      contextText: "",
+      sources: [],
+      ragUsed: false,
+      fileManifest,
+      ragFailureNote: "",
+    };
   }
 
   const contextText =

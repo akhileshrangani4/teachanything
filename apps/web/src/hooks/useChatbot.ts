@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useChatState } from "./useChatState";
@@ -163,6 +163,11 @@ export function useChatbot(
     setMessageToSend(null);
     stopStreamingState();
   };
+
+  // Clean up timeout on unmount to prevent state updates after unmount
+  useEffect(() => {
+    return () => clearStreamingTimeout();
+  }, []);
 
   return {
     messages,
