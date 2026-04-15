@@ -405,11 +405,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
                       <SelectLabel>{provider}</SelectLabel>
                       {models.map((m) => (
                         <SelectItem key={m.id} value={m.id}>
-                          {m.displayName} ({formatContextWindow(m.contextWindow)}
-                          )
-                          {(m.pricingTier as string) === "free"
-                            ? " (Free)"
-                            : ""}
+                          {m.displayName} ({formatContextWindow(m.contextWindow)})
                         </SelectItem>
                       ))}
                     </SelectGroup>

@@ -1,8 +1,6 @@
 // Centralized model registry -- single source of truth for all model metadata.
 // All consumers import from here; no independent model definitions elsewhere.
 
-export type PricingTier = "free" | "$" | "$$";
-
 export type Provider =
   | "Meta"
   | "Mistral"
@@ -16,8 +14,6 @@ export interface ModelMetadata {
   displayName: string;
   provider: Provider;
   contextWindow: number;
-  pricingTier: PricingTier;
-  capabilities: string[];
 }
 
 /**
@@ -31,56 +27,42 @@ export const MODEL_REGISTRY = {
     displayName: "Llama 3.3 70B",
     provider: "Meta",
     contextWindow: 131_072,
-    pricingTier: "$",
-    capabilities: ["chat", "multilingual"],
   },
   "mistralai/mistral-large-2411": {
     id: "mistralai/mistral-large-2411",
     displayName: "Mistral Large 2411",
     provider: "Mistral",
     contextWindow: 131_072,
-    pricingTier: "$$",
-    capabilities: ["chat", "function-calling", "multilingual"],
   },
   "qwen/qwen3-235b-a22b": {
     id: "qwen/qwen3-235b-a22b",
     displayName: "Qwen 3 235B",
     provider: "Qwen",
     contextWindow: 131_072,
-    pricingTier: "$",
-    capabilities: ["chat", "multilingual"],
   },
   "openai/gpt-oss-120b": {
     id: "openai/gpt-oss-120b",
     displayName: "GPT-OSS 120B",
     provider: "OpenAI",
     contextWindow: 131_072,
-    pricingTier: "$",
-    capabilities: ["chat"],
   },
   "meta-llama/llama-4-maverick": {
     id: "meta-llama/llama-4-maverick",
     displayName: "Llama 4 Maverick",
     provider: "Meta",
     contextWindow: 1_048_576,
-    pricingTier: "$",
-    capabilities: ["chat", "multimodal"],
   },
   "nvidia/nemotron-3-super-120b-a12b": {
     id: "nvidia/nemotron-3-super-120b-a12b",
     displayName: "Nemotron 3 Super",
     provider: "NVIDIA",
     contextWindow: 262_144,
-    pricingTier: "$",
-    capabilities: ["chat"],
   },
   "google/gemma-4-31b-it": {
     id: "google/gemma-4-31b-it",
     displayName: "Gemma 4 31B",
     provider: "Google",
     contextWindow: 262_144,
-    pricingTier: "$",
-    capabilities: ["chat", "multimodal"],
   },
 } as const satisfies Record<string, ModelMetadata>;
 
