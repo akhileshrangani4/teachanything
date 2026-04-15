@@ -50,5 +50,5 @@ uploads/
 .planning/
 
 # Superset
-.superset/.planning-archive-deps/
+.superset/
 docs/
