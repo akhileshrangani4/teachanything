@@ -37,18 +37,22 @@ function clampMaxTokens(maxTokens: number | null | undefined): number {
 }
 
 /**
- * Initialize js-tiktoken encoder and return a synchronous token counter.
- * Falls back to char/4 estimate if encoder fails to load.
+ * Cached token counter -- initialized once, reused across all requests.
+ * Avoids creating a new tiktoken encoder on every message.
  */
+let cachedCounter: ((text: string) => number) | null = null;
+
 async function initTokenCounter(): Promise<(text: string) => number> {
+  if (cachedCounter) return cachedCounter;
   try {
-    // Use encoding name directly instead of model name to avoid deprecation issues
     const { getEncoding } = await import("js-tiktoken");
     const encoder = getEncoding("o200k_base");
-    return (text: string) => encoder.encode(text).length;
+    cachedCounter = (text: string) => encoder.encode(text).length;
+    return cachedCounter;
   } catch {
     logWarn("Failed to initialize tiktoken encoder, using char/4 fallback");
-    return (text: string) => Math.ceil(text.length / 4);
+    cachedCounter = (text: string) => Math.ceil(text.length / 4);
+    return cachedCounter;
   }
 }
 
