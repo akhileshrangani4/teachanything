@@ -206,12 +206,12 @@ export function CreateChatbotDialog({
                 max="100"
                 step="1"
                 value={formData.temperature}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    temperature: parseInt(e.target.value),
-                  })
-                }
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value);
+                  if (!Number.isNaN(parsed)) {
+                    setFormData({ ...formData, temperature: parsed });
+                  }
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Control randomness (0 = focused, 100 = creative)
@@ -227,12 +227,12 @@ export function CreateChatbotDialog({
                 max="4000"
                 step="100"
                 value={formData.maxTokens}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    maxTokens: parseInt(e.target.value),
-                  })
-                }
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value);
+                  if (!Number.isNaN(parsed)) {
+                    setFormData({ ...formData, maxTokens: parsed });
+                  }
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Maximum length of responses (100-4000)

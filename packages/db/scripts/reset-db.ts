@@ -66,6 +66,7 @@ async function resetDatabase() {
 
     // Drop all tables first (in reverse dependency order to avoid foreign key errors)
     const dropTablesSQL = `
+      DROP TABLE IF EXISTS "email_deliveries" CASCADE;
       DROP TABLE IF EXISTS "messages" CASCADE;
       DROP TABLE IF EXISTS "conversations" CASCADE;
       DROP TABLE IF EXISTS "file_chunks" CASCADE;
@@ -85,6 +86,8 @@ async function resetDatabase() {
 
     // Drop all custom types (enums)
     const dropTypesSQL = `
+      DROP TYPE IF EXISTS "email_delivery_status" CASCADE;
+      DROP TYPE IF EXISTS "email_type" CASCADE;
       DROP TYPE IF EXISTS "processing_status" CASCADE;
       DROP TYPE IF EXISTS "user_role" CASCADE;
       DROP TYPE IF EXISTS "user_status" CASCADE;

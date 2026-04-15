@@ -3,9 +3,11 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, embed, streamText } from "ai";
 import { logInfo } from "@teachanything/logger";
 import { EMBEDDING_MODEL, type SupportedModel } from "./models";
+import { isTransientError } from "./error-utils";
 
 // Re-export so consumers of @teachanything/ai/openrouter subpath still get these
 export { SUPPORTED_MODELS, type SupportedModel } from "./models";
+export { isTransientError } from "./error-utils";
 
 // OpenRouter client configuration
 export class OpenRouterClient {
@@ -114,20 +116,7 @@ export class OpenRouterClient {
       } catch (error: unknown) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        // Check if it's a transient error (rate limit or server error)
-        const errorMessage = lastError.message;
-        const isTransientError =
-          errorMessage.includes("Rate limit") ||
-          errorMessage.includes("rate_limit") ||
-          /\b429\b/.test(errorMessage) ||
-          /\b500\b/.test(errorMessage) ||
-          /\b502\b/.test(errorMessage) ||
-          /\b503\b/.test(errorMessage) ||
-          errorMessage.includes("Internal Server Error") ||
-          errorMessage.includes("Bad Gateway") ||
-          errorMessage.includes("Service Unavailable");
-
-        if (isTransientError && attempt < retries - 1) {
+        if (isTransientError(lastError.message) && attempt < retries - 1) {
           // Exponential backoff: 1s, 2s, 4s
           const delay = Math.pow(2, attempt) * 1000;
           logInfo(`Transient error, retrying in ${delay}ms`, {

@@ -1,10 +1,11 @@
 import { describe, it, expect } from "@jest/globals";
+import { isTransientError } from "@teachanything/ai/error-utils";
 
 /**
  * RAG resilience tests.
  *
- * The isTransientError tests verify the retry-widening logic pattern that
- * exists in openrouter-client.ts (matching word-boundary regex for status codes).
+ * Tests the isTransientError function exported from openrouter-client.ts
+ * which drives the retry-widening logic for embedding requests.
  *
  * The buildRAGContext integration tests are skipped in CI due to a jest ESM
  * limitation: the transitive uuid module uses named exports that fail during
@@ -12,21 +13,8 @@ import { describe, it, expect } from "@jest/globals";
  * against the local database.
  */
 
-// ── Test Suite: isTransientError pattern ────────────────────────────────────
-describe("isTransientError pattern", () => {
-  function isTransientError(errorMessage: string): boolean {
-    return (
-      /\b429\b/.test(errorMessage) ||
-      /\b500\b/.test(errorMessage) ||
-      /\b502\b/.test(errorMessage) ||
-      /\b503\b/.test(errorMessage) ||
-      errorMessage.includes("Rate limit") ||
-      errorMessage.includes("rate_limit") ||
-      errorMessage.includes("Internal Server Error") ||
-      errorMessage.includes("Bad Gateway") ||
-      errorMessage.includes("Service Unavailable")
-    );
-  }
+// ── Test Suite: isTransientError ────────────────────────────────────────────
+describe("isTransientError", () => {
 
   it("matches 429 rate limit error", () => {
     expect(isTransientError("Rate limit exceeded")).toBe(true);
