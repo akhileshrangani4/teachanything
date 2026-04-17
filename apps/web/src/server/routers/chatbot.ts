@@ -292,6 +292,31 @@ export const chatbotRouter = router({
     }),
 
   /**
+   * Toggle showSources display setting
+   */
+  updateShowSources: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        showSources: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const chatbot = await getChatbotByIdForUser(
+        ctx.db,
+        input.id,
+        ctx.session.user.id,
+      );
+
+      await ctx.db
+        .update(chatbots)
+        .set({ showSources: input.showSources, updatedAt: new Date() })
+        .where(eq(chatbots.id, chatbot.id));
+
+      return { showSources: input.showSources };
+    }),
+
+  /**
    * Delete chatbot
    */
   delete: protectedProcedure

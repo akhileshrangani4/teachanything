@@ -180,7 +180,19 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
     deleteChatbot.mutate({ id: chatbotId });
   };
 
-  const toggleShowSources = trpc.chatbot.update.useMutation({
+  const toggleShowSources = trpc.chatbot.updateShowSources.useMutation({
+    onSuccess: (_, variables) => {
+      toast.success(
+        variables.showSources
+          ? "Sources display enabled"
+          : "Sources display disabled",
+        {
+          description: variables.showSources
+            ? "Source citations will now be shown below assistant messages"
+            : "Source citations will no longer be displayed",
+        },
+      );
+    },
     onError: (error) => {
       setShowSources(chatbot.showSources ?? false);
       toast.error("Failed to update setting", {
@@ -191,24 +203,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
 
   const handleToggleShowSources = (checked: boolean) => {
     setShowSources(checked);
-    toggleShowSources.mutate(
-      {
-        id: chatbotId,
-        data: { showSources: checked },
-      },
-      {
-        onSuccess: () => {
-          toast.success(
-            checked ? "Sources display enabled" : "Sources display disabled",
-            {
-              description: checked
-                ? "Source citations will now be shown below assistant messages"
-                : "Source citations will no longer be displayed",
-            },
-          );
-        },
-      },
-    );
+    toggleShowSources.mutate({ id: chatbotId, showSources: checked });
   };
 
   const handleSave = () => {
