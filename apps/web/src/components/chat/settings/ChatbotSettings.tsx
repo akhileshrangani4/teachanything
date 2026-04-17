@@ -78,16 +78,19 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   );
   const [showSources, setShowSources] = useState(chatbot.showSources ?? false);
 
-  // Update local state when chatbot prop changes
+  // Sync local state from server when chatbot prop changes,
+  // but skip fields the user is actively editing to avoid losing unsaved input.
   useEffect(() => {
-    setName(chatbot.name);
-    setDescription(chatbot.description ?? "");
-    setModel(chatbot.model);
-    setSystemPrompt(chatbot.systemPrompt);
-    setTemperature(chatbot.temperature?.toString() ?? "70");
-    setMaxTokens(chatbot.maxTokens?.toString() ?? "2000");
+    if (!isEditing) {
+      setName(chatbot.name);
+      setDescription(chatbot.description ?? "");
+      setModel(chatbot.model);
+      setSystemPrompt(chatbot.systemPrompt);
+      setTemperature(chatbot.temperature?.toString() ?? "70");
+      setMaxTokens(chatbot.maxTokens?.toString() ?? "2000");
+    }
     setShowSources(chatbot.showSources ?? false);
-  }, [chatbot]);
+  }, [chatbot, isEditing]);
 
   const utils = trpc.useUtils();
 
