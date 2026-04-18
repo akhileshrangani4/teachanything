@@ -1,9 +1,5 @@
 import { eq } from "drizzle-orm";
-import {
-  user,
-  userFiles,
-  approvedDomains,
-} from "@teachanything/db/schema";
+import { user, userFiles, approvedDomains } from "@teachanything/db/schema";
 import { createSupabaseClient } from "@/lib/supabase";
 import { isServiceAvailable } from "@/lib/env";
 import { sendAccountDeletedEmail } from "@/lib/email";
