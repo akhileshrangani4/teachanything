@@ -1,22 +1,24 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import type { ChatMessage } from "@/types/database";
 
+type StreamData = {
+  type: string;
+  content?: string;
+  sessionId?: string;
+  sources?: Array<{
+    fileName: string;
+    chunkIndex: number;
+    similarity: number;
+  }>;
+};
+
 /**
- * Shared hook for managing common chat state and auto-scrolling behavior.
+ * Shared hook for managing common chat state, auto-scrolling, and streaming orchestration.
  *
- * This hook encapsulates the shared state management logic used by both
- * `useChat` (shared/public chatbots) and `useChatbot` (authenticated chatbots).
+ * Used internally by `useChat` (shared/public) and `useChatbot` (authenticated).
  *
- * It provides:
- * - Message state management
- * - Auto-scroll to bottom functionality
- * - Streaming state management
- * - Session ID tracking
- * - Source references for RAG citations
- *
- * @returns Shared chat state and reset function
- *
- * @internal This hook is used internally by useChat and useChatbot hooks.
+ * @internal
  */
 export function useChatState() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -24,25 +26,41 @@ export function useChatState() {
   const [sessionId, setSessionId] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const streamingContentRef = useRef("");
+
+  const updateStreamingContent = (
+    updater: string | ((prev: string) => string),
+  ) => {
+    setStreamingContent((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      streamingContentRef.current = next;
+      return next;
+    });
+  };
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sourcesRef = useRef<
     Array<{ fileName: string; chunkIndex: number; similarity: number }>
   >([]);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearStreamingTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
 
   // Auto-scroll to bottom when messages or streaming content changes
   useEffect(() => {
-    // Use a small delay to ensure DOM is updated
     const timeoutId = setTimeout(() => {
       if (messagesEndRef.current) {
-        // Find the scrollable parent container
         const scrollContainer = messagesEndRef.current.closest(
-          '[class*="overflow-y-auto"]',
+          "[data-scroll-container]",
         ) as HTMLElement;
         if (scrollContainer) {
-          // Scroll the container to bottom
           scrollContainer.scrollTop = scrollContainer.scrollHeight;
         } else {
-          // Fallback to scrollIntoView
           messagesEndRef.current.scrollIntoView({
             behavior: "instant",
             block: "end",
@@ -54,28 +72,31 @@ export function useChatState() {
     return () => clearTimeout(timeoutId);
   }, [messages, streamingContent]);
 
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => clearStreamingTimeout();
+  }, [clearStreamingTimeout]);
+
   const resetChat = () => {
     setMessages([]);
     setCurrentMessage("");
     setSessionId("");
     setIsStreaming(false);
     setStreamingContent("");
+    streamingContentRef.current = "";
     sourcesRef.current = [];
   };
 
   const stopStreaming = () => {
     if (!isStreaming) return;
 
-    // Finalize the current streaming content as a message
-    const finalContent = streamingContent;
+    const finalContent = streamingContentRef.current;
     const finalSources = [...sourcesRef.current];
 
-    // Clear streaming state
-    setStreamingContent("");
+    updateStreamingContent("");
     setIsStreaming(false);
     sourcesRef.current = [];
 
-    // Add the cancelled message (even if empty content)
     setMessages((prev) => [
       ...prev,
       {
@@ -87,19 +108,89 @@ export function useChatState() {
     ]);
   };
 
+  /** Shared onData handler for tRPC streaming subscriptions. */
+  const handleStreamData = (data: StreamData) => {
+    if (data.type === "metadata") {
+      if (data.sources) {
+        sourcesRef.current = data.sources;
+      }
+      if (data.sessionId) {
+        setSessionId(data.sessionId);
+      }
+    } else if (data.type === "text") {
+      updateStreamingContent((prev) => prev + (data.content || ""));
+    } else if (data.type === "done") {
+      clearStreamingTimeout();
+
+      // Guard: if streaming was already stopped (e.g., user cancelled), skip.
+      // Uses ref (not state) to avoid stale closure issues in subscription callbacks.
+      if (!streamingContentRef.current) return;
+
+      const finalContent = streamingContentRef.current;
+      const finalSources = [...sourcesRef.current];
+
+      updateStreamingContent("");
+      setIsStreaming(false);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: finalContent,
+          sources: finalSources.length > 0 ? finalSources : undefined,
+        },
+      ]);
+
+      sourcesRef.current = [];
+    }
+  };
+
+  /** Shared onError handler for tRPC streaming subscriptions. */
+  const handleStreamError = () => {
+    clearStreamingTimeout();
+    toast.error("Failed to send message. Please try again.");
+    setIsStreaming(false);
+    updateStreamingContent("");
+    sourcesRef.current = [];
+  };
+
+  /** Start streaming a message. Call from the hook's sendMessage handler. */
+  const startStreaming = () => {
+    setIsStreaming(true);
+    updateStreamingContent("");
+    sourcesRef.current = [];
+    clearStreamingTimeout();
+    timeoutRef.current = setTimeout(() => {
+      stopStreaming();
+      toast.error("Response timed out. Please try again.");
+    }, 300_000); // 5 minutes
+  };
+
+  /** Handle form submission. Returns the trimmed message or null if invalid. */
+  const prepareSendMessage = (e: React.FormEvent): string | null => {
+    e.preventDefault();
+    if (!currentMessage.trim() || isStreaming) return null;
+
+    const userMessage = currentMessage;
+    setCurrentMessage("");
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    return userMessage;
+  };
+
   return {
     messages,
-    setMessages,
     currentMessage,
     setCurrentMessage,
     sessionId,
-    setSessionId,
     isStreaming,
-    setIsStreaming,
     streamingContent,
-    setStreamingContent,
     messagesEndRef,
-    sourcesRef,
+    // Streaming orchestration
+    handleStreamData,
+    handleStreamError,
+    startStreaming,
+    prepareSendMessage,
+    clearStreamingTimeout,
     resetChat,
     stopStreaming,
   };

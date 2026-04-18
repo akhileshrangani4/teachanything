@@ -8,10 +8,12 @@ import { EmbedError } from "@/components/embed/EmbedError";
 import { EmbedHeader } from "@/components/embed/EmbedHeader";
 import { EmbedFooter } from "@/components/embed/EmbedFooter";
 import { useEmbedVisibility } from "@/hooks/useEmbedVisibility";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function EmbedWindowPage() {
   const params = useParams();
-  const shareToken = params.shareToken as string;
+  const shareToken =
+    typeof params.shareToken === "string" ? params.shareToken : "";
   const { isMounted, isVisible, withExitX, close } = useEmbedVisibility();
 
   const {
@@ -63,22 +65,24 @@ export default function EmbedWindowPage() {
       )}
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        <ChatInterface
-          messages={messages}
-          isStreaming={isStreaming}
-          streamingContent={streamingContent}
-          currentMessage={currentMessage}
-          setCurrentMessage={setCurrentMessage}
-          handleSendMessage={handleSendMessage}
-          messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
-          chatbotName={chatbot.name || "Chatbot"}
-          resetChat={resetChat}
-          stopStreaming={stopStreaming}
-          height="h-full"
-          hideHeader={withExitX}
-          embedMode={true}
-          showSources={chatbot.showSources ?? false}
-        />
+        <ErrorBoundary>
+          <ChatInterface
+            messages={messages}
+            isStreaming={isStreaming}
+            streamingContent={streamingContent}
+            currentMessage={currentMessage}
+            setCurrentMessage={setCurrentMessage}
+            handleSendMessage={handleSendMessage}
+            messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
+            chatbotName={chatbot.name || "Chatbot"}
+            resetChat={resetChat}
+            stopStreaming={stopStreaming}
+            height="h-full"
+            hideHeader={withExitX}
+            embedMode={true}
+            showSources={chatbot.showSources ?? false}
+          />
+        </ErrorBoundary>
       </div>
       <EmbedFooter />
     </div>

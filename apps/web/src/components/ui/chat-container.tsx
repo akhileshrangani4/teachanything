@@ -29,6 +29,7 @@ function ChatContainerRoot({
       resize="smooth"
       initial="instant"
       role="log"
+      data-scroll-container
       {...props}
     >
       {children}

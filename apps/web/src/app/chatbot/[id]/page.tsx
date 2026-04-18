@@ -22,11 +22,12 @@ import { WrappableText } from "@/components/ui/wrappable-text";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { useFilePolling } from "@/hooks/useFilePolling";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function ChatbotDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const chatbotId = params.id as string;
+  const chatbotId = typeof params.id === "string" ? params.id : "";
   const { data: session, isPending: sessionLoading } = useSession();
 
   const {
@@ -166,19 +167,23 @@ export default function ChatbotDetailPage() {
 
           {/* Chat Tab */}
           <TabsContent value="chat" className="mt-6">
-            <ChatInterface
-              messages={messages}
-              isStreaming={isStreaming}
-              streamingContent={streamingContent}
-              currentMessage={currentMessage}
-              setCurrentMessage={setCurrentMessage}
-              handleSendMessage={handleSendMessage}
-              messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
-              chatbotName={chatbot.name || "Chatbot"}
-              resetChat={resetChat}
-              stopStreaming={stopStreaming}
-              showSources={chatbot.showSources ?? false}
-            />
+            <ErrorBoundary>
+              <ChatInterface
+                messages={messages}
+                isStreaming={isStreaming}
+                streamingContent={streamingContent}
+                currentMessage={currentMessage}
+                setCurrentMessage={setCurrentMessage}
+                handleSendMessage={handleSendMessage}
+                messagesEndRef={
+                  messagesEndRef as React.RefObject<HTMLDivElement>
+                }
+                chatbotName={chatbot.name || "Chatbot"}
+                resetChat={resetChat}
+                stopStreaming={stopStreaming}
+                showSources={chatbot.showSources ?? false}
+              />
+            </ErrorBoundary>
           </TabsContent>
 
           {/* Files Tab */}

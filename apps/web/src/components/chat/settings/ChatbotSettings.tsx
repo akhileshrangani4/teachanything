@@ -8,7 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -20,9 +22,10 @@ import { trpc } from "@/lib/trpc";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
-  SUPPORTED_MODELS,
+  MODEL_REGISTRY,
   type SupportedModel,
-} from "@teachanything/ai/openrouter";
+  formatContextWindow,
+} from "@teachanything/ai/models";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import {
@@ -30,6 +33,14 @@ import {
   validateDescription,
   VALIDATION_LIMITS,
 } from "@/lib/validation";
+
+// Group models by provider for the dropdown. Map preserves MODEL_REGISTRY insertion order.
+const modelsByProvider = Object.values(MODEL_REGISTRY).reduce((acc, model) => {
+  const group = acc.get(model.provider) ?? [];
+  group.push(model);
+  acc.set(model.provider, group);
+  return acc;
+}, new Map<string, (typeof MODEL_REGISTRY)[keyof typeof MODEL_REGISTRY][]>());
 
 interface ChatbotSettingsProps {
   chatbot: {
@@ -48,7 +59,7 @@ interface ChatbotSettingsProps {
 export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   const params = useParams();
   const router = useRouter();
-  const chatbotId = params.id as string;
+  const chatbotId = typeof params.id === "string" ? params.id : "";
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [disableShareDialog, setDisableShareDialog] = useState(false);
@@ -67,16 +78,21 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   );
   const [showSources, setShowSources] = useState(chatbot.showSources ?? false);
 
-  // Update local state when chatbot prop changes
+  // Sync editable fields from server only when not actively editing
   useEffect(() => {
+    if (isEditing) return;
     setName(chatbot.name);
     setDescription(chatbot.description ?? "");
     setModel(chatbot.model);
     setSystemPrompt(chatbot.systemPrompt);
     setTemperature(chatbot.temperature?.toString() ?? "70");
     setMaxTokens(chatbot.maxTokens?.toString() ?? "2000");
+  }, [chatbot, isEditing]);
+
+  // Sync display settings independently (live toggle, not part of edit flow)
+  useEffect(() => {
     setShowSources(chatbot.showSources ?? false);
-  }, [chatbot]);
+  }, [chatbot.showSources]);
 
   const utils = trpc.useUtils();
 
@@ -84,36 +100,9 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
     onSuccess: async () => {
       await utils.chatbot.get.invalidate({ id: chatbotId });
       await utils.chatbot.getById.invalidate({ id: chatbotId });
-      setIsEditing(false);
-      toast.success("Settings saved successfully", {
-        description: "Your chatbot configuration has been updated",
-      });
     },
     onError: (error) => {
       toast.error("Failed to save settings", {
-        description: error.message,
-      });
-    },
-  });
-
-  const updateShowSources = trpc.chatbot.update.useMutation({
-    onSuccess: async (_, variables) => {
-      const newValue = variables.data.showSources ?? false;
-      await utils.chatbot.get.invalidate({ id: chatbotId });
-      await utils.chatbot.getById.invalidate({ id: chatbotId });
-      toast.success(
-        newValue ? "Sources display enabled" : "Sources display disabled",
-        {
-          description: newValue
-            ? "Source citations will now be shown below assistant messages"
-            : "Source citations will no longer be displayed",
-        },
-      );
-    },
-    onError: (error) => {
-      // Revert the toggle on error
-      setShowSources(chatbot.showSources ?? false);
-      toast.error("Failed to update setting", {
         description: error.message,
       });
     },
@@ -191,12 +180,30 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
     deleteChatbot.mutate({ id: chatbotId });
   };
 
+  const toggleShowSources = trpc.chatbot.updateShowSources.useMutation({
+    onSuccess: (_, variables) => {
+      toast.success(
+        variables.showSources
+          ? "Sources display enabled"
+          : "Sources display disabled",
+        {
+          description: variables.showSources
+            ? "Source citations will now be shown below assistant messages"
+            : "Source citations will no longer be displayed",
+        },
+      );
+    },
+    onError: (error) => {
+      setShowSources(chatbot.showSources ?? false);
+      toast.error("Failed to update setting", {
+        description: error.message,
+      });
+    },
+  });
+
   const handleToggleShowSources = (checked: boolean) => {
     setShowSources(checked);
-    updateShowSources.mutate({
-      id: chatbotId,
-      data: { showSources: checked },
-    });
+    toggleShowSources.mutate({ id: chatbotId, showSources: checked });
   };
 
   const handleSave = () => {
@@ -240,28 +247,31 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
       return;
     }
 
-    updateChatbot.mutate({
-      id: chatbotId,
-      data: {
-        name: name.trim(),
-        description: description.trim() || undefined,
-        model: model as SupportedModel,
-        systemPrompt,
-        temperature: tempValue,
-        maxTokens: tokensValue,
-        showSources: showSources,
+    updateChatbot.mutate(
+      {
+        id: chatbotId,
+        data: {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          model: model as SupportedModel,
+          systemPrompt,
+          temperature: tempValue,
+          maxTokens: tokensValue,
+          showSources: showSources,
+        },
       },
-    });
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+          toast.success("Settings saved successfully", {
+            description: "Your chatbot configuration has been updated",
+          });
+        },
+      },
+    );
   };
 
   const handleCancel = () => {
-    setName(chatbot.name);
-    setDescription(chatbot.description ?? "");
-    setModel(chatbot.model);
-    setSystemPrompt(chatbot.systemPrompt);
-    setTemperature(chatbot.temperature?.toString() ?? "70");
-    setMaxTokens(chatbot.maxTokens?.toString() ?? "2000");
-    setShowSources(chatbot.showSources ?? false);
     setIsEditing(false);
   };
 
@@ -385,16 +395,27 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {SUPPORTED_MODELS.map((m: SupportedModel) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
-                  </SelectItem>
-                ))}
+                {Array.from(modelsByProvider.entries()).map(
+                  ([provider, models]) => (
+                    <SelectGroup key={provider}>
+                      <SelectLabel>{provider}</SelectLabel>
+                      {models.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.displayName} (
+                          {formatContextWindow(m.contextWindow)})
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ),
+                )}
               </SelectContent>
             </Select>
           ) : (
             <div className="px-3 py-2 bg-background rounded-md border">
-              <p className="text-sm">{model}</p>
+              <p className="text-sm">
+                {MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]
+                  ?.displayName ?? model}
+              </p>
             </div>
           )}
         </div>
@@ -494,7 +515,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
             id="showSources"
             checked={showSources}
             onCheckedChange={handleToggleShowSources}
-            disabled={updateShowSources.isPending}
+            disabled={toggleShowSources.isPending}
           />
         </div>
       </div>
