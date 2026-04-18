@@ -233,7 +233,10 @@ export default function PrivacyPolicyPage() {
           </p>
           <p>
             <strong>Personal Information Provided by You.</strong> The personal
-            information we collect may include the following:
+            information that we collect depends on the context of your
+            interactions with us and the Services, the choices you make, and the
+            products and features you use. The personal information we collect
+            may include the following:
           </p>
           <ul>
             <li>Names</li>
@@ -395,8 +398,11 @@ export default function PrivacyPolicyPage() {
           <p>
             <em>
               In Short: We only process your personal information when we
-              believe it is necessary and we have a valid legal reason to do so
-              under applicable law.
+              believe it is necessary and we have a valid legal reason (i.e.,
+              legal basis) to do so under applicable law, like with your
+              consent, to comply with laws, to provide you with services to
+              enter into or fulfill our contractual obligations, to protect your
+              rights, or to fulfill our legitimate business interests.
             </em>
           </p>
           <p>
@@ -408,30 +414,49 @@ export default function PrivacyPolicyPage() {
           <ul>
             <li>
               <strong>Consent.</strong> We may process your information if you
-              have given us permission to use your personal information for a
-              specific purpose. You can withdraw your consent at any time.
+              have given us permission (i.e., consent) to use your personal
+              information for a specific purpose. You can withdraw your consent
+              at any time. Learn more about withdrawing your consent.
             </li>
             <li>
               <strong>Performance of a Contract.</strong> We may process your
               personal information when we believe it is necessary to fulfill
               our contractual obligations to you, including providing our
-              Services.
+              Services or at your request prior to entering into a contract with
+              you.
             </li>
             <li>
               <strong>Legitimate Interests.</strong> We may process your
               information when we believe it is reasonably necessary to achieve
               our legitimate business interests and those interests do not
-              outweigh your interests and fundamental rights and freedoms.
+              outweigh your interests and fundamental rights and freedoms. For
+              example, we may process your personal information for some of the
+              purposes described in order to:
+              <ul>
+                <li>
+                  Analyze how our Services are used so we can improve them to
+                  engage and retain users
+                </li>
+                <li>Diagnose problems and/or prevent fraudulent activities</li>
+                <li>
+                  Understand how our users use our products and services so we
+                  can improve user experience
+                </li>
+              </ul>
             </li>
             <li>
               <strong>Legal Obligations.</strong> We may process your
               information where we believe it is necessary for compliance with
-              our legal obligations.
+              our legal obligations, such as to cooperate with a law enforcement
+              body or regulatory agency, exercise or defend our legal rights, or
+              disclose your information as evidence in litigation in which we
+              are involved.
             </li>
             <li>
               <strong>Vital Interests.</strong> We may process your information
               where we believe it is necessary to protect your vital interests
-              or the vital interests of a third party.
+              or the vital interests of a third party, such as situations
+              involving potential threats to the safety of any person.
             </li>
           </ul>
           <p>
@@ -441,6 +466,64 @@ export default function PrivacyPolicyPage() {
             in situations where your permission can be inferred (implied
             consent). You can withdraw your consent at any time.
           </p>
+          <p>
+            In some exceptional cases, we may be legally permitted under
+            applicable law to process your information without your consent,
+            including, for example:
+          </p>
+          <ul>
+            <li>
+              If collection is clearly in the interests of an individual and
+              consent cannot be obtained in a timely way
+            </li>
+            <li>For investigations and fraud detection and prevention</li>
+            <li>
+              For business transactions provided certain conditions are met
+            </li>
+            <li>
+              If it is contained in a witness statement and the collection is
+              necessary to assess, process, or settle an insurance claim
+            </li>
+            <li>
+              For identifying injured, ill, or deceased persons and
+              communicating with next of kin
+            </li>
+            <li>
+              If we have reasonable grounds to believe an individual has been,
+              is, or may be victim of financial abuse
+            </li>
+            <li>
+              If it is reasonable to expect collection and use with consent
+              would compromise the availability or the accuracy of the
+              information and the collection is reasonable for purposes related
+              to investigating a breach of an agreement or a contravention of
+              the laws of Canada or a province
+            </li>
+            <li>
+              If disclosure is required to comply with a subpoena, warrant,
+              court order, or rules of the court relating to the production of
+              records
+            </li>
+            <li>
+              If it was produced by an individual in the course of their
+              employment, business, or profession and the collection is
+              consistent with the purposes for which the information was
+              produced
+            </li>
+            <li>
+              If the collection is solely for journalistic, artistic, or
+              literary purposes
+            </li>
+            <li>
+              If the information is publicly available and is specified by the
+              regulations
+            </li>
+            <li>
+              We may disclose de-identified information for approved research or
+              statistics projects, subject to ethics oversight and
+              confidentiality commitments
+            </li>
+          </ul>
 
           <h2 id="section-4">
             4.&emsp;When and With Whom Do We Share Your Personal Information?
@@ -744,9 +827,11 @@ export default function PrivacyPolicyPage() {
           <p>
             <em>
               In Short: Depending on your state of residence in the US or in
-              some regions, such as the EEA, UK, Switzerland, and Canada, you
-              have rights that allow you greater access to and control over your
-              personal information.
+              some regions, such as the European Economic Area (EEA), United
+              Kingdom (UK), Switzerland, and Canada, you have rights that allow
+              you greater access to and control over your personal information.
+              You may review, change, or terminate your account at any time,
+              depending on your country, province, or state of residence.
             </em>
           </p>
           <p>
@@ -918,24 +1003,41 @@ export default function PrivacyPolicyPage() {
                 <tr>
                   <td>A. Identifiers</td>
                   <td>
-                    Real name, email address, IP address, online identifier,
-                    account name
+                    Contact details, such as real name, alias, postal address,
+                    telephone or mobile contact number, unique personal
+                    identifier, online identifier, Internet Protocol address,
+                    email address, and account name
                   </td>
                   <td>YES</td>
                 </tr>
                 <tr>
-                  <td>B. California Customer Records</td>
-                  <td>Name, contact information, education</td>
+                  <td>
+                    B. Personal information as defined in the California
+                    Customer Records statute
+                  </td>
+                  <td>
+                    Name, contact information, education, employment, employment
+                    history, and financial information
+                  </td>
                   <td>YES</td>
                 </tr>
                 <tr>
-                  <td>C. Protected classification characteristics</td>
-                  <td>Gender, age, race and ethnicity, national origin</td>
+                  <td>
+                    C. Protected classification characteristics under state or
+                    federal law
+                  </td>
+                  <td>
+                    Gender, age, date of birth, race and ethnicity, national
+                    origin, marital status, and other demographic data
+                  </td>
                   <td>NO</td>
                 </tr>
                 <tr>
                   <td>D. Commercial information</td>
-                  <td>Transaction information, purchase history</td>
+                  <td>
+                    Transaction information, purchase history, financial
+                    details, and payment information
+                  </td>
                   <td>NO</td>
                 </tr>
                 <tr>
@@ -944,10 +1046,11 @@ export default function PrivacyPolicyPage() {
                   <td>NO</td>
                 </tr>
                 <tr>
-                  <td>F. Internet or similar network activity</td>
+                  <td>F. Internet or other similar network activity</td>
                   <td>
-                    Browsing history, online behavior, interactions with our
-                    website
+                    Browsing history, search history, online behavior, interest
+                    data, and interactions with our and other websites,
+                    applications, systems, and advertisements
                   </td>
                   <td>YES</td>
                 </tr>
@@ -957,15 +1060,19 @@ export default function PrivacyPolicyPage() {
                   <td>NO</td>
                 </tr>
                 <tr>
-                  <td>H. Audio, electronic, sensory information</td>
-                  <td>Audio, video, or call recordings</td>
+                  <td>H. Audio, electronic, sensory, or similar information</td>
+                  <td>
+                    Images and audio, video or call recordings created in
+                    connection with our business activities
+                  </td>
                   <td>NO</td>
                 </tr>
                 <tr>
                   <td>I. Professional or employment-related information</td>
                   <td>
-                    Job title, institutional affiliation, professional
-                    qualifications
+                    Business contact details in order to provide you our
+                    Services at a business level or job title, work history, and
+                    professional qualifications if you apply for a job with us
                   </td>
                   <td>YES</td>
                 </tr>
@@ -975,12 +1082,19 @@ export default function PrivacyPolicyPage() {
                   <td>NO</td>
                 </tr>
                 <tr>
-                  <td>K. Inferences drawn from collected information</td>
-                  <td>Preferences and characteristics profiles</td>
+                  <td>
+                    K. Inferences drawn from collected personal information
+                  </td>
+                  <td>
+                    Inferences drawn from any of the collected personal
+                    information listed above to create a profile or summary
+                    about, for example, an individual&apos;s preferences and
+                    characteristics
+                  </td>
                   <td>NO</td>
                 </tr>
                 <tr>
-                  <td>L. Sensitive personal information</td>
+                  <td>L. Sensitive personal Information</td>
                   <td></td>
                   <td>NO</td>
                 </tr>
@@ -1293,9 +1407,11 @@ export default function PrivacyPolicyPage() {
           <p>
             We may update this Privacy Notice from time to time. The updated
             version will be indicated by an updated &ldquo;Revised&rdquo; date
-            at the top of this Privacy Notice. If we make material changes, we
-            may notify you either by prominently posting a notice of such
-            changes or by directly sending you a notification.
+            at the top of this Privacy Notice. If we make material changes to
+            this Privacy Notice, we may notify you either by prominently posting
+            a notice of such changes or by directly sending you a notification.
+            We encourage you to review this Privacy Notice frequently to be
+            informed of how we are protecting your information.
           </p>
 
           <h2 id="section-15">
@@ -1328,10 +1444,12 @@ export default function PrivacyPolicyPage() {
             in the US, you may have the right to request access to the personal
             information we collect from you, details about how we have processed
             it, correct inaccuracies, or delete your personal information. You
-            can export individual chat conversation histories as text or JSON
-            files directly from the chatbot interface. To request a full review,
-            update, or deletion of your personal information, please contact us
-            at{" "}
+            may also have the right to withdraw your consent to our processing
+            of your personal information. These rights may be limited in some
+            circumstances by applicable law. You can export individual chat
+            conversation histories as text or JSON files directly from the
+            chatbot interface. To request a full review, update, or deletion of
+            your personal information, please contact us at{" "}
             <a href="mailto:admin@teachanything.ai">admin@teachanything.ai</a>.
           </p>
         </article>
