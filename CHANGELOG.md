@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/akhileshrangani4/teachanything/compare/v1.14.1...v1.15.0) (2026-04-18)
+
+
+### Features
+
+* RAG pipeline & chat system overhaul ([#226](https://github.com/akhileshrangani4/teachanything/issues/226)) ([9a53d03](https://github.com/akhileshrangani4/teachanything/commit/9a53d03c07d4cd6a01fc6af0cff78a6e32f600f1))
+
 ## [1.14.1](https://github.com/akhileshrangani4/teachanything/compare/v1.14.0...v1.14.1) (2026-03-27)
 
 
