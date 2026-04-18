@@ -186,7 +186,6 @@ export const chatbotRouter = router({
         shareToken: chatbots.shareToken,
         customAuthorName: chatbots.customAuthorName,
         userName: user.name,
-        userEmail: user.email,
         fileCount: sql<number>`
           (SELECT COUNT(*)::int 
            FROM ${chatbotFileAssociations} 

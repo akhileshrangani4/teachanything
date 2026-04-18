@@ -93,7 +93,7 @@ export function useChatState() {
     const finalContent = streamingContentRef.current;
     const finalSources = [...sourcesRef.current];
 
-    setStreamingContent("");
+    updateStreamingContent("");
     setIsStreaming(false);
     sourcesRef.current = [];
 
@@ -122,8 +122,9 @@ export function useChatState() {
     } else if (data.type === "done") {
       clearStreamingTimeout();
 
-      // Guard: if streaming was already stopped (e.g., user cancelled), skip
-      if (!streamingContentRef.current && !isStreaming) return;
+      // Guard: if streaming was already stopped (e.g., user cancelled), skip.
+      // Uses ref (not state) to avoid stale closure issues in subscription callbacks.
+      if (!streamingContentRef.current) return;
 
       const finalContent = streamingContentRef.current;
       const finalSources = [...sourcesRef.current];
