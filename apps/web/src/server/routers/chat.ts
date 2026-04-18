@@ -431,7 +431,7 @@ export const chatRouter = router({
     .input(
       z.object({
         chatbotId: z.string().uuid(),
-        sessionId: z.string(),
+        sessionId: z.string().min(1).max(100),
         limit: z.number().min(1).max(100).default(50),
       }),
     )
@@ -495,7 +495,7 @@ export const chatRouter = router({
     .input(
       z.object({
         chatbotId: z.string().uuid(),
-        sessionId: z.string(),
+        sessionId: z.string().min(1).max(100),
       }),
     )
     .mutation(async ({ ctx, input }) => {

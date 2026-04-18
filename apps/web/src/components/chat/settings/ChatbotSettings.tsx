@@ -272,13 +272,6 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   };
 
   const handleCancel = () => {
-    setName(chatbot.name);
-    setDescription(chatbot.description ?? "");
-    setModel(chatbot.model);
-    setSystemPrompt(chatbot.systemPrompt);
-    setTemperature(chatbot.temperature?.toString() ?? "70");
-    setMaxTokens(chatbot.maxTokens?.toString() ?? "2000");
-    setShowSources(chatbot.showSources ?? false);
     setIsEditing(false);
   };
 
