@@ -10,6 +10,7 @@ import {
 import { ProfileSection } from "@/components/dashboard/settings/ProfileSection";
 import { InstitutionalSection } from "@/components/dashboard/settings/InstitutionalSection";
 import { PasswordSection } from "@/components/dashboard/settings/PasswordSection";
+import { DeleteAccountSection } from "@/components/dashboard/settings/DeleteAccountSection";
 import { getSupportEmail } from "@/lib/constants/support-email";
 
 export default function SettingsPage() {
@@ -53,6 +54,10 @@ export default function SettingsPage() {
                   {supportEmail}
                 </a>
               </p>
+            </div>
+
+            <div className="border-t pt-6">
+              <DeleteAccountSection />
             </div>
           </CardContent>
         </Card>

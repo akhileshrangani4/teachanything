@@ -35,6 +35,12 @@ export default function Footer() {
             >
               <span className="text-muted-foreground text-sm">GitHub</span>
             </Link>
+            <Link
+              href="/privacy-policy"
+              className="hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </Link>
           </div>
           <p className="text-muted-foreground text-sm">
             © 2025 Teach anything. All rights reserved.

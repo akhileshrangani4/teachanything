@@ -96,6 +96,7 @@ export default function ChatbotsShowcase() {
                         }
                         alt=""
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover opacity-70"
                       />
 
@@ -252,6 +253,7 @@ export default function ChatbotsShowcase() {
                         }
                         alt=""
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover opacity-70"
                       />
 
