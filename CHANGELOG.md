@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/akhileshrangani4/teachanything/compare/v1.15.0...v1.16.0) (2026-04-18)
+
+
+### Features
+
+* add privacy policy page and self-service account deletion ([#228](https://github.com/akhileshrangani4/teachanything/issues/228)) ([2d33f18](https://github.com/akhileshrangani4/teachanything/commit/2d33f182266a86ee317aa9b6a0c11c6ed3d59a33))
+
 ## [1.15.0](https://github.com/akhileshrangani4/teachanything/compare/v1.14.1...v1.15.0) (2026-04-18)
 
 
