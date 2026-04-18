@@ -23,23 +23,19 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const isUser = message.role === "user";
 
-  // Deduplicate sources by fileName and get the highest similarity for each
+  // Deduplicate sources by fileName, keeping highest similarity (O(n) via Map)
   const uniqueSources = useMemo(() => {
     const sources = message.sources;
     if (!sources || sources.length === 0) return [];
 
-    return sources.reduce(
-      (acc, source) => {
-        const existing = acc.find((s) => s.fileName === source.fileName);
-        if (!existing) {
-          acc.push({ ...source });
-        } else if (source.similarity > existing.similarity) {
-          existing.similarity = source.similarity;
-        }
-        return acc;
-      },
-      [] as typeof sources,
-    );
+    const map = new Map<string, (typeof sources)[0]>();
+    for (const s of sources) {
+      const existing = map.get(s.fileName);
+      if (!existing || s.similarity > existing.similarity) {
+        map.set(s.fileName, { ...s });
+      }
+    }
+    return [...map.values()];
   }, [message.sources]);
 
   if (isUser) {

@@ -1,11 +1,43 @@
 import { db } from "@teachanything/db";
 import { userFiles, fileChunks } from "@teachanything/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, ne, and } from "drizzle-orm";
 import { createSupabaseClient } from "./supabase";
 import { isLocalStorageMode, readLocalFile } from "./local-storage";
 import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
+import { EMBEDDING_MODEL } from "@teachanything/ai/models";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
+
+const EXTRACTION_TIMEOUT_MS = 60_000;
+
+/**
+ * Sanitize error messages before storing in metadata visible to users.
+ * Prevents internal details (hostnames, connection strings, API keys) from leaking.
+ */
+function sanitizeProcessingError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("timed out")) return "File processing timed out";
+  if (msg.includes("Unsupported file type")) return msg;
+  if (msg.includes("no readable text")) return msg;
+  if (msg.includes("Invalid PDF")) return "Invalid PDF format";
+  if (msg.includes("embedding") && msg.includes("dimension"))
+    return "Embedding dimension mismatch";
+  return "File processing failed due to an internal error";
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() =>
+    clearTimeout(timeoutId),
+  );
+}
 
 /**
  * Helper to update file processing progress
@@ -27,6 +59,8 @@ async function updateProgress(
     .limit(1);
 
   const existingMetadata = currentFile?.metadata || {};
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { error: _prevError, ...cleanMetadata } = existingMetadata;
   const startedAt = existingMetadata?.processingProgress?.startedAt || now;
 
   await db
@@ -34,7 +68,7 @@ async function updateProgress(
     .set({
       processingStatus: "processing",
       metadata: {
-        ...existingMetadata,
+        ...cleanMetadata,
         processingProgress: {
           stage,
           percentage: Math.min(100, Math.max(0, percentage)),
@@ -69,8 +103,8 @@ export async function processFile(params: {
     const startTime = new Date().toISOString();
     logInfo("File processing started", { fileId });
 
-    // Initialize processing with starting timestamp
-    await db
+    // Atomic status guard: only proceed if not already processing (per D-04, D-05)
+    const guardResult = await db
       .update(userFiles)
       .set({
         processingStatus: "processing",
@@ -83,7 +117,27 @@ export async function processFile(params: {
           },
         },
       })
-      .where(eq(userFiles.id, fileId));
+      .where(
+        and(
+          eq(userFiles.id, fileId),
+          ne(userFiles.processingStatus, "processing"),
+        ),
+      )
+      .returning({ id: userFiles.id });
+
+    if (guardResult.length === 0) {
+      // Another job is already processing this file -- exit early
+      logInfo("File already being processed by another job, skipping", {
+        fileId,
+      });
+      return { success: false, chunkCount: 0 };
+    }
+
+    // Safety net: delete any existing chunks before reprocessing
+    // This catches QStash retries and any other processing path
+    await db.delete(fileChunks).where(eq(fileChunks.fileId, fileId));
+
+    logInfo("Cleared existing chunks before processing", { fileId });
 
     // Get file from database
     const [file] = await db
@@ -129,8 +183,8 @@ export async function processFile(params: {
 
       if (error || !data) {
         if (
-          error.message?.includes("not found") ||
-          error.message?.includes("does not exist")
+          error?.message?.includes("not found") ||
+          error?.message?.includes("does not exist")
         ) {
           logInfo(
             "File storage not found (likely deleted), skipping processing",
@@ -150,7 +204,11 @@ export async function processFile(params: {
     // Stage 2: Extract text content (10-30%)
     await updateProgress(fileId, "extracting", 10);
     const ragService = createRAGService();
-    const content = await ragService.extractContent(buffer, file.fileType);
+    const content = await withTimeout(
+      ragService.extractContent(buffer, file.fileType),
+      EXTRACTION_TIMEOUT_MS,
+      `File extraction timed out after ${EXTRACTION_TIMEOUT_MS / 1000}s`,
+    );
     await updateProgress(fileId, "extracting", 30);
 
     // Stage 3: Chunk text (30-40%)
@@ -191,8 +249,14 @@ export async function processFile(params: {
 
       // Validate embeddings
       for (let j = 0; j < batchEmbeddings.length; j++) {
-        if (!batchEmbeddings[j]) {
+        const embedding = batchEmbeddings[j];
+        if (!embedding) {
           throw new Error(`Failed to generate embedding for chunk ${i + j}`);
+        }
+        if (embedding.length !== EMBEDDING_MODEL.dimensions) {
+          throw new Error(
+            `Embedding dimension mismatch for chunk ${i + j}: got ${embedding.length}, expected ${EMBEDDING_MODEL.dimensions}`,
+          );
         }
       }
 
@@ -236,7 +300,7 @@ export async function processFile(params: {
       }),
     );
 
-    await db.insert(fileChunks).values(chunkRecords);
+    await db.insert(fileChunks).values(chunkRecords).onConflictDoNothing();
     await updateProgress(fileId, "storing", 95, chunks.length, chunks.length);
 
     // Update file status to completed
@@ -271,16 +335,41 @@ export async function processFile(params: {
   } catch (error) {
     logError(error, "File processing failed", { fileId });
 
-    // Update file status to failed
-    await db
-      .update(userFiles)
-      .set({
-        processingStatus: "failed",
-        metadata: {
-          error: error instanceof Error ? error.message : String(error),
+    // Clean up any orphaned chunks from partial processing (per D-02)
+    // Wrapped in its own try/catch so cleanup failure doesn't mask the original error (per D-03)
+    try {
+      await db.delete(fileChunks).where(eq(fileChunks.fileId, fileId));
+    } catch (cleanupError) {
+      logError(
+        cleanupError,
+        "Failed to clean up chunks after processing error",
+        {
+          fileId,
         },
-      })
-      .where(eq(userFiles.id, fileId));
+      );
+    }
+
+    // Mark file as failed -- wrapped in try/catch so status update failure
+    // doesn't mask the original processing error
+    try {
+      await db
+        .update(userFiles)
+        .set({
+          processingStatus: "failed",
+          metadata: {
+            error: sanitizeProcessingError(error),
+          },
+        })
+        .where(eq(userFiles.id, fileId));
+    } catch (statusError) {
+      logError(
+        statusError,
+        "Failed to mark file as failed after processing error",
+        {
+          fileId,
+        },
+      );
+    }
 
     throw error;
   }
