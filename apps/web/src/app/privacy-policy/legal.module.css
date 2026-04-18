@@ -1,0 +1,114 @@
+.prose {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: hsl(var(--foreground));
+}
+
+.prose h1 {
+  font-weight: 700;
+  font-size: 1.5rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  margin-top: 0;
+}
+
+.prose [data-legal-meta] {
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 2.5rem;
+  font-size: 0.875rem;
+}
+
+.prose p {
+  margin-bottom: 1rem;
+  text-align: justify;
+}
+
+.prose a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+.prose a:hover {
+  opacity: 0.8;
+}
+
+.prose strong {
+  font-weight: 600;
+}
+
+.prose em {
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.prose h2 {
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.prose h3 {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-top: 1.5rem;
+  margin-left: 0;
+  margin-bottom: 0.75rem;
+}
+
+.prose ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+
+.prose ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+}
+
+.prose li strong {
+  font-weight: 600;
+}
+
+.prose address {
+  font-style: normal;
+  line-height: 1.75;
+  margin: 1rem 0;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+}
+
+.prose thead {
+  background: hsl(var(--muted));
+}
+
+.prose th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  border-bottom: 2px solid hsl(var(--border));
+}
+
+.prose td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  vertical-align: top;
+}
+
+.prose tbody tr:last-child td {
+  border-bottom: none;
+}
