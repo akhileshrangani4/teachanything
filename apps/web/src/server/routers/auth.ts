@@ -5,7 +5,11 @@ import { user, account } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import * as bcrypt from "bcryptjs";
-import { checkRateLimit, passwordUpdateRateLimit } from "@/lib/rate-limit";
+import {
+  checkRateLimit,
+  requireRateLimit,
+  passwordUpdateRateLimit,
+} from "@/lib/rate-limit";
 import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { isPasswordDifferent } from "@/lib/password/password-validation";
 import { logInfo, logError } from "@/lib/logger";
@@ -315,7 +319,8 @@ export const authRouter = router({
       const currentUser = ctx.session.user as User;
 
       // Rate limiting: shares budget with password updates (5 attempts/hour)
-      const { success, reset } = await checkRateLimit(
+      // Uses requireRateLimit to fail closed if Redis is unavailable
+      const { success, reset } = await requireRateLimit(
         passwordUpdateRateLimit,
         userId,
         { userId, endpoint: "deleteOwnAccount" },
@@ -367,6 +372,13 @@ export const authRouter = router({
       }
 
       try {
+        // Revoke all sessions before deletion for defense-in-depth
+        try {
+          await auth.api.revokeSessions({ headers: ctx.headers });
+        } catch {
+          // Session revocation is best-effort; cascade delete will clean up
+        }
+
         await deleteUserAccount(ctx.db, {
           userId,
           email: currentUser.email,

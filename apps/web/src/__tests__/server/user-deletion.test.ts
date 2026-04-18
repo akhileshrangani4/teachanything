@@ -68,18 +68,31 @@ function createMockDb(files: Array<{ storagePath: string }> = []) {
   const selectFrom = jest.fn().mockReturnValue({ where: selectWhere });
   const select = jest.fn().mockReturnValue({ from: selectFrom });
 
-  const updateWhere = jest.fn().mockResolvedValue(undefined);
-  const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
-  const update = jest.fn().mockReturnValue({ set: updateSet });
+  // Transaction-internal chains (used by tx inside db.transaction callback)
+  const txUpdateWhere = jest.fn().mockResolvedValue(undefined);
+  const txUpdateSet = jest.fn().mockReturnValue({ where: txUpdateWhere });
+  const txUpdate = jest.fn().mockReturnValue({ set: txUpdateSet });
 
-  const deleteWhere = jest.fn().mockResolvedValue(undefined);
-  const deleteFn = jest.fn().mockReturnValue({ where: deleteWhere });
+  const txDeleteWhere = jest.fn().mockResolvedValue(undefined);
+  const txDeleteFn = jest.fn().mockReturnValue({ where: txDeleteWhere });
+
+  // db.transaction(async (tx) => { ... }) -- executes the callback with a mock tx
+  const transaction = jest.fn(async (cb: (tx: unknown) => Promise<void>) => {
+    await cb({ update: txUpdate, delete: txDeleteFn });
+  });
 
   return {
     select,
-    update,
-    delete: deleteFn,
-    _chains: { selectWhere, selectFrom, updateWhere, updateSet, deleteWhere },
+    transaction,
+    _chains: {
+      selectWhere,
+      selectFrom,
+      txUpdateWhere,
+      txUpdateSet,
+      txUpdate,
+      txDeleteWhere,
+      txDeleteFn,
+    },
   };
 }
 
@@ -96,24 +109,25 @@ describe("deleteUserAccount", () => {
     mockRemove.mockResolvedValue({ error: null });
   });
 
-  it("deletes the user from the database", async () => {
+  it("deletes the user from the database inside a transaction", async () => {
     const db = createMockDb();
     await deleteUserAccount(
       db as unknown as Parameters<typeof deleteUserAccount>[0],
       baseParams,
     );
-    expect(db.delete).toHaveBeenCalled();
-    expect(db._chains.deleteWhere).toHaveBeenCalled();
+    expect(db.transaction).toHaveBeenCalled();
+    expect(db._chains.txDeleteFn).toHaveBeenCalled();
+    expect(db._chains.txDeleteWhere).toHaveBeenCalled();
   });
 
-  it("nullifies approved_domains.created_by references", async () => {
+  it("nullifies approved_domains.created_by references inside transaction", async () => {
     const db = createMockDb();
     await deleteUserAccount(
       db as unknown as Parameters<typeof deleteUserAccount>[0],
       baseParams,
     );
-    expect(db.update).toHaveBeenCalled();
-    expect(db._chains.updateSet).toHaveBeenCalledWith({ createdBy: null });
+    expect(db._chains.txUpdate).toHaveBeenCalled();
+    expect(db._chains.txUpdateSet).toHaveBeenCalledWith({ createdBy: null });
   });
 
   it("skips Supabase storage cleanup when service is unavailable", async () => {
@@ -161,7 +175,7 @@ describe("deleteUserAccount", () => {
       db as unknown as Parameters<typeof deleteUserAccount>[0],
       baseParams,
     );
-    expect(db.delete).toHaveBeenCalled();
+    expect(db.transaction).toHaveBeenCalled();
     expect(mockLogError).toHaveBeenCalled();
   });
 
@@ -218,7 +232,7 @@ describe("deleteUserAccount", () => {
 
   it("propagates database errors", async () => {
     const db = createMockDb();
-    db._chains.deleteWhere.mockRejectedValue(new Error("DB connection lost"));
+    db._chains.txDeleteWhere.mockRejectedValue(new Error("DB connection lost"));
     await expect(
       deleteUserAccount(
         db as unknown as Parameters<typeof deleteUserAccount>[0],

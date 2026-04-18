@@ -1,5 +1,10 @@
 import { eq } from "drizzle-orm";
-import { user, userFiles, approvedDomains } from "@teachanything/db/schema";
+import {
+  user,
+  userFiles,
+  approvedDomains,
+  emailDeliveries,
+} from "@teachanything/db/schema";
 import { createSupabaseClient } from "@/lib/supabase";
 import { isServiceAvailable } from "@/lib/env";
 import { sendAccountDeletedEmail } from "@/lib/email";
@@ -60,14 +65,22 @@ export async function deleteUserAccount(
     }
   }
 
-  // Nullify approved_domains.created_by references
-  await db
-    .update(approvedDomains)
-    .set({ createdBy: null })
-    .where(eq(approvedDomains.createdBy, userId));
+  // Wrap DB writes in a transaction to prevent partial deletion on crash
+  await db.transaction(async (tx) => {
+    // Nullify approved_domains.created_by references
+    await tx
+      .update(approvedDomains)
+      .set({ createdBy: null })
+      .where(eq(approvedDomains.createdBy, userId));
 
-  // Delete the user (cascade handles: sessions, accounts, chatbots, files, conversations, messages, analytics)
-  await db.delete(user).where(eq(user.id, userId));
+    // Scrub PII from email delivery records (GDPR right-to-erasure)
+    await tx
+      .delete(emailDeliveries)
+      .where(eq(emailDeliveries.recipientEmail, email));
+
+    // Delete the user (cascade handles: sessions, accounts, chatbots, files, conversations, messages, analytics)
+    await tx.delete(user).where(eq(user.id, userId));
+  });
 
   logInfo("User deleted successfully", {
     userId,
