@@ -73,13 +73,23 @@ export default function PrivacyPolicyPage() {
 
           <h2>Summary of Key Points</h2>
           <p>
+            This summary provides key points from our Privacy Notice, but you
+            can find out more details about any of these topics by clicking the
+            link following each key point or by using our table of contents
+            below to find the section you are looking for.
+          </p>
+          <p>
             <strong>What personal information do we process?</strong> When you
             visit, use, or navigate our Services, we may process personal
             information depending on how you interact with us and the Services,
-            the choices you make, and the products and features you use.
+            the choices you make, and the products and features you use. Learn
+            more about personal information you disclose to us.
           </p>
           <p>
             <strong>Do we process any sensitive personal information?</strong>{" "}
+            Some of the information may be considered &ldquo;special&rdquo; or
+            &ldquo;sensitive&rdquo; in certain jurisdictions, for example your
+            racial or ethnic origins, sexual orientation, and religious beliefs.
             We do not process sensitive personal information.
           </p>
           <p>
@@ -93,8 +103,10 @@ export default function PrivacyPolicyPage() {
             <strong>How do we process your information?</strong> We process your
             information to provide, improve, and administer our Services,
             communicate with you, for security and fraud prevention, and to
-            comply with law. We process your information only when we have a
-            valid legal reason to do so.
+            comply with law. We may also process your information for other
+            purposes with your consent. We process your information only when we
+            have a valid legal reason to do so. Learn more about how we process
+            your information.
           </p>
           <p>
             <strong>
@@ -104,24 +116,36 @@ export default function PrivacyPolicyPage() {
             We may share information in specific situations and with specific
             third parties, including AI model providers, cloud storage
             providers, email service providers, and infrastructure providers
-            necessary to operate our Services.
+            necessary to operate our Services. Learn more about when and with
+            whom we share your personal information.
           </p>
           <p>
             <strong>How do we keep your information safe?</strong> We have
             adequate organizational and technical processes and procedures in
             place to protect your personal information. However, no electronic
             transmission over the internet or information storage technology can
-            be guaranteed to be 100% secure.
+            be guaranteed to be 100% secure, so we cannot promise or guarantee
+            that hackers, cybercriminals, or other unauthorized third parties
+            will not be able to defeat our security and improperly collect,
+            access, steal, or modify your information. Learn more about how we
+            keep your information safe.
           </p>
           <p>
             <strong>What are your rights?</strong> Depending on where you are
             located geographically, the applicable privacy law may mean you have
-            certain rights regarding your personal information.
+            certain rights regarding your personal information. Learn more about
+            your privacy rights.
           </p>
           <p>
             <strong>How do you exercise your rights?</strong> The easiest way to
             exercise your rights is by contacting us at{" "}
             <a href="mailto:admin@teachanything.ai">admin@teachanything.ai</a>.
+            We will consider and act upon any request in accordance with
+            applicable data protection laws.
+          </p>
+          <p>
+            Want to learn more about what we do with any information we collect?
+            Review the Privacy Notice in full.
           </p>
 
           <h2>Table of Contents</h2>
@@ -245,6 +269,11 @@ export default function PrivacyPolicyPage() {
             personal information of third parties (such as student records)
             unless you have appropriate authorization to do so.
           </p>
+          <p>
+            All personal information that you provide to us must be true,
+            complete, and accurate, and you must notify us of any changes to
+            such personal information.
+          </p>
 
           <h3>Information Automatically Collected</h3>
           <p>
@@ -262,6 +291,9 @@ export default function PrivacyPolicyPage() {
             browser and device characteristics, operating system, language
             preferences, referring URLs, device name, country, information about
             how and when you use our Services, and other technical information.
+            This information is primarily needed to maintain the security and
+            operation of our Services, and for our internal analytics and
+            reporting purposes.
           </p>
           <p>The information we collect includes:</p>
           <ul>
@@ -290,7 +322,10 @@ export default function PrivacyPolicyPage() {
             <em>
               In Short: We process your information to provide, improve, and
               administer our Services, communicate with you, for security and
-              fraud prevention, and to comply with law.
+              fraud prevention, and to comply with law. We process the personal
+              information for the following purposes listed below. We may also
+              process your information for other purposes only with your prior
+              explicit consent.
             </em>
           </p>
           <p>
@@ -521,10 +556,12 @@ export default function PrivacyPolicyPage() {
             powered by artificial intelligence, machine learning, or similar
             technologies (collectively, &ldquo;AI Products&rdquo;). These tools
             are designed to enhance your experience and provide you with
-            innovative solutions.
+            innovative solutions. The terms in this Privacy Notice govern your
+            use of the AI Products within our Services.
           </p>
 
           <h3>Our AI Products</h3>
+          <p>Our AI Products are designed for the following functions:</p>
           <ul>
             <li>
               <strong>AI chatbot deployment</strong> -- Educators create custom
@@ -681,20 +718,25 @@ export default function PrivacyPolicyPage() {
           <p>
             <em>
               In Short: We do not knowingly collect data from or market to
-              children under 18 years of age.
+              children under 18 years of age or the equivalent age as specified
+              by law in your jurisdiction.
             </em>
           </p>
           <p>
             We do not knowingly collect, solicit data from, or market to
-            children under 18 years of age, nor do we knowingly sell such
-            personal information. By using the Services, you represent that you
-            are at least 18 or that you are the parent or guardian of such a
-            minor and consent to such minor dependent&apos;s use of the
-            Services. If we learn that personal information from users less than
-            18 years of age has been collected, we will deactivate the account
-            and take reasonable measures to promptly delete such data from our
-            records. If you become aware of any data we may have collected from
-            children under age 18, please contact us at{" "}
+            children under 18 years of age or the equivalent age as specified by
+            law in your jurisdiction, nor do we knowingly sell such personal
+            information. By using the Services, you represent that you are at
+            least 18 or the equivalent age as specified by law in your
+            jurisdiction or that you are the parent or guardian of such a minor
+            and consent to such minor dependent&apos;s use of the Services. If
+            we learn that personal information from users less than 18 years of
+            age or the equivalent age as specified by law in your jurisdiction
+            has been collected, we will deactivate the account and take
+            reasonable measures to promptly delete such data from our records.
+            If you become aware of any data we may have collected from children
+            under age 18 or the equivalent age as specified by law in your
+            jurisdiction, please contact us at{" "}
             <a href="mailto:admin@teachanything.ai">admin@teachanything.ai</a>.
           </p>
 
@@ -714,11 +756,66 @@ export default function PrivacyPolicyPage() {
             personal information, (ii) to request rectification or erasure;
             (iii) to restrict the processing of your personal information; (iv)
             if applicable, to data portability; and (v) not to be subject to
-            automated decision-making.
+            automated decision-making. If a decision that produces legal or
+            similarly significant effects is made solely by automated means, we
+            will inform you, explain the main factors, and offer a simple way to
+            request human review. In certain circumstances, you may also have
+            the right to object to the processing of your personal information.
+            You can make such a request by contacting us by using the contact
+            details provided in the section &ldquo;HOW CAN YOU CONTACT US ABOUT
+            THIS NOTICE?&rdquo; below.
           </p>
           <p>
             We will consider and act upon any request in accordance with
             applicable data protection laws.
+          </p>
+          <p>
+            If you are located in the EEA or UK and you believe we are
+            unlawfully processing your personal information, you also have the
+            right to complain to your{" "}
+            <a
+              href="https://ec.europa.eu/justice/data-protection/bodies/authorities/index_en.htm"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Member State data protection authority
+            </a>{" "}
+            or{" "}
+            <a
+              href="https://ico.org.uk/make-a-complaint/data-protection-complaints/data-protection-complaints/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              UK data protection authority
+            </a>
+            .
+          </p>
+          <p>
+            If you are located in Switzerland, you may contact the{" "}
+            <a
+              href="https://www.edoeb.admin.ch/edoeb/en/home.html"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Federal Data Protection and Information Commissioner
+            </a>
+            .
+          </p>
+
+          <h3>Withdrawing your consent</h3>
+          <p>
+            If we are relying on your consent to process your personal
+            information, which may be express and/or implied consent depending
+            on the applicable law, you have the right to withdraw your consent
+            at any time. You can withdraw your consent at any time by contacting
+            us by using the contact details provided in the section &ldquo;HOW
+            CAN YOU CONTACT US ABOUT THIS NOTICE?&rdquo; below.
+          </p>
+          <p>
+            However, please note that this will not affect the lawfulness of the
+            processing before its withdrawal nor, when applicable law allows,
+            will it affect the processing of your personal information conducted
+            in reliance on lawful processing grounds other than consent.
           </p>
 
           <h3>Account Information</h3>
@@ -750,7 +847,10 @@ export default function PrivacyPolicyPage() {
             troubleshooting purposes. Additionally, server infrastructure logs
             maintained by our hosting provider may transiently contain your
             email address or user identifier subject to the provider&apos;s own
-            retention policies.
+            retention policies. We may also retain some information in our files
+            to prevent fraud, troubleshoot problems, assist with any
+            investigations, enforce our legal terms and/or comply with
+            applicable legal requirements.
           </p>
           <p>
             If you have questions or comments about your privacy rights, you may
@@ -781,17 +881,28 @@ export default function PrivacyPolicyPage() {
           </h2>
           <p>
             <em>
-              In Short: If you are a resident of certain US states, you may have
+              In Short: If you are a resident of California, Colorado,
+              Connecticut, Delaware, Florida, Indiana, Iowa, Kentucky, Maryland,
+              Minnesota, Montana, Nebraska, New Hampshire, New Jersey, Oregon,
+              Rhode Island, Tennessee, Texas, Utah, or Virginia, you may have
               the right to request access to and receive details about the
-              personal information we maintain about you, correct inaccuracies,
-              get a copy of, or delete your personal information.
+              personal information we maintain about you and how we have
+              processed it, correct inaccuracies, get a copy of, or delete your
+              personal information. You may also have the right to withdraw your
+              consent to our processing of your personal information. These
+              rights may be limited in some circumstances by applicable law.
+              More information is provided below.
             </em>
           </p>
 
           <h3>Categories of Personal Information We Collect</h3>
           <p>
-            We have collected the following categories of personal information
-            in the past twelve (12) months:
+            The table below shows the categories of personal information we have
+            collected in the past twelve (12) months. The table includes
+            illustrative examples of each category and does not reflect the
+            personal information we collect from you. For a comprehensive
+            inventory of all personal information we process, please refer to
+            the section &ldquo;WHAT INFORMATION DO WE COLLECT?&rdquo;
           </p>
 
           <div style={{ overflowX: "auto" }}>
@@ -900,13 +1011,197 @@ export default function PrivacyPolicyPage() {
             professional status of users.
           </p>
           <p>
+            We may also collect other personal information outside of these
+            categories through instances where you interact with us in person,
+            online, or by phone or mail in the context of:
+          </p>
+          <ul>
+            <li>Receiving help through our customer support channels;</li>
+            <li>Participation in customer surveys or contests; and</li>
+            <li>
+              Facilitation in the delivery of our Services and to respond to
+              your inquiries.
+            </li>
+          </ul>
+          <p>
+            We will use and retain the collected personal information as needed
+            to provide the Services or for:
+          </p>
+          <ul>
+            <li>Category A - As long as the user has an account with us</li>
+            <li>Category B - As long as the user has an account with us</li>
+            <li>Category F - As long as the user has an account with us</li>
+            <li>Category I - As long as the user has an account with us</li>
+          </ul>
+
+          <h3>Sources of Personal Information</h3>
+          <p>
+            Learn more about the sources of personal information we collect in
+            &ldquo;WHAT INFORMATION DO WE COLLECT?&rdquo;
+          </p>
+
+          <h3>How We Use and Share Personal Information</h3>
+          <p>
+            Learn more about how we use your personal information in the
+            section, &ldquo;HOW DO WE PROCESS YOUR INFORMATION?&rdquo;
+          </p>
+
+          <h3>Will your information be shared with anyone else?</h3>
+          <p>
+            We may disclose your personal information with our service providers
+            pursuant to a written contract between us and each service provider.
+            Learn more about how we disclose personal information to in the
+            section, &ldquo;WHEN AND WITH WHOM DO WE SHARE YOUR PERSONAL
+            INFORMATION?&rdquo;
+          </p>
+          <p>
+            We may use your personal information for our own business purposes,
+            such as for undertaking internal research for technological
+            development and demonstration. This is not considered to be
+            &ldquo;selling&rdquo; of your personal information.
+          </p>
+          <p>
             We have disclosed personal information to service providers for
-            business purposes as described in Section 4. These disclosures are
-            made solely to operate our Services and are governed by contracts
-            with each provider. We have not sold or shared any personal
-            information to third parties for advertising, marketing, or
-            commercial purposes unrelated to providing our Services in the
-            preceding twelve (12) months.
+            business purposes as described in Section 4 (e.g., AI model
+            providers, email service providers, cloud storage, and
+            infrastructure providers). These disclosures are made solely to
+            operate our Services and are governed by contracts with each
+            provider. We have not sold or shared any personal information to
+            third parties for advertising, marketing, or commercial purposes
+            unrelated to providing our Services in the preceding twelve (12)
+            months. We will not sell or share personal information in the future
+            belonging to website visitors, users, and other consumers.
+          </p>
+
+          <h3>Your Rights</h3>
+          <p>
+            You have rights under certain US state data protection laws.
+            However, these rights are not absolute, and in certain cases, we may
+            decline your request as permitted by law. These rights include:
+          </p>
+          <ul>
+            <li>
+              Right to know whether or not we are processing your personal data
+            </li>
+            <li>Right to access your personal data</li>
+            <li>Right to correct inaccuracies in your personal data</li>
+            <li>Right to request the deletion of your personal data</li>
+            <li>
+              Right to obtain a copy of the personal data you previously shared
+              with us
+            </li>
+            <li>Right to non-discrimination for exercising your rights</li>
+            <li>
+              Right to opt out of the processing of your personal data if it is
+              used for targeted advertising (or sharing as defined under
+              California&apos;s privacy law), the sale of personal data, or
+              profiling in furtherance of decisions that produce legal or
+              similarly significant effects (&ldquo;profiling&rdquo;)
+            </li>
+          </ul>
+          <p>
+            Depending upon the state where you live, you may also have the
+            following rights:
+          </p>
+          <ul>
+            <li>
+              Right to access the categories of personal data being processed
+              (as permitted by applicable law, including the privacy law in
+              Minnesota)
+            </li>
+            <li>
+              Right to obtain a list of the categories of third parties to which
+              we have disclosed personal data (as permitted by applicable law,
+              including the privacy law in California, Delaware, and Maryland)
+            </li>
+            <li>
+              Right to obtain a list of specific third parties to which we have
+              disclosed personal data (as permitted by applicable law, including
+              the privacy law in Minnesota and Oregon)
+            </li>
+            <li>
+              Right to obtain a list of third parties to which we have sold
+              personal data (as permitted by applicable law, including the
+              privacy law in Connecticut)
+            </li>
+            <li>
+              Right to review, understand, question, and depending on where you
+              live, correct how personal data has been profiled (as permitted by
+              applicable law, including the privacy law in Connecticut and
+              Minnesota)
+            </li>
+            <li>
+              Right to limit use and disclosure of sensitive personal data (as
+              permitted by applicable law, including the privacy law in
+              California)
+            </li>
+            <li>
+              Right to opt out of the collection of sensitive data and personal
+              data collected through the operation of a voice or facial
+              recognition feature (as permitted by applicable law, including the
+              privacy law in Florida)
+            </li>
+          </ul>
+
+          <h3>How to Exercise Your Rights</h3>
+          <p>
+            To exercise these rights, you can contact us by emailing us at{" "}
+            <a href="mailto:admin@teachanything.ai">admin@teachanything.ai</a>,
+            or by referring to the contact details at the bottom of this
+            document.
+          </p>
+          <p>
+            Under certain US state data protection laws, you can designate an
+            authorized agent to make a request on your behalf. We may deny a
+            request from an authorized agent that does not submit proof that
+            they have been validly authorized to act on your behalf in
+            accordance with applicable laws.
+          </p>
+
+          <h3>Request Verification</h3>
+          <p>
+            Upon receiving your request, we will need to verify your identity to
+            determine you are the same person about whom we have the information
+            in our system. We will only use personal information provided in
+            your request to verify your identity or authority to make the
+            request. However, if we cannot verify your identity from the
+            information already maintained by us, we may request that you
+            provide additional information for the purposes of verifying your
+            identity and for security or fraud-prevention purposes.
+          </p>
+          <p>
+            If you submit the request through an authorized agent, we may need
+            to collect additional information to verify your identity before
+            processing your request and the agent will need to provide a written
+            and signed permission from you to submit such request on your
+            behalf.
+          </p>
+
+          <h3>Appeals</h3>
+          <p>
+            Under certain US state data protection laws, if we decline to take
+            action regarding your request, you may appeal our decision by
+            emailing us at{" "}
+            <a href="mailto:admin@teachanything.ai">admin@teachanything.ai</a>.
+            We will inform you in writing of any action taken or not taken in
+            response to the appeal, including a written explanation of the
+            reasons for the decisions. If your appeal is denied, you may submit
+            a complaint to your state attorney general.
+          </p>
+
+          <h3>California &ldquo;Shine The Light&rdquo; Law</h3>
+          <p>
+            California Civil Code Section 1798.83, also known as the
+            &ldquo;Shine The Light&rdquo; law, permits our users who are
+            California residents to request and obtain from us, once a year and
+            free of charge, information about categories of personal information
+            (if any) we disclosed to third parties for direct marketing purposes
+            and the names and addresses of all third parties with which we
+            shared personal information in the immediately preceding calendar
+            year. If you are a California resident and would like to make such a
+            request, please submit your request in writing to us by using the
+            contact details provided in the section &ldquo;HOW CAN YOU CONTACT
+            US ABOUT THIS NOTICE?&rdquo;
           </p>
 
           <h2 id="section-13">
@@ -923,19 +1218,69 @@ export default function PrivacyPolicyPage() {
           <p>
             We collect and process your personal information under the
             obligations and conditions set by Australia&apos;s Privacy Act 1988
-            and New Zealand&apos;s Privacy Act 2020.
+            and New Zealand&apos;s Privacy Act 2020 (Privacy Act).
+          </p>
+          <p>
+            This Privacy Notice satisfies the notice requirements defined in
+            both Privacy Acts, in particular: what personal information we
+            collect from you, from which sources, for which purposes, and other
+            recipients of your personal information.
+          </p>
+          <p>
+            If you do not wish to provide the personal information necessary to
+            fulfill their applicable purpose, it may affect our ability to
+            provide our services, in particular:
+          </p>
+          <ul>
+            <li>offer you the products or services that you want</li>
+            <li>respond to or help with your requests</li>
+            <li>manage your account with us</li>
+            <li>confirm your identity and protect your account</li>
+          </ul>
+          <p>
+            At any time, you have the right to request access to or correction
+            of your personal information. You can make such a request by
+            contacting us by using the contact details provided in the section
+            &ldquo;HOW CAN YOU REVIEW, UPDATE, OR DELETE THE DATA WE COLLECT
+            FROM YOU?&rdquo;
+          </p>
+          <p>
+            If you believe we are unlawfully processing your personal
+            information, you have the right to submit a complaint about a breach
+            of the Australian Privacy Principles to the Office of the Australian
+            Information Commissioner and a breach of New Zealand&apos;s Privacy
+            Principles to the Office of New Zealand Privacy Commissioner.
           </p>
 
           <h3>Republic of South Africa</h3>
           <p>
             At any time, you have the right to request access to or correction
-            of your personal information. If you are unsatisfied with how we
-            address any complaint, you can contact the Information Regulator
-            (South Africa) at{" "}
+            of your personal information. You can make such a request by
+            contacting us by using the contact details provided in the section
+            &ldquo;HOW CAN YOU REVIEW, UPDATE, OR DELETE THE DATA WE COLLECT
+            FROM YOU?&rdquo;
+          </p>
+          <p>
+            If you are unsatisfied with the manner in which we address any
+            complaint with regard to our processing of personal information, you
+            can contact the office of the regulator, the details of which are:
+          </p>
+          <p>
+            The Information Regulator (South Africa)
+            <br />
+            General enquiries:{" "}
             <a href="mailto:enquiries@inforegulator.org.za">
               enquiries@inforegulator.org.za
             </a>
-            .
+            <br />
+            Complaints (complete POPIA/PAIA form 5):{" "}
+            <a href="mailto:PAIAComplaints@inforegulator.org.za">
+              PAIAComplaints@inforegulator.org.za
+            </a>{" "}
+            &amp;{" "}
+            <a href="mailto:POPIAComplaints@inforegulator.org.za">
+              POPIAComplaints@inforegulator.org.za
+            </a>
           </p>
 
           <h2 id="section-14">14.&emsp;Do We Make Updates to This Notice?</h2>
