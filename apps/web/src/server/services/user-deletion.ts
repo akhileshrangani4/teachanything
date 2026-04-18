@@ -39,7 +39,9 @@ export async function deleteUserAccount(
 
   if (userFilesList.length > 0 && isServiceAvailable("supabase-storage")) {
     const supabase = createSupabaseClient();
-    const storagePaths = userFilesList.map((f) => f.storagePath);
+    const storagePaths = userFilesList.map(
+      (f: { storagePath: string }) => f.storagePath,
+    );
 
     const { error: storageError } = await supabase.storage
       .from("chatbot-files")

@@ -29,8 +29,13 @@ export function DeleteAccountSection() {
         description:
           "Your account and all associated data have been permanently removed.",
       });
-      await authClient.signOut();
-      router.push("/");
+      try {
+        await authClient.signOut();
+      } catch {
+        // Session already invalidated by cascade delete; ignore
+      } finally {
+        router.push("/");
+      }
     },
     onError: (error) => {
       toast.error("Failed to delete account", {
