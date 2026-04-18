@@ -20,6 +20,8 @@ interface ConfirmationDialogProps {
   cancelText?: string;
   variant?: "default" | "destructive";
   loading?: boolean;
+  /** When provided, controls the cancel button's disabled state independently from loading. */
+  cancelDisabled?: boolean;
 }
 
 export function ConfirmationDialog({
@@ -32,6 +34,7 @@ export function ConfirmationDialog({
   cancelText = "Cancel",
   variant = "default",
   loading = false,
+  cancelDisabled,
 }: ConfirmationDialogProps) {
   const handleConfirm = async () => {
     await onConfirm();
@@ -48,7 +51,7 @@ export function ConfirmationDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={loading}
+            disabled={cancelDisabled ?? loading}
           >
             {cancelText}
           </Button>
