@@ -1,1 +1,1 @@
-DROP TABLE "chatbot_files" CASCADE;
+DROP TABLE IF EXISTS "chatbot_files" CASCADE;
