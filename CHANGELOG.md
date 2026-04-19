@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1](https://github.com/akhileshrangani4/teachanything/compare/v1.16.0...v1.16.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **privacy:** update section 16 for self-service account deletion ([#230](https://github.com/akhileshrangani4/teachanything/issues/230)) ([7d1f1cf](https://github.com/akhileshrangani4/teachanything/commit/7d1f1cf63b430c17a4c80bb35b35496e9aa69127))
+
 ## [1.16.0](https://github.com/akhileshrangani4/teachanything/compare/v1.15.0...v1.16.0) (2026-04-18)
 
 
