@@ -7,8 +7,48 @@ import {
   analytics,
   user,
 } from "@teachanything/db/schema";
-import { eq, and, sql, gte, lte, desc, count, inArray } from "drizzle-orm";
+import {
+  eq,
+  and,
+  sql,
+  gte,
+  lte,
+  desc,
+  asc,
+  count,
+  inArray,
+  ilike,
+} from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+
+function buildMessageStatsSubquery(db: typeof import("@teachanything/db").db) {
+  return db
+    .select({
+      conversationId: messages.conversationId,
+      messageCount: count().as("message_count"),
+      firstUserMessage: sql<
+        string | null
+      >`(ARRAY_AGG(${messages.content} ORDER BY ${messages.createdAt} ASC) FILTER (WHERE ${messages.role} = 'user'))[1]`.as(
+        "first_user_message",
+      ),
+      firstMessageAt: sql<Date>`MIN(${messages.createdAt})`.as(
+        "first_message_at",
+      ),
+      lastMessageAt: sql<Date>`MAX(${messages.createdAt})`.as(
+        "last_message_at",
+      ),
+    })
+    .from(messages)
+    .groupBy(messages.conversationId)
+    .as("msg_stats");
+}
+
+function formatPreview(firstUserMessage: string | null): string | null {
+  if (!firstUserMessage) return null;
+  return firstUserMessage.length > 100
+    ? firstUserMessage.slice(0, 100) + "..."
+    : firstUserMessage;
+}
 
 export const analyticsRouter = router({
   /**
@@ -363,6 +403,251 @@ export const analyticsRouter = router({
         startDate,
         endDate,
         accountCreatedAt,
+      };
+    }),
+
+  getConversationsList: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        limit: z.number().min(1).max(50).default(20),
+        offset: z.number().min(0).default(0),
+        sortBy: z
+          .enum(["recent", "mostMessages", "longestDuration"])
+          .default("recent"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const [chatbot] = await ctx.db
+        .select()
+        .from(chatbots)
+        .where(
+          and(
+            eq(chatbots.id, input.chatbotId),
+            eq(chatbots.userId, ctx.session.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (!chatbot) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Chatbot not found",
+        });
+      }
+
+      const msgStats = buildMessageStatsSubquery(ctx.db);
+
+      const [totalResult] = await ctx.db
+        .select({ count: count() })
+        .from(conversations)
+        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .where(eq(conversations.chatbotId, input.chatbotId));
+
+      const totalCount = totalResult?.count ?? 0;
+
+      let orderByClause;
+      switch (input.sortBy) {
+        case "mostMessages":
+          orderByClause = desc(msgStats.messageCount);
+          break;
+        case "longestDuration":
+          orderByClause = desc(
+            sql`${msgStats.lastMessageAt} - ${msgStats.firstMessageAt}`,
+          );
+          break;
+        default:
+          orderByClause = desc(conversations.createdAt);
+      }
+
+      const results = await ctx.db
+        .select({
+          id: conversations.id,
+          sessionId: conversations.sessionId,
+          metadata: conversations.metadata,
+          createdAt: conversations.createdAt,
+          messageCount: msgStats.messageCount,
+          firstUserMessage: msgStats.firstUserMessage,
+          firstMessageAt: msgStats.firstMessageAt,
+          lastMessageAt: msgStats.lastMessageAt,
+        })
+        .from(conversations)
+        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .where(eq(conversations.chatbotId, input.chatbotId))
+        .orderBy(orderByClause)
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return {
+        conversations: results.map((r) => ({
+          id: r.id,
+          sessionId: r.sessionId,
+          metadata: r.metadata,
+          createdAt: r.createdAt,
+          messageCount: r.messageCount ?? 0,
+          preview: formatPreview(r.firstUserMessage),
+          firstMessageAt: r.firstMessageAt,
+          lastMessageAt: r.lastMessageAt,
+        })),
+        totalCount,
+      };
+    }),
+
+  getConversationMessages: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        conversationId: z.string().uuid(),
+        limit: z.number().min(1).max(200).default(100),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const [chatbot] = await ctx.db
+        .select()
+        .from(chatbots)
+        .where(
+          and(
+            eq(chatbots.id, input.chatbotId),
+            eq(chatbots.userId, ctx.session.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (!chatbot) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Chatbot not found",
+        });
+      }
+
+      const [conversation] = await ctx.db
+        .select()
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.id, input.conversationId),
+            eq(conversations.chatbotId, input.chatbotId),
+          ),
+        )
+        .limit(1);
+
+      if (!conversation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Conversation not found",
+        });
+      }
+
+      const [totalResult] = await ctx.db
+        .select({ count: count() })
+        .from(messages)
+        .where(eq(messages.conversationId, input.conversationId));
+
+      const conversationMessages = await ctx.db
+        .select()
+        .from(messages)
+        .where(eq(messages.conversationId, input.conversationId))
+        .orderBy(asc(messages.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return {
+        messages: conversationMessages,
+        conversation,
+        totalCount: totalResult?.count ?? 0,
+      };
+    }),
+
+  searchConversations: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        query: z.string().min(1).max(200),
+        limit: z.number().min(1).max(50).default(20),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const [chatbot] = await ctx.db
+        .select()
+        .from(chatbots)
+        .where(
+          and(
+            eq(chatbots.id, input.chatbotId),
+            eq(chatbots.userId, ctx.session.user.id),
+          ),
+        )
+        .limit(1);
+
+      if (!chatbot) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Chatbot not found",
+        });
+      }
+
+      const matchingConversationIds = ctx.db
+        .selectDistinct({ id: messages.conversationId })
+        .from(messages)
+        .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            ilike(messages.content, `%${input.query}%`),
+          ),
+        );
+
+      const msgStats = buildMessageStatsSubquery(ctx.db);
+
+      const [totalResult] = await ctx.db
+        .select({ count: count() })
+        .from(conversations)
+        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            inArray(conversations.id, matchingConversationIds),
+          ),
+        );
+
+      const totalCount = totalResult?.count ?? 0;
+
+      const results = await ctx.db
+        .select({
+          id: conversations.id,
+          sessionId: conversations.sessionId,
+          metadata: conversations.metadata,
+          createdAt: conversations.createdAt,
+          messageCount: msgStats.messageCount,
+          firstUserMessage: msgStats.firstUserMessage,
+          firstMessageAt: msgStats.firstMessageAt,
+          lastMessageAt: msgStats.lastMessageAt,
+        })
+        .from(conversations)
+        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            inArray(conversations.id, matchingConversationIds),
+          ),
+        )
+        .orderBy(desc(conversations.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return {
+        conversations: results.map((r) => ({
+          id: r.id,
+          sessionId: r.sessionId,
+          metadata: r.metadata,
+          createdAt: r.createdAt,
+          messageCount: r.messageCount ?? 0,
+          preview: formatPreview(r.firstUserMessage),
+          firstMessageAt: r.firstMessageAt,
+          lastMessageAt: r.lastMessageAt,
+        })),
+        totalCount,
       };
     }),
 });

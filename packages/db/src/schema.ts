@@ -269,21 +269,30 @@ export const fileChunks = pgTable(
 );
 
 // Conversations table
-export const conversations = pgTable("conversations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  sessionId: text("session_id").notNull().unique(), // Generated server-side
-  metadata: jsonb("metadata")
-    .$type<{
-      userAgent?: string;
-      referrer?: string;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    sessionId: text("session_id").notNull().unique(), // Generated server-side
+    metadata: jsonb("metadata")
+      .$type<{
+        userAgent?: string;
+        referrer?: string;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_conversations_chatbot_id_created_at").on(
+      table.chatbotId,
+      table.createdAt,
+    ),
+  ],
+);
 
 // Messages table
 export const messages = pgTable(
