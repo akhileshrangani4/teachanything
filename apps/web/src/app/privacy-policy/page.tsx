@@ -1444,7 +1444,9 @@ export default function PrivacyPolicyPage() {
             the applicable laws of your country or state of residence in the US,
             you may have the right to request access to the personal information
             we collect from you, details about how we have processed it, correct
-            inaccuracies, or delete your personal information. You may also have
+            inaccuracies, or delete your personal information. To make such a
+            request, please use the contact details listed in{" "}
+            <a href="#section-15">Section 15</a>. You may also have
             the right to withdraw your consent to our processing of your
             personal information. These rights may be limited in some
             circumstances by applicable law. You can export individual chat
