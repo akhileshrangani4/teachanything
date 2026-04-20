@@ -235,22 +235,35 @@ async function* processMessage(params: {
   // Consume fullStream so we get typed events: text deltas, reasoning deltas,
   // errors, aborts, and finish reasons. textStream swallows all non-text parts,
   // which means mid-stream errors look identical to a clean finish on the wire.
+  //
+  // Emit at most one `thinking` event per reasoning phase: reasoning-delta
+  // fires for every token and would spam the subscription otherwise.
+  let thinkingEmitted = false;
   for await (const part of result.fullStream) {
     switch (part.type) {
       case "text-delta": {
         fullResponse += part.text;
+        thinkingEmitted = false;
         yield {
           type: "text" as const,
           content: part.text,
         };
         break;
       }
+      case "reasoning-start":
       case "reasoning-delta": {
         // Surface reasoning as a thinking indicator so the UI doesn't look
         // frozen during long pauses. The reasoning text itself is never sent
         // to the client -- on public shared chatbots it can restate system
         // prompts or RAG context.
-        yield { type: "thinking" as const };
+        if (!thinkingEmitted) {
+          yield { type: "thinking" as const };
+          thinkingEmitted = true;
+        }
+        break;
+      }
+      case "reasoning-end": {
+        thinkingEmitted = false;
         break;
       }
       case "finish": {
@@ -266,8 +279,8 @@ async function* processMessage(params: {
         throw new Error("Stream aborted by provider");
       }
       default:
-        // Other event types (text-start, text-end, reasoning-start, start,
-        // finish-step, etc.) don't affect what we send to the client.
+        // Other event types (text-start, text-end, start, finish-step, etc.)
+        // don't affect what we send to the client.
         break;
     }
   }
