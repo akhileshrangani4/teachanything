@@ -7,6 +7,8 @@ import { db } from "@teachanything/db";
 import { crawledPages } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
 
+export const maxDuration = 300;
+
 const payloadSchema = z.object({ crawledPageId: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logError(error, "Crawl page job failed");
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: "Internal processing error" },
       { status: 500 },
     );
   }

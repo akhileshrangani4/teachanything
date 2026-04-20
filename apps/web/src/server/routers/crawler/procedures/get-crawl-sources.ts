@@ -68,9 +68,8 @@ export const getCrawlSourcesProcedure = protectedProcedure
         });
       }
       const counts = countMap.get(row.crawlSourceId)!;
-      const status = row.status as keyof typeof counts;
-      if (status in counts) {
-        counts[status] = Number(row.count);
+      if (row.status in counts) {
+        counts[row.status as keyof typeof counts] = Number(row.count);
       }
     }
 

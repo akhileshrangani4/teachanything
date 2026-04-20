@@ -210,16 +210,25 @@ export const userFiles = pgTable("user_files", {
 });
 
 // Junction table: Associates files with chatbots (many-to-many)
-export const chatbotFileAssociations = pgTable("chatbot_file_associations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  fileId: uuid("file_id")
-    .references(() => userFiles.id, { onDelete: "cascade" })
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const chatbotFileAssociations = pgTable(
+  "chatbot_file_associations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    fileId: uuid("file_id")
+      .references(() => userFiles.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_chatbot_file_associations_unique").on(
+      table.chatbotId,
+      table.fileId,
+    ),
+  ],
+);
 
 // Legacy chatbot files table (kept for backward compatibility during migration)
 export const chatbotFiles = pgTable("chatbot_files", {

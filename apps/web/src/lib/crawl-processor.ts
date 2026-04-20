@@ -7,9 +7,10 @@ import {
   chatbotFileAssociations,
   chatbots,
 } from "@teachanything/db/schema";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import {
   discoverPages,
+  fetchAndExtractPage,
   fetchRobots,
   fetchRobotsText,
   parseRobots,
@@ -19,6 +20,36 @@ import {
 import { env } from "./env";
 import { publishQStashJob } from "./qstash";
 import { logInfo, logError } from "./logger";
+
+/**
+ * Dispatch a crawl job: runs inline in development, publishes to QStash in production.
+ * In dev mode, errors are logged but not re-thrown to match production behavior
+ * (QStash jobs fail independently of the caller). Set `throwOnDevError: true`
+ * to propagate errors in dev mode for cases where the caller needs to know.
+ */
+export async function dispatchCrawlJob(opts: {
+  jobPath: string;
+  body: Record<string, string>;
+  inlineFn: () => Promise<void>;
+  label: string;
+  throwOnDevError?: boolean;
+}): Promise<void> {
+  if (env.NODE_ENV === "development") {
+    logInfo(`${opts.label} inline (development mode)`, opts.body);
+    try {
+      await opts.inlineFn();
+    } catch (error) {
+      logError(error, `Inline ${opts.label} failed`, opts.body);
+      if (opts.throwOnDevError) throw error;
+    }
+  } else {
+    await publishQStashJob({
+      url: `${env.NEXT_PUBLIC_APP_URL}${opts.jobPath}`,
+      body: opts.body,
+    });
+    logInfo(`${opts.label} job published`, opts.body);
+  }
+}
 
 function getFriendlyErrorMessage(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
@@ -66,21 +97,25 @@ export async function processCrawlDiscovery(params: {
     const robotsText = await fetchRobotsText(source.rootUrl);
 
     const DISCOVERY_TIMEOUT_MS = 5 * 60 * 1000;
-    const discovered = await Promise.race([
-      discoverPages({
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(
+      () => abortController.abort(),
+      DISCOVERY_TIMEOUT_MS,
+    );
+
+    let discovered: Awaited<ReturnType<typeof discoverPages>>;
+    try {
+      discovered = await discoverPages({
         rootUrl: source.rootUrl,
         maxDepth: source.crawlDepth,
         maxPages: source.maxPages,
         includePatterns: source.includePatterns ?? [],
         excludePatterns: source.excludePatterns ?? [],
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Discovery timed out after 5 minutes")),
-          DISCOVERY_TIMEOUT_MS,
-        ),
-      ),
-    ]);
+        signal: abortController.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (discovered.length === 0) {
       await db
@@ -115,54 +150,81 @@ export async function processCrawlDiscovery(params: {
 
     const existingPageMap = new Map(existingPages.map((p) => [p.url, p]));
 
-    const pageRecords = [];
+    // Split discovered pages into existing (need update) and new (need insert)
+    const toUpdate: { id: string; url: string; depth: number }[] = [];
+    const toInsert: { url: string; depth: number }[] = [];
+
     for (const page of discovered) {
       const existing = existingPageMap.get(page.url);
       if (existing) {
-        await db
-          .update(crawledPages)
-          .set({
-            status: "pending",
-            depth: page.depth,
-            updatedAt: new Date(),
-          })
-          .where(eq(crawledPages.id, existing.id));
-        pageRecords.push({ id: existing.id, url: page.url });
+        toUpdate.push({ id: existing.id, url: page.url, depth: page.depth });
       } else {
-        const [record] = await db
-          .insert(crawledPages)
-          .values({
-            crawlSourceId,
-            url: page.url,
-            depth: page.depth,
-            status: "pending",
-          })
-          .onConflictDoUpdate({
-            target: [crawledPages.crawlSourceId, crawledPages.url],
-            set: {
-              status: "pending" as const,
-              depth: page.depth,
-              updatedAt: new Date(),
-            },
-          })
-          .returning();
-        if (record) pageRecords.push({ id: record.id, url: page.url });
+        toInsert.push({ url: page.url, depth: page.depth });
       }
     }
 
-    await db
-      .update(crawlSources)
-      .set({
-        status: "crawling",
-        metadata: {
-          pageCount: pageRecords.length,
-          errorCount: 0,
-          errors: [],
-          robotsText,
-        },
-        updatedAt: new Date(),
-      })
-      .where(eq(crawlSources.id, crawlSourceId));
+    // Wrap page upserts + status transition in a transaction so we don't
+    // end up with pages inserted but source stuck in "discovering"
+    const pageRecords = await db.transaction(async (tx) => {
+      if (toUpdate.length > 0) {
+        const updateIds = toUpdate.map((p) => p.id);
+        await tx
+          .update(crawledPages)
+          .set({
+            status: "pending",
+            updatedAt: new Date(),
+          })
+          .where(inArray(crawledPages.id, updateIds));
+      }
+
+      const insertedPages: { id: string; url: string }[] = [];
+      if (toInsert.length > 0) {
+        const INSERT_BATCH_SIZE = 100;
+        for (let i = 0; i < toInsert.length; i += INSERT_BATCH_SIZE) {
+          const batch = toInsert.slice(i, i + INSERT_BATCH_SIZE);
+          const rows = await tx
+            .insert(crawledPages)
+            .values(
+              batch.map((p) => ({
+                crawlSourceId,
+                url: p.url,
+                depth: p.depth,
+                status: "pending" as const,
+              })),
+            )
+            .onConflictDoUpdate({
+              target: [crawledPages.crawlSourceId, crawledPages.url],
+              set: {
+                status: "pending" as const,
+                updatedAt: new Date(),
+              },
+            })
+            .returning({ id: crawledPages.id, url: crawledPages.url });
+          insertedPages.push(...rows);
+        }
+      }
+
+      const records = [
+        ...toUpdate.map((p) => ({ id: p.id, url: p.url })),
+        ...insertedPages,
+      ];
+
+      await tx
+        .update(crawlSources)
+        .set({
+          status: "crawling",
+          metadata: {
+            pageCount: records.length,
+            errorCount: 0,
+            errors: [],
+            robotsText,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(crawlSources.id, crawlSourceId));
+
+      return records;
+    });
 
     const isDevMode = env.NODE_ENV === "development";
 
@@ -218,7 +280,10 @@ export async function processCrawlPage(params: {
       .where(eq(crawledPages.id, crawledPageId))
       .limit(1);
 
-    if (!page) return;
+    if (!page) {
+      logInfo("Crawled page not found, skipping", { crawledPageId });
+      return;
+    }
 
     const [source] = await db
       .select()
@@ -226,7 +291,10 @@ export async function processCrawlPage(params: {
       .where(eq(crawlSources.id, page.crawlSourceId))
       .limit(1);
 
-    if (!source) return;
+    if (!source) {
+      logInfo("Crawl source not found, skipping", { crawledPageId });
+      return;
+    }
 
     const [chatbot] = await db
       .select()
@@ -234,7 +302,10 @@ export async function processCrawlPage(params: {
       .where(eq(chatbots.id, source.chatbotId))
       .limit(1);
 
-    if (!chatbot) return;
+    if (!chatbot) {
+      logInfo("Chatbot not found, skipping", { crawledPageId });
+      return;
+    }
 
     if (!(await isUrlSafeWithDns(page.url))) {
       await db
@@ -270,7 +341,6 @@ export async function processCrawlPage(params: {
       .set({ status: "processing", updatedAt: new Date() })
       .where(eq(crawledPages.id, crawledPageId));
 
-    const { fetchAndExtractPage } = await import("@teachanything/ai/crawler");
     const pageContent = await fetchAndExtractPage(page.url);
 
     if (!pageContent) {
@@ -293,107 +363,108 @@ export async function processCrawlPage(params: {
       return;
     }
 
-    let userFileId = page.userFileId;
-    if (!userFileId) {
-      const [file] = await db
-        .insert(userFiles)
-        .values({
-          userId: chatbot.userId,
-          fileName: pageContent.title || page.url,
-          fileType: "text/html",
-          fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
-          storagePath: page.url,
-          processingStatus: "processing",
-        })
-        .returning();
-
-      userFileId = file!.id;
-
-      await db.insert(chatbotFileAssociations).values({
-        chatbotId: source.chatbotId,
-        fileId: userFileId,
-      });
-
-      await db
-        .update(crawledPages)
-        .set({ userFileId })
-        .where(eq(crawledPages.id, crawledPageId));
-    } else {
-      await db
-        .update(userFiles)
-        .set({
-          fileName: pageContent.title || page.url,
-          fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
-          processingStatus: "processing",
-        })
-        .where(eq(userFiles.id, userFileId));
-    }
-
+    // Embedding + storage in a transaction to prevent orphaned data
     const { createRAGService, createOpenRouterClient } =
       await import("@teachanything/ai");
     const ragService = createRAGService();
     const chunks = await ragService.chunkText(pageContent.content);
-
     const openrouterClient = createOpenRouterClient(
       env.OPENROUTER_API_KEY,
       env.OPENAI_API_KEY,
     );
 
-    const EMBED_BATCH_SIZE = 50;
-    const embeddings: number[][] = [];
+    await db.transaction(async (tx) => {
+      let userFileId = page.userFileId;
+      if (!userFileId) {
+        const [file] = await tx
+          .insert(userFiles)
+          .values({
+            userId: chatbot.userId,
+            fileName: pageContent.title || page.url,
+            fileType: "text/html",
+            fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
+            storagePath: page.url,
+            processingStatus: "processing",
+          })
+          .returning();
 
-    for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
-      const batch = chunks.slice(
-        i,
-        Math.min(i + EMBED_BATCH_SIZE, chunks.length),
-      );
-      const batchEmbeddings = await ragService.generateEmbeddingsForChunks(
-        batch,
-        openrouterClient,
-      );
-      embeddings.push(...batchEmbeddings);
-    }
+        if (!file) throw new Error("Failed to create user file");
+        userFileId = file.id;
 
-    const chunkRecords = await Promise.all(
-      chunks.map(async (chunk, index) => ({
-        fileId: userFileId!,
-        chunkIndex: index,
-        content: chunk,
-        embedding: embeddings[index]!,
-        tokenCount: await ragService.countTokens(chunk),
-      })),
-    );
+        await tx
+          .insert(chatbotFileAssociations)
+          .values({
+            chatbotId: source.chatbotId,
+            fileId: userFileId,
+          })
+          .onConflictDoNothing();
 
-    if (chunkRecords.length > 0) {
-      await db.delete(fileChunks).where(eq(fileChunks.fileId, userFileId!));
-      await db.insert(fileChunks).values(chunkRecords);
-    }
+        await tx
+          .update(crawledPages)
+          .set({ userFileId })
+          .where(eq(crawledPages.id, crawledPageId));
+      } else {
+        await tx
+          .update(userFiles)
+          .set({
+            fileName: pageContent.title || page.url,
+            fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
+            processingStatus: "processing",
+          })
+          .where(eq(userFiles.id, userFileId));
+      }
 
-    await db
-      .update(userFiles)
-      .set({
-        processingStatus: "completed",
-        metadata: {
-          chunkCount: chunks.length,
-          processedAt: new Date().toISOString(),
-        },
-      })
-      .where(eq(userFiles.id, userFileId!));
+      // Delete old chunks before inserting new ones (atomic within transaction)
+      await tx.delete(fileChunks).where(eq(fileChunks.fileId, userFileId));
 
-    await db
-      .update(crawledPages)
-      .set({
-        status: "completed",
-        title: pageContent.title,
-        contentHash: pageContent.contentHash,
-        metadata: {
-          statusCode: pageContent.statusCode,
-          contentType: pageContent.contentType,
-          wordCount: pageContent.wordCount,
-        },
-        updatedAt: new Date(),
-      })
-      .where(eq(crawledPages.id, crawledPageId));
+      // Generate embeddings and insert in batches to limit memory
+      const EMBED_BATCH_SIZE = 50;
+      for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
+        const batch = chunks.slice(i, i + EMBED_BATCH_SIZE);
+        const batchEmbeddings = await ragService.generateEmbeddingsForChunks(
+          batch,
+          openrouterClient,
+        );
+
+        const chunkRecords = await Promise.all(
+          batch.map(async (chunk, batchIdx) => ({
+            fileId: userFileId,
+            chunkIndex: i + batchIdx,
+            content: chunk,
+            embedding: batchEmbeddings[batchIdx],
+            tokenCount: await ragService.countTokens(chunk),
+          })),
+        );
+
+        await tx.insert(fileChunks).values(chunkRecords);
+      }
+
+      await tx
+        .update(userFiles)
+        .set({
+          processingStatus: "completed",
+          metadata: {
+            chunkCount: chunks.length,
+            processedAt: new Date().toISOString(),
+          },
+        })
+        .where(eq(userFiles.id, userFileId));
+
+      await tx
+        .update(crawledPages)
+        .set({
+          status: "completed",
+          title: pageContent.title,
+          contentHash: pageContent.contentHash,
+          metadata: {
+            statusCode: pageContent.statusCode,
+            contentType: pageContent.contentType,
+            wordCount: pageContent.wordCount,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(crawledPages.id, crawledPageId));
+    });
 
     logInfo("Crawled page processed", {
       crawledPageId,
@@ -432,18 +503,9 @@ export async function processCrawlPage(params: {
 export async function finalizeCrawlSource(
   crawlSourceId: string,
 ): Promise<void> {
-  const [inProgressResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(crawledPages)
-    .where(
-      and(
-        eq(crawledPages.crawlSourceId, crawlSourceId),
-        inArray(crawledPages.status, ["pending", "processing"]),
-      ),
-    );
-
-  if (Number(inProgressResult?.count ?? 0) > 0) return;
-
+  // Atomic check-and-update: only finalize if no pages are still in progress.
+  // This prevents the race where two concurrent workers both see zero remaining
+  // and both attempt to finalize, or worse, both skip finalization.
   const statusCounts = await db
     .select({
       status: crawledPages.status,
@@ -457,19 +519,26 @@ export async function finalizeCrawlSource(
     statusCounts.map((r) => [r.status, Number(r.count)]),
   );
 
+  const pendingCount = (counts["pending"] ?? 0) + (counts["processing"] ?? 0);
+  if (pendingCount > 0) return;
+
   const completedCount = (counts["completed"] ?? 0) + (counts["skipped"] ?? 0);
   const failedCount = (counts["failed"] ?? 0) + (counts["blocked"] ?? 0);
 
-  await db
-    .update(crawlSources)
-    .set({
-      status: "completed",
-      lastCrawledAt: new Date(),
-      metadata: {
-        pageCount: completedCount,
-        errorCount: failedCount,
-      },
-      updatedAt: new Date(),
-    })
-    .where(eq(crawlSources.id, crawlSourceId));
+  // Use atomic UPDATE with NOT EXISTS to prevent race conditions:
+  // only the last worker to finish will successfully update.
+  await db.execute(sql`
+    UPDATE crawl_sources
+    SET status = 'completed',
+        last_crawled_at = NOW(),
+        metadata = ${JSON.stringify({ pageCount: completedCount, errorCount: failedCount })}::jsonb,
+        updated_at = NOW()
+    WHERE id = ${crawlSourceId}
+      AND status = 'crawling'
+      AND NOT EXISTS (
+        SELECT 1 FROM crawled_pages
+        WHERE crawl_source_id = ${crawlSourceId}
+          AND status IN ('pending', 'processing')
+      )
+  `);
 }

@@ -1,5 +1,5 @@
 import { protectedProcedure } from "@/server/trpc";
-import { eq, and, asc, inArray } from "drizzle-orm";
+import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -10,6 +10,7 @@ import {
 import { crawlSourceIdInput } from "../validation";
 
 const MAX_EXPORT_PAGES = 200;
+const MAX_EXPORT_CHUNKS = 5000;
 
 export const exportJsonProcedure = protectedProcedure
   .input(crawlSourceIdInput)
@@ -66,6 +67,20 @@ export const exportJsonProcedure = protectedProcedure
     const fileIds = completedPages
       .map((p) => p.userFileId)
       .filter((id): id is string => id !== null);
+
+    // Guard against loading too many chunks into memory
+    if (fileIds.length > 0) {
+      const [countResult] = await ctx.db
+        .select({ count: sql<number>`count(*)` })
+        .from(fileChunks)
+        .where(inArray(fileChunks.fileId, fileIds));
+      if (Number(countResult?.count ?? 0) > MAX_EXPORT_CHUNKS) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Export too large (${Number(countResult?.count)} chunks). Try exporting fewer pages.`,
+        });
+      }
+    }
 
     const chunks =
       fileIds.length > 0

@@ -4,6 +4,8 @@ import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
 import { logError } from "@/lib/logger";
 import { processCrawlDiscovery } from "@/lib/crawl-processor";
 
+export const maxDuration = 300;
+
 const payloadSchema = z.object({ crawlSourceId: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logError(error, "Crawl discover job failed");
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: "Internal processing error" },
       { status: 500 },
     );
   }

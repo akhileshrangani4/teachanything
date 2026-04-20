@@ -2,10 +2,11 @@ import { protectedProcedure } from "@/server/trpc";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { chatbots, crawlSources } from "@teachanything/db/schema";
-import { isUrlSafeWithDns } from "@teachanything/ai/crawler";
-import { env } from "@/lib/env";
-import { publishQStashJob } from "@/lib/qstash";
-import { logInfo, logError } from "@/lib/logger";
+import { verifyUrlReachable } from "@teachanything/ai/crawler";
+import {
+  dispatchCrawlJob,
+  processCrawlDiscovery,
+} from "@/lib/crawl-processor";
 import { checkRateLimit, crawlSourceRateLimit } from "@/lib/rate-limit";
 import { crawlSourceInput } from "../validation";
 
@@ -42,50 +43,15 @@ export const addCrawlSourceProcedure = protectedProcedure
       });
     }
 
-    const safe = await isUrlSafeWithDns(input.rootUrl);
-    if (!safe) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "URL is not allowed",
-      });
-    }
-
     try {
-      let currentUrl = input.rootUrl;
-      let response: Response | null = null;
-      for (let hop = 0; hop <= 5; hop++) {
-        if (!(await isUrlSafeWithDns(currentUrl))) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "URL is not allowed",
-          });
-        }
-        response = await fetch(currentUrl, {
-          method: "HEAD",
-          headers: { "User-Agent": "TeachAnythingBot/1.0" },
-          signal: AbortSignal.timeout(10000),
-          redirect: "manual",
-        });
-        if (response.status >= 300 && response.status < 400) {
-          const location = response.headers.get("location");
-          if (!location) break;
-          currentUrl = new URL(location, currentUrl).href;
-          continue;
-        }
-        break;
-      }
-      if (!response || !response.ok) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Could not reach that URL (${response?.status ?? "unknown"}). Please check it's correct and publicly accessible.`,
-        });
-      }
+      await verifyUrlReachable(input.rootUrl);
     } catch (e) {
-      if (e instanceof TRPCError) throw e;
       throw new TRPCError({
         code: "BAD_REQUEST",
         message:
-          "Could not reach that URL. Please check it's correct and publicly accessible.",
+          e instanceof Error
+            ? e.message
+            : "Could not reach that URL. Please check it's correct and publicly accessible.",
       });
     }
 
@@ -128,32 +94,12 @@ export const addCrawlSourceProcedure = protectedProcedure
       });
     }
 
-    if (env.NODE_ENV === "development") {
-      logInfo("Processing crawl discovery inline (development mode)", {
-        crawlSourceId: source.id,
-        rootUrl: input.rootUrl,
-      });
-
-      import("@/lib/crawl-processor")
-        .then(({ processCrawlDiscovery }) =>
-          processCrawlDiscovery({ crawlSourceId: source.id }),
-        )
-        .catch((error) => {
-          logError(error, "Inline crawl discovery failed", {
-            crawlSourceId: source.id,
-          });
-        });
-    } else {
-      await publishQStashJob({
-        url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/crawl-discover`,
-        body: { crawlSourceId: source.id },
-      });
-
-      logInfo("Crawl discovery job published", {
-        crawlSourceId: source.id,
-        rootUrl: input.rootUrl,
-      });
-    }
+    await dispatchCrawlJob({
+      jobPath: "/api/jobs/crawl-discover",
+      body: { crawlSourceId: source.id },
+      inlineFn: () => processCrawlDiscovery({ crawlSourceId: source.id }),
+      label: "Crawl discovery",
+    });
 
     return source;
   });
