@@ -262,11 +262,17 @@ async function* processMessage(params: {
         }
         break;
       }
-      case "reasoning-end": {
+      case "reasoning-end":
+      case "text-start":
+      case "text-end":
+      case "finish-step": {
+        // Any phase boundary closes the current reasoning phase so the next
+        // reasoning-start/delta will re-emit the indicator.
         thinkingEmitted = false;
         break;
       }
       case "finish": {
+        thinkingEmitted = false;
         finishReason = part.finishReason;
         break;
       }
@@ -279,8 +285,8 @@ async function* processMessage(params: {
         throw new Error("Stream aborted by provider");
       }
       default:
-        // Other event types (text-start, text-end, start, finish-step, etc.)
-        // don't affect what we send to the client.
+        // Other event types (start, etc.) don't affect what we send to the
+        // client.
         break;
     }
   }
