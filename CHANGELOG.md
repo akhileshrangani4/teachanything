@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.16.1](https://github.com/akhileshrangani4/teachanything/compare/v1.16.0...v1.16.1) (2026-04-19)
+
+
+### Bug Fixes
+
+* **privacy:** update section 16 for self-service account deletion ([#230](https://github.com/akhileshrangani4/teachanything/issues/230)) ([7d1f1cf](https://github.com/akhileshrangani4/teachanything/commit/7d1f1cf63b430c17a4c80bb35b35496e9aa69127))
+
+## [1.16.0](https://github.com/akhileshrangani4/teachanything/compare/v1.15.0...v1.16.0) (2026-04-18)
+
+
+### Features
+
+* add privacy policy page and self-service account deletion ([#228](https://github.com/akhileshrangani4/teachanything/issues/228)) ([2d33f18](https://github.com/akhileshrangani4/teachanything/commit/2d33f182266a86ee317aa9b6a0c11c6ed3d59a33))
+
+## [1.15.0](https://github.com/akhileshrangani4/teachanything/compare/v1.14.1...v1.15.0) (2026-04-18)
+
+
+### Features
+
+* RAG pipeline & chat system overhaul ([#226](https://github.com/akhileshrangani4/teachanything/issues/226)) ([9a53d03](https://github.com/akhileshrangani4/teachanything/commit/9a53d03c07d4cd6a01fc6af0cff78a6e32f600f1))
+
 ## [1.14.1](https://github.com/akhileshrangani4/teachanything/compare/v1.14.0...v1.14.1) (2026-03-27)
 
 

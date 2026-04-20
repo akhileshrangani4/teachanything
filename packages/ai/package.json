@@ -5,12 +5,16 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./error-utils": "./src/error-utils.ts",
+    "./models": "./src/models.ts",
     "./openrouter": "./src/openrouter-client.ts",
     "./rag": "./src/rag-service.ts",
-    "./crawler": "./src/crawler.ts"
+    "./crawler": "./src/crawler.ts",
+    "./token-budget": "./src/token-budget.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",
+    "@teachanything/logger": "*",
     "@langchain/community": "^1.1.24",
     "@langchain/core": "^1.1.15",
     "@langchain/textsplitters": "^1.0.0",

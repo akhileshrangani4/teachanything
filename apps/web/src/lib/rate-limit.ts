@@ -151,3 +151,33 @@ export async function checkRateLimit(
 
   return { success, limit, remaining, reset };
 }
+
+/**
+ * Require rate limit for security-critical operations (password verification, account deletion).
+ * Unlike checkRateLimit, this DENIES requests when Redis is unavailable rather than allowing them.
+ */
+export async function requireRateLimit(
+  ratelimiter: Ratelimit | null,
+  identifier: string,
+  context?: Record<string, unknown>,
+): Promise<{
+  success: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+}> {
+  if (!ratelimiter) {
+    logWarn(
+      "Rate limiter unavailable for security-critical operation",
+      context,
+    );
+    return {
+      success: false,
+      limit: 0,
+      remaining: 0,
+      reset: Date.now() + 60000,
+    };
+  }
+
+  return checkRateLimit(ratelimiter, identifier, context);
+}

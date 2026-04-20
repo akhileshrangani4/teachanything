@@ -4,7 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useSession, type ExtendedUser } from "@/lib/auth-client";
-import { LayoutDashboard, Bot, FileText, Settings, Shield } from "lucide-react";
+import {
+  LayoutDashboard,
+  Bot,
+  FileText,
+  Settings,
+  Shield,
+  ScrollText,
+} from "lucide-react";
 
 const navigation = [
   {
@@ -126,6 +133,19 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
             </>
           )}
         </nav>
+      </div>
+
+      {/* Privacy Policy link */}
+      <div className="px-3 pb-2 flex-shrink-0">
+        <Link
+          href="/privacy-policy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        >
+          <ScrollText className="mr-3 h-4 w-4 flex-shrink-0 text-sidebar-foreground/40 group-hover:text-sidebar-foreground" />
+          Privacy Policy
+        </Link>
       </div>
 
       {/* Footer */}

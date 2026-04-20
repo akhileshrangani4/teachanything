@@ -1,5 +1,5 @@
 {
-  "id": "f6695b80-c577-47ce-af64-e2daf592bafd",
+  "id": "9fc07788-f9d7-4aa0-93da-32e09bfec634",
   "prevId": "eaeca11f-5fae-4b8e-8854-11fee178cf0e",
   "version": "7",
   "dialect": "postgresql",
@@ -257,7 +257,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "chatbot_file_associations_chatbot_id_file_id_idx": {
+          "name": "chatbot_file_associations_chatbot_id_file_id_idx",
+          "columns": [
+            {
+              "expression": "chatbot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "chatbot_file_associations_chatbot_id_chatbots_id_fk": {
           "name": "chatbot_file_associations_chatbot_id_chatbots_id_fk",
@@ -607,228 +629,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.crawl_sources": {
-      "name": "crawl_sources",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "chatbot_id": {
-          "name": "chatbot_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "root_url": {
-          "name": "root_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "crawl_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "crawl_depth": {
-          "name": "crawl_depth",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 3
-        },
-        "max_pages": {
-          "name": "max_pages",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 10
-        },
-        "include_patterns": {
-          "name": "include_patterns",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'[]'::jsonb"
-        },
-        "exclude_patterns": {
-          "name": "exclude_patterns",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'[]'::jsonb"
-        },
-        "last_crawled_at": {
-          "name": "last_crawled_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "crawl_sources_chatbot_id_chatbots_id_fk": {
-          "name": "crawl_sources_chatbot_id_chatbots_id_fk",
-          "tableFrom": "crawl_sources",
-          "tableTo": "chatbots",
-          "columnsFrom": [
-            "chatbot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.crawled_pages": {
-      "name": "crawled_pages",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "crawl_source_id": {
-          "name": "crawl_source_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_file_id": {
-          "name": "user_file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "url": {
-          "name": "url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "content_hash": {
-          "name": "content_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "depth": {
-          "name": "depth",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "status": {
-          "name": "status",
-          "type": "crawled_page_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'{}'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "crawled_pages_crawl_source_id_crawl_sources_id_fk": {
-          "name": "crawled_pages_crawl_source_id_crawl_sources_id_fk",
-          "tableFrom": "crawled_pages",
-          "tableTo": "crawl_sources",
-          "columnsFrom": [
-            "crawl_source_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "crawled_pages_user_file_id_user_files_id_fk": {
-          "name": "crawled_pages_user_file_id_user_files_id_fk",
-          "tableFrom": "crawled_pages",
-          "tableTo": "user_files",
-          "columnsFrom": [
-            "user_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.email_deliveries": {
       "name": "email_deliveries",
       "schema": "",
@@ -1007,7 +807,42 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "file_chunks_embedding_idx": {
+          "name": "file_chunks_embedding_idx",
+          "columns": [
+            {
+              "expression": "embedding",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "vector_cosine_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "hnsw",
+          "with": {
+            "m": 24,
+            "ef_construction": 128
+          }
+        },
+        "file_chunks_file_id_idx": {
+          "name": "file_chunks_file_id_idx",
+          "columns": [
+            {
+              "expression": "file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "file_chunks_file_id_user_files_id_fk": {
           "name": "file_chunks_file_id_user_files_id_fk",
@@ -1024,7 +859,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "file_chunks_file_id_chunk_index_unique": {
+          "name": "file_chunks_file_id_chunk_index_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "file_id",
+            "chunk_index"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1431,29 +1275,6 @@
     }
   },
   "enums": {
-    "public.crawl_status": {
-      "name": "crawl_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "discovering",
-        "crawling",
-        "completed",
-        "failed"
-      ]
-    },
-    "public.crawled_page_status": {
-      "name": "crawled_page_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "processing",
-        "completed",
-        "failed",
-        "blocked",
-        "skipped"
-      ]
-    },
     "public.email_delivery_status": {
       "name": "email_delivery_status",
       "schema": "public",

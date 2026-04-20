@@ -14,6 +14,7 @@ import { toast } from "sonner";
 interface ChatInterfaceProps {
   messages: MessageType[];
   isStreaming: boolean;
+  isThinking?: boolean;
   streamingContent: string;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
@@ -33,6 +34,7 @@ interface ChatInterfaceProps {
 export function ChatInterface({
   messages,
   isStreaming,
+  isThinking = false,
   streamingContent,
   currentMessage,
   setCurrentMessage,
@@ -107,6 +109,9 @@ export function ChatInterface({
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <ChatContainerRoot
           className={`flex-1 min-h-0 overflow-y-auto ${embedMode ? "scrollbar-embed" : ""}`}
+          aria-live="polite"
+          aria-label="Chat messages"
+          aria-busy={isStreaming}
         >
           <ChatContainerContent className="p-2 md:p-3">
             {messages.length === 0 && !isStreaming ? (
@@ -122,12 +127,17 @@ export function ChatInterface({
               <div className="space-y-3 md:space-y-4">
                 {messages.map((msg, idx) => (
                   <ChatMessage
-                    key={idx}
+                    key={`${msg.role}-${idx}`}
                     message={msg}
                     showSources={showSources}
                   />
                 ))}
-                {isStreaming && <StreamingMessage content={streamingContent} />}
+                {isStreaming && (
+                  <StreamingMessage
+                    content={streamingContent}
+                    isThinking={isThinking}
+                  />
+                )}
               </div>
             )}
             <ChatContainerScrollAnchor ref={messagesEndRef} />

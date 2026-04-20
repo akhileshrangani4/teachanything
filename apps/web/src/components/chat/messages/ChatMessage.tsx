@@ -9,7 +9,7 @@ import {
 import { CopyButton } from "@/components/ui/copy-button";
 import { TypingLoader } from "@/components/ui/loader";
 import { Badge } from "@/components/ui/badge";
-import { FileText, StopCircle } from "lucide-react";
+import { FileText, StopCircle, AlertTriangle } from "lucide-react";
 import { useMemo } from "react";
 
 interface ChatMessageProps {
@@ -23,23 +23,19 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const isUser = message.role === "user";
 
-  // Deduplicate sources by fileName and get the highest similarity for each
+  // Deduplicate sources by fileName, keeping highest similarity (O(n) via Map)
   const uniqueSources = useMemo(() => {
     const sources = message.sources;
     if (!sources || sources.length === 0) return [];
 
-    return sources.reduce(
-      (acc, source) => {
-        const existing = acc.find((s) => s.fileName === source.fileName);
-        if (!existing) {
-          acc.push({ ...source });
-        } else if (source.similarity > existing.similarity) {
-          existing.similarity = source.similarity;
-        }
-        return acc;
-      },
-      [] as typeof sources,
-    );
+    const map = new Map<string, (typeof sources)[0]>();
+    for (const s of sources) {
+      const existing = map.get(s.fileName);
+      if (!existing || s.similarity > existing.similarity) {
+        map.set(s.fileName, { ...s });
+      }
+    }
+    return [...map.values()];
   }, [message.sources]);
 
   if (isUser) {
@@ -110,6 +106,16 @@ export function ChatMessage({
               <span>Cancelled</span>
             </div>
           )}
+          {/* Display truncated indicator */}
+          {message.truncated && (
+            <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic">
+              <AlertTriangle className="h-3 w-3" />
+              <span>
+                Response was cut off at the token limit. Try raising max tokens
+                or asking a shorter question.
+              </span>
+            </div>
+          )}
           {/* Display sources if available and enabled */}
           {showSources && uniqueSources.length > 0 && (
             <div className="mt-2 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">
@@ -150,9 +156,13 @@ export function ChatMessage({
 
 interface StreamingMessageProps {
   content: string;
+  isThinking?: boolean;
 }
 
-export function StreamingMessage({ content }: StreamingMessageProps) {
+export function StreamingMessage({
+  content,
+  isThinking = false,
+}: StreamingMessageProps) {
   const hasContent = content && content.trim().length > 0;
 
   return (
@@ -173,6 +183,12 @@ export function StreamingMessage({ content }: StreamingMessageProps) {
               >
                 {content}
               </MessageContent>
+              {isThinking && (
+                <div className="mt-1.5 md:mt-2 flex items-center gap-2 text-xs text-muted-foreground italic">
+                  <TypingLoader size="sm" className="opacity-60" />
+                  <span>Thinking…</span>
+                </div>
+              )}
             </div>
           </Message>
           <div className="pl-9 md:pl-12">
@@ -195,7 +211,14 @@ export function StreamingMessage({ content }: StreamingMessageProps) {
             imageClassName="grayscale"
           />
           <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-xs border border-border/50">
-            <TypingLoader size="md" className="opacity-60" />
+            {isThinking ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                <TypingLoader size="sm" className="opacity-60" />
+                <span>Thinking…</span>
+              </div>
+            ) : (
+              <TypingLoader size="md" className="opacity-60" />
+            )}
           </div>
         </div>
       )}
