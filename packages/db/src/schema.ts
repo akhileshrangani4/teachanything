@@ -287,7 +287,7 @@ export const conversations = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
-    index("idx_conversations_chatbot_id_created_at").on(
+    index("conversations_chatbot_id_created_at_idx").on(
       table.chatbotId,
       table.createdAt,
     ),

@@ -312,6 +312,7 @@ function ConversationListView({
         {conversations.map((conversation) => (
           <button
             key={conversation.id}
+            type="button"
             onClick={() => onSelectConversation(conversation.id)}
             className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
           >
@@ -442,7 +443,7 @@ function ConversationDetail({
                           {isUser ? "Student" : "Assistant"}
                         </span>
                         <span>{formatTimestamp(msg.createdAt)}</span>
-                        {metadata?.responseTime && (
+                        {metadata?.responseTime != null && (
                           <Badge
                             variant="outline"
                             className="text-xs px-1.5 py-0"
@@ -462,9 +463,9 @@ function ConversationDetail({
                       </div>
                       {metadata?.sources && metadata.sources.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                          {metadata.sources.map((source, i) => (
+                          {metadata.sources.map((source) => (
                             <Badge
-                              key={i}
+                              key={`${source.fileName}-${source.chunkIndex}`}
                               variant="secondary"
                               className="text-xs"
                             >

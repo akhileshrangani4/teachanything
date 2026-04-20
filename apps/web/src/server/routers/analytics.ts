@@ -20,17 +20,23 @@ import {
   ilike,
 } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { escapeLikePattern } from "@/server/utils";
 
-function buildMessageStatsSubquery(db: typeof import("@teachanything/db").db) {
+function buildMessageStatsSubquery(
+  db: typeof import("@teachanything/db").db,
+  chatbotId: string,
+) {
   return db
     .select({
       conversationId: messages.conversationId,
       messageCount: count().as("message_count"),
-      firstUserMessage: sql<
-        string | null
-      >`(ARRAY_AGG(${messages.content} ORDER BY ${messages.createdAt} ASC) FILTER (WHERE ${messages.role} = 'user'))[1]`.as(
-        "first_user_message",
-      ),
+      firstUserMessage: sql<string | null>`(
+        SELECT m2.content FROM ${messages} m2
+        WHERE m2.conversation_id = ${messages.conversationId}
+          AND m2.role = 'user'
+        ORDER BY m2.created_at ASC
+        LIMIT 1
+      )`.as("first_user_message"),
       firstMessageAt: sql<Date>`MIN(${messages.createdAt})`.as(
         "first_message_at",
       ),
@@ -39,6 +45,8 @@ function buildMessageStatsSubquery(db: typeof import("@teachanything/db").db) {
       ),
     })
     .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(eq(conversations.chatbotId, chatbotId))
     .groupBy(messages.conversationId)
     .as("msg_stats");
 }
@@ -436,7 +444,7 @@ export const analyticsRouter = router({
         });
       }
 
-      const msgStats = buildMessageStatsSubquery(ctx.db);
+      const msgStats = buildMessageStatsSubquery(ctx.db, input.chatbotId);
 
       const [totalResult] = await ctx.db
         .select({ count: count() })
@@ -444,7 +452,7 @@ export const analyticsRouter = router({
         .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(eq(conversations.chatbotId, input.chatbotId));
 
-      const totalCount = totalResult?.count ?? 0;
+      const totalCount = Number(totalResult?.count ?? 0);
 
       let orderByClause;
       switch (input.sortBy) {
@@ -555,7 +563,7 @@ export const analyticsRouter = router({
       return {
         messages: conversationMessages,
         conversation,
-        totalCount: totalResult?.count ?? 0,
+        totalCount: Number(totalResult?.count ?? 0),
       };
     }),
 
@@ -594,11 +602,11 @@ export const analyticsRouter = router({
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),
-            ilike(messages.content, `%${input.query}%`),
+            ilike(messages.content, `%${escapeLikePattern(input.query)}%`),
           ),
         );
 
-      const msgStats = buildMessageStatsSubquery(ctx.db);
+      const msgStats = buildMessageStatsSubquery(ctx.db, input.chatbotId);
 
       const [totalResult] = await ctx.db
         .select({ count: count() })
@@ -611,7 +619,7 @@ export const analyticsRouter = router({
           ),
         );
 
-      const totalCount = totalResult?.count ?? 0;
+      const totalCount = Number(totalResult?.count ?? 0);
 
       const results = await ctx.db
         .select({
