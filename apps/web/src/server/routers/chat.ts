@@ -111,6 +111,14 @@ async function* processMessage(params: {
     });
   }
 
+  // Yield the sessionId immediately so the client knows the subscription is
+  // live before we start the expensive RAG embedding + history fetch. Sources
+  // are sent as a second metadata event once RAG completes.
+  yield {
+    type: "metadata" as const,
+    sessionId,
+  };
+
   // Resolve model and get context window for budget allocation
   const modelId = resolveModel(chatbot.model);
   const { contextWindow } = MODEL_REGISTRY[modelId];
@@ -130,32 +138,33 @@ async function* processMessage(params: {
     userMessageTokens,
   });
 
-  // Fetch history (up to 50, trimmed to budget below)
-  const historyMessages = await database
-    .select()
-    .from(messages)
-    .where(eq(messages.conversationId, conversation.id))
-    .orderBy(desc(messages.createdAt))
-    .limit(50);
-
-  historyMessages.reverse();
-
-  // Build RAG context with budget-derived chunk limit
   // Create AI client once and reuse for both RAG embedding and LLM streaming
   const aiClient = createOpenRouterClient(
     env.OPENROUTER_API_KEY,
     env.OPENAI_API_KEY,
   );
 
-  const ragResult = await buildRAGContext({
-    chatbotId: chatbot.id,
-    message,
-    db: database,
-    openrouterApiKey: env.OPENROUTER_API_KEY,
-    openaiApiKey: env.OPENAI_API_KEY,
-    chunkLimit: estimatedChunkLimit,
-    aiClient,
-  });
+  // History fetch and RAG context build are independent -- run in parallel so
+  // we're bounded by the slower of the two (usually RAG) instead of their sum.
+  const [historyMessages, ragResult] = await Promise.all([
+    database
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversation.id))
+      .orderBy(desc(messages.createdAt))
+      .limit(50),
+    buildRAGContext({
+      chatbotId: chatbot.id,
+      message,
+      db: database,
+      openrouterApiKey: env.OPENROUTER_API_KEY,
+      openaiApiKey: env.OPENAI_API_KEY,
+      chunkLimit: estimatedChunkLimit,
+      aiClient,
+    }),
+  ]);
+
+  historyMessages.reverse();
 
   // Pass 2: allocate budget with actual token counts
   const fileManifestTokens = countTokens(ragResult.fileManifest);
@@ -188,10 +197,10 @@ async function* processMessage(params: {
     logWarn(warning, { chatbotId: chatbot.id, modelId });
   }
 
-  // Send metadata
+  // Send RAG sources now that they're available. The client handles metadata
+  // events idempotently (updates only fields that are present).
   yield {
     type: "metadata" as const,
-    sessionId,
     sources: ragResult.sources,
   };
 
@@ -208,13 +217,26 @@ async function* processMessage(params: {
     ragResult.fileManifest +
     ragResult.contextText;
 
-  // Save user message
-  await database.insert(messages).values({
-    conversationId: conversation.id,
-    role: "user",
-    content: message,
-    metadata: {},
-  });
+  // Kick off the user-message insert alongside the streamText handshake
+  // instead of blocking on it first. We await it before saving the assistant
+  // reply so ordering stays correct if either fails.
+  // The .catch keeps an unhandled rejection from surfacing if the stream
+  // throws before we await; the real error is still logged here.
+  const userMessageInsert = database
+    .insert(messages)
+    .values({
+      conversationId: conversation.id,
+      role: "user",
+      content: message,
+      metadata: {},
+    })
+    .catch((err) => {
+      logError(err, "Failed to insert user message", {
+        chatbotId: chatbot.id,
+        sessionId,
+      });
+      throw err;
+    });
 
   // Stream response using the same client
   const startTime = Date.now();
@@ -301,6 +323,10 @@ async function* processMessage(params: {
       maxOutputTokens,
     });
   }
+
+  // Wait for the user message insert (fired in parallel with streamText) so
+  // subsequent turns see the full conversation and the ordering is correct.
+  await userMessageInsert;
 
   // Save assistant response
   await database.insert(messages).values({
