@@ -2,10 +2,7 @@ import { protectedProcedure } from "@/server/trpc";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { chatbots, crawlSources } from "@teachanything/db/schema";
-import {
-  dispatchCrawlJob,
-  processCrawlDiscovery,
-} from "@/lib/crawl-processor";
+import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
 import { checkRateLimit, recrawlRateLimit } from "@/lib/rate-limit";
 import { crawlSourceIdInput } from "../validation";
 

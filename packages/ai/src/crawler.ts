@@ -356,9 +356,7 @@ function extractContent(
       url;
 
     doc
-      .querySelectorAll(
-        "script, style, noscript, iframe, [aria-hidden='true']",
-      )
+      .querySelectorAll("script, style, noscript, iframe, [aria-hidden='true']")
       .forEach((el) => el.remove());
 
     const reader = new Readability(doc, { charThreshold: 20 });

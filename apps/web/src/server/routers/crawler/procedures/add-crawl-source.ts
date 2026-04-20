@@ -3,10 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { chatbots, crawlSources } from "@teachanything/db/schema";
 import { verifyUrlReachable } from "@teachanything/ai/crawler";
-import {
-  dispatchCrawlJob,
-  processCrawlDiscovery,
-} from "@/lib/crawl-processor";
+import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
 import { checkRateLimit, crawlSourceRateLimit } from "@/lib/rate-limit";
 import { crawlSourceInput } from "../validation";
 
