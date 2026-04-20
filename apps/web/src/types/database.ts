@@ -51,6 +51,7 @@ export interface ChatMessage {
     similarity: number;
   }>;
   cancelled?: boolean;
+  truncated?: boolean;
 }
 
 // Message source type

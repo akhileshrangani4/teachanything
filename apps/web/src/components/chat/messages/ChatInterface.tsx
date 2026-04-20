@@ -14,6 +14,7 @@ import { toast } from "sonner";
 interface ChatInterfaceProps {
   messages: MessageType[];
   isStreaming: boolean;
+  isThinking?: boolean;
   streamingContent: string;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
@@ -33,6 +34,7 @@ interface ChatInterfaceProps {
 export function ChatInterface({
   messages,
   isStreaming,
+  isThinking = false,
   streamingContent,
   currentMessage,
   setCurrentMessage,
@@ -130,7 +132,12 @@ export function ChatInterface({
                     showSources={showSources}
                   />
                 ))}
-                {isStreaming && <StreamingMessage content={streamingContent} />}
+                {isStreaming && (
+                  <StreamingMessage
+                    content={streamingContent}
+                    isThinking={isThinking}
+                  />
+                )}
               </div>
             )}
             <ChatContainerScrollAnchor ref={messagesEndRef} />

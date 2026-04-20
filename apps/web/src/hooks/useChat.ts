@@ -63,6 +63,7 @@ export function useChat(shareToken: string) {
     currentMessage: state.currentMessage,
     setCurrentMessage: state.setCurrentMessage,
     isStreaming: state.isStreaming,
+    isThinking: state.isThinking,
     streamingContent: state.streamingContent,
     messagesEndRef: state.messagesEndRef,
     chatbot,

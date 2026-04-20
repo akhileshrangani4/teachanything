@@ -1,4 +1,5 @@
 import { router, publicProcedure, protectedProcedure } from "../trpc";
+import type { FinishReason } from "ai";
 import { z } from "zod";
 import {
   chatbots,
@@ -218,6 +219,7 @@ async function* processMessage(params: {
   // Stream response using the same client
   const startTime = Date.now();
   let fullResponse = "";
+  let finishReason: FinishReason | undefined;
 
   const result = await aiClient.streamText({
     model: modelId,
@@ -230,16 +232,56 @@ async function* processMessage(params: {
     maxTokens: maxOutputTokens,
   });
 
-  // Stream the text
-  for await (const chunk of result.textStream) {
-    fullResponse += chunk;
-    yield {
-      type: "text" as const,
-      content: chunk,
-    };
+  // Consume fullStream so we get typed events: text deltas, reasoning deltas,
+  // errors, aborts, and finish reasons. textStream swallows all non-text parts,
+  // which means mid-stream errors look identical to a clean finish on the wire.
+  for await (const part of result.fullStream) {
+    switch (part.type) {
+      case "text-delta": {
+        fullResponse += part.text;
+        yield {
+          type: "text" as const,
+          content: part.text,
+        };
+        break;
+      }
+      case "reasoning-delta": {
+        // Surface reasoning as a thinking indicator so the UI doesn't look
+        // frozen during long pauses. The reasoning text itself is never sent
+        // to the client -- on public shared chatbots it can restate system
+        // prompts or RAG context.
+        yield { type: "thinking" as const };
+        break;
+      }
+      case "finish": {
+        finishReason = part.finishReason;
+        break;
+      }
+      case "error": {
+        throw new Error(`Stream error: ${String(part.error)}`, {
+          cause: part.error,
+        });
+      }
+      case "abort": {
+        throw new Error("Stream aborted by provider");
+      }
+      default:
+        // Other event types (text-start, text-end, reasoning-start, start,
+        // finish-step, etc.) don't affect what we send to the client.
+        break;
+    }
   }
 
   const responseTime = Date.now() - startTime;
+  const truncated = finishReason === "length";
+
+  if (truncated) {
+    logWarn("Response truncated at maxTokens limit", {
+      chatbotId: chatbot.id,
+      modelId,
+      maxOutputTokens,
+    });
+  }
 
   // Save assistant response
   await database.insert(messages).values({
@@ -272,10 +314,12 @@ async function* processMessage(params: {
     eventType,
   });
 
-  // Send done signal
+  // Send done signal. `truncated` surfaces whether the model hit its output
+  // token limit so the UI can render a warning badge on the message.
   yield {
     type: "done" as const,
     responseTime,
+    truncated,
   };
 }
 
