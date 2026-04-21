@@ -10,6 +10,8 @@
 --   - user_files: Centralized file storage
 --   - file_chunks: File chunks with embeddings for RAG
 --   - chatbot_file_associations: Many-to-many relationship between chatbots and files
+--   - crawl_sources: Web crawler source URLs and crawl configuration
+--   - crawled_pages: Individual pages discovered and processed by the crawler
 -- 
 -- WHY DISABLE RLS?
 --   - We use Better Auth (not Supabase Auth) with direct PostgreSQL connections
@@ -41,6 +43,8 @@ DROP POLICY IF EXISTS "Allow authenticated users to manage their files" ON "user
 ALTER TABLE "user_files" DISABLE ROW LEVEL SECURITY;
 ALTER TABLE "file_chunks" DISABLE ROW LEVEL SECURITY;
 ALTER TABLE "chatbot_file_associations" DISABLE ROW LEVEL SECURITY;
+ALTER TABLE "crawl_sources" DISABLE ROW LEVEL SECURITY;
+ALTER TABLE "crawled_pages" DISABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- Note: The application layer (tRPC procedures) already validates that
