@@ -606,12 +606,11 @@ function CrawlSourceCard({
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{source.rootUrl}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  {!source.enabled && (
-                    <Badge variant="secondary" className="text-xs">
-                      Disabled
-                    </Badge>
+                  {source.enabled ? (
+                    getSourceStatusBadge(source.status)
+                  ) : (
+                    <Badge variant="secondary">Disabled</Badge>
                   )}
-                  {getSourceStatusBadge(source.status)}
                   {source.status === "completed" && (
                     <span className="text-xs text-muted-foreground">
                       {pageCount} page{pageCount !== 1 ? "s" : ""} crawled
