@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.17.0](https://github.com/akhileshrangani4/teachanything/compare/v1.16.1...v1.17.0) (2026-04-21)
+
+
+### Features
+
+* **crawler:** add web crawler for site content ingestion ([#222](https://github.com/akhileshrangani4/teachanything/issues/222)) ([fd67ef5](https://github.com/akhileshrangani4/teachanything/commit/fd67ef5634f29bffe2396fedaeb736764af51449))
+
+
+### Bug Fixes
+
+* **chat:** surface stream errors and truncation via fullStream ([#233](https://github.com/akhileshrangani4/teachanything/issues/233)) ([fd69369](https://github.com/akhileshrangani4/teachanything/commit/fd69369b1e85a39962151ae5aed470ae5bd45395))
+
 ## [1.16.1](https://github.com/akhileshrangani4/teachanything/compare/v1.16.0...v1.16.1) (2026-04-19)
 
 
