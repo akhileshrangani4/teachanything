@@ -521,6 +521,64 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
   );
 }
 
+function computeCrawlProgress(
+  status: string,
+  pageCounts: {
+    pending: number;
+    processing: number;
+    completed: number;
+    failed: number;
+    blocked: number;
+    skipped: number;
+  },
+): { progress: number; label: string } {
+  const { pending, processing, completed, failed, blocked, skipped } =
+    pageCounts;
+  const total =
+    pending + processing + completed + failed + blocked + skipped;
+
+  if (status === "pending") {
+    return { progress: 5, label: "Waiting to start..." };
+  }
+  if (status === "discovering") {
+    return { progress: 15, label: "Discovering pages..." };
+  }
+  if (status === "crawling" && total > 0) {
+    const done = completed + failed + blocked + skipped;
+    return {
+      progress: 20 + Math.round((done / total) * 80),
+      label: `Processing ${done} of ${total} pages...`,
+    };
+  }
+  if (status === "crawling") {
+    return { progress: 20, label: "Processing pages..." };
+  }
+  return { progress: 0, label: "Waiting to start..." };
+}
+
+function CrawlProgress({
+  status,
+  pageCounts,
+}: {
+  status: string;
+  pageCounts: {
+    pending: number;
+    processing: number;
+    completed: number;
+    failed: number;
+    blocked: number;
+    skipped: number;
+  };
+}) {
+  const { progress, label } = computeCrawlProgress(status, pageCounts);
+  return (
+    <div className="px-4 pb-3">
+      <Progress value={progress} className="h-2" />
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
+    </div>
+  );
+}
+
 function CrawlSourceCard({
   source,
   isExpanded,
@@ -561,29 +619,32 @@ function CrawlSourceCard({
     source.status === "pending" ||
     source.status === "discovering" ||
     source.status === "crawling";
-  const pageCount = (source.metadata?.pageCount as number) ?? 0;
-  const errorCount = (source.metadata?.errorCount as number) ?? 0;
+  const pageCount =
+    typeof source.metadata?.pageCount === "number"
+      ? source.metadata.pageCount
+      : 0;
+  const errorCount =
+    typeof source.metadata?.errorCount === "number"
+      ? source.metadata.errorCount
+      : 0;
 
-  const exportJson = trpc.crawler.exportJson.useQuery(
-    { crawlSourceId: source.id },
-    { enabled: false },
-  );
+  const utils = trpc.useUtils();
 
   const handleExport = async () => {
     try {
-      const result = await exportJson.refetch();
-      if (result.data) {
-        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `crawl-${new URL(source.rootUrl).hostname}-${new Date().toISOString().split("T")[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("JSON exported");
-      }
+      const data = await utils.crawler.exportJson.fetch({
+        crawlSourceId: source.id,
+      });
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `crawl-${new URL(source.rootUrl).hostname}-${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("JSON exported");
     } catch {
       toast.error("Failed to export JSON");
     }
@@ -713,37 +774,9 @@ function CrawlSourceCard({
           </div>
         </div>
 
-        {isActive &&
-          (() => {
-            const { pending, processing, completed, failed, blocked, skipped } =
-              source.pageCounts;
-            const total =
-              pending + processing + completed + failed + blocked + skipped;
-            let progress = 0;
-            let label = "Waiting to start...";
-
-            if (source.status === "pending") {
-              progress = 5;
-              label = "Waiting to start...";
-            } else if (source.status === "discovering") {
-              progress = 15;
-              label = "Discovering pages...";
-            } else if (source.status === "crawling" && total > 0) {
-              const done = completed + failed + blocked + skipped;
-              progress = 20 + Math.round((done / total) * 80);
-              label = `Processing ${done} of ${total} pages...`;
-            } else if (source.status === "crawling") {
-              progress = 20;
-              label = "Processing pages...";
-            }
-
-            return (
-              <div className="px-4 pb-3">
-                <Progress value={progress} className="h-2" />
-                <p className="text-xs text-muted-foreground mt-1">{label}</p>
-              </div>
-            );
-          })()}
+        {isActive && (
+          <CrawlProgress status={source.status} pageCounts={source.pageCounts} />
+        )}
 
         <CollapsibleContent>
           <CrawledPagesList
@@ -773,7 +806,7 @@ function CrawledPagesList({
       limit,
       offset,
     },
-    { enabled: isExpanded },
+    { enabled: isExpanded, staleTime: 30_000 },
   );
 
   const removeCrawledPage = trpc.crawler.removeCrawledPage.useMutation({

@@ -1,75 +1,52 @@
 import { protectedProcedure } from "@/server/trpc";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import {
-  chatbots,
-  crawlSources,
-  crawledPages,
-  userFiles,
-  chatbotFileAssociations,
-} from "@teachanything/db/schema";
+import { crawledPages } from "@teachanything/db/schema";
 import { logInfo, logError } from "@/lib/logger";
 import { crawledPageIdInput } from "../validation";
+import { assertOwnedCrawledPage, deleteCrawlFileIds } from "../helpers";
 
 export const removeCrawledPageProcedure = protectedProcedure
   .input(crawledPageIdInput)
   .mutation(async ({ ctx, input }) => {
-    const [page] = await ctx.db
-      .select()
-      .from(crawledPages)
-      .where(eq(crawledPages.id, input.crawledPageId))
-      .limit(1);
+    const { source } = await assertOwnedCrawledPage(ctx, input.crawledPageId);
 
-    if (!page) {
+    // Block deletion while a crawl is actively writing to this source --
+    // otherwise a worker may try to insert chunks against a just-deleted
+    // userFile, triggering FK violations and stuck jobs.
+    if (
+      source.status === "discovering" ||
+      source.status === "crawling" ||
+      source.status === "pending"
+    ) {
       throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Crawled page not found",
-      });
-    }
-
-    const [source] = await ctx.db
-      .select()
-      .from(crawlSources)
-      .where(eq(crawlSources.id, page.crawlSourceId))
-      .limit(1);
-
-    if (!source) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Crawl source not found",
-      });
-    }
-
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, source.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
+        code: "CONFLICT",
+        message:
+          "Cannot remove this page while a crawl is in progress. Wait for the crawl to finish.",
       });
     }
 
     try {
       await ctx.db.transaction(async (tx) => {
-        if (page.userFileId) {
-          // Deleting the userFile cascades to fileChunks and, via the
-          // chatbotFileAssociations FK, to associations.
-          await tx
-            .delete(chatbotFileAssociations)
-            .where(eq(chatbotFileAssociations.fileId, page.userFileId));
-          await tx
-            .delete(userFiles)
-            .where(eq(userFiles.id, page.userFileId));
+        // Re-read the page inside the transaction to close the orphan window:
+        // between the preflight check and this point, the crawl worker could
+        // have set userFileId. FOR UPDATE locks the row so the worker can't
+        // race us mid-transaction.
+        const [fresh] = await tx
+          .select()
+          .from(crawledPages)
+          .where(eq(crawledPages.id, input.crawledPageId))
+          .for("update")
+          .limit(1);
+
+        if (!fresh) return; // already deleted concurrently
+
+        if (fresh.userFileId) {
+          // Use the shared orphan-aware helper so a userFile shared with
+          // another chatbot isn't deleted out from under it.
+          await deleteCrawlFileIds(tx, source.chatbotId, [fresh.userFileId]);
         }
+
         await tx
           .delete(crawledPages)
           .where(eq(crawledPages.id, input.crawledPageId));
@@ -77,7 +54,7 @@ export const removeCrawledPageProcedure = protectedProcedure
 
       logInfo("Crawled page removed", {
         crawledPageId: input.crawledPageId,
-        crawlSourceId: page.crawlSourceId,
+        crawlSourceId: source.id,
       });
 
       return { success: true };

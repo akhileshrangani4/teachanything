@@ -68,20 +68,24 @@ export async function buildRAGContext(
   const fileNames = completedFiles.map((f) => f.fileName);
   let fileIds = completedFiles.map((f) => f.fileId);
 
-  // Filter out files belonging to disabled crawl sources. Done as a separate
-  // query so the main vector similarity search keeps its simple query plan.
+  // Filter out files belonging to disabled crawl sources. Drive the query
+  // from crawl_sources (which has idx_crawl_sources_chatbot_id) scoped to
+  // this chatbot -- usually returns 0 rows, letting us skip the filter.
+  // Avoids a seq-scan on the unindexed crawled_pages.user_file_id column
+  // on every chat message.
   if (fileIds.length > 0) {
     const disabledCrawledFiles = await params.db
       .select({ userFileId: crawledPages.userFileId })
-      .from(crawledPages)
+      .from(crawlSources)
       .innerJoin(
-        crawlSources,
-        eq(crawlSources.id, crawledPages.crawlSourceId),
+        crawledPages,
+        eq(crawledPages.crawlSourceId, crawlSources.id),
       )
       .where(
         and(
-          inArray(crawledPages.userFileId, fileIds),
+          eq(crawlSources.chatbotId, params.chatbotId),
           eq(crawlSources.enabled, false),
+          isNotNull(crawledPages.userFileId),
         ),
       );
     if (disabledCrawledFiles.length > 0) {

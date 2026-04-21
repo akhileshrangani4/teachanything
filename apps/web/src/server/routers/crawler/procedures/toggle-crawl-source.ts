@@ -1,9 +1,11 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { chatbots, crawlSources } from "@teachanything/db/schema";
+import { crawlSources } from "@teachanything/db/schema";
 import { logInfo } from "@/lib/logger";
+import { checkRateLimit, recrawlRateLimit } from "@/lib/rate-limit";
+import { assertOwnedCrawlSource } from "../helpers";
 
 export const toggleCrawlSourceProcedure = protectedProcedure
   .input(
@@ -13,34 +15,17 @@ export const toggleCrawlSourceProcedure = protectedProcedure
     }),
   )
   .mutation(async ({ ctx, input }) => {
-    const [source] = await ctx.db
-      .select()
-      .from(crawlSources)
-      .where(eq(crawlSources.id, input.crawlSourceId))
-      .limit(1);
+    await assertOwnedCrawlSource(ctx, input.crawlSourceId);
 
-    if (!source) {
+    const { success } = await checkRateLimit(
+      recrawlRateLimit,
+      ctx.session.user.id,
+      { action: "toggleCrawlSource" },
+    );
+    if (!success) {
       throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Crawl source not found",
-      });
-    }
-
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, source.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
+        code: "TOO_MANY_REQUESTS",
+        message: "Too many toggle requests. Please try again later.",
       });
     }
 

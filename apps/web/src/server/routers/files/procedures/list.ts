@@ -7,6 +7,7 @@ import {
   desc,
   asc,
   ilike,
+  like,
   or,
   isNull,
   not,
@@ -23,7 +24,9 @@ import { escapeLikePattern } from "@/server/utils";
 // Crawled pages are shown as grouped "Web Sources" rows in the Files tab
 // (rendered from crawler.getCrawlSources) rather than cluttering the
 // uploaded-file table as individual rows.
-const excludeCrawledPages = not(ilike(userFiles.storagePath, "http%"));
+// Uploaded files always use a lowercase `{userId}/{fileId}` path, so a
+// case-sensitive LIKE is sufficient (and index-friendlier than ILIKE).
+const excludeCrawledPages = not(like(userFiles.storagePath, "http%"));
 
 /**
  * List all user files (centralized) with search and sort

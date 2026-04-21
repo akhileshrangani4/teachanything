@@ -1,13 +1,9 @@
 import { protectedProcedure } from "@/server/trpc";
 import { eq, and, asc, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import {
-  chatbots,
-  crawlSources,
-  crawledPages,
-  fileChunks,
-} from "@teachanything/db/schema";
+import { crawledPages, fileChunks } from "@teachanything/db/schema";
 import { crawlSourceIdInput } from "../validation";
+import { assertOwnedCrawlSource } from "../helpers";
 
 const MAX_EXPORT_PAGES = 200;
 const MAX_EXPORT_CHUNKS = 5000;
@@ -15,36 +11,7 @@ const MAX_EXPORT_CHUNKS = 5000;
 export const exportJsonProcedure = protectedProcedure
   .input(crawlSourceIdInput)
   .query(async ({ ctx, input }) => {
-    const [source] = await ctx.db
-      .select()
-      .from(crawlSources)
-      .where(eq(crawlSources.id, input.crawlSourceId))
-      .limit(1);
-
-    if (!source) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Crawl source not found",
-      });
-    }
-
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, source.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
-      });
-    }
+    const source = await assertOwnedCrawlSource(ctx, input.crawlSourceId);
 
     const completedPages = await ctx.db
       .select({
