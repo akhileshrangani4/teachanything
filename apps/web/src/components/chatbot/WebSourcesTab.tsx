@@ -57,6 +57,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 
 interface WebSourcesTabProps {
   chatbotId: string;
@@ -271,6 +272,18 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
     },
   });
 
+  const toggleCrawlSource = trpc.crawler.toggleCrawlSource.useMutation({
+    onSuccess: (_data, variables) => {
+      refetchSources();
+      toast.success(variables.enabled ? "Source enabled" : "Source disabled");
+    },
+    onError: (error) => {
+      toast.error("Failed to toggle source", {
+        description: getFriendlyError(error),
+      });
+    },
+  });
+
   const normalizeUrl = (url: string) => {
     const trimmed = url.trim();
     if (trimmed && !trimmed.match(/^https?:\/\//i)) {
@@ -471,8 +484,15 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
                 onRemove={() =>
                   removeCrawlSource.mutate({ crawlSourceId: source.id })
                 }
+                onToggleEnabled={(enabled) =>
+                  toggleCrawlSource.mutate({
+                    crawlSourceId: source.id,
+                    enabled,
+                  })
+                }
                 isRecrawling={recrawl.isPending}
                 isRemoving={removeCrawlSource.isPending}
+                isTogglingEnabled={toggleCrawlSource.isPending}
               />
             ))}
           </div>
@@ -488,13 +508,16 @@ function CrawlSourceCard({
   onToggleExpand,
   onRecrawl,
   onRemove,
+  onToggleEnabled,
   isRecrawling,
   isRemoving,
+  isTogglingEnabled,
 }: {
   source: {
     id: string;
     rootUrl: string;
     status: string;
+    enabled: boolean;
     lastCrawledAt: Date | null;
     metadata: Record<string, unknown> | null;
     pageCounts: {
@@ -510,8 +533,10 @@ function CrawlSourceCard({
   onToggleExpand: () => void;
   onRecrawl: () => void;
   onRemove: () => void;
+  onToggleEnabled: (enabled: boolean) => void;
   isRecrawling: boolean;
   isRemoving: boolean;
+  isTogglingEnabled: boolean;
 }) {
   const isActive =
     source.status === "pending" ||
@@ -546,7 +571,9 @@ function CrawlSourceCard({
   };
 
   return (
-    <div className="rounded-lg border">
+    <div
+      className={`rounded-lg border transition-opacity ${source.enabled ? "" : "opacity-60"}`}
+    >
       <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
         <div className="flex items-center justify-between p-4">
           <CollapsibleTrigger asChild>
@@ -560,6 +587,11 @@ function CrawlSourceCard({
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{source.rootUrl}</p>
                 <div className="flex items-center gap-2 mt-1">
+                  {!source.enabled && (
+                    <Badge variant="secondary" className="text-xs">
+                      Disabled
+                    </Badge>
+                  )}
                   {getSourceStatusBadge(source.status)}
                   {source.status === "completed" && (
                     <span className="text-xs text-muted-foreground">
@@ -578,7 +610,22 @@ function CrawlSourceCard({
               </div>
             </button>
           </CollapsibleTrigger>
-          <div className="flex items-center gap-1 ml-2">
+          <div className="flex items-center gap-2 ml-2">
+            <div
+              className="flex items-center"
+              title={
+                source.enabled
+                  ? "Disable this source (keeps data, excludes from chat context)"
+                  : "Enable this source"
+              }
+            >
+              <Switch
+                checked={source.enabled}
+                onCheckedChange={onToggleEnabled}
+                disabled={isTogglingEnabled}
+                aria-label="Toggle source"
+              />
+            </div>
             {source.status === "completed" && (
               <>
                 <Button

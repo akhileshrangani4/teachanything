@@ -1,8 +1,10 @@
-import { eq, and, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, or, sql, inArray, isNotNull, isNull } from "drizzle-orm";
 import {
   fileChunks,
   chatbotFileAssociations,
   userFiles,
+  crawledPages,
+  crawlSources,
 } from "@teachanything/db/schema";
 import {
   createOpenRouterClient,
@@ -144,6 +146,10 @@ export async function buildRAGContext(
   // D-06, RAG-03: Real cosine similarity in SELECT
   const similarityExpr = sql<number>`1 - (${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)})`;
 
+  // LEFT JOIN crawled_pages + crawl_sources so we can filter out chunks
+  // belonging to a disabled crawl source. Uploaded files don't match the
+  // LEFT JOIN, so their crawl_sources.enabled is NULL and they pass the
+  // filter via the OR clause.
   const relevantChunks = await params.db
     .select({
       content: fileChunks.content,
@@ -154,11 +160,14 @@ export async function buildRAGContext(
     })
     .from(fileChunks)
     .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
+    .leftJoin(crawledPages, eq(crawledPages.userFileId, userFiles.id))
+    .leftJoin(crawlSources, eq(crawlSources.id, crawledPages.crawlSourceId))
     .where(
       and(
         inArray(fileChunks.fileId, fileIds),
         eq(userFiles.processingStatus, "completed"), // D-08: defense-in-depth
         isNotNull(fileChunks.embedding), // D-09, RAG-06
+        or(isNull(crawlSources.id), eq(crawlSources.enabled, true)),
       ),
     )
     // CRITICAL: ORDER BY raw distance ascending to use HNSW index

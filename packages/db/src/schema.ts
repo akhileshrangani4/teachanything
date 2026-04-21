@@ -372,6 +372,7 @@ export const crawlSources = pgTable(
       .notNull(),
     rootUrl: text("root_url").notNull(),
     status: crawlStatusEnum("status").default("pending").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
     crawlDepth: integer("crawl_depth").default(3).notNull(),
     maxPages: integer("max_pages").default(10).notNull(),
     includePatterns: jsonb("include_patterns").$type<string[]>().default([]),
