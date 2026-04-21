@@ -427,6 +427,10 @@ export const crawledPages = pgTable(
       table.crawlSourceId,
       table.url,
     ),
+    // Speeds up userFileId lookups from RAG retrieval and orphan
+    // detection. Partial index (WHERE user_file_id IS NOT NULL) keeps
+    // the index small since pending pages have no userFileId.
+    index("idx_crawled_pages_user_file_id").on(table.userFileId),
   ],
 );
 

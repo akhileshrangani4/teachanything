@@ -11,6 +11,20 @@ export const removeCrawlSourceProcedure = protectedProcedure
   .mutation(async ({ ctx, input }) => {
     const source = await assertOwnedCrawlSource(ctx, input.crawlSourceId);
 
+    // Block deletion while a crawl is in flight so workers don't
+    // race us with inserts against rows we're about to drop.
+    if (
+      source.status === "pending" ||
+      source.status === "discovering" ||
+      source.status === "crawling"
+    ) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message:
+          "Cannot remove this source while a crawl is in progress. Wait for the crawl to finish.",
+      });
+    }
+
     try {
       await ctx.db.transaction(async (tx) => {
         const pagesWithFiles = await tx

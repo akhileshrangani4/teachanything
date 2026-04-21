@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -8,11 +8,12 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import type { db as dbType } from "@teachanything/db";
+import type { Context } from "@/server/trpc";
 
-type TrpcContext = {
-  db: typeof dbType;
-  session: { user: { id: string } };
-};
+// Narrowed context for helpers: only called from protectedProcedure, so
+// the auth middleware has already verified session. Narrowing keeps the
+// helper decoupled from non-user-id fields on Context.
+type AuthedContext = Context & { session: { user: { id: string } } };
 
 /**
  * Fetch a crawl source and verify the caller owns its parent chatbot.
@@ -20,7 +21,7 @@ type TrpcContext = {
  * Throws NOT_FOUND if the source doesn't exist or the user doesn't own it.
  */
 export async function assertOwnedCrawlSource(
-  ctx: TrpcContext,
+  ctx: AuthedContext,
   crawlSourceId: string,
 ): Promise<typeof crawlSources.$inferSelect> {
   const [row] = await ctx.db
@@ -50,7 +51,7 @@ export async function assertOwnedCrawlSource(
  * the chatbot that owns the parent crawl source.
  */
 export async function assertOwnedCrawledPage(
-  ctx: TrpcContext,
+  ctx: AuthedContext,
   crawledPageId: string,
 ): Promise<{
   page: typeof crawledPages.$inferSelect;
@@ -83,7 +84,7 @@ export async function assertOwnedCrawledPage(
  * Verifies the caller owns the given chatbot. Returns the chatbot row.
  */
 export async function assertOwnedChatbot(
-  ctx: TrpcContext,
+  ctx: AuthedContext,
   chatbotId: string,
 ): Promise<typeof chatbots.$inferSelect> {
   const [chatbot] = await ctx.db
@@ -123,6 +124,7 @@ export async function deleteCrawlFileIds(
 ): Promise<void> {
   if (fileIds.length === 0) return;
 
+  // Step 1: remove this chatbot's associations to the target files.
   await tx
     .delete(chatbotFileAssociations)
     .where(
@@ -132,15 +134,15 @@ export async function deleteCrawlFileIds(
       ),
     );
 
-  const remaining = await tx
-    .select({ fileId: chatbotFileAssociations.fileId })
-    .from(chatbotFileAssociations)
-    .where(inArray(chatbotFileAssociations.fileId, fileIds));
-
-  const stillLinked = new Set(remaining.map((r) => r.fileId));
-  const orphaned = fileIds.filter((id) => !stillLinked.has(id));
-
-  if (orphaned.length > 0) {
-    await tx.delete(userFiles).where(inArray(userFiles.id, orphaned));
-  }
+  // Step 2: delete userFiles that are now fully orphaned (no remaining
+  // associations to any chatbot). Uses NOT EXISTS in one round-trip
+  // instead of a SELECT + client-side diff + DELETE.
+  await tx
+    .delete(userFiles)
+    .where(
+      and(
+        inArray(userFiles.id, fileIds),
+        sql`NOT EXISTS (SELECT 1 FROM ${chatbotFileAssociations} WHERE ${chatbotFileAssociations.fileId} = ${userFiles.id})`,
+      ),
+    );
 }
