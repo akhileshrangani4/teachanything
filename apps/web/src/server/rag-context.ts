@@ -1,4 +1,4 @@
-import { eq, and, or, sql, inArray, isNotNull, isNull } from "drizzle-orm";
+import { eq, and, sql, inArray, isNotNull } from "drizzle-orm";
 import {
   fileChunks,
   chatbotFileAssociations,
@@ -65,8 +65,34 @@ export async function buildRAGContext(
       ),
     );
 
-  const fileIds = completedFiles.map((f) => f.fileId);
   const fileNames = completedFiles.map((f) => f.fileName);
+  let fileIds = completedFiles.map((f) => f.fileId);
+
+  // Filter out files belonging to disabled crawl sources. Done as a separate
+  // query so the main vector similarity search keeps its simple query plan.
+  if (fileIds.length > 0) {
+    const disabledCrawledFiles = await params.db
+      .select({ userFileId: crawledPages.userFileId })
+      .from(crawledPages)
+      .innerJoin(
+        crawlSources,
+        eq(crawlSources.id, crawledPages.crawlSourceId),
+      )
+      .where(
+        and(
+          inArray(crawledPages.userFileId, fileIds),
+          eq(crawlSources.enabled, false),
+        ),
+      );
+    if (disabledCrawledFiles.length > 0) {
+      const disabled = new Set(
+        disabledCrawledFiles
+          .map((r) => r.userFileId)
+          .filter((id): id is string => id !== null),
+      );
+      fileIds = fileIds.filter((id) => !disabled.has(id));
+    }
+  }
 
   // 2. Build file manifest (D-01, D-03: anti-hallucination instruction)
   const fileManifest =
@@ -146,10 +172,6 @@ export async function buildRAGContext(
   // D-06, RAG-03: Real cosine similarity in SELECT
   const similarityExpr = sql<number>`1 - (${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)})`;
 
-  // LEFT JOIN crawled_pages + crawl_sources so we can filter out chunks
-  // belonging to a disabled crawl source. Uploaded files don't match the
-  // LEFT JOIN, so their crawl_sources.enabled is NULL and they pass the
-  // filter via the OR clause.
   const relevantChunks = await params.db
     .select({
       content: fileChunks.content,
@@ -160,14 +182,11 @@ export async function buildRAGContext(
     })
     .from(fileChunks)
     .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-    .leftJoin(crawledPages, eq(crawledPages.userFileId, userFiles.id))
-    .leftJoin(crawlSources, eq(crawlSources.id, crawledPages.crawlSourceId))
     .where(
       and(
         inArray(fileChunks.fileId, fileIds),
         eq(userFiles.processingStatus, "completed"), // D-08: defense-in-depth
         isNotNull(fileChunks.embedding), // D-09, RAG-06
-        or(isNull(crawlSources.id), eq(crawlSources.enabled, true)),
       ),
     )
     // CRITICAL: ORDER BY raw distance ascending to use HNSW index
