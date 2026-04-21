@@ -534,8 +534,7 @@ function computeCrawlProgress(
 ): { progress: number; label: string } {
   const { pending, processing, completed, failed, blocked, skipped } =
     pageCounts;
-  const total =
-    pending + processing + completed + failed + blocked + skipped;
+  const total = pending + processing + completed + failed + blocked + skipped;
 
   if (status === "pending") {
     return { progress: 5, label: "Waiting to start..." };
@@ -775,14 +774,14 @@ function CrawlSourceCard({
         </div>
 
         {isActive && (
-          <CrawlProgress status={source.status} pageCounts={source.pageCounts} />
+          <CrawlProgress
+            status={source.status}
+            pageCounts={source.pageCounts}
+          />
         )}
 
         <CollapsibleContent>
-          <CrawledPagesList
-            crawlSourceId={source.id}
-            isExpanded={isExpanded}
-          />
+          <CrawledPagesList crawlSourceId={source.id} isExpanded={isExpanded} />
         </CollapsibleContent>
       </Collapsible>
     </div>

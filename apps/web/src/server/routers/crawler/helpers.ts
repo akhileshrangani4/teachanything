@@ -91,10 +91,7 @@ export async function assertOwnedChatbot(
     .select()
     .from(chatbots)
     .where(
-      and(
-        eq(chatbots.id, chatbotId),
-        eq(chatbots.userId, ctx.session.user.id),
-      ),
+      and(eq(chatbots.id, chatbotId), eq(chatbots.userId, ctx.session.user.id)),
     )
     .limit(1);
 

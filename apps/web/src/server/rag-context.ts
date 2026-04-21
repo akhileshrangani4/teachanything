@@ -77,10 +77,7 @@ export async function buildRAGContext(
     const disabledCrawledFiles = await params.db
       .select({ userFileId: crawledPages.userFileId })
       .from(crawlSources)
-      .innerJoin(
-        crawledPages,
-        eq(crawledPages.crawlSourceId, crawlSources.id),
-      )
+      .innerJoin(crawledPages, eq(crawledPages.crawlSourceId, crawlSources.id))
       .where(
         and(
           eq(crawlSources.chatbotId, params.chatbotId),
@@ -219,10 +216,7 @@ export async function buildRAGContext(
         // display name to "Web: <hostname>" so many pages from one site
         // dedupe into a single source badge in the UI.
         let displayName = rawName;
-        if (
-          chunk.storagePath &&
-          /^https?:\/\//i.test(chunk.storagePath)
-        ) {
+        if (chunk.storagePath && /^https?:\/\//i.test(chunk.storagePath)) {
           try {
             displayName = `Web: ${new URL(chunk.storagePath).hostname}`;
           } catch {
