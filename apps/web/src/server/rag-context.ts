@@ -3,6 +3,8 @@ import {
   fileChunks,
   chatbotFileAssociations,
   userFiles,
+  crawledPages,
+  crawlSources,
 } from "@teachanything/db/schema";
 import {
   createOpenRouterClient,
@@ -63,8 +65,35 @@ export async function buildRAGContext(
       ),
     );
 
-  const fileIds = completedFiles.map((f) => f.fileId);
   const fileNames = completedFiles.map((f) => f.fileName);
+  let fileIds = completedFiles.map((f) => f.fileId);
+
+  // Filter out files belonging to disabled crawl sources. Drive the query
+  // from crawl_sources (which has idx_crawl_sources_chatbot_id) scoped to
+  // this chatbot -- usually returns 0 rows, letting us skip the filter.
+  // Avoids a seq-scan on the unindexed crawled_pages.user_file_id column
+  // on every chat message.
+  if (fileIds.length > 0) {
+    const disabledCrawledFiles = await params.db
+      .select({ userFileId: crawledPages.userFileId })
+      .from(crawlSources)
+      .innerJoin(crawledPages, eq(crawledPages.crawlSourceId, crawlSources.id))
+      .where(
+        and(
+          eq(crawlSources.chatbotId, params.chatbotId),
+          eq(crawlSources.enabled, false),
+          isNotNull(crawledPages.userFileId),
+        ),
+      );
+    if (disabledCrawledFiles.length > 0) {
+      const disabled = new Set(
+        disabledCrawledFiles
+          .map((r) => r.userFileId)
+          .filter((id): id is string => id !== null),
+      );
+      fileIds = fileIds.filter((id) => !disabled.has(id));
+    }
+  }
 
   // 2. Build file manifest (D-01, D-03: anti-hallucination instruction)
   const fileManifest =
@@ -149,6 +178,7 @@ export async function buildRAGContext(
       content: fileChunks.content,
       chunkIndex: fileChunks.chunkIndex,
       fileName: userFiles.fileName,
+      storagePath: userFiles.storagePath,
       similarity: similarityExpr,
     })
     .from(fileChunks)
@@ -181,14 +211,25 @@ export async function buildRAGContext(
     "\n\nRelevant context from uploaded documents:\n\n" +
     relevantChunks
       .map((chunk) => {
-        const fileName = chunk.fileName || "Unknown";
+        const rawName = chunk.fileName || "Unknown";
+        // Crawler-sourced files have storagePath as a URL. Collapse the
+        // display name to "Web: <hostname>" so many pages from one site
+        // dedupe into a single source badge in the UI.
+        let displayName = rawName;
+        if (chunk.storagePath && /^https?:\/\//i.test(chunk.storagePath)) {
+          try {
+            displayName = `Web: ${new URL(chunk.storagePath).hostname}`;
+          } catch {
+            // malformed URL, fall back to raw filename
+          }
+        }
         sources.push({
-          fileName,
+          fileName: displayName,
           chunkIndex: chunk.chunkIndex,
           similarity: chunk.similarity, // D-05: real similarity in metadata only
         });
-        // D-04: [Source: filename.pdf, Part 3]\n<content>
-        return `[Source: ${fileName}, Part ${chunk.chunkIndex + 1}]\n${chunk.content}`;
+        // D-04: give the LLM the actual page title/URL for accurate citations
+        return `[Source: ${rawName}, Part ${chunk.chunkIndex + 1}]\n${chunk.content}`;
       })
       .join("\n\n");
 

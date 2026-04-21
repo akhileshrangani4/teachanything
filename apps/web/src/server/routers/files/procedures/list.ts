@@ -1,6 +1,17 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and, sql, desc, asc, ilike, or, isNull } from "drizzle-orm";
+import {
+  eq,
+  and,
+  sql,
+  desc,
+  asc,
+  ilike,
+  like,
+  or,
+  isNull,
+  not,
+} from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -8,6 +19,14 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
+
+// Crawler-sourced userFiles have storagePath set to the page URL.
+// Crawled pages are shown as grouped "Web Sources" rows in the Files tab
+// (rendered from crawler.getCrawlSources) rather than cluttering the
+// uploaded-file table as individual rows.
+// Uploaded files always use a lowercase `{userId}/{fileId}` path, so a
+// case-sensitive LIKE is sufficient (and index-friendlier than ILIKE).
+const excludeCrawledPages = not(like(userFiles.storagePath, "http%"));
 
 /**
  * List all user files (centralized) with search and sort
@@ -200,13 +219,18 @@ export const listForChatbotProcedure = protectedProcedure
         )
       : undefined;
 
-    // Combine with chatbot filter
+    // Combine with chatbot filter + exclude crawler-sourced files
+    // (they're rendered as grouped Web Sources rows instead)
     const whereCondition = searchCondition
       ? and(
           eq(chatbotFileAssociations.chatbotId, input.chatbotId),
+          excludeCrawledPages,
           searchCondition,
         )
-      : eq(chatbotFileAssociations.chatbotId, input.chatbotId);
+      : and(
+          eq(chatbotFileAssociations.chatbotId, input.chatbotId),
+          excludeCrawledPages,
+        );
 
     // Get total count with search filter
     const [totalCountResult] = await ctx.db
