@@ -228,7 +228,7 @@ function WebSourceRow({
 
 function CrawledPagesList({ crawlSourceId }: { crawlSourceId: string }) {
   const [offset, setOffset] = useState(0);
-  const limit = 20;
+  const limit = 5;
 
   const { data } = trpc.crawler.getCrawledPages.useQuery({
     crawlSourceId,
