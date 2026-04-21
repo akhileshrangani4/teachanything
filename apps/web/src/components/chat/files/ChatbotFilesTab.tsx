@@ -15,7 +15,6 @@ import Link from "next/link";
 import { FileTable } from "@/components/dashboard/files/FileTable";
 import { EmptyChatbotFilesState } from "./EmptyChatbotFilesState";
 import { QuickAddFilesSection } from "./QuickAddFilesSection";
-import { WebSourcesSection } from "./WebSourcesSection";
 import { PaginationControls } from "@/components/dashboard/files/PaginationControls";
 import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
@@ -276,8 +275,7 @@ export function ChatbotFilesTab({
           .
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <WebSourcesSection chatbotId={chatbotId} />
+      <CardContent>
         {(filesLoading || associatedFilesLoading) && !associatedFilesData ? (
           <FileTableSkeleton />
         ) : associatedFiles.length === 0 && !state.search && !searchInput ? (

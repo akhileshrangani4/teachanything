@@ -691,11 +691,27 @@ function CrawlSourceCard({
 function CrawledPagesList({ crawlSourceId }: { crawlSourceId: string }) {
   const [offset, setOffset] = useState(0);
   const limit = 20;
+  const utils = trpc.useUtils();
 
   const { data } = trpc.crawler.getCrawledPages.useQuery({
     crawlSourceId,
     limit,
     offset,
+  });
+
+  const removeCrawledPage = trpc.crawler.removeCrawledPage.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.crawler.getCrawledPages.invalidate({ crawlSourceId }),
+        utils.crawler.getCrawlSources.invalidate(),
+      ]);
+      toast.success("Page removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove page", {
+        description: getFriendlyError(error),
+      });
+    },
   });
 
   if (!data || data.pages.length === 0) {
@@ -740,7 +756,43 @@ function CrawledPagesList({ crawlSourceId }: { crawlSourceId: string }) {
                   )}
                 </div>
               </div>
-              {getPageStatusBadge(page.status)}
+              <div className="flex items-center gap-2 shrink-0">
+                {getPageStatusBadge(page.status)}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={removeCrawledPage.isPending}
+                      title="Remove page"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove page</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Remove &quot;{page.title || page.url}&quot; from this
+                        chatbot&apos;s knowledge? This deletes the page and its
+                        embeddings. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() =>
+                          removeCrawledPage.mutate({ crawledPageId: page.id })
+                        }
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Remove
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           ),
         )}
