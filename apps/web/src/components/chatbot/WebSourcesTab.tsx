@@ -58,6 +58,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface WebSourcesTabProps {
   chatbotId: string;
@@ -208,14 +209,17 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
         s.status === "crawling",
     );
 
-  const { data: sources, refetch: refetchSources } =
-    trpc.crawler.getCrawlSources.useQuery(
-      { chatbotId },
-      {
-        refetchInterval: (query) =>
-          hasActiveCrawl(query.state.data ?? []) ? 3000 : false,
-      },
-    );
+  const {
+    data: sources,
+    isLoading: sourcesLoading,
+    refetch: refetchSources,
+  } = trpc.crawler.getCrawlSources.useQuery(
+    { chatbotId },
+    {
+      refetchInterval: (query) =>
+        hasActiveCrawl(query.state.data ?? []) ? 3000 : false,
+    },
+  );
 
   const addCrawlSource = trpc.crawler.addCrawlSource.useMutation({
     onSuccess: () => {
@@ -464,7 +468,22 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
           </Button>
         </div>
 
-        {!sources || sources.length === 0 ? (
+        {sourcesLoading ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-lg border p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                  <Skeleton className="h-8 w-8 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !sources || sources.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium">No web sources yet</p>
@@ -728,23 +747,35 @@ function CrawlSourceCard({
           })()}
 
         <CollapsibleContent>
-          <CrawledPagesList crawlSourceId={source.id} />
+          <CrawledPagesList
+            crawlSourceId={source.id}
+            isExpanded={isExpanded}
+          />
         </CollapsibleContent>
       </Collapsible>
     </div>
   );
 }
 
-function CrawledPagesList({ crawlSourceId }: { crawlSourceId: string }) {
+function CrawledPagesList({
+  crawlSourceId,
+  isExpanded,
+}: {
+  crawlSourceId: string;
+  isExpanded: boolean;
+}) {
   const [offset, setOffset] = useState(0);
-  const limit = 20;
+  const limit = 10;
   const utils = trpc.useUtils();
 
-  const { data } = trpc.crawler.getCrawledPages.useQuery({
-    crawlSourceId,
-    limit,
-    offset,
-  });
+  const { data, isLoading } = trpc.crawler.getCrawledPages.useQuery(
+    {
+      crawlSourceId,
+      limit,
+      offset,
+    },
+    { enabled: isExpanded },
+  );
 
   const removeCrawledPage = trpc.crawler.removeCrawledPage.useMutation({
     onSuccess: async () => {
@@ -761,7 +792,28 @@ function CrawledPagesList({ crawlSourceId }: { crawlSourceId: string }) {
     },
   });
 
-  if (!data || data.pages.length === 0) {
+  if (isLoading || !data) {
+    return (
+      <div className="border-t">
+        <div className="divide-y">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between px-4 py-2.5"
+            >
+              <div className="min-w-0 flex-1 mr-3 space-y-1.5">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+              <Skeleton className="h-5 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (data.pages.length === 0) {
     return (
       <div className="px-4 pb-4 text-sm text-muted-foreground">
         No pages crawled yet.
