@@ -1,4 +1,5 @@
 import { router, publicProcedure, protectedProcedure } from "../trpc";
+import type { FinishReason } from "ai";
 import { z } from "zod";
 import {
   chatbots,
@@ -110,6 +111,14 @@ async function* processMessage(params: {
     });
   }
 
+  // Yield the sessionId immediately so the client knows the subscription is
+  // live before we start the expensive RAG embedding + history fetch. Sources
+  // are sent as a second metadata event once RAG completes.
+  yield {
+    type: "metadata" as const,
+    sessionId,
+  };
+
   // Resolve model and get context window for budget allocation
   const modelId = resolveModel(chatbot.model);
   const { contextWindow } = MODEL_REGISTRY[modelId];
@@ -129,32 +138,33 @@ async function* processMessage(params: {
     userMessageTokens,
   });
 
-  // Fetch history (up to 50, trimmed to budget below)
-  const historyMessages = await database
-    .select()
-    .from(messages)
-    .where(eq(messages.conversationId, conversation.id))
-    .orderBy(desc(messages.createdAt))
-    .limit(50);
-
-  historyMessages.reverse();
-
-  // Build RAG context with budget-derived chunk limit
   // Create AI client once and reuse for both RAG embedding and LLM streaming
   const aiClient = createOpenRouterClient(
     env.OPENROUTER_API_KEY,
     env.OPENAI_API_KEY,
   );
 
-  const ragResult = await buildRAGContext({
-    chatbotId: chatbot.id,
-    message,
-    db: database,
-    openrouterApiKey: env.OPENROUTER_API_KEY,
-    openaiApiKey: env.OPENAI_API_KEY,
-    chunkLimit: estimatedChunkLimit,
-    aiClient,
-  });
+  // History fetch and RAG context build are independent -- run in parallel so
+  // we're bounded by the slower of the two (usually RAG) instead of their sum.
+  const [historyMessages, ragResult] = await Promise.all([
+    database
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversation.id))
+      .orderBy(desc(messages.createdAt))
+      .limit(50),
+    buildRAGContext({
+      chatbotId: chatbot.id,
+      message,
+      db: database,
+      openrouterApiKey: env.OPENROUTER_API_KEY,
+      openaiApiKey: env.OPENAI_API_KEY,
+      chunkLimit: estimatedChunkLimit,
+      aiClient,
+    }),
+  ]);
+
+  historyMessages.reverse();
 
   // Pass 2: allocate budget with actual token counts
   const fileManifestTokens = countTokens(ragResult.fileManifest);
@@ -187,10 +197,10 @@ async function* processMessage(params: {
     logWarn(warning, { chatbotId: chatbot.id, modelId });
   }
 
-  // Send metadata
+  // Send RAG sources now that they're available. The client handles metadata
+  // events idempotently (updates only fields that are present).
   yield {
     type: "metadata" as const,
-    sessionId,
     sources: ragResult.sources,
   };
 
@@ -207,17 +217,31 @@ async function* processMessage(params: {
     ragResult.fileManifest +
     ragResult.contextText;
 
-  // Save user message
-  await database.insert(messages).values({
-    conversationId: conversation.id,
-    role: "user",
-    content: message,
-    metadata: {},
-  });
+  // Kick off the user-message insert alongside the streamText handshake
+  // instead of blocking on it first. We await it before saving the assistant
+  // reply so ordering stays correct if either fails.
+  // The .catch keeps an unhandled rejection from surfacing if the stream
+  // throws before we await; the real error is still logged here.
+  const userMessageInsert = database
+    .insert(messages)
+    .values({
+      conversationId: conversation.id,
+      role: "user",
+      content: message,
+      metadata: {},
+    })
+    .catch((err) => {
+      logError(err, "Failed to insert user message", {
+        chatbotId: chatbot.id,
+        sessionId,
+      });
+      throw err;
+    });
 
   // Stream response using the same client
   const startTime = Date.now();
   let fullResponse = "";
+  let finishReason: FinishReason | undefined;
 
   const result = await aiClient.streamText({
     model: modelId,
@@ -230,16 +254,79 @@ async function* processMessage(params: {
     maxTokens: maxOutputTokens,
   });
 
-  // Stream the text
-  for await (const chunk of result.textStream) {
-    fullResponse += chunk;
-    yield {
-      type: "text" as const,
-      content: chunk,
-    };
+  // Consume fullStream so we get typed events: text deltas, reasoning deltas,
+  // errors, aborts, and finish reasons. textStream swallows all non-text parts,
+  // which means mid-stream errors look identical to a clean finish on the wire.
+  //
+  // Emit at most one `thinking` event per reasoning phase: reasoning-delta
+  // fires for every token and would spam the subscription otherwise.
+  let thinkingEmitted = false;
+  for await (const part of result.fullStream) {
+    switch (part.type) {
+      case "text-delta": {
+        fullResponse += part.text;
+        thinkingEmitted = false;
+        yield {
+          type: "text" as const,
+          content: part.text,
+        };
+        break;
+      }
+      case "reasoning-start":
+      case "reasoning-delta": {
+        // Surface reasoning as a thinking indicator so the UI doesn't look
+        // frozen during long pauses. The reasoning text itself is never sent
+        // to the client -- on public shared chatbots it can restate system
+        // prompts or RAG context.
+        if (!thinkingEmitted) {
+          yield { type: "thinking" as const };
+          thinkingEmitted = true;
+        }
+        break;
+      }
+      case "reasoning-end":
+      case "text-start":
+      case "text-end":
+      case "finish-step": {
+        // Any phase boundary closes the current reasoning phase so the next
+        // reasoning-start/delta will re-emit the indicator.
+        thinkingEmitted = false;
+        break;
+      }
+      case "finish": {
+        thinkingEmitted = false;
+        finishReason = part.finishReason;
+        break;
+      }
+      case "error": {
+        throw new Error(`Stream error: ${String(part.error)}`, {
+          cause: part.error,
+        });
+      }
+      case "abort": {
+        throw new Error("Stream aborted by provider");
+      }
+      default:
+        // Other event types (start, etc.) don't affect what we send to the
+        // client.
+        break;
+    }
   }
 
   const responseTime = Date.now() - startTime;
+  const truncated = finishReason === "length";
+
+  if (truncated) {
+    logWarn("Response truncated at maxTokens limit", {
+      chatbotId: chatbot.id,
+      modelId,
+      maxOutputTokens,
+    });
+  }
+
+  // Wait for the user message insert (fired in parallel with streamText) so
+  // subsequent turns see the full conversation and the ordering is correct.
+  await userMessageInsert;
 
   // Save assistant response
   await database.insert(messages).values({
@@ -272,10 +359,12 @@ async function* processMessage(params: {
     eventType,
   });
 
-  // Send done signal
+  // Send done signal. `truncated` surfaces whether the model hit its output
+  // token limit so the UI can render a warning badge on the message.
   yield {
     type: "done" as const,
     responseTime,
+    truncated,
   };
 }
 

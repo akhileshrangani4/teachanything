@@ -1,4 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
+import { ZodError } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@teachanything/db";
 import { logError, logWarn } from "@/lib/logger";
@@ -25,11 +26,16 @@ export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
+    // Only surface Zod validation errors to the client. Spreading any
+    // `cause.message` leaks provider/internal error details (upstream URLs,
+    // API key fragments, raw response bodies) for every router, not just
+    // validation failures.
     return {
       ...shape,
       data: {
         ...shape.data,
-        zodError: error.cause instanceof Error ? error.cause.message : null,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
     };
   },
