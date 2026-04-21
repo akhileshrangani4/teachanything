@@ -151,7 +151,7 @@ export function WebSourcesSection({ chatbotId }: WebSourcesSectionProps) {
             knowledge.
           </p>
         </div>
-        <Button variant="ghost" size="sm" asChild>
+        <Button variant="outline" size="sm" asChild>
           <Link href={`/chatbot/${chatbotId}?tab=web-sources`}>Manage</Link>
         </Button>
       </div>
