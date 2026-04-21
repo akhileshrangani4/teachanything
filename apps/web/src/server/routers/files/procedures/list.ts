@@ -1,6 +1,16 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and, sql, desc, asc, ilike, or, isNull } from "drizzle-orm";
+import {
+  eq,
+  and,
+  sql,
+  desc,
+  asc,
+  ilike,
+  or,
+  isNull,
+  not,
+} from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -8,6 +18,11 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
+
+// Crawler-sourced userFiles have storagePath set to the page URL (http/https).
+// Uploaded files have a Supabase Storage path. This filter keeps the Files tab
+// clean by hiding crawled pages (which are managed in the Web Sources tab).
+const excludeCrawledPages = not(ilike(userFiles.storagePath, "http%"));
 
 /**
  * List all user files (centralized) with search and sort
@@ -61,7 +76,10 @@ export const listProcedure = protectedProcedure
       input?.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
     // Build WHERE conditions - base + search + optional exclusion
-    const baseConditions = [eq(userFiles.userId, ctx.session.user.id)];
+    const baseConditions = [
+      eq(userFiles.userId, ctx.session.user.id),
+      excludeCrawledPages,
+    ];
     if (searchCondition) baseConditions.push(searchCondition);
 
     // Validate chatbot ownership before using it for exclusion
@@ -200,13 +218,17 @@ export const listForChatbotProcedure = protectedProcedure
         )
       : undefined;
 
-    // Combine with chatbot filter
+    // Combine with chatbot filter + exclude crawler-sourced files
     const whereCondition = searchCondition
       ? and(
           eq(chatbotFileAssociations.chatbotId, input.chatbotId),
+          excludeCrawledPages,
           searchCondition,
         )
-      : eq(chatbotFileAssociations.chatbotId, input.chatbotId);
+      : and(
+          eq(chatbotFileAssociations.chatbotId, input.chatbotId),
+          excludeCrawledPages,
+        );
 
     // Get total count with search filter
     const [totalCountResult] = await ctx.db

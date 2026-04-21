@@ -149,6 +149,7 @@ export async function buildRAGContext(
       content: fileChunks.content,
       chunkIndex: fileChunks.chunkIndex,
       fileName: userFiles.fileName,
+      storagePath: userFiles.storagePath,
       similarity: similarityExpr,
     })
     .from(fileChunks)
@@ -181,14 +182,28 @@ export async function buildRAGContext(
     "\n\nRelevant context from uploaded documents:\n\n" +
     relevantChunks
       .map((chunk) => {
-        const fileName = chunk.fileName || "Unknown";
+        const rawName = chunk.fileName || "Unknown";
+        // Crawler-sourced files have storagePath as a URL. Collapse the
+        // display name to "Web: <hostname>" so many pages from one site
+        // dedupe into a single source badge in the UI.
+        let displayName = rawName;
+        if (
+          chunk.storagePath &&
+          /^https?:\/\//i.test(chunk.storagePath)
+        ) {
+          try {
+            displayName = `Web: ${new URL(chunk.storagePath).hostname}`;
+          } catch {
+            // malformed URL, fall back to raw filename
+          }
+        }
         sources.push({
-          fileName,
+          fileName: displayName,
           chunkIndex: chunk.chunkIndex,
           similarity: chunk.similarity, // D-05: real similarity in metadata only
         });
-        // D-04: [Source: filename.pdf, Part 3]\n<content>
-        return `[Source: ${fileName}, Part ${chunk.chunkIndex + 1}]\n${chunk.content}`;
+        // D-04: give the LLM the actual page title/URL for accurate citations
+        return `[Source: ${rawName}, Part ${chunk.chunkIndex + 1}]\n${chunk.content}`;
       })
       .join("\n\n");
 
