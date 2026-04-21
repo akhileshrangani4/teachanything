@@ -19,9 +19,10 @@ import {
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
 
-// Crawler-sourced userFiles have storagePath set to the page URL (http/https).
-// Uploaded files have a Supabase Storage path. This filter keeps the Files tab
-// clean by hiding crawled pages (which are managed in the Web Sources tab).
+// Crawler-sourced userFiles have storagePath set to the page URL.
+// Crawled pages are shown as grouped "Web Sources" rows in the Files tab
+// (rendered from crawler.getCrawlSources) rather than cluttering the
+// uploaded-file table as individual rows.
 const excludeCrawledPages = not(ilike(userFiles.storagePath, "http%"));
 
 /**
@@ -76,10 +77,7 @@ export const listProcedure = protectedProcedure
       input?.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
     // Build WHERE conditions - base + search + optional exclusion
-    const baseConditions = [
-      eq(userFiles.userId, ctx.session.user.id),
-      excludeCrawledPages,
-    ];
+    const baseConditions = [eq(userFiles.userId, ctx.session.user.id)];
     if (searchCondition) baseConditions.push(searchCondition);
 
     // Validate chatbot ownership before using it for exclusion
@@ -219,6 +217,7 @@ export const listForChatbotProcedure = protectedProcedure
       : undefined;
 
     // Combine with chatbot filter + exclude crawler-sourced files
+    // (they're rendered as grouped Web Sources rows instead)
     const whereCondition = searchCondition
       ? and(
           eq(chatbotFileAssociations.chatbotId, input.chatbotId),
