@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/lib/auth-client";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useCallback } from "react";
 import { useChatbot } from "@/hooks/useChatbot";
 import { ChatInterface } from "@/components/chat/messages/ChatInterface";
 import { ChatbotSettings } from "@/components/chat/settings/ChatbotSettings";
@@ -25,11 +26,34 @@ import { useFilePolling } from "@/hooks/useFilePolling";
 import { WebSourcesTab } from "@/components/chatbot/WebSourcesTab";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
+const VALID_TABS = ["chat", "files", "web-sources", "settings", "embed"];
+
 export default function ChatbotDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const chatbotId = typeof params.id === "string" ? params.id : "";
   const { data: session, isPending: sessionLoading } = useSession();
+
+  const tabParam = searchParams.get("tab");
+  const activeTab =
+    tabParam && VALID_TABS.includes(tabParam) ? tabParam : "chat";
+
+  const handleTabChange = useCallback(
+    (value: string) => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (value === "chat") {
+        next.delete("tab");
+      } else {
+        next.set("tab", value);
+      }
+      const qs = next.toString();
+      router.replace(`/chatbot/${chatbotId}${qs ? `?${qs}` : ""}`, {
+        scroll: false,
+      });
+    },
+    [searchParams, router, chatbotId],
+  );
 
   const {
     messages,
@@ -157,7 +181,11 @@ export default function ChatbotDetailPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="chat" className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="space-y-6"
+        >
           <TabsList className="bg-muted-foreground/10 border border-border">
             <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
