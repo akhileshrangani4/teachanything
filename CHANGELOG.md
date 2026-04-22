@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.17.1](https://github.com/akhileshrangani4/teachanything/compare/v1.17.0...v1.17.1) (2026-04-22)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump drizzle-kit from 0.31.9 to 0.31.10 in the drizzle group across 1 directory ([#249](https://github.com/akhileshrangani4/teachanything/issues/249)) ([399e00e](https://github.com/akhileshrangani4/teachanything/commit/399e00e319fe83eed4c2f7fd468c44f423513849))
+* **deps-dev:** bump flatted from 3.3.3 to 3.4.2 ([#236](https://github.com/akhileshrangani4/teachanything/issues/236)) ([d65350a](https://github.com/akhileshrangani4/teachanything/commit/d65350a6957a458d713834e41b2f6bdf03230d8e))
+* **deps-dev:** bump the eslint group with 6 updates ([#191](https://github.com/akhileshrangani4/teachanything/issues/191)) ([ab8c7a2](https://github.com/akhileshrangani4/teachanything/commit/ab8c7a2f327a9731f3d6498dce72acbaabc19a22))
+* **deps:** bump @supabase/supabase-js from 2.99.3 to 2.100.1 in the supabase group ([#216](https://github.com/akhileshrangani4/teachanything/issues/216)) ([b106c4d](https://github.com/akhileshrangani4/teachanything/commit/b106c4dcc124df81afa062108830957c05ef1f6b))
+* **deps:** bump @tanstack/react-query from 5.90.21 to 5.95.2 in the tanstack group ([#215](https://github.com/akhileshrangani4/teachanything/issues/215)) ([ed442fe](https://github.com/akhileshrangani4/teachanything/commit/ed442fed3772ab38c583d94e2546980da30e180a))
+* **deps:** bump @xmldom/xmldom from 0.8.11 to 0.8.13 ([#243](https://github.com/akhileshrangani4/teachanything/issues/243)) ([d6154c3](https://github.com/akhileshrangani4/teachanything/commit/d6154c35d00fd0a8e173b317a75696caba0f16fa))
+* **deps:** bump axios from 1.12.2 to 1.15.2 ([#246](https://github.com/akhileshrangani4/teachanything/issues/246)) ([b372d5d](https://github.com/akhileshrangani4/teachanything/commit/b372d5d06cdd03392d732f71abf23f475d0cad21))
+* **deps:** bump better-auth from 1.4.5 to 1.4.9 ([#219](https://github.com/akhileshrangani4/teachanything/issues/219)) ([f955104](https://github.com/akhileshrangani4/teachanything/commit/f9551048fb4b4e07c827d12319ed695dd5e2ea83))
+* **deps:** bump codecov/codecov-action from 5 to 6 in the actions group across 1 directory ([#209](https://github.com/akhileshrangani4/teachanything/issues/209)) ([ac72fbe](https://github.com/akhileshrangani4/teachanything/commit/ac72fbe3005c971dda95088c6777a70f40664064))
+* **deps:** bump defu from 6.1.4 to 6.1.7 ([#242](https://github.com/akhileshrangani4/teachanything/issues/242)) ([6e7d923](https://github.com/akhileshrangani4/teachanything/commit/6e7d923ce15a2294ae8364d4fcabba3d8c05db00))
+* **deps:** bump dompurify from 3.3.0 to 3.4.1 ([#239](https://github.com/akhileshrangani4/teachanything/issues/239)) ([9809387](https://github.com/akhileshrangani4/teachanything/commit/9809387faedb93a91fdd6d4a2c52be32d74026ed))
+* **deps:** bump drizzle-orm from 0.45.1 to 0.45.2 ([#223](https://github.com/akhileshrangani4/teachanything/issues/223)) ([2330bf7](https://github.com/akhileshrangani4/teachanything/commit/2330bf7987b29f667cc0c0e272b002ddbf0549be))
+* **deps:** bump follow-redirects from 1.15.11 to 1.16.0 ([#240](https://github.com/akhileshrangani4/teachanything/issues/240)) ([5e9f74f](https://github.com/akhileshrangani4/teachanything/commit/5e9f74f3f4587116fe7eda80902ebe92318635ee))
+* **deps:** bump kysely from 0.28.8 to 0.28.16 ([#237](https://github.com/akhileshrangani4/teachanything/issues/237)) ([bf83b39](https://github.com/akhileshrangani4/teachanything/commit/bf83b394508220edee180c18ac14f2ff42e28d1a))
+* **deps:** bump langsmith from 0.5.2 to 0.5.21 ([#245](https://github.com/akhileshrangani4/teachanything/issues/245)) ([28b8fce](https://github.com/akhileshrangani4/teachanything/commit/28b8fce9ad1cd73cc4d72cf2d952b7340ea92bae))
+* **deps:** bump lodash from 4.17.23 to 4.18.1 ([#241](https://github.com/akhileshrangani4/teachanything/issues/241)) ([5828c29](https://github.com/akhileshrangani4/teachanything/commit/5828c29f1866bb85192b22226d1c4af14b3f3d0a))
+* **deps:** bump mdast-util-to-hast from 13.2.0 to 13.2.1 ([#238](https://github.com/akhileshrangani4/teachanything/issues/238)) ([761e8e3](https://github.com/akhileshrangani4/teachanything/commit/761e8e351537ad51d2a677dbd85631f58db52d07))
+* **deps:** bump recharts from 2.15.4 to 3.8.0 ([#194](https://github.com/akhileshrangani4/teachanything/issues/194)) ([c87dc4f](https://github.com/akhileshrangani4/teachanything/commit/c87dc4f6b8ec2c51c78ca0b638f589e3a6b6c606))
+* **deps:** bump socket.io-parser from 4.2.4 to 4.2.6 ([#235](https://github.com/akhileshrangani4/teachanything/issues/235)) ([d3fa203](https://github.com/akhileshrangani4/teachanything/commit/d3fa203fda2fcea8ff8f055854750ed34188c044))
+* **deps:** bump the ai-sdk group with 2 updates ([#212](https://github.com/akhileshrangani4/teachanything/issues/212)) ([34fb7cd](https://github.com/akhileshrangani4/teachanything/commit/34fb7cdce69d325bec241f4e34123cb3e2c35d60))
+* **deps:** bump the langchain group across 1 directory with 3 updates ([#221](https://github.com/akhileshrangani4/teachanything/issues/221)) ([22a61a4](https://github.com/akhileshrangani4/teachanything/commit/22a61a458b2cabd030c08d87cf29599820a9ec45))
+* **deps:** bump the next group across 1 directory with 2 updates ([#220](https://github.com/akhileshrangani4/teachanything/issues/220)) ([05e80b8](https://github.com/akhileshrangani4/teachanything/commit/05e80b8138f18608031e97e4a2908c2ebe085f2b))
+* **deps:** bump the tailwind group across 1 directory with 3 updates ([#225](https://github.com/akhileshrangani4/teachanything/issues/225)) ([ef9f3fc](https://github.com/akhileshrangani4/teachanything/commit/ef9f3fcc09bf0d0d4f1cbc3f92d469a93b669ae5))
+* **deps:** bump the trpc group with 4 updates ([#210](https://github.com/akhileshrangani4/teachanything/issues/210)) ([b857df2](https://github.com/akhileshrangani4/teachanything/commit/b857df202454d15deb8f47e1f286f0bf3b716d0c))
+* **deps:** bump underscore from 1.13.7 to 1.13.8 ([#244](https://github.com/akhileshrangani4/teachanything/issues/244)) ([4884011](https://github.com/akhileshrangani4/teachanything/commit/488401178e6a4e45da5739347138295abafdcf13))
+
 ## [1.17.0](https://github.com/akhileshrangani4/teachanything/compare/v1.16.1...v1.17.0) (2026-04-21)
 
 
