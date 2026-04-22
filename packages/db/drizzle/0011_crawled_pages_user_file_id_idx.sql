@@ -1,0 +1,1 @@
+CREATE INDEX "idx_crawled_pages_user_file_id" ON "crawled_pages" USING btree ("user_file_id");
