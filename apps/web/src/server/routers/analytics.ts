@@ -454,18 +454,18 @@ export const analyticsRouter = router({
 
       const totalCount = Number(totalResult?.count ?? 0);
 
-      let orderByClause;
+      let primaryOrder;
       switch (input.sortBy) {
         case "mostMessages":
-          orderByClause = desc(msgStats.messageCount);
+          primaryOrder = desc(sql`COALESCE(${msgStats.messageCount}, 0)`);
           break;
         case "longestDuration":
-          orderByClause = desc(
-            sql`${msgStats.lastMessageAt} - ${msgStats.firstMessageAt}`,
+          primaryOrder = desc(
+            sql`COALESCE(${msgStats.lastMessageAt} - ${msgStats.firstMessageAt}, interval '0')`,
           );
           break;
         default:
-          orderByClause = desc(conversations.createdAt);
+          primaryOrder = desc(conversations.createdAt);
       }
 
       const results = await ctx.db
@@ -482,7 +482,7 @@ export const analyticsRouter = router({
         .from(conversations)
         .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(eq(conversations.chatbotId, input.chatbotId))
-        .orderBy(orderByClause)
+        .orderBy(primaryOrder, desc(conversations.createdAt), desc(conversations.id))
         .limit(input.limit)
         .offset(input.offset);
 

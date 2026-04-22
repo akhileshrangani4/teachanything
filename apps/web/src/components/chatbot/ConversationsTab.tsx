@@ -74,8 +74,10 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const limit = 20;
 
   const handleSearch = () => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
     setSelectedConversationId(null);
-    setActiveSearch(searchQuery);
+    setActiveSearch(trimmed);
     setOffset(0);
   };
 
@@ -89,6 +91,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   if (selectedConversationId) {
     return (
       <ConversationDetail
+        key={selectedConversationId}
         chatbotId={chatbotId}
         conversationId={selectedConversationId}
         onBack={() => setSelectedConversationId(null)}
@@ -126,7 +129,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
           <Button
             variant="outline"
             onClick={handleSearch}
-            disabled={!searchQuery}
+            disabled={!searchQuery.trim()}
           >
             Search
           </Button>
