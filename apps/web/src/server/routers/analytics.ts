@@ -449,7 +449,7 @@ export const analyticsRouter = router({
       const [totalResult] = await ctx.db
         .select({ count: count() })
         .from(conversations)
-        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(eq(conversations.chatbotId, input.chatbotId));
 
       const totalCount = Number(totalResult?.count ?? 0);
@@ -480,7 +480,7 @@ export const analyticsRouter = router({
           lastMessageAt: msgStats.lastMessageAt,
         })
         .from(conversations)
-        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(eq(conversations.chatbotId, input.chatbotId))
         .orderBy(orderByClause)
         .limit(input.limit)
@@ -611,7 +611,7 @@ export const analyticsRouter = router({
       const [totalResult] = await ctx.db
         .select({ count: count() })
         .from(conversations)
-        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),
@@ -633,7 +633,7 @@ export const analyticsRouter = router({
           lastMessageAt: msgStats.lastMessageAt,
         })
         .from(conversations)
-        .innerJoin(msgStats, eq(conversations.id, msgStats.conversationId))
+        .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),
