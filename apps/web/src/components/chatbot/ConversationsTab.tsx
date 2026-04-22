@@ -74,6 +74,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const limit = 20;
 
   const handleSearch = () => {
+    setSelectedConversationId(null);
     setActiveSearch(searchQuery);
     setOffset(0);
   };
@@ -82,6 +83,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
     setSearchQuery("");
     setActiveSearch("");
     setOffset(0);
+    setSelectedConversationId(null);
   };
 
   if (selectedConversationId) {
@@ -190,7 +192,7 @@ function ConversationsList({
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
-  const { data, isLoading } = trpc.analytics.getConversationsList.useQuery({
+  const { data, isLoading, error } = trpc.analytics.getConversationsList.useQuery({
     chatbotId,
     sortBy,
     limit,
@@ -201,6 +203,16 @@ function ConversationsList({
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <MessageSquare className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
+        <p className="text-lg font-medium text-red-600">Failed to load conversations</p>
+        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
       </div>
     );
   }
@@ -245,7 +257,7 @@ function SearchResults({
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
-  const { data, isLoading } = trpc.analytics.searchConversations.useQuery({
+  const { data, isLoading, error } = trpc.analytics.searchConversations.useQuery({
     chatbotId,
     query,
     limit,
@@ -256,6 +268,16 @@ function SearchResults({
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <Search className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
+        <p className="text-lg font-medium text-red-600">Search failed</p>
+        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
       </div>
     );
   }
@@ -381,7 +403,7 @@ function ConversationDetail({
   const [offset, setOffset] = useState(0);
   const limit = 100;
 
-  const { data, isLoading } = trpc.analytics.getConversationMessages.useQuery({
+  const { data, isLoading, error } = trpc.analytics.getConversationMessages.useQuery({
     chatbotId,
     conversationId,
     limit,
@@ -411,6 +433,12 @@ function ConversationDetail({
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
+            <p className="text-lg font-medium text-red-600">Failed to load messages</p>
+            <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
           </div>
         ) : !data || data.messages.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
