@@ -1,12 +1,23 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { logWarn, logError } from "@teachanything/logger";
 import type { OpenRouterClient } from "./openrouter-client";
+import { CHARS_PER_TOKEN } from "./token-budget";
+
+/** Recursive node type for officeparser AST */
+interface OfficeparserNode {
+  text?: string;
+  children?: OfficeparserNode[];
+}
 
 /**
  * RAG Service for file processing, chunking, and semantic search
  */
 export class RAGService {
   private textSplitter: RecursiveCharacterTextSplitter;
-  private encoder: any;
+  private encoder: {
+    encode: (text: string) => number[];
+    free?: () => void;
+  } | null;
   private encoderInitialized: boolean = false;
 
   constructor() {
@@ -30,18 +41,16 @@ export class RAGService {
       return;
     }
 
-    this.encoderInitialized = true;
-
     try {
       // Use js-tiktoken for better serverless compatibility (pure JS, no WASM)
-      const { encodingForModel } = await import("js-tiktoken");
-      this.encoder = encodingForModel("gpt-4o-mini");
+      // Use encoding name directly instead of model name to avoid deprecation issues
+      const { getEncoding } = await import("js-tiktoken");
+      this.encoder = getEncoding("o200k_base");
     } catch (error) {
-      console.warn(
-        "Failed to initialize tiktoken, using fallback token counter",
-      );
+      logWarn("Failed to initialize tiktoken, using fallback token counter");
       this.encoder = null;
     }
+    this.encoderInitialized = true;
   }
 
   /**
@@ -68,6 +77,14 @@ export class RAGService {
         case "application/msword":
           return await this.extractWord(buffer);
 
+        case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+          return await this.extractPowerPoint(buffer);
+
+        case "application/vnd.ms-powerpoint":
+          throw new Error(
+            "Legacy .ppt format is not supported. Please save your presentation as .pptx (PowerPoint 2007+) and upload again.",
+          );
+
         case "text/plain":
         case "text/markdown":
         case "text/csv":
@@ -78,9 +95,11 @@ export class RAGService {
         default:
           throw new Error(`Unsupported file type: ${mimeType}`);
       }
-    } catch (error: any) {
-      console.error("Content extraction error:", error);
-      throw new Error(`Failed to extract content: ${error.message}`);
+    } catch (error: unknown) {
+      logError(error, "Content extraction error");
+      throw new Error(
+        `Failed to extract content: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -125,7 +144,7 @@ export class RAGService {
 
       return sanitizedText;
     } catch (error) {
-      console.error("PDF extraction error:", error);
+      logError(error, "PDF extraction error");
       throw new Error(
         `Failed to extract PDF content: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -136,23 +155,120 @@ export class RAGService {
    * Extract text from Word documents
    */
   private async extractWord(buffer: Buffer): Promise<string> {
+    let sanitizedText: string;
+
     try {
       // Dynamic import to avoid build-time execution
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer });
 
       // Sanitize the text to remove null bytes and other problematic characters
-      const sanitizedText = this.sanitizeText(result.value);
+      sanitizedText = this.sanitizeText(result.value);
+    } catch (error) {
+      throw new Error(
+        `Failed to extract Word document content: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
-      if (!sanitizedText) {
-        throw new Error("Word document contains no readable text content");
+    if (!sanitizedText) {
+      throw new Error("Word document contains no readable text content");
+    }
+
+    return sanitizedText;
+  }
+
+  /**
+   * Recursively extract text from an officeparser AST node
+   */
+  private extractNodeText(node: OfficeparserNode): string {
+    if (node.text) {
+      return node.text;
+    }
+    if (node.children) {
+      return node.children
+        .map((child) => this.extractNodeText(child))
+        .filter(Boolean)
+        .join("\n");
+    }
+    return "";
+  }
+
+  /**
+   * Extract text from PowerPoint presentations with slide boundaries and speaker notes
+   */
+  private async extractPowerPoint(buffer: Buffer): Promise<string> {
+    let sanitizedText: string;
+
+    try {
+      // Dynamic import to avoid build-time execution
+      // @ts-expect-error -- officeparser has no type declarations
+      const { parseOffice } = (await import("officeparser")) as {
+        parseOffice: (buffer: Buffer) => Promise<{
+          content: Array<{
+            type: string;
+            children: OfficeparserNode[];
+            metadata: Record<string, unknown>;
+          }>;
+          toText: () => string;
+        }>;
+      };
+      const ast = await parseOffice(buffer);
+
+      // Group content by slide number
+      const slides = new Map<
+        number,
+        { slideText: string; notesText: string }
+      >();
+
+      for (const node of ast.content) {
+        const slideNumber = (node.metadata as { slideNumber?: number })
+          ?.slideNumber;
+        if (slideNumber == null) continue;
+
+        if (!slides.has(slideNumber)) {
+          slides.set(slideNumber, { slideText: "", notesText: "" });
+        }
+        const entry = slides.get(slideNumber)!;
+
+        const text = this.extractNodeText(node);
+        if (!text) continue;
+
+        if (node.type === "note") {
+          entry.notesText = text;
+        } else {
+          entry.slideText = text;
+        }
       }
 
-      return sanitizedText;
+      // Build output ordered by slide number
+      const sortedSlides = [...slides.entries()].sort(([a], [b]) => a - b);
+      const parts: string[] = [];
+
+      for (const [slideNumber, { slideText, notesText }] of sortedSlides) {
+        let section = `--- Slide ${slideNumber} ---\n${slideText}`;
+        if (notesText) {
+          section += `\n\n[Speaker Notes]\n${notesText}`;
+        }
+        parts.push(section);
+      }
+
+      const text = parts.join("\n\n");
+
+      // Sanitize the text to remove null bytes and other problematic characters
+      sanitizedText = this.sanitizeText(text);
     } catch (error) {
-      console.error("Word extraction error:", error);
-      throw new Error("Failed to extract Word document content");
+      throw new Error(
+        `Failed to extract PowerPoint content: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
+
+    if (!sanitizedText) {
+      throw new Error(
+        "PowerPoint presentation contains no readable text content",
+      );
+    }
+
+    return sanitizedText;
   }
 
   /**
@@ -190,11 +306,11 @@ export class RAGService {
         return tokens.length;
       } catch (error) {
         // Fallback to approximate count
-        return Math.ceil(text.length / 4);
+        return Math.ceil(text.length / CHARS_PER_TOKEN);
       }
     }
     // Fallback: approximate 1 token per 4 characters
-    return Math.ceil(text.length / 4);
+    return Math.ceil(text.length / CHARS_PER_TOKEN);
   }
 
   /**
@@ -239,7 +355,11 @@ export class RAGService {
       normB += (b[i] ?? 0) * (b[i] ?? 0);
     }
 
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+    if (denominator === 0) {
+      return 0;
+    }
+    return dotProduct / denominator;
   }
 
   /**
@@ -262,10 +382,10 @@ export class RAGService {
   /**
    * Re-rank chunks by similarity score
    */
-  rerank(
-    chunks: Array<{ content: string; similarity: number; [key: string]: any }>,
+  rerank<T extends { content: string; similarity: number }>(
+    chunks: T[],
     topK: number = 5,
-  ): Array<{ content: string; similarity: number; [key: string]: any }> {
+  ): T[] {
     return chunks.sort((a, b) => b.similarity - a.similarity).slice(0, topK);
   }
 

@@ -31,11 +31,8 @@ import {
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import type React from "react";
-import {
-  MODELS,
-  DEFAULT_FORM_DATA,
-  type ModelValue,
-} from "./chatbot-constants";
+import { MODELS, DEFAULT_FORM_DATA } from "./chatbot-constants";
+import type { SupportedModel } from "@teachanything/ai/models";
 
 interface CreateChatbotDialogProps {
   onSuccess?: () => void;
@@ -102,7 +99,7 @@ export function CreateChatbotDialog({
 
     createChatbot.mutate({
       name: formData.name,
-      model: formData.model as ModelValue,
+      model: formData.model as SupportedModel,
       systemPrompt: formData.systemPrompt,
       description: formData.description,
       temperature: formData.temperature,
@@ -166,7 +163,7 @@ export function CreateChatbotDialog({
             <Select
               value={formData.model}
               onValueChange={(value) =>
-                setFormData({ ...formData, model: value as ModelValue })
+                setFormData({ ...formData, model: value as SupportedModel })
               }
             >
               <SelectTrigger>
@@ -209,12 +206,12 @@ export function CreateChatbotDialog({
                 max="100"
                 step="1"
                 value={formData.temperature}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    temperature: parseInt(e.target.value),
-                  })
-                }
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value);
+                  if (!Number.isNaN(parsed)) {
+                    setFormData({ ...formData, temperature: parsed });
+                  }
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Control randomness (0 = focused, 100 = creative)
@@ -230,12 +227,12 @@ export function CreateChatbotDialog({
                 max="4000"
                 step="100"
                 value={formData.maxTokens}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    maxTokens: parseInt(e.target.value),
-                  })
-                }
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value);
+                  if (!Number.isNaN(parsed)) {
+                    setFormData({ ...formData, maxTokens: parsed });
+                  }
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 Maximum length of responses (100-4000)

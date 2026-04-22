@@ -1,16 +1,13 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, embed, streamText } from "ai";
+import { logInfo } from "@teachanything/logger";
+import { EMBEDDING_MODEL, type SupportedModel } from "./models";
+import { isTransientError } from "./error-utils";
 
-// Supported models
-export const SUPPORTED_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct",
-  "mistralai/mistral-large",
-  "qwen/qwen-2.5-72b-instruct",
-  "openai/gpt-oss-120b",
-] as const;
-
-export type SupportedModel = (typeof SUPPORTED_MODELS)[number];
+// Re-export so consumers of @teachanything/ai/openrouter subpath still get these
+export { SUPPORTED_MODELS, type SupportedModel } from "./models";
+export { isTransientError } from "./error-utils";
 
 // OpenRouter client configuration
 export class OpenRouterClient {
@@ -105,9 +102,7 @@ export class OpenRouterClient {
       );
     }
 
-    const embeddingModel = this.openaiClient.embedding(
-      "text-embedding-3-small",
-    );
+    const embeddingModel = this.openaiClient.embedding(EMBEDDING_MODEL.id);
 
     let lastError: Error | null = null;
 
@@ -118,27 +113,23 @@ export class OpenRouterClient {
           value: text,
         });
         return embedding;
-      } catch (error: any) {
-        lastError = error;
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
 
-        // Check if it's a rate limit error
-        const isRateLimit =
-          error.message?.includes("Rate limit") ||
-          error.message?.includes("rate_limit") ||
-          error.message?.includes("429");
-
-        if (isRateLimit && attempt < retries - 1) {
+        if (isTransientError(lastError.message) && attempt < retries - 1) {
           // Exponential backoff: 1s, 2s, 4s
           const delay = Math.pow(2, attempt) * 1000;
-          console.log(
-            `Rate limit hit, waiting ${delay}ms before retry ${attempt + 1}/${retries}`,
-          );
+          logInfo(`Transient error, retrying in ${delay}ms`, {
+            attempt: attempt + 1,
+            retries,
+            delayMs: delay,
+          });
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
 
-        // If not rate limit or last attempt, throw
-        throw error;
+        // If not transient or last attempt, throw
+        throw lastError;
       }
     }
 

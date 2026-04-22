@@ -6,7 +6,6 @@ import {
   chatbots,
   conversations,
   chatbotFileAssociations,
-  userFiles,
 } from "@teachanything/db/schema";
 import { eq, sql, desc, asc, ilike, or, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -16,15 +15,14 @@ import {
   rejectUser as rejectUserHelper,
 } from "@/lib/auth";
 import { getApprovedDomains } from "@/lib/env";
-import { createSupabaseClient } from "@/lib/supabase";
-import { logInfo, logError } from "@/lib/logger";
+import { logError } from "@/lib/logger";
 import {
   sendPromoteToAdminEmail,
   sendDemoteFromAdminEmail,
   sendAccountDisabledEmail,
   sendAccountEnabledEmail,
-  sendAccountDeletedEmail,
 } from "@/lib/email";
+import { deleteUserAccount } from "@/server/services/user-deletion";
 import { validateDomainForAllowlist } from "@/lib/domain-validation";
 
 export const adminRouter = router({
@@ -951,67 +949,10 @@ export const adminRouter = router({
       }
 
       try {
-        logInfo("Starting user deletion", {
+        await deleteUserAccount(ctx.db, {
           userId: input.userId,
           email: existingUser.email,
-          deletedBy: ctx.session.user.id,
-        });
-
-        // Send account deleted email BEFORE deletion (since we can't email after)
-        try {
-          await sendAccountDeletedEmail({
-            email: existingUser.email,
-            name: existingUser.name || "User",
-          });
-        } catch (error) {
-          logError(error, "Failed to send account deleted email", {
-            userId: input.userId,
-            email: existingUser.email,
-          });
-          // Continue with deletion even if email fails
-        }
-
-        // Get all user files to delete from storage
-        const userFilesList = await ctx.db
-          .select({ storagePath: userFiles.storagePath })
-          .from(userFiles)
-          .where(eq(userFiles.userId, input.userId));
-
-        // Delete files from Supabase Storage
-        if (userFilesList.length > 0) {
-          const supabase = createSupabaseClient();
-          const storagePaths = userFilesList.map((f) => f.storagePath);
-
-          const { error: storageError } = await supabase.storage
-            .from("chatbot-files")
-            .remove(storagePaths);
-
-          if (storageError) {
-            logError(storageError, "Failed to delete some files from storage", {
-              userId: input.userId,
-              fileCount: userFilesList.length,
-            });
-            // Continue with deletion even if storage cleanup fails
-          } else {
-            logInfo("Deleted files from storage", {
-              userId: input.userId,
-              fileCount: userFilesList.length,
-            });
-          }
-        }
-
-        // Set approved_domains.created_by to null for domains created by this user
-        await ctx.db
-          .update(approvedDomains)
-          .set({ createdBy: null })
-          .where(eq(approvedDomains.createdBy, input.userId));
-
-        // Delete the user (cascade will handle: sessions, accounts, chatbots, files, conversations, messages, analytics)
-        await ctx.db.delete(user).where(eq(user.id, input.userId));
-
-        logInfo("User deleted successfully", {
-          userId: input.userId,
-          email: existingUser.email,
+          name: existingUser.name || "User",
           deletedBy: ctx.session.user.id,
         });
 

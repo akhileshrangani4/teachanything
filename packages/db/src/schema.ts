@@ -9,6 +9,8 @@ import {
   boolean,
   pgEnum,
   index,
+  unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -46,6 +48,23 @@ export const emailTypeEnum = pgEnum("email_type", [
   "account_enabled",
   "account_deleted",
   "password_reset",
+]);
+
+export const crawlStatusEnum = pgEnum("crawl_status", [
+  "pending",
+  "discovering",
+  "crawling",
+  "completed",
+  "failed",
+]);
+
+export const crawledPageStatusEnum = pgEnum("crawled_page_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+  "blocked",
+  "skipped",
 ]);
 
 // Better Auth: Users table
@@ -192,72 +211,62 @@ export const userFiles = pgTable("user_files", {
 });
 
 // Junction table: Associates files with chatbots (many-to-many)
-export const chatbotFileAssociations = pgTable("chatbot_file_associations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  fileId: uuid("file_id")
-    .references(() => userFiles.id, { onDelete: "cascade" })
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Legacy chatbot files table (kept for backward compatibility during migration)
-export const chatbotFiles = pgTable("chatbot_files", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  fileName: text("file_name").notNull(),
-  fileType: text("file_type").notNull(),
-  fileSize: integer("file_size").notNull(), // in bytes
-  storagePath: text("storage_path").notNull(), // Supabase Storage path
-  processingStatus: processingStatusEnum("processing_status")
-    .default("pending")
-    .notNull(),
-  metadata: jsonb("metadata")
-    .$type<{
-      error?: string;
-      chunkCount?: number;
-      processedAt?: string;
-      // Processing progress tracking
-      processingProgress?: {
-        stage:
-          | "downloading"
-          | "extracting"
-          | "chunking"
-          | "embedding"
-          | "storing";
-        percentage: number; // 0-100
-        currentChunk?: number;
-        totalChunks?: number;
-        startedAt?: string;
-        lastUpdatedAt?: string;
-      };
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const chatbotFileAssociations = pgTable(
+  "chatbot_file_associations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    fileId: uuid("file_id")
+      .references(() => userFiles.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // DB-03 + DB-04: Composite uniqueIndex serves as both B-tree index on chatbotId (leading column)
+    // and unique constraint on (chatbotId, fileId)
+    uniqueIndex("chatbot_file_associations_chatbot_id_file_id_idx").on(
+      table.chatbotId,
+      table.fileId,
+    ),
+  ],
+);
 
 // File chunks table for RAG
-export const fileChunks = pgTable("file_chunks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  fileId: uuid("file_id")
-    .references(() => userFiles.id, { onDelete: "cascade" })
-    .notNull(),
-  chunkIndex: integer("chunk_index").notNull(),
-  content: text("content").notNull(),
-  embedding: vector("embedding", { dimensions: 1536 }), // OpenAI text-embedding-3-small
-  tokenCount: integer("token_count"),
-  metadata: jsonb("metadata")
-    .$type<{
-      pageNumber?: number;
-      section?: string;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const fileChunks = pgTable(
+  "file_chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fileId: uuid("file_id")
+      .references(() => userFiles.id, { onDelete: "cascade" })
+      .notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    embedding: vector("embedding", { dimensions: 1536 }), // Must match EMBEDDING_MODEL.dimensions in packages/ai/src/models.ts
+    tokenCount: integer("token_count"),
+    metadata: jsonb("metadata")
+      .$type<{
+        pageNumber?: number;
+        section?: string;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // DB-01: HNSW vector index for cosine similarity search (per D-02: m=24, ef_construction=128)
+    index("file_chunks_embedding_idx")
+      .using("hnsw", table.embedding.op("vector_cosine_ops"))
+      .with({ m: 24, ef_construction: 128 }),
+    // DB-02: B-tree index for fileId lookups
+    index("file_chunks_file_id_idx").on(table.fileId),
+    // DB-05: Unique constraint preventing duplicate chunks per file (per D-04: requires dedup first)
+    unique("file_chunks_file_id_chunk_index_unique").on(
+      table.fileId,
+      table.chunkIndex,
+    ),
+  ],
+);
 
 // Conversations table
 export const conversations = pgTable("conversations", {
@@ -277,26 +286,37 @@ export const conversations = pgTable("conversations", {
 });
 
 // Messages table
-export const messages = pgTable("messages", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  conversationId: uuid("conversation_id")
-    .references(() => conversations.id, { onDelete: "cascade" })
-    .notNull(),
-  role: text("role").notNull(), // 'user', 'assistant', 'system'
-  content: text("content").notNull(),
-  metadata: jsonb("metadata")
-    .$type<{
-      sources?: Array<{
-        fileName: string;
-        chunkIndex: number;
-        similarity: number;
-      }>;
-      responseTime?: number;
-      model?: string;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    role: text("role").notNull(), // 'user', 'assistant', 'system'
+    content: text("content").notNull(),
+    metadata: jsonb("metadata")
+      .$type<{
+        sources?: Array<{
+          fileName: string;
+          chunkIndex: number;
+          similarity: number;
+        }>;
+        responseTime?: number;
+        model?: string;
+        ragUsed?: boolean;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Composite index for history queries: WHERE conversation_id = ? ORDER BY created_at DESC
+    index("messages_conversation_id_created_at_idx").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+  ],
+);
 
 // Analytics table
 export const analytics = pgTable("analytics", {
@@ -343,7 +363,77 @@ export const emailDeliveries = pgTable(
   ],
 );
 
-// Relations
+export const crawlSources = pgTable(
+  "crawl_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    rootUrl: text("root_url").notNull(),
+    status: crawlStatusEnum("status").default("pending").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    crawlDepth: integer("crawl_depth").default(3).notNull(),
+    maxPages: integer("max_pages").default(10).notNull(),
+    includePatterns: jsonb("include_patterns").$type<string[]>().default([]),
+    excludePatterns: jsonb("exclude_patterns").$type<string[]>().default([]),
+    lastCrawledAt: timestamp("last_crawled_at"),
+    metadata: jsonb("metadata")
+      .$type<{
+        pageCount?: number;
+        errorCount?: number;
+        errors?: Array<{ url: string; error: string }>;
+        robotsText?: string;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("idx_crawl_sources_chatbot_id").on(table.chatbotId)],
+);
+
+export const crawledPages = pgTable(
+  "crawled_pages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    crawlSourceId: uuid("crawl_source_id")
+      .references(() => crawlSources.id, { onDelete: "cascade" })
+      .notNull(),
+    userFileId: uuid("user_file_id").references(() => userFiles.id, {
+      onDelete: "cascade",
+    }),
+    url: text("url").notNull(),
+    title: text("title"),
+    contentHash: text("content_hash"),
+    depth: integer("depth").default(0).notNull(),
+    status: crawledPageStatusEnum("status").default("pending").notNull(),
+    metadata: jsonb("metadata")
+      .$type<{
+        statusCode?: number;
+        contentType?: string;
+        wordCount?: number;
+        error?: string;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_crawled_pages_source_status").on(
+      table.crawlSourceId,
+      table.status,
+    ),
+    uniqueIndex("idx_crawled_pages_source_url").on(
+      table.crawlSourceId,
+      table.url,
+    ),
+    // Speeds up userFileId lookups from RAG retrieval and orphan
+    // detection. Partial index (WHERE user_file_id IS NOT NULL) keeps
+    // the index small since pending pages have no userFileId.
+    index("idx_crawled_pages_user_file_id").on(table.userFileId),
+  ],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   chatbots: many(chatbots),
   sessions: many(session),
@@ -384,6 +474,7 @@ export const chatbotsRelations = relations(chatbots, ({ one, many }) => ({
   fileAssociations: many(chatbotFileAssociations),
   conversations: many(conversations),
   analytics: many(analytics),
+  crawlSources: many(crawlSources),
 }));
 
 export const userFilesRelations = relations(userFiles, ({ one, many }) => ({
@@ -405,17 +496,6 @@ export const chatbotFileAssociationsRelations = relations(
     file: one(userFiles, {
       fields: [chatbotFileAssociations.fileId],
       references: [userFiles.id],
-    }),
-  }),
-);
-
-// Legacy relations (kept for backward compatibility)
-export const chatbotFilesRelations = relations(
-  chatbotFiles,
-  ({ one, many }) => ({
-    chatbot: one(chatbots, {
-      fields: [chatbotFiles.chatbotId],
-      references: [chatbots.id],
     }),
   }),
 );
@@ -449,5 +529,27 @@ export const analyticsRelations = relations(analytics, ({ one }) => ({
   chatbot: one(chatbots, {
     fields: [analytics.chatbotId],
     references: [chatbots.id],
+  }),
+}));
+
+export const crawlSourcesRelations = relations(
+  crawlSources,
+  ({ one, many }) => ({
+    chatbot: one(chatbots, {
+      fields: [crawlSources.chatbotId],
+      references: [chatbots.id],
+    }),
+    pages: many(crawledPages),
+  }),
+);
+
+export const crawledPagesRelations = relations(crawledPages, ({ one }) => ({
+  crawlSource: one(crawlSources, {
+    fields: [crawledPages.crawlSourceId],
+    references: [crawlSources.id],
+  }),
+  userFile: one(userFiles, {
+    fields: [crawledPages.userFileId],
+    references: [userFiles.id],
   }),
 }));

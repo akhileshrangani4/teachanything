@@ -8,15 +8,42 @@ import {
 import { eq, and, sql, desc, asc, ilike, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { TRPCError } from "@trpc/server";
-import { SUPPORTED_MODELS } from "@teachanything/ai";
+import { SUPPORTED_MODELS, DEPRECATED_MODELS } from "@teachanything/ai";
 import { checkRateLimit, chatbotCreationRateLimit } from "@/lib/rate-limit";
 import { escapeLikePattern } from "@/server/utils";
+
+// Accept both current and deprecated model IDs for backwards compatibility (D-08).
+// Chatbots stored with old IDs are resolved at query time via resolveModel().
+const allAcceptedModels = [...SUPPORTED_MODELS, ...DEPRECATED_MODELS] as [
+  string,
+  ...string[],
+];
+
+async function getChatbotByIdForUser(
+  db: Parameters<
+    Parameters<typeof protectedProcedure.query>[0]
+  >[0]["ctx"]["db"],
+  chatbotId: string,
+  userId: string,
+) {
+  const [chatbot] = await db
+    .select()
+    .from(chatbots)
+    .where(and(eq(chatbots.id, chatbotId), eq(chatbots.userId, userId)))
+    .limit(1);
+
+  if (!chatbot) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Chatbot not found" });
+  }
+
+  return chatbot;
+}
 
 const createChatbotSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(200).optional(),
   systemPrompt: z.string().min(1).max(1000000),
-  model: z.enum(SUPPORTED_MODELS),
+  model: z.enum(allAcceptedModels),
   temperature: z.number().min(0).max(100).default(70),
   maxTokens: z.number().min(100).max(4000).default(2000),
   welcomeMessage: z.string().max(500).optional(),
@@ -96,25 +123,7 @@ export const chatbotRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
-
-      return chatbot;
+      return getChatbotByIdForUser(ctx.db, input.id, ctx.session.user.id);
     }),
 
   /**
@@ -123,35 +132,27 @@ export const chatbotRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
-
-      return chatbot;
+      return getChatbotByIdForUser(ctx.db, input.id, ctx.session.user.id);
     }),
 
   /**
    * Get chatbot by share token (public)
    */
   getByShareToken: publicProcedure
-    .input(z.object({ shareToken: z.string() }))
+    .input(z.object({ shareToken: z.string().min(1).max(100) }))
     .query(async ({ ctx, input }) => {
       const [chatbot] = await ctx.db
-        .select()
+        .select({
+          id: chatbots.id,
+          name: chatbots.name,
+          description: chatbots.description,
+          model: chatbots.model,
+          welcomeMessage: chatbots.welcomeMessage,
+          suggestedQuestions: chatbots.suggestedQuestions,
+          shareToken: chatbots.shareToken,
+          showSources: chatbots.showSources,
+          customAuthorName: chatbots.customAuthorName,
+        })
         .from(chatbots)
         .where(
           and(
@@ -185,7 +186,6 @@ export const chatbotRouter = router({
         shareToken: chatbots.shareToken,
         customAuthorName: chatbots.customAuthorName,
         userName: user.name,
-        userEmail: user.email,
         fileCount: sql<number>`
           (SELECT COUNT(*)::int 
            FROM ${chatbotFileAssociations} 
@@ -288,6 +288,31 @@ export const chatbotRouter = router({
         .returning();
 
       return updated;
+    }),
+
+  /**
+   * Toggle showSources display setting
+   */
+  updateShowSources: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        showSources: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const chatbot = await getChatbotByIdForUser(
+        ctx.db,
+        input.id,
+        ctx.session.user.id,
+      );
+
+      await ctx.db
+        .update(chatbots)
+        .set({ showSources: input.showSources, updatedAt: new Date() })
+        .where(eq(chatbots.id, chatbot.id));
+
+      return { showSources: input.showSources };
     }),
 
   /**

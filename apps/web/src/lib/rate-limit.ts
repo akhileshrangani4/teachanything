@@ -97,6 +97,27 @@ export const downloadRateLimit = createLimiter({
   prefix: "@ratelimit/download",
 });
 
+// Rate limiter for adding crawl sources
+// 5 per hour per user (each triggers many page fetches + embeddings)
+export const crawlSourceRateLimit = createLimiter({
+  window: [5, "1 h"],
+  prefix: "@ratelimit/crawl-source",
+});
+
+// Rate limiter for adding manual URLs
+// 20 per hour per user
+export const manualUrlRateLimit = createLimiter({
+  window: [20, "1 h"],
+  prefix: "@ratelimit/manual-url",
+});
+
+// Rate limiter for recrawl requests
+// 5 per hour per user
+export const recrawlRateLimit = createLimiter({
+  window: [5, "1 h"],
+  prefix: "@ratelimit/recrawl",
+});
+
 /**
  * Check rate limit and log if exceeded.
  * When limiter is null (Redis not configured), returns success as a noop.
@@ -129,4 +150,34 @@ export async function checkRateLimit(
   }
 
   return { success, limit, remaining, reset };
+}
+
+/**
+ * Require rate limit for security-critical operations (password verification, account deletion).
+ * Unlike checkRateLimit, this DENIES requests when Redis is unavailable rather than allowing them.
+ */
+export async function requireRateLimit(
+  ratelimiter: Ratelimit | null,
+  identifier: string,
+  context?: Record<string, unknown>,
+): Promise<{
+  success: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+}> {
+  if (!ratelimiter) {
+    logWarn(
+      "Rate limiter unavailable for security-critical operation",
+      context,
+    );
+    return {
+      success: false,
+      limit: 0,
+      remaining: 0,
+      reset: Date.now() + 60000,
+    };
+  }
+
+  return checkRateLimit(ratelimiter, identifier, context);
 }

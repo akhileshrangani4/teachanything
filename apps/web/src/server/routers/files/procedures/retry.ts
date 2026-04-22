@@ -2,7 +2,7 @@ import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { userFiles } from "@teachanything/db/schema";
+import { userFiles, fileChunks } from "@teachanything/db/schema";
 import { publishQStashJob } from "@/lib/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
@@ -47,6 +47,16 @@ export const retryProcedure = protectedProcedure
           message: "Can only retry failed, stuck, or processing files",
         });
       }
+
+      // Delete existing chunks before retry to prevent stale accumulation
+      await ctx.db
+        .delete(fileChunks)
+        .where(eq(fileChunks.fileId, input.fileId));
+
+      logInfo("Cleared existing chunks for file retry", {
+        fileId: input.fileId,
+        userId: ctx.session.user.id,
+      });
 
       // Reset file status to pending and clear error metadata
       await ctx.db

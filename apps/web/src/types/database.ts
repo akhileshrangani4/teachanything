@@ -2,7 +2,6 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import {
   user,
   chatbots,
-  chatbotFiles,
   fileChunks,
   conversations,
   messages,
@@ -17,10 +16,6 @@ export type NewUser = InferInsertModel<typeof user>;
 // Chatbot types
 export type Chatbot = InferSelectModel<typeof chatbots>;
 export type NewChatbot = InferInsertModel<typeof chatbots>;
-
-// Chatbot file types
-export type ChatbotFile = InferSelectModel<typeof chatbotFiles>;
-export type NewChatbotFile = InferInsertModel<typeof chatbotFiles>;
 
 // File chunk types
 export type FileChunk = InferSelectModel<typeof fileChunks>;
@@ -56,6 +51,7 @@ export interface ChatMessage {
     similarity: number;
   }>;
   cancelled?: boolean;
+  truncated?: boolean;
 }
 
 // Message source type

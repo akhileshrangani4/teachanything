@@ -42,14 +42,17 @@ describe("SUPPORTED_FILE_TYPES", () => {
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     );
     expect(SUPPORTED_FILE_TYPES).toContain("application/msword");
+    expect(SUPPORTED_FILE_TYPES).toContain(
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    );
     expect(SUPPORTED_FILE_TYPES).toContain("text/plain");
     expect(SUPPORTED_FILE_TYPES).toContain("text/markdown");
     expect(SUPPORTED_FILE_TYPES).toContain("application/json");
     expect(SUPPORTED_FILE_TYPES).toContain("text/csv");
   });
 
-  it("has exactly 7 supported types", () => {
-    expect(SUPPORTED_FILE_TYPES).toHaveLength(7);
+  it("has exactly 8 supported types", () => {
+    expect(SUPPORTED_FILE_TYPES).toHaveLength(8);
   });
 });
 
