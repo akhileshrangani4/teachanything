@@ -24,8 +24,8 @@ flowchart TD
     CreateBot --> ConfigureBot[Configure Chatbot:<br/>• Name & Description<br/>• System Prompt<br/>• AI Model Selection<br/>• Temperature & Max Tokens<br/>• Welcome Message<br/>• Suggested Questions]
     ConfigureBot --> SaveBot[Save Chatbot<br/>tRPC: chatbot.create]
     SaveBot --> BotCreated[Chatbot Created in DB]
-    BotCreated --> UploadFiles{Upload Files?}
-    UploadFiles -->|Yes| SelectFiles[Select Files:<br/>PDF, DOCX, TXT,<br/>MD, JSON, CSV]
+    BotCreated --> AddContent{Add Content?}
+    AddContent -->|Upload Files| SelectFiles[Select Files:<br/>PDF, DOCX, PPTX, TXT,<br/>MD, JSON, CSV]
     SelectFiles --> ValidateFile{Validate:<br/>Size & Type?}
     ValidateFile -->|Fail| ShowError[Show Error Message]
     ShowError --> SelectFiles
@@ -36,24 +36,47 @@ flowchart TD
     EnvCheck -->|Production| PublishJob[Publish to QStash<br/>/api/jobs/process-file]
     PublishJob --> JobQueue[QStash Job Queue]
     JobQueue --> ProcessAsync[Async File Processing]
-    ProcessInline --> ExtractText[RAG Service:<br/>Extract Text Content]
+    ProcessInline --> ExtractText[RAG Service:<br/>Extract Text Content<br/>PPTX: slide boundaries<br/>+ speaker notes]
     ProcessAsync --> ExtractText
     ExtractText --> ChunkText[Split into Chunks<br/>1000 chars, 200 overlap]
     ChunkText --> GenerateEmbeddings[Generate Embeddings<br/>OpenAI text-embedding-3-small]
     GenerateEmbeddings --> StoreChunks[Store in file_chunks<br/>with vector embeddings]
     StoreChunks --> UpdateStatus[Update File Status:<br/>COMPLETED]
-    UpdateStatus --> UploadFiles
-    UploadFiles -->|No| GenerateShare{Want to Share?}
+    UpdateStatus --> AddContent
+    AddContent -->|Crawl Website| AddRootURL["Add Root URL<br/>Configure depth, max pages,<br/>include/exclude patterns"]
+    AddRootURL --> CrawlerQStash["Publish /api/jobs/crawl-discover<br/>to QStash"]
+    CrawlerQStash --> BFSDiscover["BFS Discovery<br/>cheerio + robots.txt"]
+    BFSDiscover --> PerPageJob["Per-page /api/jobs/crawl-process-page<br/>(one QStash msg per URL)"]
+    PerPageJob --> ExtractReadability["@mozilla/readability<br/>extract article content"]
+    ExtractReadability --> ContentHash["SHA-256 content hash<br/>(skip unchanged on re-crawl)"]
+    ContentHash --> EmbedCrawled["Chunk + embed<br/>same pipeline as files"]
+    EmbedCrawled --> StoreChunks
+    AddContent -->|No| GenerateShare{Want to Share?}
     GenerateShare -->|Yes| CreateShareToken[Generate Share Token<br/>nanoid-16]
     CreateShareToken --> GetShareURL[Get Share URL:<br/>domain.com/chat/TOKEN]
     GetShareURL --> DisplayShare[Display Share URL<br/>& Embed Code]
-    GenerateShare -->|No| TestBot[Test in Dashboard]
-    DisplayShare --> TestBot
+    DisplayShare --> SourceActions{Manage Sources?}
+    SourceActions -->|Recrawl| RecrawlSource[Recrawl Source<br/>re-run discovery]
+    SourceActions -->|Remove| RemoveSource[Remove Source<br/>delete chunks + record]
+    SourceActions -->|Export| ExportJSON[Export JSON<br/>snapshot of crawled pages]
+    RecrawlSource --> TestBot[Test in Dashboard]
+    RemoveSource --> TestBot
+    ExportJSON --> TestBot
+    SourceActions -->|Skip| TestBot
+    GenerateShare -->|No| TestBot
     TestBot --> SendTestMsg[Send Test Messages]
     SendTestMsg --> ViewResponses[View AI Responses<br/>with Source Citations]
     ViewResponses --> Satisfied{Satisfied?}
-    Satisfied -->|No| EditSettings[Edit Chatbot Settings<br/>or Upload More Files]
+    Satisfied -->|No| EditSettings[Edit Chatbot Settings<br/>or Add More Content]
     EditSettings --> ConfigureBot
     Satisfied -->|Yes| Deploy[Deploy Chatbot:<br/>Share URL with Students<br/>or Embed on Website]
-    Deploy --> Monitor[Monitor Analytics:<br/>• Total Conversations<br/>• Message Count<br/>• Response Times<br/>• Popular Questions]
-    Monitor --> End([Chatbot Live & Active])
+    Deploy --> MonitorHub[Chatbot Detail Page]
+    MonitorHub --> OverviewTab["Analytics / Overview Tab<br/>• Total Conversations<br/>• Message Count<br/>• Response Times<br/>• Popular Questions"]
+    MonitorHub --> ConversationsTab["Conversations Tab<br/>List / Search / Sort<br/>Replay with source citations"]
+    OverviewTab --> End([Chatbot Live & Active])
+    ConversationsTab --> End
+    Dashboard --> Settings[Settings]
+    Settings --> DeletePath{Delete account?}
+    DeletePath -->|Yes| DeleteAccount[Confirm password + type DELETE<br/>Cascading cleanup]
+    DeleteAccount --> End_Deleted([Account removed])
+    Dashboard -.->|Footer / Sidebar link| PrivacyPolicy["/privacy-policy page"]
