@@ -25,8 +25,16 @@ import { trpc } from "@/lib/trpc";
 import { useFilePolling } from "@/hooks/useFilePolling";
 import { WebSourcesTab } from "@/components/chatbot/WebSourcesTab";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { ConversationsTab } from "@/components/chatbot/ConversationsTab";
 
-const VALID_TABS = ["chat", "files", "web-sources", "settings", "embed"];
+const VALID_TABS = [
+  "chat",
+  "files",
+  "web-sources",
+  "conversations",
+  "settings",
+  "embed",
+];
 
 export default function ChatbotDetailPage() {
   const router = useRouter();
@@ -190,6 +198,7 @@ export default function ChatbotDetailPage() {
             <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="web-sources">Web Sources</TabsTrigger>
+            <TabsTrigger value="conversations">Conversations</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             {chatbot.sharingEnabled && chatbot.shareToken && (
               <TabsTrigger value="embed">Embed</TabsTrigger>
@@ -230,6 +239,10 @@ export default function ChatbotDetailPage() {
           {/* Web Sources Tab */}
           <TabsContent value="web-sources" className="mt-6">
             <WebSourcesTab chatbotId={chatbotId} />
+          </TabsContent>
+
+          <TabsContent value="conversations" className="mt-6">
+            <ConversationsTab chatbotId={chatbotId} />
           </TabsContent>
 
           {/* Settings Tab */}

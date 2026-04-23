@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/akhileshrangani4/teachanything/compare/v1.17.1...v1.18.0) (2026-04-23)
+
+
+### Features
+
+* **analytics:** add conversation viewer for professors ([#232](https://github.com/akhileshrangani4/teachanything/issues/232)) ([196ec71](https://github.com/akhileshrangani4/teachanything/commit/196ec71bb674f4a67ed229bc0850de36e32b998a))
+
 ## [1.17.1](https://github.com/akhileshrangani4/teachanything/compare/v1.17.0...v1.17.1) (2026-04-22)
 
 
