@@ -46,7 +46,9 @@ npm run db:push    # Push schema (auto-enables pgvector)
 npm run db:seed    # Create demo users, chatbots, and files
 ```
 
-The seed creates an admin, a professor with 3 chatbots and 6 sample files (PDF, DOCX, TXT, MD, JSON, CSV), and a pending user for testing the approval workflow. Credentials are printed to the console.
+The seed creates an admin, a professor with 3 chatbots and 6 sample files (PDF, DOCX, TXT, MD, JSON, CSV), and a pending user for testing the approval workflow. Credentials are printed to the console. PPTX is a supported upload type (slides are chunked on slide boundaries and speaker notes are extracted) but not in the seed fixtures.
+
+Chatbots can also ingest entire websites via the built-in web crawler — add a root URL, set depth and page limits, and it auto-discovers + indexes pages into the same RAG knowledge base. Works out of the box with the existing env vars (no new ones required).
 
 ### 5. Start Development Server
 

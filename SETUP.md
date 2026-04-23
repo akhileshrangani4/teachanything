@@ -65,7 +65,7 @@ npm run db:seed    # Create demo users, chatbots, and files
 The seed script creates:
 
 - **Admin** — email from `ADMIN_EMAILS`, password `admin123`
-- **Professor** (`professor@demo.edu` / `demo123`) — 3 chatbots with sample files in every supported format (PDF, DOCX, TXT, Markdown, JSON, CSV), pre-generated embeddings for RAG
+- **Professor** (`professor@demo.edu` / `demo123`) — 3 chatbots with 6 sample fixtures covering PDF, DOCX, TXT, Markdown, JSON, CSV, pre-generated embeddings for RAG (PPTX is a supported upload type but not seeded)
 - **Pending user** (`student@demo.edu` / `demo123`) — for testing the admin approval workflow
 
 ### 5. Start Development
@@ -240,7 +240,7 @@ Visit: http://localhost:3000
 **Core**: Next.js 16 · TypeScript · Turborepo · tRPC  
 **Database**: PostgreSQL (Supabase) · Drizzle ORM · pgvector  
 **Auth**: Better Auth with approval workflow  
-**AI**: OpenRouter (4 models) · Vercel AI SDK · LangChain  
+**AI**: OpenRouter (7 models) · Vercel AI SDK · LangChain  
 **Infrastructure**: Upstash Redis · QStash · Resend  
 **UI**: Shadcn UI · Tailwind CSS
 
@@ -318,10 +318,15 @@ If no domains configured → all emails allowed.
 
 - PDF (pdf-parse)
 - Word Documents (mammoth)
+- PowerPoint (PPTX, with slide boundaries + speaker notes)
 - Plain Text
 - Markdown
 - JSON
 - CSV
+
+### Web Crawler
+
+Chatbots can ingest websites directly via the built-in web crawler — add a root URL from the chatbot detail page, configure depth / max pages / include-exclude patterns, and the crawler runs via QStash with the same embedding pipeline as file uploads. No additional environment variables are required beyond the ones already used for QStash and OpenAI embeddings.
 
 ---
 
@@ -341,8 +346,8 @@ If no domains configured → all emails allowed.
 - **Chunk size**: 1000 characters
 - **Overlap**: 200 characters
 - **Similarity search**: pgvector cosine distance
-- **Top K**: 5 chunks
-- **Models**: Llama 3.3 70B, Mistral Large, Qwen 2.5 72B, GPT-OSS 120B
+- **Top K**: dynamic, derived from the token budget via `calculateChunkLimit` in `packages/ai/src/token-budget.ts` (priority: system prompt > file manifest > chunks > history)
+- **Models**: Llama 3.3 70B, Llama 4 Maverick, Mistral Large 2411, Qwen 3 235B, GPT-OSS 120B, NVIDIA Nemotron 3 Super, Gemma 4 31B
 
 ---
 

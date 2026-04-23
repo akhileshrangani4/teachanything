@@ -15,33 +15,42 @@ flowchart TD
     LoadHistory --> DisplayInterface
     DisplayInterface --> StudentAction{"Student Action?"}
     StudentAction -- Click Suggested --> SelectQuestion["Click Suggested Question"]
-    SelectQuestion --> PopulateInput["Populate Input Field"]
+    SelectQuestion --> PopulateInput["Populate Input Field<br>(16,000 char limit, counter at 80% / 95%)"]
     PopulateInput --> SendMessage["Click Send or Press Enter"]
-    StudentAction -- Type Message --> TypeMessage["Type Custom Question"]
+    StudentAction -- Type Message --> TypeMessage["Type Custom Question<br>(16,000 char limit, counter at 80% / 95%)"]
     TypeMessage --> SendMessage
-    SendMessage --> ShowTyping@{ label: "Show 'AI is typing...' Indicator" }
+    SendMessage --> RateLimit{"Rate limit OK?"}
+    RateLimit -- No --> RateLimitToast["Show Rate-Limit Toast"]
+    RateLimitToast --> StudentAction
+    RateLimit -- Yes --> ShowTyping@{ label: "Show 'AI is typing...' Indicator" }
     ShowTyping --> CreateConversation{"Conversation<br>Exists?"}
     CreateConversation -- No --> NewConversation["Create Conversation Record:<br>chatbotId + sessionId"]
     CreateConversation -- Yes --> UseExisting["Use Existing Conversation"]
     NewConversation --> SaveUserMsg["Save User Message<br>in messages table"]
     UseExisting --> SaveUserMsg
-    SaveUserMsg --> LoadContext["Load Last 10 Messages<br>for Context"]
+    SaveUserMsg --> LoadContext["Load Last 50 Messages<br>(trimmed by token budget)"]
     LoadContext --> RAGProcess{"Files Uploaded<br>to Chatbot?"}
     RAGProcess -- Yes --> GenerateQueryEmbed["Generate Query Embedding<br>OpenAI API"]
-    GenerateQueryEmbed --> VectorSearch["pgvector Search:<br>Find Top 5 Similar Chunks<br>Using Cosine Similarity"]
+    GenerateQueryEmbed --> RAGHealthy{"RAG succeeded?"}
+    RAGHealthy -- Yes --> VectorSearch["pgvector Search:<br>Find Top-N (token budget) Similar Chunks<br>Using Cosine Similarity"]
     VectorSearch --> BuildContext["Build Context String:<br>Relevant Document Excerpts<br>with Source Citations"]
-    BuildContext --> PreparePrompt["Prepare AI Prompt:<br>System Prompt +<br>Context + History +<br>User Message"]
+    BuildContext --> FileManifest["Inject File Manifest<br>(All chatbot files)"]
+    FileManifest --> PreparePrompt["Prepare AI Prompt:<br>Token Budget Allocator:<br>System Prompt > File Manifest ><br>Chunks > History + User Message"]
+    RAGHealthy -- No --> RAGFailNote["Inject RAG-failure note<br>into system prompt"]
+    RAGFailNote --> PreparePrompt
     RAGProcess -- No --> SimplePrompt["Prepare AI Prompt:<br>System Prompt +<br>History +<br>User Message"]
     SimplePrompt --> PreparePrompt
     PreparePrompt --> SendToAI["Send to OpenRouter:<br>Stream Text Response"]
     SendToAI --> ReceiveStream["Receive Streaming Chunks"]
-    ReceiveStream --> DisplayChunk["Display Token by Token<br>in Chat Bubble"]
+    SendToAI --> StreamTimeout["5 min timeout watchdog"]
+    StreamTimeout -. stalled .-> StreamComplete
+    ReceiveStream --> DisplayChunk["Display Token by Token<br>in Chat Bubble<br>(ErrorBoundary wraps ChatInterface)"]
     DisplayChunk --> MoreChunks{"More Chunks?"}
     MoreChunks -- Yes --> ReceiveStream
     MoreChunks -- No --> StreamComplete["Stream Complete"]
     StreamComplete --> SaveAIMsg["Save AI Response<br>in messages table<br>with metadata"]
     SaveAIMsg --> ShowSources{"Has Sources?"}
-    ShowSources -- Yes --> DisplaySources["Display Source Citations:<br>• File Name<br>• Chunk Index<br>• Similarity Score"]
+    ShowSources -- Yes --> DisplaySources["Display Source Citations:<br>• [Source: filename, Part N] markers<br>• File Name<br>• Chunk Index<br>• Similarity Score"]
     ShowSources -- No --> SkipSources["No Sources to Display"]
     DisplaySources --> TrackAnalytics["Track Analytics:<br>• Event: message_sent<br>• Response Time<br>• Message Length<br>• RAG Used: true/false"]
     SkipSources --> TrackAnalytics

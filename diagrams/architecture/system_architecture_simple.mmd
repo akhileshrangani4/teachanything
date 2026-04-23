@@ -1,0 +1,49 @@
+---
+config:
+  layout: elk
+---
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#E8EAF6', 'primaryBorderColor':'#3F51B5', 'primaryTextColor':'#1A237E', 'lineColor':'#1976D2', 'clusterBkg':'#F5F7FB', 'clusterBorder':'#9FA8DA', 'fontFamily':'Inter, Helvetica, Arial, sans-serif' }}}%%
+flowchart TB
+ subgraph client["Client Layer"]
+   Student["Student Interface<br>(No Login Required)"]
+   Professor["Professor Portal<br>(Secure Admin Access)"]
+ end
+ subgraph service["Service Layer"]
+   FileService["File Service<br>(Upload)"]
+   CrawlerService["Crawler Service<br>(Web Ingestion)"]
+   ChatService["Chat Service"]
+   AdminService["Admin Service<br>(Professor Approval)"]
+ end
+ subgraph ai["AI / RAG Layer"]
+   RAG["RAG Service<br>(HNSW search, file manifest,<br>source attribution, token budget)"]
+   Embeddings["Embedding Generator<br>(text-embedding-3-small)"]
+   Models["Open Source LLMs (7)<br>Llama 3.3 / Llama 4 Maverick,<br>Mistral Large 2411, Qwen 3 235B,<br>GPT-OSS, Nemotron, Gemma"]
+ end
+ subgraph data["Data Layer"]
+   Storage["File Storage<br>(Secure Documents)"]
+   Postgres["PostgreSQL + pgvector<br>(Privacy-Focused)"]
+ end
+ subgraph schema["Database Schema (key tables)"]
+   Conversations["conversations"]
+   FileChunks["file_chunks<br>(embeddings)"]
+   Chatbots["chatbots"]
+   CrawlSources["crawl_sources"]
+   CrawledPages["crawled_pages"]
+   Analytics["analytics"]
+ end
+
+ Student --> ChatService
+ Professor --> FileService & CrawlerService & AdminService & ChatService
+ FileService --> Storage & Postgres
+ CrawlerService --> Postgres
+ ChatService --> RAG
+ RAG --> Embeddings & Postgres
+ Embeddings --> Models
+ Postgres -.-> Conversations & FileChunks & Chatbots & CrawlSources & CrawledPages & Analytics
+
+ classDef entry fill:#C8E6C9,stroke:#2E7D32,stroke-width:2.5px,color:#1B5E20
+ classDef box fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+ classDef store fill:#FFE0B2,stroke:#E65100,stroke-width:2px,color:#BF360C
+ class Student,Professor entry
+ class FileService,CrawlerService,ChatService,AdminService,RAG,Embeddings,Models box
+ class Storage,Postgres,Conversations,FileChunks,Chatbots,CrawlSources,CrawledPages,Analytics store
