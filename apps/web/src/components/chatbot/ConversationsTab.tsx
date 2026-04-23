@@ -29,6 +29,7 @@ import {
   User,
   Bot,
   FileText,
+  Globe,
 } from "lucide-react";
 import { logError } from "@/lib/logger";
 
@@ -470,16 +471,29 @@ function ConversationDetail({
                       </div>
                       {metadata?.sources && metadata.sources.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                          {dedupeSources(metadata.sources).map((source) => (
-                            <Badge
-                              key={`${msg.id}-${source.fileName}`}
-                              variant="secondary"
-                              className="text-xs"
-                            >
-                              <FileText className="h-3 w-3 mr-1" />
-                              {source.fileName}
-                            </Badge>
-                          ))}
+                          {dedupeSources(metadata.sources).map((source) => {
+                            // rag-context.ts tags web-crawler sources as
+                            // "Web: <hostname>"; render with a globe and
+                            // strip the prefix since the icon carries it.
+                            const isWeb = source.fileName.startsWith("Web: ");
+                            const label = isWeb
+                              ? source.fileName.slice("Web: ".length)
+                              : source.fileName;
+                            return (
+                              <Badge
+                                key={`${msg.id}-${source.fileName}`}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {isWeb ? (
+                                  <Globe className="h-3 w-3 mr-1" />
+                                ) : (
+                                  <FileText className="h-3 w-3 mr-1" />
+                                )}
+                                {label}
+                              </Badge>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
