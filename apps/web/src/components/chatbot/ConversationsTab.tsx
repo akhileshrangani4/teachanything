@@ -450,9 +450,9 @@ function ConversationDetail({
                       </div>
                       {metadata?.sources && metadata.sources.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                          {metadata.sources.map((source) => (
+                          {metadata.sources.map((source, idx) => (
                             <Badge
-                              key={`${source.fileName}-${source.chunkIndex}`}
+                              key={`${msg.id}-${idx}`}
                               variant="secondary"
                               className="text-xs"
                             >
