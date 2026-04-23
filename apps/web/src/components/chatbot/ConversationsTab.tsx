@@ -24,10 +24,7 @@ import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { keepPreviousData } from "@tanstack/react-query";
 import { MessageSquare, Search, ArrowLeft, Clock } from "lucide-react";
 import { logError } from "@/lib/logger";
-import {
-  formatDuration,
-  formatTimestamp,
-} from "@/lib/conversation-format";
+import { formatDuration, formatTimestamp } from "@/lib/conversation-format";
 
 type ConversationRow =
   RouterOutputs["analytics"]["getConversationsList"]["conversations"][number];
@@ -211,10 +208,7 @@ function ConversationsResults({
     return (
       <div className="flex-1 min-h-0 overflow-y-auto divide-y rounded-lg border">
         {Array.from({ length: limit }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between px-4 py-3"
-          >
+          <div key={i} className="flex items-center justify-between px-4 py-3">
             <div className="min-w-0 flex-1 mr-3 space-y-2">
               <Skeleton className="h-4 w-3/5" />
               <div className="flex items-center gap-3">
