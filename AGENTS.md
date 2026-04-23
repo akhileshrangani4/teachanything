@@ -16,7 +16,7 @@ teachanything/
 │           │   ├── trpc.ts       # tRPC setup, procedures, middleware
 │           │   ├── rag-context.ts  # File manifest, source attribution, token budget, HNSW search
 │           │   └── routers/      # API routers (auth, chatbot, chat, files, admin, analytics, crawler)
-│           ├── lib/              # Utilities (auth, email, rate-limit, qstash, env, file-processor)
+│           ├── lib/              # Utilities (auth, email, rate-limit, qstash, env, file-processor, logger)
 │           ├── components/       # React components (Shadcn UI based)
 │           └── hooks/            # Custom React hooks
 ├── packages/

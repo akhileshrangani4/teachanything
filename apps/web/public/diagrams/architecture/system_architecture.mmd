@@ -65,7 +65,7 @@ flowchart TB
     AdminRouter --> Resend & PostgreSQL
     QStash --> FileProcessor & CrawlProcessor
     FileProcessor --> RAGService & Storage & PostgreSQL
-    CrawlProcessor --> Crawler & Storage & PostgreSQL
+    CrawlProcessor --> Crawler & PostgreSQL
     RAGService --> EmbeddingGen
     RAGContext --> EmbeddingGen & PostgreSQL
     OpenRouter --> Models

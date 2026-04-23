@@ -28,7 +28,7 @@ flowchart TD
     CreateConversation -- Yes --> UseExisting["Use Existing Conversation"]
     NewConversation --> SaveUserMsg["Save User Message<br>in messages table"]
     UseExisting --> SaveUserMsg
-    SaveUserMsg --> LoadContext["Load Last 10 Messages<br>for Context"]
+    SaveUserMsg --> LoadContext["Load Last 50 Messages<br>(trimmed by token budget)"]
     LoadContext --> RAGProcess{"Files Uploaded<br>to Chatbot?"}
     RAGProcess -- Yes --> GenerateQueryEmbed["Generate Query Embedding<br>OpenAI API"]
     GenerateQueryEmbed --> RAGHealthy{"RAG succeeded?"}

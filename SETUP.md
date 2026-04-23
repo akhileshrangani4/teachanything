@@ -65,7 +65,7 @@ npm run db:seed    # Create demo users, chatbots, and files
 The seed script creates:
 
 - **Admin** — email from `ADMIN_EMAILS`, password `admin123`
-- **Professor** (`professor@demo.edu` / `demo123`) — 3 chatbots with sample files in every supported format (PDF, DOCX, PPTX, TXT, Markdown, JSON, CSV), pre-generated embeddings for RAG
+- **Professor** (`professor@demo.edu` / `demo123`) — 3 chatbots with 6 sample fixtures covering PDF, DOCX, TXT, Markdown, JSON, CSV, pre-generated embeddings for RAG (PPTX is a supported upload type but not seeded)
 - **Pending user** (`student@demo.edu` / `demo123`) — for testing the admin approval workflow
 
 ### 5. Start Development
@@ -346,7 +346,7 @@ Chatbots can ingest websites directly via the built-in web crawler — add a roo
 - **Chunk size**: 1000 characters
 - **Overlap**: 200 characters
 - **Similarity search**: pgvector cosine distance
-- **Top K**: 5 chunks
+- **Top K**: dynamic, derived from the token budget via `calculateChunkLimit` in `packages/ai/src/token-budget.ts` (priority: system prompt > file manifest > chunks > history)
 - **Models**: Llama 3.3 70B, Llama 4 Maverick, Mistral Large 2411, Qwen 3 235B, GPT-OSS 120B, NVIDIA Nemotron 3 Super, Gemma 4 31B
 
 ---
