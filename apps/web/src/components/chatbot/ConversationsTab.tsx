@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
+import { keepPreviousData } from "@tanstack/react-query";
 import {
   MessageSquare,
   Search,
@@ -179,11 +180,11 @@ function ConversationsResults({
 }) {
   const listQuery = trpc.analytics.getConversationsList.useQuery(
     { chatbotId, sortBy, limit, offset },
-    { enabled: !search },
+    { enabled: !search, placeholderData: keepPreviousData },
   );
   const searchResultsQuery = trpc.analytics.searchConversations.useQuery(
     { chatbotId, query: search, limit, offset },
-    { enabled: !!search },
+    { enabled: !!search, placeholderData: keepPreviousData },
   );
 
   const active = search ? searchResultsQuery : listQuery;

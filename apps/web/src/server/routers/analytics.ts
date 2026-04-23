@@ -483,7 +483,9 @@ export const analyticsRouter = router({
         });
       }
 
-      const matchingConversationIds = ctx.db
+      // Materialize matching ids once so the (expensive) ILIKE scan runs a
+      // single time per request instead of once per downstream query.
+      const matchingRows = await ctx.db
         .selectDistinct({ id: messages.conversationId })
         .from(messages)
         .innerJoin(conversations, eq(messages.conversationId, conversations.id))
@@ -494,19 +496,14 @@ export const analyticsRouter = router({
           ),
         );
 
+      if (matchingRows.length === 0) {
+        return { conversations: [], totalCount: 0 };
+      }
+
+      const matchingIds = matchingRows.map((r) => r.id);
+      const totalCount = matchingIds.length;
+
       const msgStats = buildMessageStatsSubquery(ctx.db, input.chatbotId);
-
-      const [totalResult] = await ctx.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(conversations)
-        .where(
-          and(
-            eq(conversations.chatbotId, input.chatbotId),
-            inArray(conversations.id, matchingConversationIds),
-          ),
-        );
-
-      const totalCount = totalResult?.count ?? 0;
 
       const results = await ctx.db
         .select({
@@ -524,7 +521,7 @@ export const analyticsRouter = router({
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),
-            inArray(conversations.id, matchingConversationIds),
+            inArray(conversations.id, matchingIds),
           ),
         )
         .orderBy(desc(conversations.createdAt), desc(conversations.id))
