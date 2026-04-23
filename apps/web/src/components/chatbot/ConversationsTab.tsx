@@ -28,10 +28,10 @@ import {
   Clock,
   User,
   Bot,
-  FileText,
-  Globe,
 } from "lucide-react";
 import { logError } from "@/lib/logger";
+import { dedupeSourcesByFileName } from "@/lib/message-sources";
+import { SourceBadge } from "@/components/ui/source-badge";
 
 type ConversationRow =
   RouterOutputs["analytics"]["getConversationsList"]["conversations"][number];
@@ -71,26 +71,6 @@ function formatTimestamp(date: Date | string): string {
     day: "numeric",
     year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
   });
-}
-
-type SourceCitation = NonNullable<
-  NonNullable<
-    RouterOutputs["analytics"]["getConversationMessages"]["messages"][number]["metadata"]
-  >["sources"]
->[number];
-
-// Dedupe by fileName, keep highest-similarity chunk per file. Matches
-// ChatMessage.tsx so the audit view shows the same badge set as the
-// live chat.
-function dedupeSources(sources: SourceCitation[]): SourceCitation[] {
-  const best = new Map<string, SourceCitation>();
-  for (const s of sources) {
-    const existing = best.get(s.fileName);
-    if (!existing || s.similarity > existing.similarity) {
-      best.set(s.fileName, s);
-    }
-  }
-  return [...best.values()];
 }
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
@@ -427,7 +407,7 @@ function ConversationDetail({
           </div>
         ) : (
           <>
-            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+            <div className="space-y-4 h-[600px] overflow-y-auto pr-2">
               {data.messages.map((msg) => {
                 const metadata = msg.metadata;
                 const isUser = msg.role === "user";
@@ -471,29 +451,14 @@ function ConversationDetail({
                       </div>
                       {metadata?.sources && metadata.sources.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                          {dedupeSources(metadata.sources).map((source) => {
-                            // rag-context.ts tags web-crawler sources as
-                            // "Web: <hostname>"; render with a globe and
-                            // strip the prefix since the icon carries it.
-                            const isWeb = source.fileName.startsWith("Web: ");
-                            const label = isWeb
-                              ? source.fileName.slice("Web: ".length)
-                              : source.fileName;
-                            return (
-                              <Badge
+                          {dedupeSourcesByFileName(metadata.sources).map(
+                            (source) => (
+                              <SourceBadge
                                 key={`${msg.id}-${source.fileName}`}
-                                variant="secondary"
-                                className="text-xs"
-                              >
-                                {isWeb ? (
-                                  <Globe className="h-3 w-3 mr-1" />
-                                ) : (
-                                  <FileText className="h-3 w-3 mr-1" />
-                                )}
-                                {label}
-                              </Badge>
-                            );
-                          })}
+                                source={source}
+                              />
+                            ),
+                          )}
                         </div>
                       )}
                     </div>

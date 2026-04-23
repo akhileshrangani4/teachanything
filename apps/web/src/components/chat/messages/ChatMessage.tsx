@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/message";
 import { CopyButton } from "@/components/ui/copy-button";
 import { TypingLoader } from "@/components/ui/loader";
-import { Badge } from "@/components/ui/badge";
+import { SourceBadge } from "@/components/ui/source-badge";
 import { FileText, StopCircle, AlertTriangle } from "lucide-react";
 import { useMemo } from "react";
+import { dedupeSourcesByFileName } from "@/lib/message-sources";
 
 interface ChatMessageProps {
   message: MessageType;
@@ -23,20 +24,10 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const isUser = message.role === "user";
 
-  // Deduplicate sources by fileName, keeping highest similarity (O(n) via Map)
-  const uniqueSources = useMemo(() => {
-    const sources = message.sources;
-    if (!sources || sources.length === 0) return [];
-
-    const map = new Map<string, (typeof sources)[0]>();
-    for (const s of sources) {
-      const existing = map.get(s.fileName);
-      if (!existing || s.similarity > existing.similarity) {
-        map.set(s.fileName, { ...s });
-      }
-    }
-    return [...map.values()];
-  }, [message.sources]);
+  const uniqueSources = useMemo(
+    () => dedupeSourcesByFileName(message.sources ?? []),
+    [message.sources],
+  );
 
   if (isUser) {
     return (
@@ -124,14 +115,13 @@ export function ChatMessage({
                 <span className="font-medium">Sources:</span>
               </div>
               {uniqueSources.map((source, index) => (
-                <Badge
+                <SourceBadge
                   key={index}
+                  source={source}
                   variant="outline"
+                  showSimilarityTooltip
                   className="text-xs font-normal"
-                  title={`Similarity: ${(source.similarity * 100).toFixed(1)}%`}
-                >
-                  {source.fileName}
-                </Badge>
+                />
               ))}
             </div>
           )}
