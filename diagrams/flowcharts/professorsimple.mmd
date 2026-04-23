@@ -1,0 +1,17 @@
+---
+config:
+  look: neo
+---
+flowchart TD
+   Start(["Professor Visits Site"]) --> Create["Create & Configure Chatbot"]
+   Create --> ChooseModel["Choose from 7 Open-Source Models<br>(Llama 3.3 / 4 Maverick,<br>Mistral Large, Qwen 3,<br>GPT-OSS, Nemotron, Gemma)"]
+   ChooseModel --> AddContent{"Add Content?"}
+   AddContent -- "Files" --> Upload["Upload Files<br>PDF, DOCX, PPTX (slides + notes),<br>TXT, MD, JSON, CSV"]
+   AddContent -- "Website" --> Crawl["Crawl Website<br>Root URL + depth + patterns"]
+   Upload --> Process["System Extracts + Embeds<br>into pgvector"]
+   Crawl --> Process
+   Process --> Prompt["Add & Fine-Tune<br>System-Level Prompts"]
+   Prompt --> Test["Professor Tests<br>in Dashboard"]
+   Test --> Deploy["Deploy Open-Access Chatbot<br>Share Unique URL<br>(No Login Required)"]
+   Deploy --> Monitor["Monitor:<br>• Overview Analytics<br>• Conversations Tab (search / replay)"]
+   Monitor --> End(["Chatbot Live & Accessible"])

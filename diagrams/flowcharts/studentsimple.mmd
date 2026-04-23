@@ -1,0 +1,20 @@
+---
+config:
+  look: neo
+---
+flowchart TD
+   Start(["Student Gets Link<br>from Professor"]) --> Open["Generate Session ID<br>& Display Chat Interface"]
+   Open --> Type["Student Types Query<br>(up to 16,000 chars,<br>live counter)"]
+   Type --> Save["Save Message<br>& Load Last 10 for Context"]
+   Save --> RAG{"Files or Crawled<br>Pages Available?"}
+   RAG -- "Yes" --> Embed["Embed Query<br>pgvector Top-N search<br>(token budget allocator)"]
+   Embed --> Context["Build Context + File Manifest<br>with [Source: file, Part N] citations"]
+   Context --> Prompt["Combine: System Prompt +<br>Manifest + Chunks +<br>History + User Prompt"]
+   RAG -- "No" --> Simple["Combine: System Prompt +<br>History + User Prompt"]
+   Simple --> Prompt
+   Prompt --> Stream["Send to Open-Source LLM<br>Stream Response<br>(5-minute timeout)"]
+   Stream --> Display["Display Response with<br>Source Citations<br>Save Message + Metadata"]
+   Display --> Analytics["Track Analytics:<br>Response Time, Length,<br>RAG Used"]
+   Analytics --> Next{"User Action?"}
+   Next -- "Ask Again" --> Type
+   Next -- "Close Tab" --> End(["Session Ends<br>(No Data Retained)"])

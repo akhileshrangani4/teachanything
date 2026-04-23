@@ -1,0 +1,41 @@
+---
+config:
+  layout: elk
+---
+flowchart TB
+ subgraph client["Client Layer"]
+   Student["Student Interface<br>(No Login Required)"]
+   Professor["Professor Portal<br>(Secure Admin Access)"]
+ end
+ subgraph service["Service Layer"]
+   FileService["File Service<br>(Upload)"]
+   CrawlerService["Crawler Service<br>(Web Ingestion)"]
+   ChatService["Chat Service"]
+   AdminService["Admin Service<br>(Professor Approval)"]
+ end
+ subgraph ai["AI / RAG Layer"]
+   RAG["RAG Service<br>(HNSW search, file manifest,<br>source attribution, token budget)"]
+   Embeddings["Embedding Generator<br>(text-embedding-3-small)"]
+   Models["Open Source LLMs (7)<br>Llama 3.3 / Llama 4 Maverick,<br>Mistral Large 2411, Qwen 3 235B,<br>GPT-OSS, Nemotron, Gemma"]
+ end
+ subgraph data["Data Layer"]
+   Storage["File Storage<br>(Secure Documents)"]
+   Postgres["PostgreSQL + pgvector<br>(Privacy-Focused)"]
+ end
+ subgraph schema["Database Schema (key tables)"]
+   Conversations["conversations"]
+   FileChunks["file_chunks<br>(embeddings)"]
+   Chatbots["chatbots"]
+   CrawlSources["crawl_sources"]
+   CrawledPages["crawled_pages"]
+   Analytics["analytics"]
+ end
+
+ Student --> ChatService
+ Professor --> FileService & CrawlerService & AdminService & ChatService
+ FileService --> Storage & Postgres
+ CrawlerService --> Postgres
+ ChatService --> RAG
+ RAG --> Embeddings & Postgres
+ Embeddings --> Models
+ Postgres -.-> Conversations & FileChunks & Chatbots & CrawlSources & CrawledPages & Analytics
