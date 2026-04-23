@@ -25,7 +25,7 @@ Teach Anything is a production-ready platform for creating AI chatbots that answ
 - **Embeddable Widget** — Drop a chatbot into any website with a single script tag
 - **Professor Approval Workflow** — Admin-controlled registration, domain allow-listing, and self-service account deletion
 - **Privacy Policy + Account Deletion** — Full legal policy page and self-service deletion with password confirmation
-- **Tested & Type-Safe** — 240+ Jest tests, strict TypeScript, end-to-end type safety via tRPC, CI with Codecov
+- **Tested & Type-Safe** — 350+ Jest tests, strict TypeScript, end-to-end type safety via tRPC, CI with Codecov
 
 ## Get Started
 
