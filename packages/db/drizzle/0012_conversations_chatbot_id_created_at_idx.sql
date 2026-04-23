@@ -1,1 +1,1 @@
-CREATE INDEX "conversations_chatbot_id_created_at_idx" ON "conversations" USING btree ("chatbot_id","created_at");
+CREATE INDEX IF NOT EXISTS "conversations_chatbot_id_created_at_idx" ON "conversations" USING btree ("chatbot_id","created_at");
