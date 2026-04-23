@@ -44,8 +44,19 @@ describe("escapeLikePattern", () => {
     );
   });
 
-  it("does not escape backslash itself", () => {
-    expect(escapeLikePattern("back\\slash")).toBe("back\\slash");
+  it("escapes backslash itself so trailing backslashes don't break LIKE", () => {
+    expect(escapeLikePattern("back\\slash")).toBe("back\\\\slash");
+  });
+
+  it("escapes trailing backslash so the pattern stays valid", () => {
+    // Without this, `%foo\%` ends with a dangling escape and Postgres
+    // rejects it with "LIKE pattern must not end with escape character".
+    expect(escapeLikePattern("foo\\")).toBe("foo\\\\");
+  });
+
+  it("escapes backslash before wildcards to avoid double-meaning", () => {
+    expect(escapeLikePattern("\\%")).toBe("\\\\\\%");
+    expect(escapeLikePattern("\\_")).toBe("\\\\\\_");
   });
 
   it("handles string with only wildcards", () => {

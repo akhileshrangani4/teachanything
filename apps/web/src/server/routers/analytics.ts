@@ -7,6 +7,7 @@ import {
   analytics,
   user,
 } from "@teachanything/db/schema";
+import type { SQL } from "drizzle-orm";
 import {
   eq,
   and,
@@ -15,12 +16,37 @@ import {
   lte,
   desc,
   asc,
-  count,
   inArray,
   ilike,
 } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { escapeLikePattern } from "@/server/utils";
+import { escapeLikePattern, formatPreview } from "@/server/utils";
+import type { Context } from "@/server/trpc";
+import {
+  checkRateLimit,
+  conversationSearchRateLimit,
+} from "@/lib/rate-limit";
+
+type AuthedContext = Context & { session: { user: { id: string } } };
+
+async function assertOwnedChatbot(
+  ctx: AuthedContext,
+  chatbotId: string,
+): Promise<typeof chatbots.$inferSelect> {
+  const [chatbot] = await ctx.db
+    .select()
+    .from(chatbots)
+    .where(
+      and(eq(chatbots.id, chatbotId), eq(chatbots.userId, ctx.session.user.id)),
+    )
+    .limit(1);
+
+  if (!chatbot) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Chatbot not found" });
+  }
+
+  return chatbot;
+}
 
 function buildMessageStatsSubquery(
   db: typeof import("@teachanything/db").db,
@@ -29,7 +55,7 @@ function buildMessageStatsSubquery(
   return db
     .select({
       conversationId: messages.conversationId,
-      messageCount: count().as("message_count"),
+      messageCount: sql<number>`count(*)::int`.as("message_count"),
       firstUserMessage: sql<string | null>`(
         SELECT m2.content FROM ${messages} m2
         WHERE m2.conversation_id = ${messages.conversationId}
@@ -51,13 +77,6 @@ function buildMessageStatsSubquery(
     .as("msg_stats");
 }
 
-function formatPreview(firstUserMessage: string | null): string | null {
-  if (!firstUserMessage) return null;
-  return firstUserMessage.length > 100
-    ? firstUserMessage.slice(0, 100) + "..."
-    : firstUserMessage;
-}
-
 export const analyticsRouter = router({
   /**
    * Get chatbot statistics
@@ -65,50 +84,27 @@ export const analyticsRouter = router({
   getChatbotStats: protectedProcedure
     .input(z.object({ chatbotId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      // Verify chatbot ownership
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.chatbotId),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
+      await assertOwnedChatbot(ctx, input.chatbotId);
 
       // Get total conversations
       const [conversationCount] = await ctx.db
-        .select({ count: count() })
+        .select({ count: sql<number>`count(*)::int` })
         .from(conversations)
         .where(eq(conversations.chatbotId, input.chatbotId));
 
-      const totalConversations = conversationCount?.count || 0;
+      const totalConversations = conversationCount?.count ?? 0;
 
-      // Get total messages
-      const conversationIds = await ctx.db
-        .select({ id: conversations.id })
-        .from(conversations)
+      // Get total messages across all conversations for this chatbot
+      const [messageCount] = await ctx.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(messages)
+        .innerJoin(
+          conversations,
+          eq(messages.conversationId, conversations.id),
+        )
         .where(eq(conversations.chatbotId, input.chatbotId));
 
-      let totalMessages = 0;
-      if (conversationIds.length > 0) {
-        const [messageCount] = await ctx.db
-          .select({ count: count() })
-          .from(messages)
-          .where(
-            sql`${messages.conversationId} IN (${conversationIds.map((c) => c.id).join(",")})`,
-          );
-
-        totalMessages = messageCount?.count || 0;
-      }
+      const totalMessages = messageCount?.count ?? 0;
 
       // Get average response time from analytics
       const analyticsData = await ctx.db
@@ -125,7 +121,6 @@ export const analyticsRouter = router({
       if (analyticsData.length > 0) {
         const responseTimes = analyticsData
           .map((a) => {
-            // Type guard for eventData with responseTime
             const eventData = a.eventData as Record<string, unknown> | null;
             return eventData && typeof eventData.responseTime === "number"
               ? eventData.responseTime
@@ -148,62 +143,6 @@ export const analyticsRouter = router({
     }),
 
   /**
-   * Get recent conversations for chatbot
-   */
-  getConversations: protectedProcedure
-    .input(
-      z.object({
-        chatbotId: z.string().uuid(),
-        limit: z.number().min(1).max(50).default(10),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      // Verify chatbot ownership
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.chatbotId),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
-
-      // Get recent conversations
-      const recentConversations = await ctx.db
-        .select()
-        .from(conversations)
-        .where(eq(conversations.chatbotId, input.chatbotId))
-        .orderBy(desc(conversations.createdAt))
-        .limit(input.limit);
-
-      // Get message count for each conversation
-      const conversationsWithCount = await Promise.all(
-        recentConversations.map(async (conversation) => {
-          const [msgCount] = await ctx.db
-            .select({ count: count() })
-            .from(messages)
-            .where(eq(messages.conversationId, conversation.id));
-
-          return {
-            ...conversation,
-            messageCount: msgCount?.count || 0,
-          };
-        }),
-      );
-
-      return conversationsWithCount;
-    }),
-
-  /**
    * Get message volume over time
    */
   getMessageVolume: protectedProcedure
@@ -214,24 +153,7 @@ export const analyticsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Verify chatbot ownership
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.chatbotId),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
+      await assertOwnedChatbot(ctx, input.chatbotId);
 
       // Calculate date range
       const now = new Date();
@@ -249,30 +171,23 @@ export const analyticsRouter = router({
           break;
       }
 
-      // Get conversations in date range
-      const conversationIds = await ctx.db
-        .select({ id: conversations.id })
-        .from(conversations)
+      // Get messages grouped by date, scoped to this chatbot via a join.
+      // Single round-trip instead of fetching conversation ids first.
+      const messagesData = await ctx.db
+        .select({
+          date: sql<string>`DATE(${messages.createdAt})`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(messages)
+        .innerJoin(
+          conversations,
+          eq(messages.conversationId, conversations.id),
+        )
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),
             gte(conversations.createdAt, startDate),
           ),
-        );
-
-      if (conversationIds.length === 0) {
-        return [];
-      }
-
-      // Get messages grouped by date
-      const messagesData = await ctx.db
-        .select({
-          date: sql<string>`DATE(${messages.createdAt})`,
-          count: count(),
-        })
-        .from(messages)
-        .where(
-          sql`${messages.conversationId} IN (${conversationIds.map((c) => c.id).join(",")})`,
         )
         .groupBy(sql`DATE(${messages.createdAt})`)
         .orderBy(sql`DATE(${messages.createdAt})`);
@@ -371,7 +286,7 @@ export const analyticsRouter = router({
       const messagesData = await ctx.db
         .select({
           date: sql<string>`DATE(${messages.createdAt})`,
-          count: count(),
+          count: sql<number>`count(*)::int`,
         })
         .from(messages)
         .where(
@@ -386,7 +301,7 @@ export const analyticsRouter = router({
 
       // Fill in missing days with 0 count, but only from startDate onwards
       const dataMap = new Map<string, number>(
-        messagesData.map((row) => [row.date, Number(row.count)]),
+        messagesData.map((row) => [row.date, row.count]),
       );
       const filledData: Array<{ date: string; count: number }> = [];
 
@@ -402,7 +317,7 @@ export const analyticsRouter = router({
         const dateStr = currentDate.toISOString().split("T")[0]!;
         filledData.push({
           date: dateStr,
-          count: dataMap.get(dateStr) || 0,
+          count: dataMap.get(dateStr) ?? 0,
         });
       }
 
@@ -426,35 +341,20 @@ export const analyticsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.chatbotId),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
+      await assertOwnedChatbot(ctx, input.chatbotId);
 
       const msgStats = buildMessageStatsSubquery(ctx.db, input.chatbotId);
 
+      // Count has no join (1:1 subquery doesn't change row count on leftJoin,
+      // and we don't filter by any msg_stats column here).
       const [totalResult] = await ctx.db
-        .select({ count: count() })
+        .select({ count: sql<number>`count(*)::int` })
         .from(conversations)
-        .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(eq(conversations.chatbotId, input.chatbotId));
 
-      const totalCount = Number(totalResult?.count ?? 0);
+      const totalCount = totalResult?.count ?? 0;
 
-      let primaryOrder;
+      let primaryOrder: SQL;
       switch (input.sortBy) {
         case "mostMessages":
           primaryOrder = desc(sql`COALESCE(${msgStats.messageCount}, 0)`);
@@ -496,7 +396,7 @@ export const analyticsRouter = router({
           sessionId: r.sessionId,
           metadata: r.metadata,
           createdAt: r.createdAt,
-          messageCount: Number(r.messageCount ?? 0),
+          messageCount: r.messageCount ?? 0,
           preview: formatPreview(r.firstUserMessage),
           firstMessageAt: r.firstMessageAt,
           lastMessageAt: r.lastMessageAt,
@@ -515,36 +415,22 @@ export const analyticsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
+      // Single JOIN verifies chatbot ownership AND conversation binding
+      // in one round-trip.
+      const [row] = await ctx.db
+        .select({ conversation: conversations })
+        .from(conversations)
+        .innerJoin(chatbots, eq(chatbots.id, conversations.chatbotId))
         .where(
           and(
-            eq(chatbots.id, input.chatbotId),
+            eq(conversations.id, input.conversationId),
+            eq(conversations.chatbotId, input.chatbotId),
             eq(chatbots.userId, ctx.session.user.id),
           ),
         )
         .limit(1);
 
-      if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
-
-      const [conversation] = await ctx.db
-        .select()
-        .from(conversations)
-        .where(
-          and(
-            eq(conversations.id, input.conversationId),
-            eq(conversations.chatbotId, input.chatbotId),
-          ),
-        )
-        .limit(1);
-
-      if (!conversation) {
+      if (!row) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Conversation not found",
@@ -552,7 +438,7 @@ export const analyticsRouter = router({
       }
 
       const [totalResult] = await ctx.db
-        .select({ count: count() })
+        .select({ count: sql<number>`count(*)::int` })
         .from(messages)
         .where(eq(messages.conversationId, input.conversationId));
 
@@ -566,8 +452,8 @@ export const analyticsRouter = router({
 
       return {
         messages: conversationMessages,
-        conversation,
-        totalCount: Number(totalResult?.count ?? 0),
+        conversation: row.conversation,
+        totalCount: totalResult?.count ?? 0,
       };
     }),
 
@@ -581,21 +467,19 @@ export const analyticsRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const [chatbot] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.chatbotId),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
+      await assertOwnedChatbot(ctx, input.chatbotId);
 
-      if (!chatbot) {
+      // ILIKE '%term%' is an unindexed scan without the pg_trgm GIN index,
+      // and still expensive even with it. Cap per-user concurrency.
+      const { success } = await checkRateLimit(
+        conversationSearchRateLimit,
+        ctx.session.user.id,
+        { path: "analytics.searchConversations" },
+      );
+      if (!success) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
+          code: "TOO_MANY_REQUESTS",
+          message: "Too many search requests. Please slow down.",
         });
       }
 
@@ -613,9 +497,8 @@ export const analyticsRouter = router({
       const msgStats = buildMessageStatsSubquery(ctx.db, input.chatbotId);
 
       const [totalResult] = await ctx.db
-        .select({ count: count() })
+        .select({ count: sql<number>`count(*)::int` })
         .from(conversations)
-        .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),
@@ -623,7 +506,7 @@ export const analyticsRouter = router({
           ),
         );
 
-      const totalCount = Number(totalResult?.count ?? 0);
+      const totalCount = totalResult?.count ?? 0;
 
       const results = await ctx.db
         .select({
@@ -644,7 +527,7 @@ export const analyticsRouter = router({
             inArray(conversations.id, matchingConversationIds),
           ),
         )
-        .orderBy(desc(conversations.createdAt))
+        .orderBy(desc(conversations.createdAt), desc(conversations.id))
         .limit(input.limit)
         .offset(input.offset);
 
@@ -654,7 +537,7 @@ export const analyticsRouter = router({
           sessionId: r.sessionId,
           metadata: r.metadata,
           createdAt: r.createdAt,
-          messageCount: Number(r.messageCount ?? 0),
+          messageCount: r.messageCount ?? 0,
           preview: formatPreview(r.firstUserMessage),
           firstMessageAt: r.firstMessageAt,
           lastMessageAt: r.lastMessageAt,

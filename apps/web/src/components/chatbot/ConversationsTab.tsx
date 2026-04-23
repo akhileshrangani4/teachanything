@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { trpc } from "@/lib/trpc";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
 import {
   MessageSquare,
   Search,
@@ -27,9 +28,11 @@ import {
   User,
   Bot,
   FileText,
-  Loader2,
 } from "lucide-react";
-import { Markdown } from "@/components/ui/markdown";
+import { logError } from "@/lib/logger";
+
+type ConversationRow =
+  RouterOutputs["analytics"]["getConversationsList"]["conversations"][number];
 
 interface ConversationsTabProps {
   chatbotId: string;
@@ -39,10 +42,15 @@ type SortBy = "recent" | "mostMessages" | "longestDuration";
 
 function formatDuration(firstAt: Date | null, lastAt: Date | null): string {
   if (!firstAt || !lastAt) return "-";
-  const ms = new Date(lastAt).getTime() - new Date(firstAt).getTime();
+  const ms = Math.max(
+    0,
+    new Date(lastAt).getTime() - new Date(firstAt).getTime(),
+  );
   if (ms < 60000) return `${Math.round(ms / 1000)}s`;
   if (ms < 3600000) return `${Math.round(ms / 60000)}m`;
-  return `${Math.round(ms / 3600000)}h ${Math.round((ms % 3600000) / 60000)}m`;
+  const hours = Math.floor(ms / 3600000);
+  const mins = Math.round((ms % 3600000) / 60000);
+  return `${hours}h ${mins}m`;
 }
 
 function formatTimestamp(date: Date | string): string {
@@ -63,30 +71,29 @@ function formatTimestamp(date: Date | string): string {
   });
 }
 
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeSearch, setActiveSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300);
   const [sortBy, setSortBy] = useState<SortBy>("recent");
   const [offset, setOffset] = useState(0);
   const limit = 20;
 
-  const handleSearch = () => {
-    const trimmed = searchQuery.trim();
-    if (!trimmed) return;
-    setSelectedConversationId(null);
-    setActiveSearch(trimmed);
+  // Reset pagination when the effective query or sort changes.
+  useEffect(() => {
     setOffset(0);
-  };
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setActiveSearch("");
-    setOffset(0);
-    setSelectedConversationId(null);
-  };
+  }, [debouncedSearch, sortBy]);
 
   if (selectedConversationId) {
     return (
@@ -102,16 +109,14 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Conversations
-            </CardTitle>
-            <CardDescription className="mt-1.5">
-              Browse student conversations with your chatbot.
-            </CardDescription>
-          </div>
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Conversations
+          </CardTitle>
+          <CardDescription className="mt-1.5">
+            Browse student conversations with your chatbot.
+          </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -122,28 +127,13 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="pl-9"
             />
           </div>
-          <Button
-            variant="outline"
-            onClick={handleSearch}
-            disabled={!searchQuery.trim()}
-          >
-            Search
-          </Button>
-          {activeSearch && (
-            <Button variant="ghost" onClick={clearSearch}>
-              Clear
-            </Button>
-          )}
           <Select
             value={sortBy}
-            onValueChange={(v) => {
-              setSortBy(v as SortBy);
-              setOffset(0);
-            }}
+            onValueChange={(v) => setSortBy(v as SortBy)}
+            disabled={!!debouncedSearch}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue />
@@ -156,32 +146,23 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
           </Select>
         </div>
 
-        {activeSearch ? (
-          <SearchResults
-            chatbotId={chatbotId}
-            query={activeSearch}
-            limit={limit}
-            offset={offset}
-            onSelectConversation={setSelectedConversationId}
-            onOffsetChange={setOffset}
-          />
-        ) : (
-          <ConversationsList
-            chatbotId={chatbotId}
-            sortBy={sortBy}
-            limit={limit}
-            offset={offset}
-            onSelectConversation={setSelectedConversationId}
-            onOffsetChange={setOffset}
-          />
-        )}
+        <ConversationsResults
+          chatbotId={chatbotId}
+          search={debouncedSearch}
+          sortBy={sortBy}
+          limit={limit}
+          offset={offset}
+          onSelectConversation={setSelectedConversationId}
+          onOffsetChange={setOffset}
+        />
       </CardContent>
     </Card>
   );
 }
 
-function ConversationsList({
+function ConversationsResults({
   chatbotId,
+  search,
   sortBy,
   limit,
   offset,
@@ -189,24 +170,40 @@ function ConversationsList({
   onOffsetChange,
 }: {
   chatbotId: string;
+  search: string;
   sortBy: SortBy;
   limit: number;
   offset: number;
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
-  const { data, isLoading, error } =
-    trpc.analytics.getConversationsList.useQuery({
-      chatbotId,
-      sortBy,
-      limit,
-      offset,
-    });
+  const listQuery = trpc.analytics.getConversationsList.useQuery(
+    { chatbotId, sortBy, limit, offset },
+    { enabled: !search },
+  );
+  const searchResultsQuery = trpc.analytics.searchConversations.useQuery(
+    { chatbotId, query: search, limit, offset },
+    { enabled: !!search },
+  );
+
+  const active = search ? searchResultsQuery : listQuery;
+  const { data, isLoading, error } = active;
+
+  useEffect(() => {
+    if (error) {
+      logError(error, "[conversations] query failed", {
+        chatbotId,
+        search: search || undefined,
+      });
+    }
+  }, [error, chatbotId, search]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full" />
+        ))}
       </div>
     );
   }
@@ -218,12 +215,23 @@ function ConversationsList({
         <p className="text-lg font-medium text-red-600">
           Failed to load conversations
         </p>
-        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Please try again in a moment.
+        </p>
       </div>
     );
   }
 
   if (!data || data.conversations.length === 0) {
+    if (search) {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg font-medium">No results found</p>
+          <p className="text-sm mt-1">Try a different search term.</p>
+        </div>
+      );
+    }
     return (
       <div className="text-center py-12 text-muted-foreground">
         <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -248,69 +256,6 @@ function ConversationsList({
   );
 }
 
-function SearchResults({
-  chatbotId,
-  query,
-  limit,
-  offset,
-  onSelectConversation,
-  onOffsetChange,
-}: {
-  chatbotId: string;
-  query: string;
-  limit: number;
-  offset: number;
-  onSelectConversation: (id: string) => void;
-  onOffsetChange: (offset: number) => void;
-}) {
-  const { data, isLoading, error } =
-    trpc.analytics.searchConversations.useQuery({
-      chatbotId,
-      query,
-      limit,
-      offset,
-    });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <Search className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
-        <p className="text-lg font-medium text-red-600">Search failed</p>
-        <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
-      </div>
-    );
-  }
-
-  if (!data || data.conversations.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p className="text-lg font-medium">No results found</p>
-        <p className="text-sm mt-1">Try a different search term.</p>
-      </div>
-    );
-  }
-
-  return (
-    <ConversationListView
-      conversations={data.conversations}
-      totalCount={data.totalCount}
-      limit={limit}
-      offset={offset}
-      onSelectConversation={onSelectConversation}
-      onOffsetChange={onOffsetChange}
-    />
-  );
-}
-
 function ConversationListView({
   conversations,
   totalCount,
@@ -319,16 +264,7 @@ function ConversationListView({
   onSelectConversation,
   onOffsetChange,
 }: {
-  conversations: Array<{
-    id: string;
-    sessionId: string;
-    metadata: { userAgent?: string; referrer?: string } | null;
-    createdAt: Date;
-    messageCount: number;
-    preview: string | null;
-    firstMessageAt: Date | null;
-    lastMessageAt: Date | null;
-  }>;
+  conversations: ConversationRow[];
   totalCount: number;
   limit: number;
   offset: number;
@@ -418,6 +354,15 @@ function ConversationDetail({
       offset,
     });
 
+  useEffect(() => {
+    if (error) {
+      logError(error, "[conversations] detail query failed", {
+        chatbotId,
+        conversationId,
+      });
+    }
+  }, [error, chatbotId, conversationId]);
+
   return (
     <Card>
       <CardHeader>
@@ -429,8 +374,7 @@ function ConversationDetail({
             <CardTitle className="text-lg">Conversation</CardTitle>
             {data?.conversation && (
               <CardDescription>
-                Started {formatTimestamp(data.conversation.createdAt)}
-                {" \u00b7 "}
+                Started {formatTimestamp(data.conversation.createdAt)} ·
                 Session: {data.conversation.sessionId.slice(0, 8)}...
               </CardDescription>
             )}
@@ -439,8 +383,10 @@ function ConversationDetail({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
           </div>
         ) : error ? (
           <div className="text-center py-12">
@@ -449,7 +395,7 @@ function ConversationDetail({
               Failed to load messages
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              {error.message}
+              Please try again in a moment.
             </p>
           </div>
         ) : !data || data.messages.length === 0 ? (
@@ -492,14 +438,14 @@ function ConversationDetail({
                           </Badge>
                         )}
                       </div>
+                      {/* Render both student and assistant content as plain
+                          text. This is an audit view; allowing Markdown/raw
+                          HTML from LLM output could XSS the professor via a
+                          prompt-injected response. */}
                       <div className="rounded-lg border bg-card px-3 py-2 text-sm">
-                        {isUser ? (
-                          <p className="whitespace-pre-wrap break-words">
-                            {msg.content}
-                          </p>
-                        ) : (
-                          <Markdown>{msg.content}</Markdown>
-                        )}
+                        <p className="whitespace-pre-wrap break-words">
+                          {msg.content}
+                        </p>
                       </div>
                       {metadata?.sources && metadata.sources.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
@@ -553,3 +499,6 @@ function ConversationDetail({
     </Card>
   );
 }
+
+// Exported pure helpers for unit tests.
+export { formatDuration, formatTimestamp };

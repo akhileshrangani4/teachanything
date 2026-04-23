@@ -12,7 +12,7 @@ import {
   unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // Enums
 export const userStatusEnum = pgEnum("user_status", [
@@ -324,6 +324,10 @@ export const messages = pgTable(
       table.conversationId,
       table.createdAt,
     ),
+    // Trigram index for searchConversations ILIKE '%term%' scans. Requires
+    // pg_trgm (see migration that creates the extension).
+    index("messages_content_trgm_idx")
+      .using("gin", sql`${table.content} gin_trgm_ops`),
   ],
 );
 

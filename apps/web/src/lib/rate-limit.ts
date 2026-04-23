@@ -118,6 +118,13 @@ export const recrawlRateLimit = createLimiter({
   prefix: "@ratelimit/recrawl",
 });
 
+// Rate limiter for conversation search
+// 20 searches per minute per user (each is an unindexed ILIKE scan)
+export const conversationSearchRateLimit = createLimiter({
+  window: [20, "1 m"],
+  prefix: "@ratelimit/conversation-search",
+});
+
 /**
  * Check rate limit and log if exceeded.
  * When limiter is null (Redis not configured), returns success as a noop.
