@@ -18,12 +18,16 @@ flowchart TB
         ChatbotRouter["Chatbot Router<br>(CRUD Operations)"]
         FileRouter["File Router<br>(Upload/Process)"]
         AdminRouter["Admin Router<br>(User Approval)"]
-        AnalyticsRouter["Analytics Router<br>(Usage Stats)"]
+        AnalyticsRouter["Analytics Router<br>(Usage + Conversation Viewer)"]
+        CrawlerRouter["Crawler Router<br>(Sources, Pages, Re-crawl)"]
+        Logger["@teachanything/logger<br>(Shared structured logger)"]
   end
  subgraph subGraph3["AI/RAG Layer"]
         OpenRouter["OpenRouter Client<br>(LLM Inference)"]
-        RAGService["RAG Service<br>(Document Processing)"]
+        RAGService["RAG Service<br>(Extract, chunk, embed)"]
+        RAGContext["RAG Context Builder<br>(HNSW search, manifest, token budget)"]
         EmbeddingGen["Embedding Generator<br>(OpenAI text-embedding-3-small)"]
+        Crawler["Web Crawler<br>(cheerio + Readability)"]
   end
  subgraph subGraph4["Data Layer"]
         PostgreSQL["PostgreSQL<br>(Supabase + pgvector)"]
@@ -33,9 +37,10 @@ flowchart TB
  subgraph subGraph5["Background Jobs"]
         QStash["Upstash QStash<br>(Job Queue)"]
         FileProcessor["File Processor<br>(Async Processing)"]
+        CrawlProcessor["Crawl Processor<br>(Discover + per-page)"]
   end
  subgraph subGraph6["External Services"]
-        Models["AI Models<br>(Llama 3.3, Mistral,<br>Qwen, GPT-OSS)"]
+        Models["AI Models (7)<br>(Llama 3.3 / 4 Maverick,<br>Mistral Large, Qwen 3,<br>GPT-OSS, Nemotron, Gemma)"]
         OpenAI["OpenAI API<br>(text-embedding-3-small)"]
         Resend["Resend<br>(Email Notifications)"]
   end
@@ -47,17 +52,22 @@ flowchart TB
         Conversations["conversations<br>(Sessions)"]
         Messages["messages<br>(Chat History)"]
         Analytics["analytics<br>(Events, Metrics)"]
+        CrawlSources["crawl_sources<br>(Root URL, depth, patterns)"]
+        CrawledPages["crawled_pages<br>(URL, content hash, status)"]
   end
     WebApp --> Middleware
     AdminPortal --> Middleware
     Middleware --> tRPC & Redis
-    tRPC --> AuthService & ChatRouter & ChatbotRouter & FileRouter & AdminRouter & AnalyticsRouter
-    ChatRouter --> EmbeddingGen & OpenRouter & PostgreSQL
+    tRPC --> AuthService & ChatRouter & ChatbotRouter & FileRouter & AdminRouter & AnalyticsRouter & CrawlerRouter
+    ChatRouter --> EmbeddingGen & OpenRouter & PostgreSQL & RAGContext
     FileRouter --> Storage & QStash & PostgreSQL
+    CrawlerRouter --> QStash & PostgreSQL
     AdminRouter --> Resend & PostgreSQL
-    QStash --> FileProcessor
+    QStash --> FileProcessor & CrawlProcessor
     FileProcessor --> RAGService & Storage & PostgreSQL
+    CrawlProcessor --> Crawler & Storage & PostgreSQL
     RAGService --> EmbeddingGen
+    RAGContext --> EmbeddingGen & PostgreSQL
     OpenRouter --> Models
     Models --> OpenRouter
     EmbeddingGen --> OpenAI
@@ -65,5 +75,7 @@ flowchart TB
     ChatbotRouter --> PostgreSQL
     AnalyticsRouter --> PostgreSQL
     AuthService --> PostgreSQL
-    PostgreSQL -.-> Users & Chatbots & Files & Chunks & Conversations & Messages & Analytics
+    RAGService -.-> Logger
+    CrawlProcessor -.-> Logger
+    PostgreSQL -.-> Users & Chatbots & Files & Chunks & Conversations & Messages & Analytics & CrawlSources & CrawledPages
     APIRoutes --> tRPC
