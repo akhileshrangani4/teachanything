@@ -1,8 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import {
-  formatDuration,
-  formatTimestamp,
-} from "@/components/chatbot/ConversationsTab";
+import { formatDuration, formatTimestamp } from "@/lib/conversation-format";
 
 describe("formatDuration", () => {
   it("returns '-' when either endpoint is missing", () => {
