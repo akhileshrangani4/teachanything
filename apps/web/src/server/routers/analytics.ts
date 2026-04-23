@@ -465,7 +465,11 @@ export const analyticsRouter = router({
       }
 
       // Materialize matching ids once so the (expensive) ILIKE scan runs a
-      // single time per request instead of once per downstream query.
+      // single time per request instead of once per downstream query. Cap
+      // the materialized set so a chatbot with many matching conversations
+      // can't balloon Node memory; user-facing pagination is capped at
+      // `limit`, so more than a few thousand matches is never browsable.
+      const SEARCH_MATCH_CAP = 5000;
       const matchingRows = await ctx.db
         .selectDistinct({ id: messages.conversationId })
         .from(messages)
@@ -475,7 +479,8 @@ export const analyticsRouter = router({
             eq(conversations.chatbotId, input.chatbotId),
             ilike(messages.content, `%${escapeLikePattern(input.query)}%`),
           ),
-        );
+        )
+        .limit(SEARCH_MATCH_CAP);
 
       if (matchingRows.length === 0) {
         return { conversations: [], totalCount: 0 };

@@ -39,9 +39,15 @@ interface ConversationsTabProps {
 type SortBy = "recent" | "mostMessages" | "longestDuration";
 
 // Shared shell classes so list view and detail view render at identical
-// dimensions. Keeps tab-internal navigation from jumping the layout.
+// dimensions. Keeps tab-internal navigation from jumping the layout. The
+// vertical offset (space above the panel: navbar + tabs + padding) is
+// exposed as a CSS var so future chrome changes touch one place.
+const PANEL_OFFSET = "14rem";
+const PANEL_STYLE = {
+  "--panel-offset": PANEL_OFFSET,
+} as React.CSSProperties;
 const PANEL_SHELL =
-  "flex flex-col h-[calc(100vh-14rem)] min-h-[500px] max-h-[800px]";
+  "flex flex-col h-[calc(100vh-var(--panel-offset))] min-h-[500px] max-h-[800px]";
 const PANEL_CONTENT = "flex flex-1 min-h-0 flex-col gap-4";
 // Approx height of a single conversation row (padding + two lines).
 // Used to auto-size page limit so rows fill the available panel.
@@ -70,14 +76,20 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const resultsRef = useRef<HTMLDivElement>(null);
 
   // Measure the results area and fit as many rows as will fit so the panel
-  // doesn't leave whitespace. Re-runs when the viewport resizes.
+  // doesn't leave whitespace. Re-runs when the viewport resizes. On resize,
+  // snap offset to the new page boundary that still contains the current
+  // top row instead of kicking the user back to page 1.
   useLayoutEffect(() => {
     const el = resultsRef.current;
     if (!el) return;
     const update = () => {
       const rows = Math.floor(el.clientHeight / ROW_HEIGHT_PX);
       const clamped = Math.max(MIN_LIMIT, Math.min(MAX_LIMIT, rows));
-      setLimit((prev) => (prev === clamped ? prev : clamped));
+      setLimit((prev) => {
+        if (prev === clamped) return prev;
+        setOffset((prevOffset) => Math.floor(prevOffset / clamped) * clamped);
+        return clamped;
+      });
     };
     update();
     const observer = new ResizeObserver(update);
@@ -85,10 +97,10 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Reset pagination when the effective query, sort, or page size changes.
+  // Reset pagination when the effective query or sort changes.
   useEffect(() => {
     setOffset(0);
-  }, [debouncedSearch, sortBy, limit]);
+  }, [debouncedSearch, sortBy]);
 
   if (selectedConversationId) {
     return (
@@ -102,7 +114,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   }
 
   return (
-    <Card className={PANEL_SHELL}>
+    <Card className={PANEL_SHELL} style={PANEL_STYLE}>
       <CardHeader className="shrink-0">
         <div>
           <CardTitle className="flex items-center gap-2">
@@ -373,7 +385,7 @@ function ConversationDetail({
   }, [error, chatbotId, conversationId]);
 
   return (
-    <Card className={PANEL_SHELL}>
+    <Card className={PANEL_SHELL} style={PANEL_STYLE}>
       <CardHeader className="shrink-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack}>
@@ -394,9 +406,9 @@ function ConversationDetail({
         {isLoading ? (
           <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2">
             {Array.from({ length: 5 }).map((_, i) => {
-              // Alternate student (right-aligned bubble) and assistant
-              // (avatar + bubble) to match the live ChatMessage layout.
-              const isUser = i % 2 === 0;
+              // Conversations typically open with an assistant welcome, so
+              // start with the assistant (avatar + bubble) and alternate.
+              const isUser = i % 2 === 1;
               if (isUser) {
                 return (
                   <div key={i} className="flex justify-end">
@@ -431,10 +443,13 @@ function ConversationDetail({
           <>
             <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2">
               {data.messages
-                .filter((m) => m.role === "user" || m.role === "assistant")
+                .filter(
+                  (m): m is typeof m & { role: "user" | "assistant" } =>
+                    m.role === "user" || m.role === "assistant",
+                )
                 .map((msg) => {
                   const chatMessage: ChatMessageType = {
-                    role: msg.role as "user" | "assistant",
+                    role: msg.role,
                     content: msg.content,
                     sources: msg.metadata?.sources,
                   };
