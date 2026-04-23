@@ -15,7 +15,8 @@
     "db:push": "turbo run db:push",
     "db:seed": "turbo run db:seed",
     "db:studio": "turbo run db:studio",
-    "stop": "docker compose down"
+    "stop": "docker compose down",
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -23,9 +24,11 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
     "baseline-browser-mapping": "^2.9.15",
+    "husky": "^9.1.7",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.1",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
@@ -39,5 +42,8 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md,css,yml,yaml}": "prettier --write"
+  }
 }

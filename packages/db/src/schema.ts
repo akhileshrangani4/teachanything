@@ -12,7 +12,7 @@ import {
   unique,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // Enums
 export const userStatusEnum = pgEnum("user_status", [
@@ -269,21 +269,30 @@ export const fileChunks = pgTable(
 );
 
 // Conversations table
-export const conversations = pgTable("conversations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  sessionId: text("session_id").notNull().unique(), // Generated server-side
-  metadata: jsonb("metadata")
-    .$type<{
-      userAgent?: string;
-      referrer?: string;
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    sessionId: text("session_id").notNull().unique(), // Generated server-side
+    metadata: jsonb("metadata")
+      .$type<{
+        userAgent?: string;
+        referrer?: string;
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("conversations_chatbot_id_created_at_idx").on(
+      table.chatbotId,
+      table.createdAt,
+    ),
+  ],
+);
 
 // Messages table
 export const messages = pgTable(
@@ -314,6 +323,12 @@ export const messages = pgTable(
     index("messages_conversation_id_created_at_idx").on(
       table.conversationId,
       table.createdAt,
+    ),
+    // Trigram index for searchConversations ILIKE '%term%' scans. Requires
+    // pg_trgm (see migration that creates the extension).
+    index("messages_content_trgm_idx").using(
+      "gin",
+      sql`${table.content} gin_trgm_ops`,
     ),
   ],
 );
