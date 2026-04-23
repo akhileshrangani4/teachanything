@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.1](https://github.com/akhileshrangani4/teachanything/compare/v1.18.0...v1.18.1) (2026-04-23)
+
+
+### Documentation
+
+* refresh README, AGENTS, SETUP, CONTRIBUTING and diagrams for 1.15-1.18 ([#251](https://github.com/akhileshrangani4/teachanything/issues/251)) ([f58a940](https://github.com/akhileshrangani4/teachanything/commit/f58a9403a669a583e542e9a6c7bf1fd35b6bd507))
+
 ## [1.18.0](https://github.com/akhileshrangani4/teachanything/compare/v1.17.1...v1.18.0) (2026-04-23)
 
 
