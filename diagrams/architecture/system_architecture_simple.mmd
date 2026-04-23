@@ -2,6 +2,7 @@
 config:
   layout: elk
 ---
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#E8EAF6', 'primaryBorderColor':'#3F51B5', 'primaryTextColor':'#1A237E', 'lineColor':'#1976D2', 'clusterBkg':'#F5F7FB', 'clusterBorder':'#9FA8DA', 'fontFamily':'Inter, Helvetica, Arial, sans-serif' }}}%%
 flowchart TB
  subgraph client["Client Layer"]
    Student["Student Interface<br>(No Login Required)"]
@@ -39,3 +40,10 @@ flowchart TB
  RAG --> Embeddings & Postgres
  Embeddings --> Models
  Postgres -.-> Conversations & FileChunks & Chatbots & CrawlSources & CrawledPages & Analytics
+
+ classDef entry fill:#C8E6C9,stroke:#2E7D32,stroke-width:2.5px,color:#1B5E20
+ classDef box fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+ classDef store fill:#FFE0B2,stroke:#E65100,stroke-width:2px,color:#BF360C
+ class Student,Professor entry
+ class FileService,CrawlerService,ChatService,AdminService,RAG,Embeddings,Models box
+ class Storage,Postgres,Conversations,FileChunks,Chatbots,CrawlSources,CrawledPages,Analytics store

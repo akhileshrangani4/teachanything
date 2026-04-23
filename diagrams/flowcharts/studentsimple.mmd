@@ -2,10 +2,11 @@
 config:
   look: neo
 ---
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#E8EAF6', 'primaryBorderColor':'#3F51B5', 'primaryTextColor':'#1A237E', 'lineColor':'#1976D2', 'fontFamily':'Inter, Helvetica, Arial, sans-serif' }}}%%
 flowchart TD
    Start(["Student Gets Link<br>from Professor"]) --> Open["Generate Session ID<br>& Display Chat Interface"]
    Open --> Type["Student Types Query<br>(up to 16,000 chars,<br>live counter)"]
-   Type --> Save["Save Message<br>& Load Last 10 for Context"]
+   Type --> Save["Save Message<br>& Load Last 50<br>(trimmed by token budget)"]
    Save --> RAG{"Files or Crawled<br>Pages Available?"}
    RAG -- "Yes" --> Embed["Embed Query<br>pgvector Top-N search<br>(token budget allocator)"]
    Embed --> Context["Build Context + File Manifest<br>with [Source: file, Part N] citations"]
@@ -18,3 +19,10 @@ flowchart TD
    Analytics --> Next{"User Action?"}
    Next -- "Ask Again" --> Type
    Next -- "Close Tab" --> End(["Session Ends<br>(No Data Retained)"])
+
+   classDef startend fill:#C8E6C9,stroke:#2E7D32,stroke-width:2.5px,color:#1B5E20
+   classDef box fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+   classDef decision fill:#FFF9C4,stroke:#F57F17,stroke-width:2px,color:#5D4037
+   class Start,End startend
+   class Open,Type,Save,Embed,Context,Prompt,Simple,Stream,Display,Analytics box
+   class RAG,Next decision
