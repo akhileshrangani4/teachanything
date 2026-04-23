@@ -4,10 +4,7 @@
  * produce an invalid pattern (e.g. `%foo\%` with a dangling escape).
  */
 export function escapeLikePattern(value: string): string {
-  return value
-    .replace(/\\/g, "\\\\")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_");
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
 /**

@@ -8,24 +8,11 @@ import {
   user,
 } from "@teachanything/db/schema";
 import type { SQL } from "drizzle-orm";
-import {
-  eq,
-  and,
-  sql,
-  gte,
-  lte,
-  desc,
-  asc,
-  inArray,
-  ilike,
-} from "drizzle-orm";
+import { eq, and, sql, gte, lte, desc, asc, inArray, ilike } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern, formatPreview } from "@/server/utils";
 import type { Context } from "@/server/trpc";
-import {
-  checkRateLimit,
-  conversationSearchRateLimit,
-} from "@/lib/rate-limit";
+import { checkRateLimit, conversationSearchRateLimit } from "@/lib/rate-limit";
 
 type AuthedContext = Context & { session: { user: { id: string } } };
 
@@ -98,10 +85,7 @@ export const analyticsRouter = router({
       const [messageCount] = await ctx.db
         .select({ count: sql<number>`count(*)::int` })
         .from(messages)
-        .innerJoin(
-          conversations,
-          eq(messages.conversationId, conversations.id),
-        )
+        .innerJoin(conversations, eq(messages.conversationId, conversations.id))
         .where(eq(conversations.chatbotId, input.chatbotId));
 
       const totalMessages = messageCount?.count ?? 0;
@@ -179,10 +163,7 @@ export const analyticsRouter = router({
           count: sql<number>`count(*)::int`,
         })
         .from(messages)
-        .innerJoin(
-          conversations,
-          eq(messages.conversationId, conversations.id),
-        )
+        .innerJoin(conversations, eq(messages.conversationId, conversations.id))
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),

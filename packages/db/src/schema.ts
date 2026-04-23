@@ -326,8 +326,10 @@ export const messages = pgTable(
     ),
     // Trigram index for searchConversations ILIKE '%term%' scans. Requires
     // pg_trgm (see migration that creates the extension).
-    index("messages_content_trgm_idx")
-      .using("gin", sql`${table.content} gin_trgm_ops`),
+    index("messages_content_trgm_idx").using(
+      "gin",
+      sql`${table.content} gin_trgm_ops`,
+    ),
   ],
 );
 
