@@ -16,7 +16,7 @@
     "db:seed": "turbo run db:seed",
     "db:studio": "turbo run db:studio",
     "stop": "docker compose down",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
