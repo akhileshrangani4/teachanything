@@ -1,0 +1,25 @@
+---
+config:
+  look: neo
+---
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#E8EAF6', 'primaryBorderColor':'#3F51B5', 'primaryTextColor':'#1A237E', 'lineColor':'#1976D2', 'fontFamily':'Inter, Helvetica, Arial, sans-serif' }}}%%
+flowchart TD
+   Start(["Professor Visits Site"]) --> Create["Create & Configure Chatbot"]
+   Create --> ChooseModel["Choose from 7 Open-Source Models<br>(Llama 3.3 / 4 Maverick,<br>Mistral Large, Qwen 3,<br>GPT-OSS, Nemotron, Gemma)"]
+   ChooseModel --> AddContent{"Add Content?"}
+   AddContent -- "Files" --> Upload["Upload Files<br>PDF, DOCX, PPTX (slides + notes),<br>TXT, MD, JSON, CSV"]
+   AddContent -- "Website" --> Crawl["Crawl Website<br>Root URL + depth + patterns"]
+   Upload --> Process["System Extracts + Embeds<br>into pgvector"]
+   Crawl --> Process
+   Process --> Prompt["Add & Fine-Tune<br>System-Level Prompts"]
+   Prompt --> Test["Professor Tests<br>in Dashboard"]
+   Test --> Deploy["Deploy Open-Access Chatbot<br>Share Unique URL<br>(No Login Required)"]
+   Deploy --> Monitor["Monitor:<br>• Overview Analytics<br>• Conversations Tab (search / replay)"]
+   Monitor --> End(["Chatbot Live & Accessible"])
+
+   classDef startend fill:#C8E6C9,stroke:#2E7D32,stroke-width:2.5px,color:#1B5E20
+   classDef box fill:#E8EAF6,stroke:#3F51B5,stroke-width:2px,color:#1A237E
+   classDef decision fill:#FFF9C4,stroke:#F57F17,stroke-width:2px,color:#5D4037
+   class Start,End startend
+   class Create,ChooseModel,Upload,Crawl,Process,Prompt,Test,Deploy,Monitor box
+   class AddContent decision
