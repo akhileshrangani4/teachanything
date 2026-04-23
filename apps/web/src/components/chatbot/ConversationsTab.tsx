@@ -197,9 +197,21 @@ function ConversationsResults({
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 min-h-0 flex-col gap-2 overflow-y-auto">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-14 w-full shrink-0" />
+      <div className="flex-1 min-h-0 overflow-y-auto divide-y rounded-lg border">
+        {Array.from({ length: limit }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between px-4 py-3"
+          >
+            <div className="min-w-0 flex-1 mr-3 space-y-2">
+              <Skeleton className="h-4 w-3/5" />
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -380,10 +392,25 @@ function ConversationDetail({
       </CardHeader>
       <CardContent className={PANEL_CONTENT}>
         {isLoading ? (
-          <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full shrink-0" />
-            ))}
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2">
+            {Array.from({ length: 5 }).map((_, i) => {
+              // Alternate student (right-aligned bubble) and assistant
+              // (avatar + bubble) to match the live ChatMessage layout.
+              const isUser = i % 2 === 0;
+              if (isUser) {
+                return (
+                  <div key={i} className="flex justify-end">
+                    <Skeleton className="h-10 w-3/5 max-w-[80%] rounded-lg" />
+                  </div>
+                );
+              }
+              return (
+                <div key={i} className="flex items-start gap-3">
+                  <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                  <Skeleton className="h-20 flex-1 max-w-[85%] rounded-lg" />
+                </div>
+              );
+            })}
           </div>
         ) : error ? (
           <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center">
