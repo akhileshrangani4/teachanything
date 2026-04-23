@@ -195,12 +195,13 @@ function ConversationsList({
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
-  const { data, isLoading, error } = trpc.analytics.getConversationsList.useQuery({
-    chatbotId,
-    sortBy,
-    limit,
-    offset,
-  });
+  const { data, isLoading, error } =
+    trpc.analytics.getConversationsList.useQuery({
+      chatbotId,
+      sortBy,
+      limit,
+      offset,
+    });
 
   if (isLoading) {
     return (
@@ -214,7 +215,9 @@ function ConversationsList({
     return (
       <div className="text-center py-12">
         <MessageSquare className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
-        <p className="text-lg font-medium text-red-600">Failed to load conversations</p>
+        <p className="text-lg font-medium text-red-600">
+          Failed to load conversations
+        </p>
         <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
       </div>
     );
@@ -260,12 +263,13 @@ function SearchResults({
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
-  const { data, isLoading, error } = trpc.analytics.searchConversations.useQuery({
-    chatbotId,
-    query,
-    limit,
-    offset,
-  });
+  const { data, isLoading, error } =
+    trpc.analytics.searchConversations.useQuery({
+      chatbotId,
+      query,
+      limit,
+      offset,
+    });
 
   if (isLoading) {
     return (
@@ -406,12 +410,13 @@ function ConversationDetail({
   const [offset, setOffset] = useState(0);
   const limit = 100;
 
-  const { data, isLoading, error } = trpc.analytics.getConversationMessages.useQuery({
-    chatbotId,
-    conversationId,
-    limit,
-    offset,
-  });
+  const { data, isLoading, error } =
+    trpc.analytics.getConversationMessages.useQuery({
+      chatbotId,
+      conversationId,
+      limit,
+      offset,
+    });
 
   return (
     <Card>
@@ -440,8 +445,12 @@ function ConversationDetail({
         ) : error ? (
           <div className="text-center py-12">
             <MessageSquare className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
-            <p className="text-lg font-medium text-red-600">Failed to load messages</p>
-            <p className="text-sm text-muted-foreground mt-1">{error.message}</p>
+            <p className="text-lg font-medium text-red-600">
+              Failed to load messages
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {error.message}
+            </p>
           </div>
         ) : !data || data.messages.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">

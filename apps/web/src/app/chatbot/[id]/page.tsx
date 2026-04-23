@@ -27,7 +27,14 @@ import { WebSourcesTab } from "@/components/chatbot/WebSourcesTab";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ConversationsTab } from "@/components/chatbot/ConversationsTab";
 
-const VALID_TABS = ["chat", "files", "web-sources", "conversations", "settings", "embed"];
+const VALID_TABS = [
+  "chat",
+  "files",
+  "web-sources",
+  "conversations",
+  "settings",
+  "embed",
+];
 
 export default function ChatbotDetailPage() {
   const router = useRouter();

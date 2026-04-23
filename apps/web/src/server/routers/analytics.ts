@@ -482,7 +482,11 @@ export const analyticsRouter = router({
         .from(conversations)
         .leftJoin(msgStats, eq(conversations.id, msgStats.conversationId))
         .where(eq(conversations.chatbotId, input.chatbotId))
-        .orderBy(primaryOrder, desc(conversations.createdAt), desc(conversations.id))
+        .orderBy(
+          primaryOrder,
+          desc(conversations.createdAt),
+          desc(conversations.id),
+        )
         .limit(input.limit)
         .offset(input.offset);
 
