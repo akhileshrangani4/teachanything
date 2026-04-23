@@ -9,9 +9,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChatMessage } from "@/components/chat/messages/ChatMessage";
+import type { ChatMessage as ChatMessageType } from "@/types/database";
 import {
   Select,
   SelectContent,
@@ -21,17 +22,8 @@ import {
 } from "@/components/ui/select";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { keepPreviousData } from "@tanstack/react-query";
-import {
-  MessageSquare,
-  Search,
-  ArrowLeft,
-  Clock,
-  User,
-  Bot,
-} from "lucide-react";
+import { MessageSquare, Search, ArrowLeft, Clock } from "lucide-react";
 import { logError } from "@/lib/logger";
-import { dedupeSourcesByFileName } from "@/lib/message-sources";
-import { SourceBadge } from "@/components/ui/source-badge";
 
 type ConversationRow =
   RouterOutputs["analytics"]["getConversationsList"]["conversations"][number];
@@ -408,63 +400,22 @@ function ConversationDetail({
         ) : (
           <>
             <div className="space-y-4 h-[600px] overflow-y-auto pr-2">
-              {data.messages.map((msg) => {
-                const metadata = msg.metadata;
-                const isUser = msg.role === "user";
-
-                return (
-                  <div key={msg.id} className="flex gap-3">
-                    <div className="shrink-0 mt-1">
-                      {isUser ? (
-                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-4 w-4 text-primary" />
-                        </div>
-                      ) : (
-                        <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center">
-                          <Bot className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium">
-                          {isUser ? "Student" : "Assistant"}
-                        </span>
-                        <span>{formatTimestamp(msg.createdAt)}</span>
-                        {metadata?.responseTime != null && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs px-1.5 py-0"
-                          >
-                            {metadata.responseTime}ms
-                          </Badge>
-                        )}
-                      </div>
-                      {/* Render both student and assistant content as plain
-                          text. This is an audit view; allowing Markdown/raw
-                          HTML from LLM output could XSS the professor via a
-                          prompt-injected response. */}
-                      <div className="rounded-lg border bg-card px-3 py-2 text-sm">
-                        <p className="whitespace-pre-wrap break-words">
-                          {msg.content}
-                        </p>
-                      </div>
-                      {metadata?.sources && metadata.sources.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {dedupeSourcesByFileName(metadata.sources).map(
-                            (source) => (
-                              <SourceBadge
-                                key={`${msg.id}-${source.fileName}`}
-                                source={source}
-                              />
-                            ),
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {data.messages
+                .filter((m) => m.role === "user" || m.role === "assistant")
+                .map((msg) => {
+                  const chatMessage: ChatMessageType = {
+                    role: msg.role as "user" | "assistant",
+                    content: msg.content,
+                    sources: msg.metadata?.sources,
+                  };
+                  return (
+                    <ChatMessage
+                      key={msg.id}
+                      message={chatMessage}
+                      showSources
+                    />
+                  );
+                })}
             </div>
             {data.totalCount > limit && (
               <div className="flex items-center justify-between pt-4 mt-4 border-t">
