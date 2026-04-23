@@ -72,6 +72,26 @@ function formatTimestamp(date: Date | string): string {
   });
 }
 
+type SourceCitation = NonNullable<
+  NonNullable<
+    RouterOutputs["analytics"]["getConversationMessages"]["messages"][number]["metadata"]
+  >["sources"]
+>[number];
+
+// Dedupe by fileName, keep highest-similarity chunk per file. Matches
+// ChatMessage.tsx so the audit view shows the same badge set as the
+// live chat.
+function dedupeSources(sources: SourceCitation[]): SourceCitation[] {
+  const best = new Map<string, SourceCitation>();
+  for (const s of sources) {
+    const existing = best.get(s.fileName);
+    if (!existing || s.similarity > existing.similarity) {
+      best.set(s.fileName, s);
+    }
+  }
+  return [...best.values()];
+}
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -89,7 +109,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300);
   const [sortBy, setSortBy] = useState<SortBy>("recent");
   const [offset, setOffset] = useState(0);
-  const limit = 20;
+  const limit = 5;
 
   // Reset pagination when the effective query or sort changes.
   useEffect(() => {
@@ -450,9 +470,9 @@ function ConversationDetail({
                       </div>
                       {metadata?.sources && metadata.sources.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-1">
-                          {metadata.sources.map((source, idx) => (
+                          {dedupeSources(metadata.sources).map((source) => (
                             <Badge
-                              key={`${msg.id}-${idx}`}
+                              key={`${msg.id}-${source.fileName}`}
                               variant="secondary"
                               className="text-xs"
                             >
