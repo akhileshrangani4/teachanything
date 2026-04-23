@@ -308,13 +308,23 @@ Examples:
 
 ## 14. Pre-Commit Checklist
 
-Before committing:
+A Husky `pre-commit` hook runs automatically on `git commit`:
 
-```bash
-npm run check-types    # Must pass
-npm run lint           # Must pass
-npm run test           # Must pass
-```
+1. `lint-staged` runs `prettier --write` on every staged file matching
+   `*.{ts,tsx,js,jsx,json,md,css,yml,yaml}` — formatting fixes land in
+   the same commit, no manual `npm run format` needed.
+2. `npm run check-types` — must pass.
+3. `npm run lint` — must pass.
+4. `npm run test` — must pass.
+
+The hook is configured at `.husky/pre-commit`; `lint-staged` rules live
+under `lint-staged` in the root `package.json`. Fresh clones install
+the hook automatically via the `prepare` script on `npm install`.
+
+If a hook run fails, fix the underlying issue and commit again. Only
+bypass with `--no-verify` in true emergencies.
+
+Checklist that the hook does NOT enforce — still your responsibility:
 
 - [ ] No `console.log` statements (use `lib/logger.ts`)
 - [ ] Zod validation on all tRPC inputs
