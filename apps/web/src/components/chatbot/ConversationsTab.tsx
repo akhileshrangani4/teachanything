@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -38,6 +38,17 @@ interface ConversationsTabProps {
 
 type SortBy = "recent" | "mostMessages" | "longestDuration";
 
+// Shared shell classes so list view and detail view render at identical
+// dimensions. Keeps tab-internal navigation from jumping the layout.
+const PANEL_SHELL =
+  "flex flex-col h-[calc(100vh-14rem)] min-h-[500px] max-h-[800px]";
+const PANEL_CONTENT = "flex flex-1 min-h-0 flex-col gap-4";
+// Approx height of a single conversation row (padding + two lines).
+// Used to auto-size page limit so rows fill the available panel.
+const ROW_HEIGHT_PX = 68;
+const MIN_LIMIT = 5;
+const MAX_LIMIT = 50;
+
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -55,12 +66,29 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300);
   const [sortBy, setSortBy] = useState<SortBy>("recent");
   const [offset, setOffset] = useState(0);
-  const limit = 5;
+  const [limit, setLimit] = useState(MIN_LIMIT);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-  // Reset pagination when the effective query or sort changes.
+  // Measure the results area and fit as many rows as will fit so the panel
+  // doesn't leave whitespace. Re-runs when the viewport resizes.
+  useLayoutEffect(() => {
+    const el = resultsRef.current;
+    if (!el) return;
+    const update = () => {
+      const rows = Math.floor(el.clientHeight / ROW_HEIGHT_PX);
+      const clamped = Math.max(MIN_LIMIT, Math.min(MAX_LIMIT, rows));
+      setLimit((prev) => (prev === clamped ? prev : clamped));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Reset pagination when the effective query, sort, or page size changes.
   useEffect(() => {
     setOffset(0);
-  }, [debouncedSearch, sortBy]);
+  }, [debouncedSearch, sortBy, limit]);
 
   if (selectedConversationId) {
     return (
@@ -74,8 +102,8 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className={PANEL_SHELL}>
+      <CardHeader className="shrink-0">
         <div>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
@@ -86,8 +114,8 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-2">
+      <CardContent className={PANEL_CONTENT}>
+        <div className="flex gap-2 shrink-0">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -113,15 +141,17 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
           </Select>
         </div>
 
-        <ConversationsResults
-          chatbotId={chatbotId}
-          search={debouncedSearch}
-          sortBy={sortBy}
-          limit={limit}
-          offset={offset}
-          onSelectConversation={setSelectedConversationId}
-          onOffsetChange={setOffset}
-        />
+        <div ref={resultsRef} className="flex flex-1 min-h-0 flex-col">
+          <ConversationsResults
+            chatbotId={chatbotId}
+            search={debouncedSearch}
+            sortBy={sortBy}
+            limit={limit}
+            offset={offset}
+            onSelectConversation={setSelectedConversationId}
+            onOffsetChange={setOffset}
+          />
+        </div>
       </CardContent>
     </Card>
   );
@@ -167,9 +197,9 @@ function ConversationsResults({
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-14 w-full" />
+      <div className="flex flex-1 min-h-0 flex-col gap-2 overflow-y-auto">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full shrink-0" />
         ))}
       </div>
     );
@@ -177,8 +207,8 @@ function ConversationsResults({
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <MessageSquare className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
+      <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center">
+        <MessageSquare className="h-12 w-12 mb-4 text-red-500 opacity-50" />
         <p className="text-lg font-medium text-red-600">
           Failed to load conversations
         </p>
@@ -192,16 +222,16 @@ function ConversationsResults({
   if (!data || data.conversations.length === 0) {
     if (search) {
       return (
-        <div className="text-center py-12 text-muted-foreground">
-          <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+        <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center text-muted-foreground">
+          <Search className="h-12 w-12 mb-4 opacity-50" />
           <p className="text-lg font-medium">No results found</p>
           <p className="text-sm mt-1">Try a different search term.</p>
         </div>
       );
     }
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+      <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center text-muted-foreground">
+        <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
         <p className="text-lg font-medium">No conversations yet</p>
         <p className="text-sm mt-1">
           Conversations will appear here when students start chatting with your
@@ -239,8 +269,8 @@ function ConversationListView({
   onOffsetChange: (offset: number) => void;
 }) {
   return (
-    <>
-      <div className="divide-y rounded-lg border">
+    <div className="flex flex-1 min-h-0 flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto divide-y rounded-lg border">
         {conversations.map((conversation) => (
           <button
             key={conversation.id}
@@ -272,7 +302,7 @@ function ConversationListView({
         ))}
       </div>
       {totalCount > limit && (
-        <div className="flex items-center justify-between px-1 pt-2">
+        <div className="flex items-center justify-between px-1 shrink-0">
           <span className="text-xs text-muted-foreground">
             Showing {offset + 1}-{Math.min(offset + limit, totalCount)} of{" "}
             {totalCount}
@@ -297,7 +327,7 @@ function ConversationListView({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -331,8 +361,8 @@ function ConversationDetail({
   }, [error, chatbotId, conversationId]);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className={PANEL_SHELL}>
+      <CardHeader className="shrink-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
@@ -348,16 +378,16 @@ function ConversationDetail({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className={PANEL_CONTENT}>
         {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
+          <div className="flex flex-1 min-h-0 flex-col gap-3 overflow-y-auto">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full shrink-0" />
             ))}
           </div>
         ) : error ? (
-          <div className="text-center py-12">
-            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-red-500 opacity-50" />
+          <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center">
+            <MessageSquare className="h-12 w-12 mb-4 text-red-500 opacity-50" />
             <p className="text-lg font-medium text-red-600">
               Failed to load messages
             </p>
@@ -366,13 +396,13 @@ function ConversationDetail({
             </p>
           </div>
         ) : !data || data.messages.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center text-muted-foreground">
+            <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
             <p>No messages in this conversation.</p>
           </div>
         ) : (
           <>
-            <div className="space-y-4 h-[600px] overflow-y-auto pr-2">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2">
               {data.messages
                 .filter((m) => m.role === "user" || m.role === "assistant")
                 .map((msg) => {
@@ -391,7 +421,7 @@ function ConversationDetail({
                 })}
             </div>
             {data.totalCount > limit && (
-              <div className="flex items-center justify-between pt-4 mt-4 border-t">
+              <div className="flex items-center justify-between pt-3 border-t shrink-0">
                 <span className="text-xs text-muted-foreground">
                   Showing {offset + 1}-
                   {Math.min(offset + limit, data.totalCount)} of{" "}
