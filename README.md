@@ -17,11 +17,15 @@ Teach Anything is a production-ready platform for creating AI chatbots that answ
 
 ## Features
 
-- **4 Open-Source Models** — Llama 3.3 70B, Mistral Large, Qwen 2.5 72B, GPT-OSS 120B
-- **RAG-Powered** — Semantic search over your uploaded documents
-- **Professor Approval** — Admin-controlled user registration
-- **Analytics** — Track conversations and usage patterns
-- **Embeddable** — Add chatbots to any website
+- **7 Open-Source Models** — Llama 3.3 70B, Llama 4 Maverick, Mistral Large 2411, Qwen 3 235B, GPT-OSS 120B, NVIDIA Nemotron 3 Super, Gemma 4 31B
+- **RAG Pipeline** — HNSW-indexed semantic search with source attribution, file manifest, and token budgeting so answers cite the exact file and chunk they came from
+- **File Ingestion** — PDF, Word, PowerPoint (with slide boundaries and speaker notes), and Markdown, processed asynchronously via QStash
+- **Web Crawler** — Auto-discover and index pages from a root URL with depth/page limits, include/exclude patterns, re-crawl detection via content hashing, and JSON export
+- **Conversation Analytics** — Professors can browse, search, and replay every student conversation with sort, pagination, and cited sources
+- **Embeddable Widget** — Drop a chatbot into any website with a single script tag
+- **Professor Approval Workflow** — Admin-controlled registration, domain allow-listing, and self-service account deletion
+- **Privacy Policy + Account Deletion** — Full legal policy page and self-service deletion with password confirmation
+- **Tested & Type-Safe** — 240+ Jest tests, strict TypeScript, end-to-end type safety via tRPC, CI with Codecov
 
 ## Get Started
 
@@ -59,10 +63,11 @@ teachanything/
 ├── apps/web/           # Next.js application
 │   ├── src/app/        # Pages & API routes
 │   ├── src/components/ # UI components
-│   └── src/server/     # tRPC routers
+│   └── src/server/     # tRPC routers (incl. rag-context, analytics, crawler)
 ├── packages/
-│   ├── db/             # Database schema (Drizzle)
-│   └── ai/             # OpenRouter + RAG service
+│   ├── db/             # Database schema (Drizzle, pgvector, HNSW index)
+│   ├── ai/             # Model registry, RAG service, web crawler, token budgeter
+│   └── logger/         # Shared structured logger
 ```
 
 ## Development
