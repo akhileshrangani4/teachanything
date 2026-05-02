@@ -4,6 +4,10 @@ import { TRPCError } from "@trpc/server";
 import { crawledPages, fileChunks } from "@teachanything/db/schema";
 import { crawlSourceIdInput } from "../validation";
 import { assertOwnedCrawlSource } from "../helpers";
+import {
+  getPageDisplayTitle,
+  getSourceDisplayName,
+} from "@/lib/crawler-metadata";
 
 const MAX_EXPORT_PAGES = 200;
 const MAX_EXPORT_CHUNKS = 5000;
@@ -77,11 +81,17 @@ export const exportJsonProcedure = protectedProcedure
       const wordCount =
         (p.metadata as { wordCount?: number } | null)?.wordCount ??
         content.split(/\s+/).filter(Boolean).length;
-      return { url: p.url, title: p.title, content, wordCount };
+      return {
+        url: p.url,
+        title: getPageDisplayTitle(p),
+        content,
+        wordCount,
+      };
     });
 
     return {
       source: source.rootUrl,
+      sourceName: getSourceDisplayName(source),
       crawledAt: source.lastCrawledAt,
       pageCount: pages.length,
       pages,

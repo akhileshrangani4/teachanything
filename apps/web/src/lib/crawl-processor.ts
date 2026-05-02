@@ -20,6 +20,10 @@ import {
 import { env } from "./env";
 import { publishQStashJob } from "./qstash";
 import { logInfo, logError } from "./logger";
+import {
+  mergeCrawledPageMetadata,
+  mergeCrawlSourceMetadata,
+} from "./crawler-metadata-sql";
 
 /**
  * Dispatch a crawl job: runs inline in development, publishes to QStash in production.
@@ -119,7 +123,7 @@ export async function processCrawlDiscovery(params: {
         .update(crawlSources)
         .set({
           status: "failed",
-          metadata: {
+          metadata: mergeCrawlSourceMetadata({
             pageCount: 0,
             errorCount: 1,
             errors: [
@@ -129,7 +133,7 @@ export async function processCrawlDiscovery(params: {
                   "No pages could be scraped. The site may require JavaScript to render content.",
               },
             ],
-          },
+          }),
           updatedAt: new Date(),
         })
         .where(eq(crawlSources.id, crawlSourceId));
@@ -210,12 +214,12 @@ export async function processCrawlDiscovery(params: {
         .update(crawlSources)
         .set({
           status: "crawling",
-          metadata: {
+          metadata: mergeCrawlSourceMetadata({
             pageCount: records.length,
             errorCount: 0,
             errors: [],
             robotsText,
-          },
+          }),
           updatedAt: new Date(),
         })
         .where(eq(crawlSources.id, crawlSourceId));
@@ -256,9 +260,9 @@ export async function processCrawlDiscovery(params: {
       .update(crawlSources)
       .set({
         status: "failed",
-        metadata: {
+        metadata: mergeCrawlSourceMetadata({
           errors: [{ url: "discovery", error: getFriendlyErrorMessage(error) }],
-        },
+        }),
         updatedAt: new Date(),
       })
       .where(eq(crawlSources.id, crawlSourceId));
@@ -309,7 +313,9 @@ export async function processCrawlPage(params: {
         .update(crawledPages)
         .set({
           status: "blocked",
-          metadata: { error: "URL targets a private or disallowed address" },
+          metadata: mergeCrawledPageMetadata({
+            error: "URL targets a private or disallowed address",
+          }),
           updatedAt: new Date(),
         })
         .where(eq(crawledPages.id, crawledPageId));
@@ -326,7 +332,9 @@ export async function processCrawlPage(params: {
         .update(crawledPages)
         .set({
           status: "blocked",
-          metadata: { error: "Blocked by robots.txt" },
+          metadata: mergeCrawledPageMetadata({
+            error: "Blocked by robots.txt",
+          }),
           updatedAt: new Date(),
         })
         .where(eq(crawledPages.id, crawledPageId));
@@ -345,7 +353,9 @@ export async function processCrawlPage(params: {
         .update(crawledPages)
         .set({
           status: "failed",
-          metadata: { error: "Failed to fetch or extract content" },
+          metadata: mergeCrawledPageMetadata({
+            error: "Failed to fetch or extract content",
+          }),
           updatedAt: new Date(),
         })
         .where(eq(crawledPages.id, crawledPageId));
@@ -371,13 +381,22 @@ export async function processCrawlPage(params: {
     );
 
     await db.transaction(async (tx) => {
+      const [currentPage] = await tx
+        .select({
+          metadata: crawledPages.metadata,
+        })
+        .from(crawledPages)
+        .where(eq(crawledPages.id, crawledPageId))
+        .limit(1);
+      const customTitle = currentPage?.metadata?.customTitle?.trim();
+      const displayTitle = customTitle || pageContent.title || page.url;
       let userFileId = page.userFileId;
       if (!userFileId) {
         const [file] = await tx
           .insert(userFiles)
           .values({
             userId: chatbot.userId,
-            fileName: pageContent.title || page.url,
+            fileName: displayTitle,
             fileType: "text/html",
             fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
             storagePath: page.url,
@@ -404,7 +423,7 @@ export async function processCrawlPage(params: {
         await tx
           .update(userFiles)
           .set({
-            fileName: pageContent.title || page.url,
+            fileName: displayTitle,
             fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
             processingStatus: "processing",
           })
@@ -436,9 +455,26 @@ export async function processCrawlPage(params: {
         await tx.insert(fileChunks).values(chunkRecords);
       }
 
+      const [updatedPage] = await tx
+        .update(crawledPages)
+        .set({
+          status: "completed",
+          title: sql<string>`COALESCE(${crawledPages.metadata}->>'customTitle', ${pageContent.title}, ${page.url})`,
+          contentHash: pageContent.contentHash,
+          metadata: mergeCrawledPageMetadata({
+            statusCode: pageContent.statusCode,
+            contentType: pageContent.contentType,
+            wordCount: pageContent.wordCount,
+          }),
+          updatedAt: new Date(),
+        })
+        .where(eq(crawledPages.id, crawledPageId))
+        .returning({ title: crawledPages.title });
+
       await tx
         .update(userFiles)
         .set({
+          fileName: updatedPage?.title ?? displayTitle,
           processingStatus: "completed",
           metadata: {
             chunkCount: chunks.length,
@@ -446,21 +482,6 @@ export async function processCrawlPage(params: {
           },
         })
         .where(eq(userFiles.id, userFileId));
-
-      await tx
-        .update(crawledPages)
-        .set({
-          status: "completed",
-          title: pageContent.title,
-          contentHash: pageContent.contentHash,
-          metadata: {
-            statusCode: pageContent.statusCode,
-            contentType: pageContent.contentType,
-            wordCount: pageContent.wordCount,
-          },
-          updatedAt: new Date(),
-        })
-        .where(eq(crawledPages.id, crawledPageId));
     });
 
     logInfo("Crawled page processed", {
@@ -488,9 +509,9 @@ export async function processCrawlPage(params: {
       .update(crawledPages)
       .set({
         status: "failed",
-        metadata: {
+        metadata: mergeCrawledPageMetadata({
           error: getFriendlyErrorMessage(error),
-        },
+        }),
         updatedAt: new Date(),
       })
       .where(eq(crawledPages.id, crawledPageId));
@@ -528,7 +549,7 @@ export async function finalizeCrawlSource(
     UPDATE crawl_sources
     SET status = 'completed',
         last_crawled_at = NOW(),
-        metadata = ${JSON.stringify({ pageCount: completedCount, errorCount: failedCount })}::jsonb,
+        metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ pageCount: completedCount, errorCount: failedCount })}::jsonb,
         updated_at = NOW()
     WHERE id = ${crawlSourceId}
       AND status = 'crawling'

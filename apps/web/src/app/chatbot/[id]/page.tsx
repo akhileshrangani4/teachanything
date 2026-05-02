@@ -198,7 +198,7 @@ export default function ChatbotDetailPage() {
             <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="web-sources">Web Sources</TabsTrigger>
-            <TabsTrigger value="conversations">Conversations</TabsTrigger>
+            <TabsTrigger value="conversations">Student Chats</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             {chatbot.sharingEnabled && chatbot.shareToken && (
               <TabsTrigger value="embed">Embed</TabsTrigger>

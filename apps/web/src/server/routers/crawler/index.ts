@@ -8,12 +8,18 @@ import { removeCrawledPageProcedure } from "./procedures/remove-crawled-page";
 import { recrawlProcedure } from "./procedures/recrawl";
 import { exportJsonProcedure } from "./procedures/export-json";
 import { toggleCrawlSourceProcedure } from "./procedures/toggle-crawl-source";
+import { renameCrawlSourceProcedure } from "./procedures/rename-crawl-source";
+import { renameCrawledPageProcedure } from "./procedures/rename-crawled-page";
+import { getAllCrawlSourcesProcedure } from "./procedures/get-all-crawl-sources";
 
 export const crawlerRouter = router({
   addCrawlSource: addCrawlSourceProcedure,
   addManualUrl: addManualUrlProcedure,
+  getAllCrawlSources: getAllCrawlSourcesProcedure,
   getCrawlSources: getCrawlSourcesProcedure,
   getCrawledPages: getCrawledPagesProcedure,
+  renameCrawlSource: renameCrawlSourceProcedure,
+  renameCrawledPage: renameCrawledPageProcedure,
   removeCrawlSource: removeCrawlSourceProcedure,
   removeCrawledPage: removeCrawledPageProcedure,
   recrawl: recrawlProcedure,
