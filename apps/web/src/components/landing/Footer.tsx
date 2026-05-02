@@ -44,8 +44,8 @@ export default function Footer() {
             </Link>
           </div>
           <p className="text-muted-foreground text-sm">
-            © 2026 <BrandName markClassName="text-[0.45em]" />. All rights
-            reserved.
+            © {new Date().getFullYear()}{" "}
+            <BrandName markClassName="text-[0.45em]" />. All rights reserved.
           </p>
         </div>
       </div>
