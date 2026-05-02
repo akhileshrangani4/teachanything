@@ -1,5 +1,5 @@
 import { protectedProcedure } from "@/server/trpc";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { crawlSources } from "@teachanything/db/schema";
 import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
@@ -41,7 +41,7 @@ export const recrawlProcedure = protectedProcedure
       .update(crawlSources)
       .set({
         status: "pending",
-        metadata: {},
+        metadata: sql`jsonb_strip_nulls(jsonb_build_object('displayName', ${crawlSources.metadata}->>'displayName'))`,
         updatedAt: new Date(),
       })
       .where(eq(crawlSources.id, input.crawlSourceId))

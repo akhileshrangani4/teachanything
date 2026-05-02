@@ -67,6 +67,22 @@ export const crawledPageStatusEnum = pgEnum("crawled_page_status", [
   "skipped",
 ]);
 
+export interface CrawlSourceMetadata {
+  displayName?: string;
+  pageCount?: number;
+  errorCount?: number;
+  errors?: Array<{ url: string; error: string }>;
+  robotsText?: string;
+}
+
+export interface CrawledPageMetadata {
+  customTitle?: string;
+  statusCode?: number;
+  contentType?: string;
+  wordCount?: number;
+  error?: string;
+}
+
 // Better Auth: Users table
 // Note: Better Auth uses nanoid for IDs, not UUIDs
 export const user = pgTable("user", {
@@ -393,14 +409,7 @@ export const crawlSources = pgTable(
     includePatterns: jsonb("include_patterns").$type<string[]>().default([]),
     excludePatterns: jsonb("exclude_patterns").$type<string[]>().default([]),
     lastCrawledAt: timestamp("last_crawled_at"),
-    metadata: jsonb("metadata")
-      .$type<{
-        pageCount?: number;
-        errorCount?: number;
-        errors?: Array<{ url: string; error: string }>;
-        robotsText?: string;
-      }>()
-      .default({}),
+    metadata: jsonb("metadata").$type<CrawlSourceMetadata>().default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -422,14 +431,7 @@ export const crawledPages = pgTable(
     contentHash: text("content_hash"),
     depth: integer("depth").default(0).notNull(),
     status: crawledPageStatusEnum("status").default("pending").notNull(),
-    metadata: jsonb("metadata")
-      .$type<{
-        statusCode?: number;
-        contentType?: string;
-        wordCount?: number;
-        error?: string;
-      }>()
-      .default({}),
+    metadata: jsonb("metadata").$type<CrawledPageMetadata>().default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

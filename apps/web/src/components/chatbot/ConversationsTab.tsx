@@ -116,10 +116,10 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
         <div>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            Conversations
+            Student Chats
           </CardTitle>
           <CardDescription className="mt-1.5">
-            Browse student conversations with your chatbot.
+            Browse your students&apos; chat history with this chatbot.
           </CardDescription>
         </div>
       </CardHeader>
@@ -128,7 +128,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search conversations..."
+              placeholder="Search student chats..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -228,7 +228,7 @@ function ConversationsResults({
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center">
         <MessageSquare className="h-12 w-12 mb-4 text-red-500 opacity-50" />
         <p className="text-lg font-medium text-red-600">
-          Failed to load conversations
+          Failed to load student chats
         </p>
         <p className="text-sm text-muted-foreground mt-1">
           Please try again in a moment.
@@ -250,10 +250,9 @@ function ConversationsResults({
     return (
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center text-muted-foreground">
         <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-        <p className="text-lg font-medium">No conversations yet</p>
+        <p className="text-lg font-medium">No student chats yet</p>
         <p className="text-sm mt-1">
-          Conversations will appear here when students start chatting with your
-          bot.
+          Student chats will appear here when students start using this chatbot.
         </p>
       </div>
     );
@@ -386,7 +385,7 @@ function ConversationDetail({
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <CardTitle className="text-lg">Conversation</CardTitle>
+            <CardTitle className="text-lg">Student Chat</CardTitle>
             {data?.conversation && (
               <CardDescription>
                 Started {formatTimestamp(data.conversation.createdAt)} ·
