@@ -29,7 +29,7 @@ export function AccountDisabled({
               <p style={text}>Hi {userName},</p>
 
               <p style={text}>
-                I&apos;m writing to inform you that your Teach anything account
+                I&apos;m writing to inform you that your Teach Anything™ account
                 has been temporarily disabled by an administrator. You will not
                 be able to log in until your account is re-enabled.
               </p>
@@ -53,13 +53,13 @@ export function AccountDisabled({
 
               <p style={text}>
                 We&apos;re here to help resolve any issues and get you back to
-                using Teach anything as soon as possible.
+                using Teach Anything™ as soon as possible.
               </p>
 
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach anything Team
+                Teach Anything™ Team
               </p>
 
               <p style={footer}>

@@ -62,7 +62,7 @@ export function ChatMessage({
         <Message className="items-start gap-2 md:gap-3">
           <MessageAvatar
             src="/logo.svg"
-            alt="Teach anything"
+            alt="Teach Anything™"
             imageClassName="grayscale"
           />
           <div className="flex-1 min-w-0">
@@ -83,7 +83,7 @@ export function ChatMessage({
       <Message className="items-start gap-2 md:gap-3">
         <MessageAvatar
           src="/logo.svg"
-          alt="Teach anything"
+          alt="Teach Anything™"
           imageClassName="grayscale"
         />
         <div className="flex-1 min-w-0">
@@ -162,7 +162,7 @@ export function StreamingMessage({
           <Message className="items-start gap-2 md:gap-3">
             <MessageAvatar
               src="/logo.svg"
-              alt="Teach anything"
+              alt="Teach Anything™"
               imageClassName="grayscale"
             />
             <div className="flex-1 min-w-0">
@@ -197,7 +197,7 @@ export function StreamingMessage({
         <div className="flex gap-2 md:gap-3 items-start">
           <MessageAvatar
             src="/logo.svg"
-            alt="Teach anything"
+            alt="Teach Anything™"
             imageClassName="grayscale"
           />
           <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-xs border border-border/50">

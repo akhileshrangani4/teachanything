@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSidebar } from "@/components/dashboard/sidebar-context";
+import { BrandName } from "@/components/brand/BrandName";
 
 export function DashboardHeader() {
   const { data: session } = useSession();
@@ -65,22 +66,15 @@ export function DashboardHeader() {
         >
           <Image
             src="/logo.svg"
-            alt="Teach anything"
+            alt="Teach Anything™"
             width={28}
             height={28}
             className="h-7 w-7"
           />
-          <span className="text-xl font-bold text-foreground">
-            Teach{" "}
-            <i
-              style={{
-                fontFamily: "var(--font-instrument-serif), serif",
-                fontWeight: 400,
-              }}
-            >
-              anything.
-            </i>
-          </span>
+          <BrandName
+            serifAnything
+            className="text-xl font-bold text-foreground"
+          />
         </Link>
         <Link
           href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || ""}`}

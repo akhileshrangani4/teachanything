@@ -32,7 +32,7 @@ export function DemoteFromAdmin({
 
               <p style={text}>
                 I&apos;m writing to inform you that your administrator
-                privileges have been removed from your Teach anything account.
+                privileges have been removed from your Teach Anything™ account.
                 Your account has been converted to a regular user account.
               </p>
 
@@ -65,7 +65,7 @@ export function DemoteFromAdmin({
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach anything Team
+                Teach Anything™ Team
               </p>
 
               <p style={footer}>
