@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Download,
-  ChevronDown,
-  ChevronRight,
-  Globe,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { Download, ChevronDown, Globe, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +65,7 @@ export function CrawlSourceCard({
     source.status === "crawling";
   const pageCount = getSourcePageCount(source);
   const errorCount = getSourceErrorCount(source);
+  const pageLabel = `${pageCount} page${pageCount !== 1 ? "s" : ""}`;
   const utils = trpc.useUtils();
 
   const handleExport = async () => {
@@ -101,21 +95,6 @@ export function CrawlSourceCard({
       <Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3 text-left flex-1 min-w-0">
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                aria-label={isExpanded ? "Collapse source" : "Expand source"}
-              >
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
             <Globe className="h-5 w-5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
               <EditableName
@@ -126,7 +105,7 @@ export function CrawlSourceCard({
                 onSave={onRename}
                 className="text-sm font-medium"
               />
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 {source.enabled ? (
                   <SourceStatusBadge status={source.status} />
                 ) : (
@@ -134,9 +113,9 @@ export function CrawlSourceCard({
                 )}
                 {source.status === "completed" && (
                   <span className="text-xs text-muted-foreground">
-                    {pageCount} page{pageCount !== 1 ? "s" : ""} crawled
-                    {errorCount > 0 &&
-                      `, ${errorCount} error${errorCount !== 1 ? "s" : ""}`}
+                    {errorCount > 0
+                      ? `${errorCount} error${errorCount !== 1 ? "s" : ""}`
+                      : "Crawl complete"}
                   </span>
                 )}
                 {source.lastCrawledAt && (
@@ -144,6 +123,26 @@ export function CrawlSourceCard({
                     Last: {new Date(source.lastCrawledAt).toLocaleDateString()}
                   </span>
                 )}
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    aria-label={
+                      isExpanded
+                        ? `Hide crawled pages for ${getSourceDisplayName(source)}`
+                        : `Show ${pageLabel} for ${getSourceDisplayName(source)}`
+                    }
+                  >
+                    {isExpanded ? "Hide pages" : `Show ${pageLabel}`}
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
               </div>
             </div>
           </div>
