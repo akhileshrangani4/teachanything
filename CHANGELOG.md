@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.0](https://github.com/akhileshrangani4/teachanything/compare/v1.19.0...v1.20.0) (2026-05-02)
+
+
+### Features
+
+* **site:** add trademark status to site logos ([#267](https://github.com/akhileshrangani4/teachanything/issues/267)) ([52320e4](https://github.com/akhileshrangani4/teachanything/commit/52320e40b2e6b5def5356271b862b6672baa2e34))
+
 ## [1.19.0](https://github.com/akhileshrangani4/teachanything/compare/v1.18.1...v1.19.0) (2026-05-02)
 
 
