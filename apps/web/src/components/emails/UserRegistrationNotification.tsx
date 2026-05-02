@@ -60,7 +60,7 @@ export function UserRegistrationNotification({
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach anything
+                Teach Anything™
               </p>
 
               <p style={footer}>

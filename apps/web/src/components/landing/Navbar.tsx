@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/auth-client";
 import { Menu, X } from "lucide-react";
+import { BrandName } from "@/components/brand/BrandName";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -60,23 +61,16 @@ export default function Navbar() {
               >
                 <Image
                   src="/logo.svg"
-                  alt="Teach anything"
+                  alt="Teach Anything™"
                   width={32}
                   height={32}
                   className="h-8 w-8"
                   priority
                 />
-                <span className="text-xl font-base font-bold text-foreground">
-                  Teach{" "}
-                  <i
-                    style={{
-                      fontFamily: "var(--font-instrument-serif), serif",
-                      fontWeight: 400,
-                    }}
-                  >
-                    anything.
-                  </i>
-                </span>
+                <BrandName
+                  serifAnything
+                  className="text-xl font-base font-bold text-foreground"
+                />
               </Link>
             </div>
 

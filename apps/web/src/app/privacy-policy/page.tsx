@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { BrandName, BRAND_NAME_WITH_MARK } from "@/components/brand/BrandName";
 import s from "./legal.module.css";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description:
-    "Privacy Policy for Teach Anything - learn how we collect, use, and protect your personal information.",
+  description: `Privacy Policy for ${BRAND_NAME_WITH_MARK} - learn how we collect, use, and protect your personal information.`,
 };
 
 export default function PrivacyPolicyPage() {
@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
           <p data-legal-meta>Last updated April 17, 2026</p>
 
           <p>
-            This Privacy Notice for Teach Anything (&ldquo;we,&rdquo;
+            This Privacy Notice for <BrandName /> (&ldquo;we,&rdquo;
             &ldquo;us,&rdquo; or &ldquo;our&rdquo;), describes how and why we
             might access, collect, store, use, and/or share
             (&ldquo;process&rdquo;) your personal information when you use our
@@ -47,7 +47,7 @@ export default function PrivacyPolicyPage() {
               or any website of ours that links to this Privacy Notice
             </li>
             <li>
-              Use Teach Anything Open-Access AI for Educators. Teach Anything is
+              Use <BrandName /> Open-Access AI for Educators. <BrandName /> is
               an open-access platform for educators to use open-source large
               language models (LLMs) to design custom AI applications. Educators
               can upload their course files and customize the AI&apos;s
@@ -1424,7 +1424,7 @@ export default function PrivacyPolicyPage() {
             or contact us by post at:
           </p>
           <address>
-            Teach Anything
+            <BrandName />
             <br />
             801 22nd St NW
             <br />

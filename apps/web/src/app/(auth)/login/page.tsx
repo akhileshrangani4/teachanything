@@ -18,6 +18,7 @@ import { useState, useEffect } from "react";
 import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { BrandName } from "@/components/brand/BrandName";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -144,7 +145,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle>Welcome Back</CardTitle>
           <CardDescription>
-            Login to your Teach anything account
+            Login to your <BrandName /> account
           </CardDescription>
         </CardHeader>
         <CardContent>

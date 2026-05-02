@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { BrandName } from "@/components/brand/BrandName";
 
 export function EmbedFooter() {
   const baseUrl =
@@ -19,22 +20,12 @@ export function EmbedFooter() {
         <span>Powered by</span>
         <Image
           src="/logo.svg"
-          alt="Teach anything"
+          alt="Teach Anything™"
           width={14}
           height={14}
           className="h-3.5 w-3.5"
         />
-        <span className="font-medium">
-          Teach{" "}
-          <i
-            style={{
-              fontFamily: "var(--font-instrument-serif), serif",
-              fontWeight: 400,
-            }}
-          >
-            anything.
-          </i>
-        </span>
+        <BrandName serifAnything className="font-medium" />
       </Link>
     </div>
   );

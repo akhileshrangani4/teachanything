@@ -29,7 +29,7 @@ export function AccountDeleted({
               <p style={text}>Hi {userName},</p>
 
               <p style={text}>
-                This email confirms that your Teach anything account has been
+                This email confirms that your Teach Anything™ account has been
                 permanently deleted as requested by an administrator.
               </p>
 
@@ -53,19 +53,19 @@ export function AccountDeleted({
               </p>
 
               <p style={text}>
-                If you wish to use Teach anything again in the future, you will
+                If you wish to use Teach Anything™ again in the future, you will
                 need to register a new account.
               </p>
 
               <p style={text}>
                 We&apos;re sorry to see you go. Thank you for being part of the
-                Teach anything community.
+                Teach Anything™ community.
               </p>
 
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach anything Team
+                Teach Anything™ Team
               </p>
 
               <p style={footer}>

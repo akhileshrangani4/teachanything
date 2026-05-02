@@ -3,6 +3,7 @@ import { Inter, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
+import { BRAND_NAME_WITH_MARK } from "@/components/brand/BrandName";
 
 const inter = Inter({ subsets: ["latin"] });
 const instrumentSerif = Instrument_Serif({
@@ -16,8 +17,8 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ),
   title: {
-    default: "Teach Anything — Open Source LLMs for Open Access Education",
-    template: "%s | Teach Anything",
+    default: `${BRAND_NAME_WITH_MARK} — Open Source LLMs for Open Access Education`,
+    template: `%s | ${BRAND_NAME_WITH_MARK}`,
   },
   description:
     "Build open-access, course-specific, multilingual AI chatbots using open-source LLMs for your students—all for free. This platform is designed by educators for educators. Professors are designers, not consumers.",
@@ -37,9 +38,9 @@ export const metadata: Metadata = {
     "Mistral Large",
     "Qwen 2.5",
   ],
-  authors: [{ name: "Teach Anything Team" }],
-  creator: "Teach Anything",
-  publisher: "Teach Anything",
+  authors: [{ name: `${BRAND_NAME_WITH_MARK} Team` }],
+  creator: BRAND_NAME_WITH_MARK,
+  publisher: BRAND_NAME_WITH_MARK,
   formatDetection: {
     email: false,
     address: false,
@@ -49,8 +50,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "/",
-    siteName: "Teach Anything",
-    title: "Teach Anything — Open Source LLMs for Open Access Education",
+    siteName: BRAND_NAME_WITH_MARK,
+    title: `${BRAND_NAME_WITH_MARK} — Open Source LLMs for Open Access Education`,
     description:
       "Build open-access, course-specific, multilingual AI chatbots using open-source LLMs for your students—all for free. Designed by educators for educators.",
     images: [
@@ -58,13 +59,13 @@ export const metadata: Metadata = {
         url: "/logo.png",
         width: 1200,
         height: 630,
-        alt: "Teach Anything — Open Source LLMs for Open Access Education",
+        alt: `${BRAND_NAME_WITH_MARK} — Open Source LLMs for Open Access Education`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Teach Anything — Open Source LLMs for Open Access Education",
+    title: `${BRAND_NAME_WITH_MARK} — Open Source LLMs for Open Access Education`,
     description:
       "Build open-access, course-specific, multilingual AI chatbots using open-source LLMs for your students—all for free. Designed by educators for educators.",
     images: ["/logo.png"],

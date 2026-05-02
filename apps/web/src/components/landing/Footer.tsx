@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandName } from "@/components/brand/BrandName";
 
 export default function Footer() {
   return (
@@ -43,7 +44,8 @@ export default function Footer() {
             </Link>
           </div>
           <p className="text-muted-foreground text-sm">
-            © 2025 Teach anything. All rights reserved.
+            © 2026 <BrandName markClassName="text-[0.45em]" />. All rights
+            reserved.
           </p>
         </div>
       </div>
