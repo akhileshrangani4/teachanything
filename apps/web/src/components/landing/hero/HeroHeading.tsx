@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { BrandName } from "@/components/brand/BrandName";
+import { MUTED_GREEN } from "./constants";
 
 interface HeroHeadingProps {
   delay?: number;
@@ -18,7 +19,7 @@ export default function HeroHeading({ delay = 0.2 }: HeroHeadingProps) {
       <BrandName
         serifAnything
         className="text-black"
-        anythingClassName="text-[#157F3C]"
+        anythingStyle={{ color: MUTED_GREEN }}
         markClassName="ml-4 text-[0.24em] text-black"
       />
     </motion.h1>

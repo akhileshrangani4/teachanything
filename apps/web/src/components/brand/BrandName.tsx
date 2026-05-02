@@ -1,9 +1,11 @@
+import type React from "react";
 import { cn } from "@/lib/utils";
 
 interface BrandNameProps {
   className?: string;
   markClassName?: string;
   anythingClassName?: string;
+  anythingStyle?: React.CSSProperties;
   serifAnything?: boolean;
 }
 
@@ -13,6 +15,7 @@ export function BrandName({
   className,
   markClassName,
   anythingClassName,
+  anythingStyle,
   serifAnything = false,
 }: BrandNameProps) {
   return (
@@ -20,14 +23,15 @@ export function BrandName({
       Teach{" "}
       <span
         className={cn(serifAnything && "italic", anythingClassName)}
-        style={
-          serifAnything
+        style={{
+          ...(serifAnything
             ? {
                 fontFamily: "var(--font-instrument-serif), serif",
                 fontWeight: 400,
               }
-            : undefined
-        }
+            : {}),
+          ...anythingStyle,
+        }}
       >
         Anything
       </span>
