@@ -11,6 +11,7 @@ import {
   Settings,
   Shield,
   ScrollText,
+  Globe,
 } from "lucide-react";
 
 const navigation = [
@@ -28,6 +29,11 @@ const navigation = [
     name: "Files",
     href: "/dashboard/files",
     icon: FileText,
+  },
+  {
+    name: "Web Sources",
+    href: "/dashboard/web-sources",
+    icon: Globe,
   },
   {
     name: "Settings",
