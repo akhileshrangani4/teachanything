@@ -37,7 +37,8 @@ export function BrandName({
           markClassName,
         )}
       >
-        TM
+        <span aria-hidden="true">™</span>
+        <span className="sr-only">trademark</span>
       </sup>
     </span>
   );
