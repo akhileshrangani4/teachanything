@@ -44,8 +44,12 @@ export function EditableName({
       setIsEditing(false);
       return;
     }
-    await onSave(nextValue);
-    setIsEditing(false);
+    try {
+      await onSave(nextValue);
+      setIsEditing(false);
+    } catch {
+      // Parent mutations show the error toast. Keep the field open for retry.
+    }
   };
 
   if (isEditing) {

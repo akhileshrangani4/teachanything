@@ -34,20 +34,17 @@ export function CrawledPagesList({
   const [offset, setOffset] = useState(0);
   const limit = 10;
   const utils = trpc.useUtils();
+  const pageQueryInput = { crawlSourceId, limit, offset };
 
   const { data, isLoading } = trpc.crawler.getCrawledPages.useQuery(
-    {
-      crawlSourceId,
-      limit,
-      offset,
-    },
+    pageQueryInput,
     { enabled: isExpanded, staleTime: 30_000 },
   );
 
   const removeCrawledPage = trpc.crawler.removeCrawledPage.useMutation({
     onSuccess: async () => {
       await Promise.all([
-        utils.crawler.getCrawledPages.invalidate({ crawlSourceId }),
+        utils.crawler.getCrawledPages.invalidate(pageQueryInput),
         utils.crawler.getCrawlSources.invalidate(),
       ]);
       toast.success("Page removed");
@@ -62,7 +59,7 @@ export function CrawledPagesList({
   const renameCrawledPage = trpc.crawler.renameCrawledPage.useMutation({
     onSuccess: async () => {
       await Promise.all([
-        utils.crawler.getCrawledPages.invalidate({ crawlSourceId }),
+        utils.crawler.getCrawledPages.invalidate(pageQueryInput),
         utils.crawler.getCrawlSources.invalidate(),
         utils.crawler.getAllCrawlSources.invalidate(),
         utils.files.list.invalidate(),
