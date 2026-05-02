@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.19.0](https://github.com/akhileshrangani4/teachanything/compare/v1.18.1...v1.19.0) (2026-05-02)
+
+
+### Features
+
+* **web-sources:** improve source management UX ([#266](https://github.com/akhileshrangani4/teachanything/issues/266)) ([bb5cb65](https://github.com/akhileshrangani4/teachanything/commit/bb5cb657a8520f11a711e1127dc552bebb761496))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump officeparser from 6.0.7 to 6.1.0 ([#263](https://github.com/akhileshrangani4/teachanything/issues/263)) ([ea0a375](https://github.com/akhileshrangani4/teachanything/commit/ea0a375d76a4b14a42215bc7a875f5f3c0146923))
+* **deps:** bump the small-safe-packages group across 1 directory with 4 updates ([#260](https://github.com/akhileshrangani4/teachanything/issues/260)) ([94b4d7f](https://github.com/akhileshrangani4/teachanything/commit/94b4d7ff9ef78064971d2c951d22bc0ad5b9c15d))
+
 ## [1.18.1](https://github.com/akhileshrangani4/teachanything/compare/v1.18.0...v1.18.1) (2026-04-23)
 
 
