@@ -28,7 +28,7 @@ interface ChatInterfaceProps {
   embedMode?: boolean;
   showFrame?: boolean;
   showSources?: boolean;
-  brandingText?: string;
+  brandingText?: React.ReactNode;
 }
 
 export function ChatInterface({

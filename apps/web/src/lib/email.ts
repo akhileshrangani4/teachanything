@@ -83,7 +83,7 @@ async function queueEmail(params: {
       body: {
         deliveryId,
         idempotencyKey,
-        from: `Teach anything. <${fromEmail}>`,
+        from: `Teach Anything™ <${fromEmail}>`,
         to: params.to,
         subject: params.subject,
         html,

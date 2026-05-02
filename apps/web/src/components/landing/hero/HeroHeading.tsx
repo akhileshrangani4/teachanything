@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { BrandName } from "@/components/brand/BrandName";
 import { MUTED_GREEN } from "./constants";
 
 interface HeroHeadingProps {
@@ -15,17 +16,12 @@ export default function HeroHeading({ delay = 0.2 }: HeroHeadingProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay }}
     >
-      <span className="text-black">Teach </span>
-      <span
-        className="italic"
-        style={{
-          color: MUTED_GREEN,
-          fontFamily: "var(--font-instrument-serif), serif",
-          fontWeight: 400,
-        }}
-      >
-        anything.
-      </span>
+      <BrandName
+        serifAnything
+        className="text-black"
+        anythingStyle={{ color: MUTED_GREEN }}
+        markClassName="ml-4 text-[0.24em] text-black"
+      />
     </motion.h1>
   );
 }

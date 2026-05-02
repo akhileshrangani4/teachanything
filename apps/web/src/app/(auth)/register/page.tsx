@@ -30,6 +30,7 @@ import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { PasswordStrengthIndicator } from "@/components/dashboard/settings/PasswordStrengthIndicator";
 import { PasswordRequirementsList } from "@/components/dashboard/settings/PasswordRequirementsList";
 import { TITLE_OPTIONS } from "@/lib/constants/title-options";
+import { BrandName } from "@/components/brand/BrandName";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -264,7 +265,9 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Create Account</CardTitle>
-          <CardDescription>Register for Teach Anything AI</CardDescription>
+          <CardDescription>
+            Register for <BrandName /> AI
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert className="mb-4">

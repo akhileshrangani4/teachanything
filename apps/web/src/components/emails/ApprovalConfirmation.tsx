@@ -31,7 +31,7 @@ export function ApprovalConfirmation({
               <p style={text}>Hi {userName},</p>
 
               <p style={text}>
-                Great news! Your Teach anything account has been approved by an
+                Great news! Your Teach Anything™ account has been approved by an
                 administrator. You can now log in and start creating AI-powered
                 chatbots for your courses.
               </p>
@@ -59,14 +59,14 @@ export function ApprovalConfirmation({
               </p>
 
               <p style={text}>
-                Welcome to Teach anything! We&apos;re excited to have you on
+                Welcome to Teach Anything™! We&apos;re excited to have you on
                 board.
               </p>
 
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach anything Team
+                Teach Anything™ Team
               </p>
 
               <p style={footer}>

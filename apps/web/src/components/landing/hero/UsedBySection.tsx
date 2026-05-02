@@ -9,14 +9,8 @@ interface UsedBySectionProps {
   delay?: number;
 }
 
-const DUPLICATION_COUNT = 4;
-
 export default function UsedBySection({ delay = 0.6 }: UsedBySectionProps) {
-  // Duplicate universities array for smooth infinite scroll
-  const duplicatedUniversities = Array.from(
-    { length: DUPLICATION_COUNT },
-    () => UNIVERSITIES,
-  ).flat();
+  const track = [...UNIVERSITIES, ...UNIVERSITIES];
 
   return (
     <motion.div
@@ -30,55 +24,38 @@ export default function UsedBySection({ delay = 0.6 }: UsedBySectionProps) {
           Trusted By Professors At
         </p>
 
-        <div className="relative w-full overflow-hidden">
-          <motion.div
-            className="flex items-center gap-12"
-            animate={{
-              x: ["0%", "-100%"],
-            }}
-            transition={{
-              x: {
-                repeat: Infinity,
-                repeatType: "loop",
-                duration: 40,
-                ease: "linear",
-              },
+        <div className="group relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)] [-webkit-mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
+          <div
+            className="flex w-max items-center gap-12 group-hover:[animation-play-state:paused]"
+            style={{
+              animation: "infinite-scroll 40s linear infinite",
+              willChange: "transform",
             }}
           >
-            {duplicatedUniversities.map((university, index) => (
-              <motion.div
+            {track.map((university, index) => (
+              <Link
                 key={`${university.name}-${index}`}
-                whileHover={{
-                  scale: 1.1,
-                  y: -5,
-                  filter: "brightness(1.1)",
-                }}
-                transition={{ duration: 0.3 }}
-                className="flex-shrink-0 cursor-pointer"
-                style={{ willChange: "transform" }}
+                href={university.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={university.name}
+                className="flex-shrink-0 block opacity-80 hover:opacity-100 hover:scale-105 transition duration-300"
               >
-                <Link
-                  href={university.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block"
-                >
-                  <Image
-                    src={university.logo}
-                    alt={university.name}
-                    width={university.width}
-                    height={university.height}
-                    style={{
-                      width: `${university.width * 0.7}px`,
-                      height: "auto",
-                    }}
-                    className="object-contain opacity-70 hover:opacity-100 transition-opacity duration-300 drop-shadow-xs"
-                    quality={95}
-                  />
-                </Link>
-              </motion.div>
+                <Image
+                  src={university.logo}
+                  alt={university.name}
+                  width={university.width}
+                  height={university.height}
+                  style={{
+                    width: `${university.width * 0.7}px`,
+                    height: "auto",
+                  }}
+                  className="object-contain drop-shadow-xs"
+                  quality={95}
+                />
+              </Link>
             ))}
-          </motion.div>
+          </div>
         </div>
       </div>
     </motion.div>

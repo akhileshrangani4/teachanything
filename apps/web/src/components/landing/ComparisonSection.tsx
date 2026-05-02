@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { BrandName } from "@/components/brand/BrandName";
 
 export default function ComparisonSection() {
   const comparisonData = [
@@ -77,7 +78,7 @@ export default function ComparisonSection() {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-3xl md:text-5xl font-serif font-light text-foreground mb-4">
-            Why Choose Teach anything?
+            Why Choose <BrandName markClassName="font-sans font-semibold" />?
           </h2>
           <p className="text-base md:text-lg text-muted-foreground max-w-3xl mx-auto">
             See how we compare to commercial AI solutions. Built with privacy,
@@ -100,7 +101,7 @@ export default function ComparisonSection() {
                   Feature
                 </th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground bg-gray-100">
-                  Teach anything (open access)
+                  <BrandName markClassName="text-[0.42em]" /> (open access)
                 </th>
                 <th className="text-left py-4 px-6 font-semibold text-foreground">
                   Commercial AI
@@ -149,7 +150,7 @@ export default function ComparisonSection() {
               <div className="space-y-3">
                 <div className="bg-white rounded-md p-3 border border-gray-200">
                   <span className="text-xs font-medium text-primary uppercase tracking-wide">
-                    Teach anything
+                    <BrandName markClassName="text-[0.5em]" />
                   </span>
                   <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                     {row.teachAnything}

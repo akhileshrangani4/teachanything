@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { ChatInterface } from "@/components/chat/messages/ChatInterface";
+import { BrandName } from "@/components/brand/BrandName";
 import {
   Card,
   CardContent,
@@ -92,7 +94,19 @@ export default function SharedChatPage() {
             height="flex-1 min-h-0"
             showFrame={false}
             showSources={chatbot.showSources ?? false}
-            brandingText="Powered by Teach anything"
+            brandingText={
+              <span className="inline-flex items-center gap-1.5">
+                <span>Powered by</span>
+                <Image
+                  src="/logo.svg"
+                  alt="Teach Anything™"
+                  width={14}
+                  height={14}
+                  className="h-3.5 w-3.5"
+                />
+                <BrandName serifAnything className="font-medium" />
+              </span>
+            }
           />
         </ErrorBoundary>
       </div>
