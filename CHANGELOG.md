@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.20.1](https://github.com/akhileshrangani4/teachanything/compare/v1.20.0...v1.20.1) (2026-05-05)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump turbo from 2.8.20 to 2.9.6 in the turbo group across 1 directory ([#262](https://github.com/akhileshrangani4/teachanything/issues/262)) ([511fe90](https://github.com/akhileshrangani4/teachanything/commit/511fe90e15880681d6ea30caa5c3da32538708c2))
+* **deps:** bump @supabase/supabase-js from 2.103.3 to 2.104.1 in the supabase group ([#257](https://github.com/akhileshrangani4/teachanything/issues/257)) ([3e19e6f](https://github.com/akhileshrangani4/teachanything/commit/3e19e6faf27ddba8206c8d15c5ca45bd5b2db421))
+* **deps:** bump @tanstack/react-query from 5.99.1 to 5.100.6 in the tanstack group across 1 directory ([#256](https://github.com/akhileshrangani4/teachanything/issues/256)) ([8985109](https://github.com/akhileshrangani4/teachanything/commit/898510959e6e3d8c8c8a8e900919b633882699b6))
+* **deps:** bump googleapis/release-please-action from 4 to 5 in the actions group ([#253](https://github.com/akhileshrangani4/teachanything/issues/253)) ([3c9c057](https://github.com/akhileshrangani4/teachanything/commit/3c9c0573f3793fad6d7146657f6423a2a4170412))
+* **deps:** bump marked from 17.0.4 to 18.0.2 in the markdown group across 1 directory ([#261](https://github.com/akhileshrangani4/teachanything/issues/261)) ([1b286ea](https://github.com/akhileshrangani4/teachanything/commit/1b286ea3ebc9a82a4bddca36c4b18e8123f1e30e))
+* **deps:** bump postcss from 8.5.10 to 8.5.11 ([#265](https://github.com/akhileshrangani4/teachanything/issues/265)) ([ecfcf63](https://github.com/akhileshrangani4/teachanything/commit/ecfcf6350ff3327c380d143ff003a6a6c01a2f60))
+* **deps:** bump postcss from 8.5.11 to 8.5.12 ([#270](https://github.com/akhileshrangani4/teachanything/issues/270)) ([aa7d16b](https://github.com/akhileshrangani4/teachanything/commit/aa7d16bdc671ca5e95d6123b4663682336b86405))
+* **deps:** bump the langchain group across 1 directory with 2 updates ([#254](https://github.com/akhileshrangani4/teachanything/issues/254)) ([3ac539b](https://github.com/akhileshrangani4/teachanything/commit/3ac539bfffeb4108d34b2223a7973d46be1095ab))
+* **deps:** bump the react group across 1 directory with 2 updates ([#255](https://github.com/akhileshrangani4/teachanything/issues/255)) ([b139086](https://github.com/akhileshrangani4/teachanything/commit/b1390868a496887257a7dc02e308c8cb175e12ad))
+* **deps:** bump the tailwind group with 2 updates ([#259](https://github.com/akhileshrangani4/teachanything/issues/259)) ([bea561d](https://github.com/akhileshrangani4/teachanything/commit/bea561dc529f0b63fbab94bdbd56c27205fac124))
+
 ## [1.20.0](https://github.com/akhileshrangani4/teachanything/compare/v1.19.0...v1.20.0) (2026-05-02)
 
 
