@@ -53,7 +53,7 @@
     "marked": "^18.0.2",
     "nanoid": "^5.1.9",
     "next": "^16.2.4",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.13",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-email": "^3.0.7",
