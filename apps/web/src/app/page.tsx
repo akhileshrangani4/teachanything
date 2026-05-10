@@ -8,6 +8,7 @@ import TechnologySection from "@/components/landing/TechnologySection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import InfoSection from "@/components/landing/InfoSection";
 import SupportUsSection from "@/components/landing/SupportUsSection";
+import NewsletterSignup from "@/components/landing/NewsletterSignup";
 import Footer from "@/components/landing/Footer";
 
 export default function HomePage() {
@@ -33,6 +34,8 @@ export default function HomePage() {
       <InfoSection />
       {/* Support Us Section */}
       <SupportUsSection />
+      {/* Newsletter Signup */}
+      <NewsletterSignup />
       {/* Footer */}
       <Footer />
     </div>

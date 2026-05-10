@@ -7,6 +7,7 @@ import { PendingUsersTab } from "@/components/admin/tabs/PendingUsersTab";
 import { AllChatbotsTab } from "@/components/admin/tabs/AllChatbotsTab";
 import { AllowedDomainsTab } from "@/components/admin/tabs/AllowedDomainsTab";
 import { AllUsersTab } from "@/components/admin/tabs/AllUsersTab";
+import { NewsletterTab } from "@/components/admin/tabs/NewsletterTab";
 import { Shield, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -149,6 +150,12 @@ export default function AdminPage() {
             >
               Domains
             </TabsTrigger>
+            <TabsTrigger
+              value="newsletter"
+              className="text-xs md:text-sm flex-1 min-w-fit"
+            >
+              Newsletter
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="mt-6">
@@ -165,6 +172,10 @@ export default function AdminPage() {
 
           <TabsContent value="domains" className="mt-6">
             <AllowedDomainsTab />
+          </TabsContent>
+
+          <TabsContent value="newsletter" className="mt-6">
+            <NewsletterTab />
           </TabsContent>
         </Tabs>
       </div>

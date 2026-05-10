@@ -34,6 +34,7 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
+  RESEND_AUDIENCE_ID: z.string().min(1).optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
   QSTASH_URL: z.string().url().optional(),
@@ -136,7 +137,7 @@ describe("env schema validation", () => {
 
 describe("env helper logic", () => {
   // Test the pure logic of the helper functions without importing env.ts
-  // (env.ts module-level side effects make it hard to test in jsdom)
+  // ( module-level side effects make it hard to test in jsdom)
 
   it("getApprovedDomains splits and trims correctly", () => {
     const raw = " .edu , .ac.in , .edu.in ";

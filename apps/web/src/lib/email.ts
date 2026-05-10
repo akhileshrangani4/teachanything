@@ -1,4 +1,5 @@
 import { render } from "@react-email/render";
+import { Resend } from "resend";
 import { env, getAdminEmails, isServiceAvailable } from "./env";
 import { logInfo, logError } from "./logger";
 import { publishEmailJob } from "./qstash";
@@ -11,6 +12,7 @@ import { AccountDisabled } from "@/components/emails/AccountDisabled";
 import { AccountEnabled } from "@/components/emails/AccountEnabled";
 import { AccountDeleted } from "@/components/emails/AccountDeleted";
 import { PasswordReset } from "@/components/emails/PasswordReset";
+import { NewsletterEmail } from "@/components/emails/NewsletterEmail";
 import { db } from "@teachanything/db";
 import {
   user,
@@ -350,4 +352,194 @@ export async function sendPasswordResetEmail(params: {
       email: params.email,
     });
   }
+}
+
+// =============================================================================
+// Newsletter helpers — use Resend Audiences/Contacts/Broadcasts APIs directly
+// =============================================================================
+
+export interface NewsletterContact {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  createdAt: string;
+  unsubscribed: boolean;
+}
+
+function getResendClient(): Resend {
+  if (!env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+  return new Resend(env.RESEND_API_KEY);
+}
+
+function requireNewsletterEnv(): { audienceId: string; fromEmail: string } {
+  if (!env.RESEND_AUDIENCE_ID) {
+    throw new Error("RESEND_AUDIENCE_ID is not configured");
+  }
+  if (!env.RESEND_FROM_EMAIL) {
+    throw new Error("RESEND_FROM_EMAIL is not configured");
+  }
+  return {
+    audienceId: env.RESEND_AUDIENCE_ID,
+    fromEmail: env.RESEND_FROM_EMAIL,
+  };
+}
+
+export async function subscribeToNewsletter(params: {
+  email: string;
+  firstName?: string;
+}): Promise<void> {
+  const { audienceId } = requireNewsletterEnv();
+  const resend = getResendClient();
+
+  const { error } = await resend.contacts.create({
+    audienceId,
+    email: params.email,
+    firstName: params.firstName,
+    unsubscribed: false,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * List all contacts in the newsletter audience from Resend.
+ */
+export async function listNewsletterSubscribers(): Promise<
+  NewsletterContact[]
+> {
+  const { audienceId } = requireNewsletterEnv();
+  const resend = getResendClient();
+
+  const { data, error } = await resend.contacts.list({ audienceId });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data?.data ?? []).map((c) => ({
+    id: c.id,
+    email: c.email,
+    firstName: c.first_name ?? null,
+    lastName: c.last_name ?? null,
+    createdAt: c.created_at,
+    unsubscribed: c.unsubscribed,
+  }));
+}
+
+interface ResendBroadcastRequest {
+  segment_id: string;
+  from: string;
+  subject: string;
+  name: string;
+  html: string;
+  send: true;
+}
+
+interface ResendBroadcastSuccess {
+  id: string;
+}
+
+interface ResendBroadcastError {
+  statusCode: number;
+  message: string;
+  name: string;
+}
+
+type ResendBroadcastResponse = ResendBroadcastSuccess | ResendBroadcastError;
+
+/**
+ * Create and immediately send a newsletter broadcast via Resend.
+ * The rendered HTML includes {{{RESEND_UNSUBSCRIBE_URL}}} and
+ * {{{contact.first_name|there}}} which Resend substitutes per-recipient.
+ */
+export async function sendNewsletterBroadcast(params: {
+  subject: string;
+  body: string;
+}): Promise<{ broadcastId: string }> {
+  const { audienceId, fromEmail } = requireNewsletterEnv();
+
+  if (!env.RESEND_API_KEY) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+  const apiKey = env.RESEND_API_KEY;
+
+  const html = await render(
+    NewsletterEmail({
+      subject: params.subject,
+      body: params.body,
+      supportEmail:
+        env.NEXT_PUBLIC_CONTACT_EMAIL || getAdminEmails()[0] || fromEmail,
+    }),
+  );
+
+  // Logged on every failure so the terminal always has context
+  const debugCtx = {
+    hasApiKey: true,
+    hasAudienceId: !!env.RESEND_AUDIENCE_ID,
+    fromEmail,
+    subjectLength: params.subject.length,
+    bodyLength: params.body.length,
+    htmlLength: html.length,
+  };
+
+  const requestBody: ResendBroadcastRequest = {
+    segment_id: audienceId,
+    from: `Teach Anything™ <${fromEmail}>`,
+    subject: params.subject,
+    name: params.subject,
+    html,
+    send: true,
+  };
+
+  let res: Response;
+  try {
+    res = await fetch("https://api.resend.com/broadcasts", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch (fetchError) {
+    const message =
+      fetchError instanceof Error ? fetchError.message : "Network error";
+    logError(new Error(message), "Resend broadcasts fetch failed", debugCtx);
+    throw new Error(`Broadcast failed: network error — ${message}`);
+  }
+
+  let payload: ResendBroadcastResponse;
+  try {
+    payload = (await res.json()) as ResendBroadcastResponse;
+  } catch {
+    logError(
+      new Error("Non-JSON response from Resend"),
+      "Resend broadcasts API returned non-JSON",
+      { ...debugCtx, httpStatus: res.status },
+    );
+    throw new Error(
+      `Broadcast failed: unexpected response (HTTP ${res.status})`,
+    );
+  }
+
+  if ("id" in payload) {
+    logInfo("Newsletter broadcast sent", { broadcastId: payload.id });
+    return { broadcastId: payload.id };
+  }
+
+  logError(new Error(payload.message), "Resend broadcasts API failed", {
+    ...debugCtx,
+    httpStatus: res.status,
+    resendErrorName: payload.name,
+    resendErrorMessage: payload.message,
+    resendStatusCode: payload.statusCode,
+  });
+  throw new Error(
+    `Broadcast failed (HTTP ${res.status}): ${payload.name} — ${payload.message}`,
+  );
 }

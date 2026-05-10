@@ -6,6 +6,7 @@ import { filesRouter } from "./files";
 import { analyticsRouter } from "./analytics";
 import { adminRouter } from "./admin";
 import { crawlerRouter } from "./crawler";
+import { newsletterRouter } from "./newsletter";
 
 export const appRouter = router({
   auth: authRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   analytics: analyticsRouter,
   admin: adminRouter,
   crawler: crawlerRouter,
+  newsletter: newsletterRouter,
 });
 
 export type AppRouter = typeof appRouter;
