@@ -29,6 +29,9 @@ interface ChatInterfaceProps {
   showFrame?: boolean;
   showSources?: boolean;
   brandingText?: React.ReactNode;
+  shareToken?: string;
+  chatbotId?: string;
+  voiceInputEnabled?: boolean;
 }
 
 export function ChatInterface({
@@ -49,6 +52,9 @@ export function ChatInterface({
   showFrame,
   showSources = false,
   brandingText,
+  shareToken,
+  chatbotId,
+  voiceInputEnabled = true,
 }: ChatInterfaceProps) {
   return (
     <div
@@ -153,6 +159,9 @@ export function ChatInterface({
           isStreaming={isStreaming}
           onSendMessage={handleSendMessage}
           onStopStreaming={stopStreaming}
+          shareToken={shareToken}
+          chatbotId={chatbotId}
+          voiceInputEnabled={voiceInputEnabled}
         />
       </div>
     </div>

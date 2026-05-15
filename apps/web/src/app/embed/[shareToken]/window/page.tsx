@@ -83,6 +83,14 @@ export default function EmbedWindowPage() {
             hideHeader={withExitX}
             embedMode={true}
             showSources={chatbot.showSources ?? false}
+            shareToken={shareToken}
+            // Voice disabled in embeds: getUserMedia() inside a third-party
+            // iframe requires the embedding page to set
+            // `<iframe allow="microphone">`, which most embedders won't.
+            // Rather than ship a half-working mic that fails silently on
+            // most sites, the feature stays off here. Re-enable per-embed
+            // once we expose an opt-in flag on the share configuration.
+            voiceInputEnabled={false}
           />
         </ErrorBoundary>
       </div>

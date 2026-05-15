@@ -19,10 +19,19 @@ const allAcceptedModels = [...SUPPORTED_MODELS, ...DEPRECATED_MODELS] as [
   ...string[],
 ];
 
-async function getChatbotByIdForUser(
-  db: Parameters<
-    Parameters<typeof protectedProcedure.query>[0]
-  >[0]["ctx"]["db"],
+type ChatbotDb = Parameters<
+  Parameters<typeof protectedProcedure.query>[0]
+>[0]["ctx"]["db"];
+
+/**
+ * Non-throwing lookup: returns the chatbot row when the user owns it, or
+ * undefined when the chatbot does not exist or belongs to someone else.
+ * Use this from callers that need a soft "is this owned by me?" check —
+ * e.g. attributing best-effort analytics where unauthorized claims
+ * should be silently dropped rather than 404'd.
+ */
+export async function findChatbotForUser(
+  db: ChatbotDb,
   chatbotId: string,
   userId: string,
 ) {
@@ -31,11 +40,38 @@ async function getChatbotByIdForUser(
     .from(chatbots)
     .where(and(eq(chatbots.id, chatbotId), eq(chatbots.userId, userId)))
     .limit(1);
+  return chatbot;
+}
 
+/**
+ * Lightweight ownership probe: returns `{ id }` only when the user owns
+ * the chatbot, or undefined otherwise. Prefer this over
+ * `findChatbotForUser` on hot paths where you only need to verify
+ * ownership for attribution — avoids pulling potentially-large fields
+ * like `systemPrompt` across the wire.
+ */
+export async function findOwnedChatbotId(
+  db: ChatbotDb,
+  chatbotId: string,
+  userId: string,
+): Promise<{ id: string } | undefined> {
+  const [row] = await db
+    .select({ id: chatbots.id })
+    .from(chatbots)
+    .where(and(eq(chatbots.id, chatbotId), eq(chatbots.userId, userId)))
+    .limit(1);
+  return row;
+}
+
+async function getChatbotByIdForUser(
+  db: ChatbotDb,
+  chatbotId: string,
+  userId: string,
+) {
+  const chatbot = await findChatbotForUser(db, chatbotId, userId);
   if (!chatbot) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Chatbot not found" });
   }
-
   return chatbot;
 }
 

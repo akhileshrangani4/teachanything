@@ -94,6 +94,8 @@ export default function SharedChatPage() {
             height="flex-1 min-h-0"
             showFrame={false}
             showSources={chatbot.showSources ?? false}
+            shareToken={shareToken}
+            voiceInputEnabled
             brandingText={
               <span className="inline-flex items-center gap-1.5">
                 <span>Powered by</span>
