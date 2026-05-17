@@ -137,7 +137,6 @@ describe("env schema validation", () => {
 
 describe("env helper logic", () => {
   // Test the pure logic of the helper functions without importing env.ts
-  // ( module-level side effects make it hard to test in jsdom)
 
   it("getApprovedDomains splits and trims correctly", () => {
     const raw = " .edu , .ac.in , .edu.in ";

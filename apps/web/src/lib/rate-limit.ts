@@ -125,6 +125,13 @@ export const conversationSearchRateLimit = createLimiter({
   prefix: "@ratelimit/conversation-search",
 });
 
+// Rate limiter for public newsletter signup
+// 5 signups per hour per IP (anti-spam)
+export const newsletterSignupRateLimit = createLimiter({
+  window: [5, "1 h"],
+  prefix: "@ratelimit/newsletter-signup",
+});
+
 /**
  * Check rate limit and log if exceeded.
  * When limiter is null (Redis not configured), returns success as a noop.

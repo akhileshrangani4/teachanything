@@ -7,6 +7,7 @@ import {
   sendNewsletterBroadcast,
 } from "@/lib/email";
 import { logError } from "@/lib/logger";
+import { checkRateLimit, newsletterSignupRateLimit } from "@/lib/rate-limit";
 
 export const newsletterRouter = router({
   /**
@@ -19,7 +20,21 @@ export const newsletterRouter = router({
         firstName: z.string().trim().max(100).optional(),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const clientIp =
+        ctx.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+      const { success } = await checkRateLimit(
+        newsletterSignupRateLimit,
+        clientIp,
+        { action: "newsletter-signup", email: input.email },
+      );
+      if (!success) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "Too many signup attempts. Please try again later.",
+        });
+      }
+
       try {
         await subscribeToNewsletter({
           email: input.email,

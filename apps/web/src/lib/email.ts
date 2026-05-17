@@ -374,24 +374,26 @@ function getResendClient(): Resend {
   return new Resend(env.RESEND_API_KEY);
 }
 
-function requireNewsletterEnv(): { audienceId: string; fromEmail: string } {
+function requireContactEnv(): { audienceId: string } {
   if (!env.RESEND_AUDIENCE_ID) {
     throw new Error("RESEND_AUDIENCE_ID is not configured");
   }
+  return { audienceId: env.RESEND_AUDIENCE_ID };
+}
+
+function requireBroadcastEnv(): { audienceId: string; fromEmail: string } {
+  const { audienceId } = requireContactEnv();
   if (!env.RESEND_FROM_EMAIL) {
     throw new Error("RESEND_FROM_EMAIL is not configured");
   }
-  return {
-    audienceId: env.RESEND_AUDIENCE_ID,
-    fromEmail: env.RESEND_FROM_EMAIL,
-  };
+  return { audienceId, fromEmail: env.RESEND_FROM_EMAIL };
 }
 
 export async function subscribeToNewsletter(params: {
   email: string;
   firstName?: string;
 }): Promise<void> {
-  const { audienceId } = requireNewsletterEnv();
+  const { audienceId } = requireContactEnv();
   const resend = getResendClient();
 
   const { error } = await resend.contacts.create({
@@ -412,7 +414,7 @@ export async function subscribeToNewsletter(params: {
 export async function listNewsletterSubscribers(): Promise<
   NewsletterContact[]
 > {
-  const { audienceId } = requireNewsletterEnv();
+  const { audienceId } = requireContactEnv();
   const resend = getResendClient();
 
   const { data, error } = await resend.contacts.list({ audienceId });
@@ -461,7 +463,7 @@ export async function sendNewsletterBroadcast(params: {
   subject: string;
   body: string;
 }): Promise<{ broadcastId: string }> {
-  const { audienceId, fromEmail } = requireNewsletterEnv();
+  const { audienceId, fromEmail } = requireBroadcastEnv();
 
   if (!env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not configured");

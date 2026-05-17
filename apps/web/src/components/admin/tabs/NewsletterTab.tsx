@@ -139,6 +139,10 @@ export function NewsletterTab() {
                 </>
               }
             />
+          ) : isSubscribersError ? (
+            <div className="text-center py-10 text-destructive">
+              Failed to load subscribers. Please refresh and try again.
+            </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
               {search
