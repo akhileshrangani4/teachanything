@@ -6,7 +6,9 @@ import {
 } from "@/components/ui/prompt-input";
 import { ArrowUp, Square } from "lucide-react";
 import { toast } from "sonner";
+import { useRef } from "react";
 import { VALIDATION_LIMITS } from "@/lib/validation";
+import { VoiceInputButton } from "./VoiceInputButton";
 
 interface ChatInputProps {
   currentMessage: string;
@@ -14,6 +16,12 @@ interface ChatInputProps {
   isStreaming: boolean;
   onSendMessage: (e: React.FormEvent) => void;
   onStopStreaming?: () => void;
+  /** When set, voice input posts to /api/transcribe with this shareToken. */
+  shareToken?: string;
+  /** Chatbot ID forwarded to /api/transcribe for analytics. */
+  chatbotId?: string;
+  /** Hide voice input on surfaces where mic capture is unreliable (e.g. embeds). */
+  voiceInputEnabled?: boolean;
 }
 
 export function ChatInput({
@@ -22,7 +30,21 @@ export function ChatInput({
   isStreaming,
   onSendMessage,
   onStopStreaming,
+  shareToken,
+  chatbotId,
+  voiceInputEnabled = true,
 }: ChatInputProps) {
+  // Ref to the textarea so handleTranscript can read the current DOM value,
+  // avoiding closure over a stale currentMessage prop if the user types
+  // while transcription is in-flight.
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Global kill switch — when off, voice is hidden everywhere regardless
+  // of the per-surface prop. Must match the server-side check in the
+  // /api/transcribe route or users see a button that always 404s.
+  const voiceFeatureFlag =
+    process.env.NEXT_PUBLIC_VOICE_INPUT_ENABLED !== "false";
+  const showVoiceInput = voiceFeatureFlag && voiceInputEnabled;
   const messageLength = currentMessage.length;
   const maxLength = VALIDATION_LIMITS.MESSAGE_MAX_LENGTH;
 
@@ -58,6 +80,21 @@ export function ChatInput({
     }
   };
 
+  const handleTranscript = (text: string) => {
+    // Read current textarea value instead of relying on currentMessage prop closure,
+    // which may be stale if the user typed while transcription was in-flight.
+    const current = textareaRef.current?.value ?? "";
+    const next =
+      current.trim().length === 0
+        ? text
+        : `${current.replace(/\s+$/, "")} ${text}`;
+    const capped = next.slice(0, VALIDATION_LIMITS.MESSAGE_MAX_LENGTH);
+    setCurrentMessage(capped);
+    if (capped.length === VALIDATION_LIMITS.MESSAGE_MAX_LENGTH) {
+      toast.warning("Message truncated to character limit");
+    }
+  };
+
   return (
     <div className="w-full">
       <PromptInput
@@ -69,11 +106,20 @@ export function ChatInput({
       >
         <div className="flex items-end gap-2 w-full">
           <PromptInputTextarea
+            ref={textareaRef}
             placeholder="Ask me anything..."
             aria-label="Type a message"
             className="flex-1 text-foreground text-base min-h-[60px] md:min-h-[120px] scrollbar-thin"
           />
           <PromptInputActions>
+            {showVoiceInput && !isStreaming && (
+              <VoiceInputButton
+                disabled={isStreaming}
+                shareToken={shareToken}
+                chatbotId={chatbotId}
+                onTranscript={handleTranscript}
+              />
+            )}
             {isStreaming && onStopStreaming ? (
               <Button
                 type="button"

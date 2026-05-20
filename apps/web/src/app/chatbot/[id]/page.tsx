@@ -223,6 +223,8 @@ export default function ChatbotDetailPage() {
                 resetChat={resetChat}
                 stopStreaming={stopStreaming}
                 showSources={chatbot.showSources ?? false}
+                chatbotId={chatbot.id}
+                voiceInputEnabled
               />
             </ErrorBoundary>
           </TabsContent>
