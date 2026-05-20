@@ -26,11 +26,9 @@ function mkRequest(contentLength: string | null): NextRequest {
 }
 
 describe("checkContentLength", () => {
-  it("returns 411 when Content-Length is missing", async () => {
+  it("returns null when Content-Length is missing (rely on blob validation)", () => {
     const res = checkContentLength(mkRequest(null));
-    expect(res?.status).toBe(411);
-    const body = (await res?.json()) as { code: string };
-    expect(body.code).toBe("content_length_required");
+    expect(res).toBeNull();
   });
 
   it("returns 400 when Content-Length is not a number", async () => {

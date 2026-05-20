@@ -363,6 +363,11 @@ export const analytics = pgTable("analytics", {
       responseLength?: number;
       responseTime?: number;
       ragUsed?: boolean;
+      // Voice transcription event fields
+      audioBytes?: number;
+      durationSeconds?: number | null;
+      transcriptLength?: number;
+      surface?: "authenticated" | "shared";
     }>()
     .default({}),
   sessionId: text("session_id"),
