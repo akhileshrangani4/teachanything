@@ -54,9 +54,8 @@ interface AuthContext {
 /**
  * Resolve the rate-limit bucket. Authenticated session wins over
  * shareToken so a logged-in professor browsing their own share link
- * always hits their per-user bucket. Skips the session lookup when no
- * auth cookie is present to avoid a useless DB round-trip on anonymous
- * shared-link traffic.
+ * always hits their per-user bucket. For shareToken requests, the
+ * identifier is computed before DB lookup so rate-limit checks happen first.
  */
 async function resolveAuth(
   request: NextRequest,
@@ -81,6 +80,14 @@ async function resolveAuth(
     return { error: jsonError("Unauthorized", "unauthorized", 401) };
   }
 
+  // Compute the rate-limit identifier from shareToken + IP before doing
+  // any DB lookups, so rate-limiting happens first and expensive lookups
+  // are protected.
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const identifier = `${shareToken}:${clientIp}`;
+
+  // Validate the shareToken exists and is enabled
   const [chatbot] = await db
     .select({ id: chatbots.id })
     .from(chatbots)
@@ -101,16 +108,8 @@ async function resolveAuth(
     };
   }
 
-  // Matches the IP-resolution pattern used by the public chat router
-  // (server/routers/chat.ts). When `x-forwarded-for` is absent (e.g. a
-  // direct connection, or a proxy that doesn't set it) all callers
-  // collapse into the same "unknown" bucket — strict but consistent
-  // with chat. A repo-wide IP-resolution helper (with `x-real-ip` etc.
-  // fallback) would be the right long-term fix.
-  const clientIp =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   return {
-    identifier: `${shareToken}:${clientIp}`,
+    identifier,
     limiter: publicTranscriptionRateLimit,
     logContext: { surface: "shared", shareToken, chatbotId: chatbot.id },
     inferredChatbotId: chatbot.id,
@@ -161,7 +160,18 @@ export async function POST(
 
   const validation = validateAudioBlob(audio);
   if (!validation.ok) {
-    return jsonError(validation.message, "audio_invalid", 400);
+    // Map validation failures to distinct codes/statuses for proper client handling
+    switch (validation.reason) {
+      case "missing":
+      case "empty":
+        return jsonError(validation.message, "audio_invalid", 400);
+      case "too_small":
+        return jsonError(validation.message, "audio_invalid", 400);
+      case "too_large":
+        return jsonError(validation.message, "audio_too_large", 413);
+      case "unsupported_type":
+        return jsonError(validation.message, "audio_invalid", 400);
+    }
   }
 
   // Resolve the chatbot this transcription is attributed to for
@@ -227,12 +237,6 @@ export async function POST(
     // authenticated path silently skips when the client didn't supply
     // (or supplied an unauthorized) chatbot id. We don't fail the
     // request on insert errors — telemetry is not load-bearing.
-    //
-    // The eventData column's `$type` annotation enumerates chat-message
-    // fields; voice fields aren't in that union yet. Cast here rather
-    // than widening the shared schema type for a single event variant —
-    // when we have a second non-chat event we should generalise the
-    // schema type.
     if (effectiveChatbotId) {
       try {
         await db.insert(analytics).values({
@@ -242,8 +246,8 @@ export async function POST(
             audioBytes: validation.size,
             durationSeconds: result.durationSeconds,
             transcriptLength: result.text.length,
-            surface: logContext.surface,
-          } as typeof analytics.$inferInsert.eventData,
+            surface: logContext.surface as "authenticated" | "shared",
+          },
         });
       } catch (err) {
         logError(err, "Failed to record transcription analytics", logContext);
