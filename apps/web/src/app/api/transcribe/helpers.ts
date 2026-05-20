@@ -45,20 +45,20 @@ export function jsonError(
  * Reject oversized or unmeasurable bodies before buffering the request.
  * On Vercel the platform also enforces a body limit at the edge for the
  * default plan, so this is defense-in-depth for self-hosted deploys.
- * Legitimate clients (fetch + MediaRecorder blobs) always set
- * Content-Length; requests without it are rejected to avoid uncapped
- * body buffering. Returns null when the request should proceed.
+ * Legitimate clients (fetch + MediaRecorder blobs) should set
+ * Content-Length, but not all proxies/HTTP/2 paths include it. When
+ * Content-Length is absent, we skip the fast-path check and rely on the
+ * blob validation to enforce size limits. Returns null when the request
+ * should proceed.
  */
 export function checkContentLength(
   request: Pick<NextRequest, "headers">,
 ): NextResponse<TranscribeErrorBody> | null {
   const contentLength = request.headers.get("content-length");
   if (!contentLength) {
-    return jsonError(
-      "Content-Length header required",
-      "content_length_required",
-      411,
-    );
+    // Missing Content-Length: skip the fast-path check, rely on blob
+    // validation. This avoids breaking HTTP/2 or proxy scenarios.
+    return null;
   }
   const declared = Number.parseInt(contentLength, 10);
   if (!Number.isFinite(declared) || declared < 0) {
