@@ -85,7 +85,9 @@ export function ChatInput({
     // which may be stale if the user typed while transcription was in-flight.
     const current = textareaRef.current?.value ?? "";
     const next =
-      current.trim().length === 0 ? text : `${current.replace(/\s+$/, "")} ${text}`;
+      current.trim().length === 0
+        ? text
+        : `${current.replace(/\s+$/, "")} ${text}`;
     const capped = next.slice(0, VALIDATION_LIMITS.MESSAGE_MAX_LENGTH);
     setCurrentMessage(capped);
     if (capped.length === VALIDATION_LIMITS.MESSAGE_MAX_LENGTH) {
