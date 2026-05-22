@@ -53,8 +53,8 @@ export const createUploadUrlProcedure = protectedProcedure
 
     // Validate file input
     validateFileName(input.fileName);
-    validateFileSize(input.fileSize);
     validateFileType(input.fileType);
+    validateFileSize(input.fileSize, input.fileType);
     validateExtensionMatchesMimeType(input.fileName, input.fileType);
 
     // Check for duplicate file name early (before generating signed URL)

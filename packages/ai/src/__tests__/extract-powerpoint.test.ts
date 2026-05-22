@@ -1,8 +1,30 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterAll,
+} from "@jest/globals";
+
+interface MockOfficeAST {
+  content: Array<{
+    type: string;
+    children: Array<{ type: string; text: string }>;
+    metadata: {
+      slideNumber: number;
+      noteId?: string;
+    };
+  }>;
+  toText: () => string;
+}
+
+const mockParseOffice = jest.fn<(buffer: Buffer) => Promise<MockOfficeAST>>();
 
 // Mock officeparser before importing the module under test
 jest.unstable_mockModule("officeparser", () => ({
-  parseOffice: jest.fn(),
+  parseOffice: mockParseOffice,
 }));
 
 // Dynamic import after mock setup (ESM pattern per AGENTS.md)
@@ -16,7 +38,7 @@ function buildMockAST(
     noteId?: string;
     children: Array<{ type: string; text: string }>;
   }>,
-) {
+): MockOfficeAST {
   return {
     content: nodes.map((n) => ({
       type: n.type,
@@ -33,12 +55,17 @@ function buildMockAST(
 
 describe("extractPowerPoint", () => {
   let service: InstanceType<typeof RAGService>;
-  let mockParseOffice: jest.Mock;
 
-  beforeEach(async () => {
+  beforeAll(() => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
+  beforeEach(() => {
     service = new RAGService();
-    const officeparser = await import("officeparser");
-    mockParseOffice = officeparser.parseOffice as jest.Mock;
     mockParseOffice.mockReset();
   });
 

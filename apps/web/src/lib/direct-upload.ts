@@ -5,6 +5,7 @@
  */
 
 import { trpc } from "@/lib/trpc";
+import { inferSupportedFileType } from "@/lib/upload-file-types";
 
 export interface UploadProgress {
   loaded: number;
@@ -29,10 +30,12 @@ export function useDirectUpload() {
     file: File,
     onProgress?: (progress: UploadProgress) => void,
   ): Promise<DirectUploadResult> => {
+    const fileType = inferSupportedFileType(file.name, file.type);
+
     // Step 1: Get signed upload URL
     const uploadUrlData = await createUploadUrl.mutateAsync({
       fileName: file.name,
-      fileType: file.type,
+      fileType,
       fileSize: file.size,
     });
 
@@ -80,7 +83,7 @@ export function useDirectUpload() {
       });
 
       xhr.open("PUT", uploadUrl);
-      xhr.setRequestHeader("Content-Type", file.type);
+      xhr.setRequestHeader("Content-Type", fileType);
       xhr.send(file);
     });
 
@@ -88,7 +91,7 @@ export function useDirectUpload() {
     const result = await finalizeUpload.mutateAsync({
       fileId,
       fileName: file.name,
-      fileType: file.type,
+      fileType,
       fileSize: file.size,
       storagePath,
     });

@@ -8,7 +8,19 @@ import { EMBEDDING_MODEL } from "@teachanything/ai/models";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
 
-const EXTRACTION_TIMEOUT_MS = 60_000;
+const EXTRACTION_TIMEOUT_MS = 30 * 60_000;
+
+/**
+ * Processing batch sizes - tuned for performance and rate limiting
+ */
+const PROCESSING_CONFIG = {
+  /** Chunks per embedding batch (50 to avoid OpenRouter rate limits) */
+  EMBEDDING_BATCH_SIZE: 50,
+  /** Chunk records per database insert batch (500 for efficient bulk insert) */
+  DB_INSERT_BATCH_SIZE: 500,
+} as const;
+
+type FileMetadata = NonNullable<typeof userFiles.$inferSelect.metadata>;
 
 /**
  * Sanitize error messages before storing in metadata visible to users.
@@ -16,27 +28,27 @@ const EXTRACTION_TIMEOUT_MS = 60_000;
  */
 function sanitizeProcessingError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
+  const errorName = error instanceof Error ? error.name : "";
   if (msg.includes("timed out")) return "File processing timed out";
   if (msg.includes("Unsupported file type")) return msg;
   if (msg.includes("no readable text")) return msg;
+  if (msg.includes("Invalid image format")) return "Invalid image format";
+  if (msg.includes("Image exceeds OCR size limit"))
+    return "Image exceeds OCR size limit";
+  if (msg.includes("Image dimensions exceed"))
+    return "Image dimensions exceed maximum limit";
+  if (msg.includes("too many pages for OCR")) return msg;
+  if (msg.includes("too large to render for OCR")) return msg;
   if (msg.includes("Invalid PDF")) return "Invalid PDF format";
   if (msg.includes("embedding") && msg.includes("dimension"))
     return "Embedding dimension mismatch";
+  if (
+    msg.includes("Extraction aborted") ||
+    msg.includes("timed out") ||
+    errorName === "AbortError"
+  )
+    return "File processing timed out";
   return "File processing failed due to an internal error";
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  message: string,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(message)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() =>
-    clearTimeout(timeoutId),
-  );
 }
 
 /**
@@ -48,46 +60,64 @@ async function updateProgress(
   percentage: number,
   currentChunk?: number,
   totalChunks?: number,
+  currentPage?: number,
+  totalPages?: number,
 ) {
-  const now = new Date().toISOString();
+  try {
+    const now = new Date().toISOString();
 
-  // Get current file to preserve existing metadata
-  const [currentFile] = await db
-    .select()
-    .from(userFiles)
-    .where(eq(userFiles.id, fileId))
-    .limit(1);
+    const [currentFile] = await db
+      .select()
+      .from(userFiles)
+      .where(eq(userFiles.id, fileId))
+      .limit(1);
 
-  const existingMetadata = currentFile?.metadata || {};
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { error: _prevError, ...cleanMetadata } = existingMetadata;
-  const startedAt = existingMetadata?.processingProgress?.startedAt || now;
+    const existingMetadata: FileMetadata = currentFile?.metadata || {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { error: _prevError, ...cleanMetadata } = existingMetadata;
+    const startedAt = existingMetadata?.processingProgress?.startedAt || now;
 
-  await db
-    .update(userFiles)
-    .set({
-      processingStatus: "processing",
-      metadata: {
-        ...cleanMetadata,
-        processingProgress: {
-          stage,
-          percentage: Math.min(100, Math.max(0, percentage)),
-          currentChunk,
-          totalChunks,
-          startedAt,
-          lastUpdatedAt: now,
+    await db
+      .update(userFiles)
+      .set({
+        processingStatus: "processing",
+        metadata: {
+          ...cleanMetadata,
+          processingProgress: {
+            stage,
+            percentage: Math.min(100, Math.max(0, percentage)),
+            currentChunk,
+            totalChunks,
+            currentPage,
+            totalPages,
+            startedAt,
+            lastUpdatedAt: now,
+          },
         },
-      },
-    })
-    .where(eq(userFiles.id, fileId));
+      })
+      .where(
+        and(
+          eq(userFiles.id, fileId),
+          eq(userFiles.processingStatus, "processing"),
+        ),
+      );
 
-  logInfo(`File processing progress: ${stage} ${percentage}%`, {
-    fileId,
-    stage,
-    percentage,
-    currentChunk,
-    totalChunks,
-  });
+    logInfo(`File processing progress: ${stage} ${percentage}%`, {
+      fileId,
+      stage,
+      percentage,
+      currentChunk,
+      totalChunks,
+      currentPage,
+      totalPages,
+    });
+  } catch (err) {
+    logError(err, "Failed to update processing progress (non-fatal)", {
+      fileId,
+      stage,
+      percentage,
+    });
+  }
 }
 
 /**
@@ -98,10 +128,32 @@ export async function processFile(params: {
   fileId: string;
 }): Promise<{ success: boolean; chunkCount: number }> {
   const { fileId } = params;
+  const ragService = createRAGService();
 
   try {
     const startTime = new Date().toISOString();
     logInfo("File processing started", { fileId });
+
+    const [initialFile] = await db
+      .select()
+      .from(userFiles)
+      .where(eq(userFiles.id, fileId))
+      .limit(1);
+
+    if (!initialFile) {
+      // File was deleted while job was queued - exit gracefully
+      logInfo("File not found (likely deleted), skipping processing", {
+        fileId,
+      });
+      return {
+        success: false,
+        chunkCount: 0,
+      };
+    }
+
+    const initialMetadata: FileMetadata = initialFile.metadata ?? {};
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { error: _initialError, ...cleanInitialMetadata } = initialMetadata;
 
     // Atomic status guard: only proceed if not already processing (per D-04, D-05)
     const guardResult = await db
@@ -109,6 +161,7 @@ export async function processFile(params: {
       .set({
         processingStatus: "processing",
         metadata: {
+          ...cleanInitialMetadata,
           processingProgress: {
             stage: "downloading",
             percentage: 0,
@@ -203,12 +256,43 @@ export async function processFile(params: {
 
     // Stage 2: Extract text content (10-30%)
     await updateProgress(fileId, "extracting", 10);
-    const ragService = createRAGService();
-    const content = await withTimeout(
-      ragService.extractContent(buffer, file.fileType),
-      EXTRACTION_TIMEOUT_MS,
-      `File extraction timed out after ${EXTRACTION_TIMEOUT_MS / 1000}s`,
-    );
+    let isExtractionActive = true;
+
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort(
+        new Error(
+          `File extraction timed out after ${EXTRACTION_TIMEOUT_MS / 1000}s`,
+        ),
+      );
+    }, EXTRACTION_TIMEOUT_MS);
+
+    let content: string;
+    try {
+      content = await ragService.extractContent(
+        buffer,
+        file.fileType,
+        async (progress) => {
+          if (!isExtractionActive) return;
+          if (progress.stage !== "ocr-page") return;
+
+          const extractionPercentage = 10 + progress.percentage * 0.2;
+          await updateProgress(
+            fileId,
+            "extracting",
+            extractionPercentage,
+            undefined,
+            undefined,
+            progress.currentPage,
+            progress.totalPages,
+          );
+        },
+        abortController.signal,
+      );
+    } finally {
+      clearTimeout(timeoutId);
+      isExtractionActive = false;
+    }
     await updateProgress(fileId, "extracting", 30);
 
     // Stage 3: Chunk text (30-40%)
@@ -228,10 +312,16 @@ export async function processFile(params: {
     const embeddings: number[][] = [];
     const embeddingProgressStart = 40;
     const embeddingProgressRange = 50; // 40% to 90%
-    const BATCH_SIZE = 50; // Process 50 chunks at a time (reduced to avoid rate limits)
 
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-      const batchEnd = Math.min(i + BATCH_SIZE, chunks.length);
+    for (
+      let i = 0;
+      i < chunks.length;
+      i += PROCESSING_CONFIG.EMBEDDING_BATCH_SIZE
+    ) {
+      const batchEnd = Math.min(
+        i + PROCESSING_CONFIG.EMBEDDING_BATCH_SIZE,
+        chunks.length,
+      );
       const batch = chunks.slice(i, batchEnd);
 
       // Validate batch
@@ -274,12 +364,15 @@ export async function processFile(params: {
         chunks.length,
       );
 
-      logInfo(`Batch ${Math.floor(i / BATCH_SIZE) + 1} completed`, {
-        fileId,
-        processed: batchEnd,
-        total: chunks.length,
-        percentage: progress.toFixed(1),
-      });
+      logInfo(
+        `Batch ${Math.floor(i / PROCESSING_CONFIG.EMBEDDING_BATCH_SIZE) + 1} completed`,
+        {
+          fileId,
+          processed: batchEnd,
+          total: chunks.length,
+          percentage: progress.toFixed(1),
+        },
+      );
     }
 
     // Stage 5: Store chunks with embeddings in database (90-100%)
@@ -300,7 +393,18 @@ export async function processFile(params: {
       }),
     );
 
-    await db.insert(fileChunks).values(chunkRecords).onConflictDoNothing();
+    for (
+      let i = 0;
+      i < chunkRecords.length;
+      i += PROCESSING_CONFIG.DB_INSERT_BATCH_SIZE
+    ) {
+      await db
+        .insert(fileChunks)
+        .values(
+          chunkRecords.slice(i, i + PROCESSING_CONFIG.DB_INSERT_BATCH_SIZE),
+        )
+        .onConflictDoNothing();
+    }
     await updateProgress(fileId, "storing", 95, chunks.length, chunks.length);
 
     // Update file status to completed
@@ -352,11 +456,18 @@ export async function processFile(params: {
     // Mark file as failed -- wrapped in try/catch so status update failure
     // doesn't mask the original processing error
     try {
+      const [currentFile] = await db
+        .select()
+        .from(userFiles)
+        .where(eq(userFiles.id, fileId))
+        .limit(1);
+
       await db
         .update(userFiles)
         .set({
           processingStatus: "failed",
           metadata: {
+            ...(currentFile?.metadata ?? {}),
             error: sanitizeProcessingError(error),
           },
         })
@@ -372,5 +483,7 @@ export async function processFile(params: {
     }
 
     throw error;
+  } finally {
+    ragService.cleanup();
   }
 }

@@ -1,3 +1,8 @@
+import {
+  ALLOWED_EXTENSIONS,
+  FILE_TYPE_DISPLAY_NAMES,
+} from "@/lib/upload-file-types";
+
 // Get max file size from environment variable (client-accessible via NEXT_PUBLIC_ prefix)
 // Falls back to 50MB if not set
 const getMaxFileSizeMB = (): number => {
@@ -7,42 +12,16 @@ const getMaxFileSizeMB = (): number => {
 
 export const MAX_FILE_SIZE = getMaxFileSizeMB() * 1024 * 1024;
 export const MAX_FILE_NAME_LENGTH = 255;
-export const ALLOWED_FILE_TYPES = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/markdown",
-  "application/json",
-  "text/csv",
-] as const;
-
-export const ALLOWED_EXTENSIONS = [
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".pptx",
-  ".txt",
-  ".md",
-  ".markdown",
-  ".json",
-  ".csv",
-] as const;
-
-// User-friendly file type names for error messages
-export const FILE_TYPE_DISPLAY_NAMES: Record<string, string> = {
-  "application/pdf": "PDF",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-    "Word (.docx)",
-  "application/msword": "Word (.doc)",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-    "PPTX",
-  "text/plain": "Text",
-  "text/markdown": "Markdown",
-  "application/json": "JSON",
-  "text/csv": "CSV",
-};
+export {
+  ALLOWED_FILE_TYPES,
+  ALLOWED_EXTENSIONS,
+  FILE_INPUT_ACCEPT,
+  FILE_TYPE_DISPLAY_NAMES,
+  OCR_MAX_IMAGE_SIZE_BYTES,
+  OCR_MAX_IMAGE_SIZE_MB,
+  inferSupportedFileType,
+  isOCRImageFileType,
+} from "@/lib/upload-file-types";
 
 // Helper to get user-friendly file type name
 export const getFileTypeDisplayName = (mimeType: string): string => {

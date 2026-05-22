@@ -8,7 +8,61 @@ import {
   beforeAll,
   afterAll,
 } from "@jest/globals";
-import { RAGService, createRAGService } from "../rag-service";
+import type { RAGService as RAGServiceInstance } from "../rag-service";
+
+const loadImageMock = jest.fn(() =>
+  Promise.resolve({ width: 100, height: 100 }),
+);
+const pdfParseMock = jest.fn(() =>
+  Promise.resolve({ text: "mocked pdf text", numpages: 1 }),
+);
+
+jest.unstable_mockModule("tesseract.js", () => ({
+  createWorker: jest.fn(() =>
+    Promise.resolve({
+      recognize: jest.fn(() =>
+        Promise.resolve({ data: { text: "mocked ocr text" } }),
+      ),
+      terminate: jest.fn(() => Promise.resolve(undefined)),
+    }),
+  ),
+}));
+
+jest.unstable_mockModule("pdf-parse", () => ({
+  default: pdfParseMock,
+}));
+
+jest.unstable_mockModule("@napi-rs/canvas", () => ({
+  loadImage: loadImageMock,
+  createCanvas: jest.fn().mockReturnValue({
+    getContext: jest.fn(),
+    toBuffer: jest.fn().mockReturnValue(Buffer.from("mock image png")),
+  }),
+  DOMMatrix: class {},
+  ImageData: class {},
+  Path2D: class {},
+}));
+
+jest.unstable_mockModule("pdfjs-dist/legacy/build/pdf.mjs", () => ({
+  getDocument: jest.fn(() => ({
+    promise: Promise.resolve({
+      numPages: 1,
+      getPage: jest.fn(() =>
+        Promise.resolve({
+          getTextContent: jest.fn(() =>
+            Promise.resolve({ items: [{ str: "mocked pdf text" }] }),
+          ),
+          getViewport: jest.fn(() => ({ width: 100, height: 100 })),
+          render: jest.fn(() => ({ promise: Promise.resolve() })),
+          cleanup: jest.fn(),
+        }),
+      ),
+      destroy: jest.fn(() => Promise.resolve(undefined)),
+    }),
+  })),
+}));
+
+const { RAGService, createRAGService } = await import("../rag-service");
 
 // Suppress expected console.error from error-path tests
 beforeAll(() => {
@@ -21,10 +75,12 @@ afterAll(() => {
 });
 
 describe("RAGService", () => {
-  let service: RAGService;
+  let service: RAGServiceInstance;
 
   beforeEach(() => {
     service = new RAGService();
+    loadImageMock.mockResolvedValue({ width: 100, height: 100 });
+    pdfParseMock.mockResolvedValue({ text: "mocked pdf text", numpages: 1 });
   });
 
   afterEach(() => {
@@ -175,6 +231,43 @@ describe("RAGService", () => {
       await expect(
         service.extractContent(buffer, "application/zip"),
       ).rejects.toThrow("Unsupported file type");
+    });
+
+    it("extracts text from image buffer via OCR mock", async () => {
+      const buffer = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+      const result = await service.extractContent(buffer, "image/jpeg");
+      expect(result).toBe("mocked ocr text");
+    });
+
+    it("extracts text from PDF buffer", async () => {
+      const buffer = Buffer.from("%PDF-1.4 mock data");
+      const result = await service.extractContent(buffer, "application/pdf");
+      expect(result).toBe("mocked pdf text");
+    });
+
+    it("respects abort signals during extraction", async () => {
+      const controller = new AbortController();
+      controller.abort(new Error("Timeout Testing Abort"));
+      const buffer = Buffer.from("%PDF-1.4 mock data");
+
+      await expect(
+        service.extractContent(
+          buffer,
+          "application/pdf",
+          undefined,
+          controller.signal,
+        ),
+      ).rejects.toThrow("Timeout Testing Abort");
+    });
+
+    it("rejects oversized images during validation", async () => {
+      const buffer = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+
+      loadImageMock.mockResolvedValue({ width: 20000, height: 20000 });
+
+      await expect(
+        service.extractContent(buffer, "image/jpeg"),
+      ).rejects.toThrow("Image dimensions exceed maximum limit for OCR");
     });
   });
 
