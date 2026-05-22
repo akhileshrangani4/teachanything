@@ -218,6 +218,8 @@ export const userFiles = pgTable("user_files", {
         percentage: number; // 0-100
         currentChunk?: number;
         totalChunks?: number;
+        currentPage?: number;
+        totalPages?: number;
         startedAt?: string;
         lastUpdatedAt?: string;
       };

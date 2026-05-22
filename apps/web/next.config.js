@@ -3,9 +3,13 @@ const nextConfig = {
   images: {
     qualities: [75, 90, 95, 100],
   },
-  // Externalize pdf-parse to avoid bundling issues
-  // pdf-parse uses Node.js-specific modules that can't be bundled by webpack
-  serverExternalPackages: ["pdf-parse"],
+  // Externalize server-only extraction packages with native/WASM/runtime assets.
+  serverExternalPackages: [
+    "@napi-rs/canvas",
+    "pdf-parse",
+    "pdfjs-dist",
+    "tesseract.js",
+  ],
   output: "standalone",
 };
 

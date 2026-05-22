@@ -1,54 +1,33 @@
 import { TRPCError } from "@trpc/server";
 import { env } from "@/lib/env";
+import {
+  ALLOWED_FILE_TYPES,
+  EXTENSION_TO_FILE_TYPE,
+  FILE_TYPE_DISPLAY_NAMES,
+  OCR_MAX_IMAGE_SIZE_MB,
+  OCR_MAX_IMAGE_SIZE_BYTES,
+  isOCRImageFileType,
+} from "@/lib/upload-file-types";
 
 /**
  * Supported MIME types for file uploads
  */
-export const SUPPORTED_FILE_TYPES = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/markdown",
-  "application/json",
-  "text/csv",
-] as const;
+export const SUPPORTED_FILE_TYPES = ALLOWED_FILE_TYPES;
 
 /**
  * File extension to MIME type mapping
  */
-export const EXTENSION_MIME_MAP: Record<string, string[]> = {
-  pdf: ["application/pdf"],
-  doc: ["application/msword"],
-  docx: [
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ],
-  pptx: [
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ],
-  txt: ["text/plain"],
-  md: ["text/markdown"],
-  markdown: ["text/markdown"],
-  json: ["application/json"],
-  csv: ["text/csv"],
-} as const;
+export const EXTENSION_MIME_MAP: Record<string, string[]> = Object.fromEntries(
+  Object.entries(EXTENSION_TO_FILE_TYPE).map(([extension, mimeType]) => [
+    extension.slice(1),
+    [mimeType],
+  ]),
+);
 
 /**
  * User-friendly file type names for error messages
  */
-export const FILE_TYPE_DISPLAY_NAMES: Record<string, string> = {
-  "application/pdf": "PDF",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-    "Word (.docx)",
-  "application/msword": "Word (.doc)",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
-    "PPTX",
-  "text/plain": "Text",
-  "text/markdown": "Markdown",
-  "application/json": "JSON",
-  "text/csv": "CSV",
-};
+export { FILE_TYPE_DISPLAY_NAMES };
 
 /**
  * Validates file name for invalid characters and length
@@ -80,7 +59,7 @@ export function validateFileName(fileName: string): void {
 /**
  * Validates file size
  */
-export function validateFileSize(fileSize: number): void {
+export function validateFileSize(fileSize: number, fileType?: string): void {
   if (fileSize === 0) {
     throw new TRPCError({
       code: "BAD_REQUEST",
@@ -97,6 +76,19 @@ export function validateFileSize(fileSize: number): void {
       message: `File size exceeds ${maxSizeMB}MB limit. Current file size: ${(fileSize / 1024 / 1024).toFixed(2)}MB`,
     });
   }
+
+  if (fileType && isOCRImageFileType(fileType)) {
+    validateOCRImageFileSize(fileSize);
+  }
+}
+
+export function validateOCRImageFileSize(fileSize: number): void {
+  if (fileSize > OCR_MAX_IMAGE_SIZE_BYTES) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Image file size exceeds the ${OCR_MAX_IMAGE_SIZE_MB}MB OCR processing limit. Please compress the image or upload a smaller file.`,
+    });
+  }
 }
 
 /**
@@ -111,7 +103,7 @@ export function validateFileType(fileType: string): void {
     const displayName = FILE_TYPE_DISPLAY_NAMES[fileType] || fileType;
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: `Unsupported file type: ${displayName}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV`,
+      message: `Unsupported file type: ${displayName}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), Images (JPG, PNG, WEBP, TIFF), Text, Markdown, JSON, CSV`,
     });
   }
 }
@@ -125,10 +117,18 @@ export function validateExtensionMatchesMimeType(
   fileType: string,
 ): void {
   const fileNameLower = fileName.toLowerCase();
-  const extension = fileNameLower.substring(fileNameLower.lastIndexOf(".") + 1);
+  const lastDot = fileNameLower.lastIndexOf(".");
+  const extension = lastDot >= 0 ? fileNameLower.substring(lastDot + 1) : "";
   const validMimeTypes = EXTENSION_MIME_MAP[extension];
 
-  if (extension && validMimeTypes && !validMimeTypes.includes(fileType)) {
+  if (!extension || !validMimeTypes) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `File extension${extension ? ` (.${extension})` : ""} is not supported.`,
+    });
+  }
+
+  if (!validMimeTypes.includes(fileType)) {
     const displayName = FILE_TYPE_DISPLAY_NAMES[fileType] || fileType;
     throw new TRPCError({
       code: "BAD_REQUEST",
