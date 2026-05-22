@@ -14,12 +14,14 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.53",
-    "@teachanything/logger": "*",
     "@langchain/community": "^1.1.27",
     "@langchain/core": "^1.1.42",
     "@langchain/textsplitters": "^1.0.0",
     "@mozilla/readability": "^0.6.0",
+    "@napi-rs/canvas": "^0.1.100",
     "@openrouter/ai-sdk-provider": "^1.5.4",
+    "@teachanything/logger": "*",
+    "@types/jsdom": "^21.1.7",
     "@types/pdf-parse": "^1.1.4",
     "ai": "^6.0.168",
     "cheerio": "^1.2.0",
@@ -30,10 +32,12 @@
     "nanoid": "^5.1.9",
     "officeparser": "^6.1.0",
     "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^5.6.205",
     "robots-parser": "^3.0.1",
-    "@types/jsdom": "^21.1.7"
+    "tesseract.js": "^7.0.0"
   },
   "scripts": {
+    "check-types": "tsc --noEmit",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"

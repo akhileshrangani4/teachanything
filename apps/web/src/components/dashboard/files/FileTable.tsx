@@ -50,6 +50,8 @@ type BaseFile = {
       percentage: number;
       currentChunk?: number;
       totalChunks?: number;
+      currentPage?: number;
+      totalPages?: number;
       startedAt?: string;
       lastUpdatedAt?: string;
     };
