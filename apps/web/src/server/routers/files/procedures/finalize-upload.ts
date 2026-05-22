@@ -14,6 +14,12 @@ import { publishQStashJob } from "@/lib/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/lib/file-processor";
+import {
+  validateFileName,
+  validateFileSize,
+  validateFileType,
+  validateExtensionMatchesMimeType,
+} from "../validation";
 
 /**
  * Finalize upload after client has uploaded to storage.
@@ -47,6 +53,11 @@ export const finalizeUploadProcedure = protectedProcedure
     }
 
     try {
+      validateFileName(input.fileName);
+      validateFileType(input.fileType);
+      validateFileSize(input.fileSize, input.fileType);
+      validateExtensionMatchesMimeType(input.fileName, input.fileType);
+
       // Validate storage path matches expected pattern: {userId}/{fileId}
       const expectedPath = `${ctx.session.user.id}/${input.fileId}`;
       if (input.storagePath !== expectedPath) {

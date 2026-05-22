@@ -18,6 +18,11 @@ import { cn } from "@/lib/utils";
 import {
   MAX_FILE_SIZE,
   ALLOWED_FILE_TYPES,
+  FILE_INPUT_ACCEPT,
+  OCR_MAX_IMAGE_SIZE_BYTES,
+  OCR_MAX_IMAGE_SIZE_MB,
+  inferSupportedFileType,
+  isOCRImageFileType,
   validateFileName,
   formatFileSize,
   getFileTypeDisplayName,
@@ -86,13 +91,21 @@ export function UploadFileDialog({
       }
 
       // Validate file type
+      const fileType = inferSupportedFileType(file.name, file.type);
       if (
         !ALLOWED_FILE_TYPES.includes(
-          file.type as (typeof ALLOWED_FILE_TYPES)[number],
+          fileType as (typeof ALLOWED_FILE_TYPES)[number],
         )
       ) {
-        const displayName = getFileTypeDisplayName(file.type);
-        return `File type "${displayName}" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, or CSV files.`;
+        const displayName = getFileTypeDisplayName(fileType || file.type);
+        return `File type "${displayName}" is not supported. Please upload a supported file type.`;
+      }
+
+      if (
+        isOCRImageFileType(fileType) &&
+        file.size > OCR_MAX_IMAGE_SIZE_BYTES
+      ) {
+        return `Image file size exceeds the ${OCR_MAX_IMAGE_SIZE_MB}MB OCR processing limit. Please compress the image or upload a smaller file.`;
       }
 
       // Check for duplicate file name
@@ -337,7 +350,7 @@ export function UploadFileDialog({
               type="file"
               ref={fileInputRef}
               onChange={handleInputChange}
-              accept=".pdf,.doc,.docx,.pptx,.txt,.md,.json,.csv"
+              accept={FILE_INPUT_ACCEPT}
               multiple
               className="hidden"
             />

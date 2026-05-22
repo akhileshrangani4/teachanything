@@ -1,9 +1,20 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText, embed, streamText } from "ai";
+import {
+  generateText,
+  embed,
+  streamText,
+  type AsyncIterableStream,
+  type TextStreamPart,
+  type ToolSet,
+} from "ai";
 import { logInfo } from "@teachanything/logger";
 import { EMBEDDING_MODEL, type SupportedModel } from "./models";
 import { isTransientError } from "./error-utils";
+
+type OpenRouterStreamTextResult = {
+  readonly fullStream: AsyncIterableStream<TextStreamPart<ToolSet>>;
+};
 
 // Re-export so consumers of @teachanything/ai/openrouter subpath still get these
 export { SUPPORTED_MODELS, type SupportedModel } from "./models";
@@ -78,7 +89,7 @@ export class OpenRouterClient {
     messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
     temperature?: number;
     maxTokens?: number;
-  }) {
+  }): Promise<OpenRouterStreamTextResult> {
     const result = await streamText({
       model: this.client(params.model),
       messages: params.messages,

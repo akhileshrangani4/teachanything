@@ -20,6 +20,8 @@ interface ProcessingProgress {
   percentage: number;
   currentChunk?: number;
   totalChunks?: number;
+  currentPage?: number;
+  totalPages?: number;
   startedAt?: string;
   lastUpdatedAt?: string;
 }
@@ -173,6 +175,11 @@ export function FileStatusBadge({
               Chunk {progress.currentChunk || 0} of {progress.totalChunks}
             </p>
           )}
+          {progress.totalPages && (
+            <p className="text-xs">
+              Page {progress.currentPage || 0} of {progress.totalPages}
+            </p>
+          )}
           <p className="text-xs">Progress: {progress.percentage.toFixed(0)}%</p>
         </div>
       );
@@ -235,6 +242,13 @@ export function FileStatusBadge({
                   progress.totalChunks > 0 && (
                     <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
                       {progress.currentChunk || 0}/{progress.totalChunks}
+                    </span>
+                  )}
+                {progress.stage === "extracting" &&
+                  progress.totalPages &&
+                  progress.totalPages > 0 && (
+                    <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap">
+                      Page {progress.currentPage || 0}/{progress.totalPages}
                     </span>
                   )}
                 <span className="text-xs font-medium text-foreground tabular-nums min-w-[35px] text-right">

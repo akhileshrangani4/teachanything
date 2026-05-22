@@ -45,14 +45,18 @@ describe("SUPPORTED_FILE_TYPES", () => {
     expect(SUPPORTED_FILE_TYPES).toContain(
       "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     );
+    expect(SUPPORTED_FILE_TYPES).toContain("image/jpeg");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/png");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/webp");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/tiff");
     expect(SUPPORTED_FILE_TYPES).toContain("text/plain");
     expect(SUPPORTED_FILE_TYPES).toContain("text/markdown");
     expect(SUPPORTED_FILE_TYPES).toContain("application/json");
     expect(SUPPORTED_FILE_TYPES).toContain("text/csv");
   });
 
-  it("has exactly 8 supported types", () => {
-    expect(SUPPORTED_FILE_TYPES).toHaveLength(8);
+  it("has exactly 12 supported types", () => {
+    expect(SUPPORTED_FILE_TYPES).toHaveLength(12);
   });
 });
 
@@ -87,6 +91,15 @@ describe("EXTENSION_MIME_MAP", () => {
   it("maps csv to text/csv", () => {
     expect(EXTENSION_MIME_MAP["csv"]).toEqual(["text/csv"]);
   });
+
+  it("maps supported image extensions to image MIME types", () => {
+    expect(EXTENSION_MIME_MAP["jpg"]).toEqual(["image/jpeg"]);
+    expect(EXTENSION_MIME_MAP["jpeg"]).toEqual(["image/jpeg"]);
+    expect(EXTENSION_MIME_MAP["png"]).toEqual(["image/png"]);
+    expect(EXTENSION_MIME_MAP["webp"]).toEqual(["image/webp"]);
+    expect(EXTENSION_MIME_MAP["tiff"]).toEqual(["image/tiff"]);
+    expect(EXTENSION_MIME_MAP["tif"]).toEqual(["image/tiff"]);
+  });
 });
 
 describe("FILE_TYPE_DISPLAY_NAMES", () => {
@@ -102,6 +115,10 @@ describe("FILE_TYPE_DISPLAY_NAMES", () => {
     expect(FILE_TYPE_DISPLAY_NAMES["text/markdown"]).toBe("Markdown");
     expect(FILE_TYPE_DISPLAY_NAMES["application/json"]).toBe("JSON");
     expect(FILE_TYPE_DISPLAY_NAMES["text/csv"]).toBe("CSV");
+    expect(FILE_TYPE_DISPLAY_NAMES["image/jpeg"]).toBe("JPEG image");
+    expect(FILE_TYPE_DISPLAY_NAMES["image/png"]).toBe("PNG image");
+    expect(FILE_TYPE_DISPLAY_NAMES["image/webp"]).toBe("WEBP image");
+    expect(FILE_TYPE_DISPLAY_NAMES["image/tiff"]).toBe("TIFF image");
   });
 });
 
@@ -298,6 +315,12 @@ describe("validateFileSize", () => {
       const maxBytes = 50 * 1024 * 1024 - 1;
       expect(() => validateFileSize(maxBytes)).not.toThrow();
     });
+
+    it("accepts an OCR image at exactly the OCR size limit", () => {
+      expect(() =>
+        validateFileSize(25 * 1024 * 1024, "image/png"),
+      ).not.toThrow();
+    });
   });
 
   describe("invalid file sizes", () => {
@@ -337,6 +360,20 @@ describe("validateFileSize", () => {
         expect(trpcError.message).toContain("60.00MB");
       }
     });
+
+    it("rejects images exceeding the OCR size limit before upload", () => {
+      expectTRPCError(
+        () => validateFileSize(25 * 1024 * 1024 + 1, "image/jpeg"),
+        "BAD_REQUEST",
+        "OCR processing limit",
+      );
+    });
+
+    it("does not apply the OCR size limit to non-image files", () => {
+      expect(() =>
+        validateFileSize(30 * 1024 * 1024, "application/pdf"),
+      ).not.toThrow();
+    });
   });
 });
 
@@ -373,12 +410,19 @@ describe("validateFileType", () => {
     it("accepts text/csv", () => {
       expect(() => validateFileType("text/csv")).not.toThrow();
     });
+
+    it("accepts supported image MIME types", () => {
+      expect(() => validateFileType("image/jpeg")).not.toThrow();
+      expect(() => validateFileType("image/png")).not.toThrow();
+      expect(() => validateFileType("image/webp")).not.toThrow();
+      expect(() => validateFileType("image/tiff")).not.toThrow();
+    });
   });
 
   describe("unsupported types", () => {
-    it("rejects image/png", () => {
+    it("rejects unsupported image formats gracefully", () => {
       expectTRPCError(
-        () => validateFileType("image/png"),
+        () => validateFileType("image/gif"),
         "BAD_REQUEST",
         "Unsupported file type",
       );
@@ -418,18 +462,18 @@ describe("validateFileType", () => {
 
     it("includes display name for known unsupported types in error", () => {
       try {
-        validateFileType("image/png");
+        validateFileType("image/gif");
         throw new Error("Expected to throw");
       } catch (error) {
         const trpcError = error as TRPCError;
-        // image/png is not in FILE_TYPE_DISPLAY_NAMES, so the raw type is used
-        expect(trpcError.message).toContain("image/png");
+        // image/gif is not in FILE_TYPE_DISPLAY_NAMES, so the raw type is used
+        expect(trpcError.message).toContain("image/gif");
       }
     });
 
     it("lists supported types in error message", () => {
       try {
-        validateFileType("image/png");
+        validateFileType("image/gif");
         throw new Error("Expected to throw");
       } catch (error) {
         const trpcError = error as TRPCError;
@@ -439,6 +483,7 @@ describe("validateFileType", () => {
         expect(trpcError.message).toContain("Markdown");
         expect(trpcError.message).toContain("JSON");
         expect(trpcError.message).toContain("CSV");
+        expect(trpcError.message).toContain("Images");
       }
     });
   });
@@ -494,6 +539,27 @@ describe("validateExtensionMatchesMimeType", () => {
     it("accepts .csv with text/csv", () => {
       expect(() =>
         validateExtensionMatchesMimeType("data.csv", "text/csv"),
+      ).not.toThrow();
+    });
+
+    it("accepts supported image extensions with matching MIME types", () => {
+      expect(() =>
+        validateExtensionMatchesMimeType("photo.jpg", "image/jpeg"),
+      ).not.toThrow();
+      expect(() =>
+        validateExtensionMatchesMimeType("photo.jpeg", "image/jpeg"),
+      ).not.toThrow();
+      expect(() =>
+        validateExtensionMatchesMimeType("diagram.png", "image/png"),
+      ).not.toThrow();
+      expect(() =>
+        validateExtensionMatchesMimeType("scan.webp", "image/webp"),
+      ).not.toThrow();
+      expect(() =>
+        validateExtensionMatchesMimeType("scan.tiff", "image/tiff"),
+      ).not.toThrow();
+      expect(() =>
+        validateExtensionMatchesMimeType("scan.tif", "image/tiff"),
       ).not.toThrow();
     });
   });
@@ -553,6 +619,14 @@ describe("validateExtensionMatchesMimeType", () => {
       );
     });
 
+    it("rejects supported image extensions with mismatched MIME types", () => {
+      expectTRPCError(
+        () => validateExtensionMatchesMimeType("photo.png", "image/jpeg"),
+        "BAD_REQUEST",
+        "does not match",
+      );
+    });
+
     it("includes extension and display name in error message", () => {
       try {
         validateExtensionMatchesMimeType("document.pdf", "text/plain");
@@ -566,18 +640,22 @@ describe("validateExtensionMatchesMimeType", () => {
   });
 
   describe("unknown extensions", () => {
-    it("does not throw for unknown extension with any MIME type", () => {
-      // Unknown extension means validMimeTypes is undefined, so the check is skipped
-      expect(() =>
-        validateExtensionMatchesMimeType("document.xyz", "application/pdf"),
-      ).not.toThrow();
+    it("rejects unknown extensions", () => {
+      expectTRPCError(
+        () =>
+          validateExtensionMatchesMimeType("document.xyz", "application/pdf"),
+        "BAD_REQUEST",
+        "not supported",
+      );
     });
 
-    it("does not throw for file without extension", () => {
-      // lastIndexOf(".") + 1 gets the full filename as "extension", which is unknown
-      expect(() =>
-        validateExtensionMatchesMimeType("noextension", "application/pdf"),
-      ).not.toThrow();
+    it("rejects files without extensions", () => {
+      expectTRPCError(
+        () =>
+          validateExtensionMatchesMimeType("noextension", "application/pdf"),
+        "BAD_REQUEST",
+        "not supported",
+      );
     });
   });
 
