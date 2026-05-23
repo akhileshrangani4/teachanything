@@ -3,7 +3,7 @@
  *
  * Verifies the split env-validation paths introduced in email.ts:
  *   - requireContactEnv  — used by subscribe + list (needs AUDIENCE_ID only)
- *   - requireBroadcastEnv — used by sendBroadcast  (needs AUDIENCE_ID + FROM_EMAIL)
+ *   - requireBroadcastEnv — used by sendBroadcast  (needs SEGMENT_ID + FROM_EMAIL)
  *
  * This file mocks RESEND_FROM_EMAIL as absent so we can confirm that:
  *   • subscribeToNewsletter succeeds (does NOT require FROM_EMAIL)
@@ -34,6 +34,7 @@ jest.unstable_mockModule("@/lib/env", () => ({
   env: {
     RESEND_API_KEY: "re_test_key",
     RESEND_AUDIENCE_ID: "aud-test-123",
+    RESEND_BROADCAST_SEGMENT_ID: "seg-test-456",
     // RESEND_FROM_EMAIL is intentionally absent to test the split
     NEXT_PUBLIC_CONTACT_EMAIL: "support@example.com",
     ADMIN_EMAILS: "admin@example.com",

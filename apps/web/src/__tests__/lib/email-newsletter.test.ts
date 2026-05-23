@@ -32,6 +32,7 @@ jest.unstable_mockModule("@/lib/env", () => ({
   env: {
     RESEND_API_KEY: "re_test_key",
     RESEND_AUDIENCE_ID: "aud-test-123",
+    RESEND_BROADCAST_SEGMENT_ID: "seg-test-456",
     RESEND_FROM_EMAIL: "newsletter@example.com",
     NEXT_PUBLIC_CONTACT_EMAIL: "support@example.com",
     ADMIN_EMAILS: "admin@example.com",
@@ -257,7 +258,7 @@ describe("sendNewsletterBroadcast", () => {
     const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
 
-    expect(body.segment_id).toBe("aud-test-123");
+    expect(body.segment_id).toBe("seg-test-456");
     expect(body.send).toBe(true);
     expect(body.subject).toBe("Test Subject");
     expect(typeof body.from).toBe("string");

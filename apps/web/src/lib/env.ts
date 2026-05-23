@@ -28,6 +28,7 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: z.string().email().optional(),
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
   RESEND_AUDIENCE_ID: z.string().min(1).optional(),
+  RESEND_BROADCAST_SEGMENT_ID: z.string().min(1).optional(),
 
   // Upstash Redis (optional — rate limiting disabled without these)
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),

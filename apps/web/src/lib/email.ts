@@ -381,12 +381,17 @@ function requireContactEnv(): { audienceId: string } {
   return { audienceId: env.RESEND_AUDIENCE_ID };
 }
 
-function requireBroadcastEnv(): { audienceId: string; fromEmail: string } {
-  const { audienceId } = requireContactEnv();
+function requireBroadcastEnv(): { segmentId: string; fromEmail: string } {
   if (!env.RESEND_FROM_EMAIL) {
     throw new Error("RESEND_FROM_EMAIL is not configured");
   }
-  return { audienceId, fromEmail: env.RESEND_FROM_EMAIL };
+  if (!env.RESEND_BROADCAST_SEGMENT_ID) {
+    throw new Error("RESEND_BROADCAST_SEGMENT_ID is not configured");
+  }
+  return {
+    segmentId: env.RESEND_BROADCAST_SEGMENT_ID,
+    fromEmail: env.RESEND_FROM_EMAIL,
+  };
 }
 
 export async function subscribeToNewsletter(params: {
@@ -463,7 +468,7 @@ export async function sendNewsletterBroadcast(params: {
   subject: string;
   body: string;
 }): Promise<{ broadcastId: string }> {
-  const { audienceId, fromEmail } = requireBroadcastEnv();
+  const { segmentId, fromEmail } = requireBroadcastEnv();
 
   if (!env.RESEND_API_KEY) {
     throw new Error("RESEND_API_KEY is not configured");
@@ -482,7 +487,7 @@ export async function sendNewsletterBroadcast(params: {
   // Logged on every failure so the terminal always has context
   const debugCtx = {
     hasApiKey: true,
-    hasAudienceId: !!env.RESEND_AUDIENCE_ID,
+    hasBroadcastSegmentId: !!env.RESEND_BROADCAST_SEGMENT_ID,
     fromEmail,
     subjectLength: params.subject.length,
     bodyLength: params.body.length,
@@ -490,7 +495,7 @@ export async function sendNewsletterBroadcast(params: {
   };
 
   const requestBody: ResendBroadcastRequest = {
-    segment_id: audienceId,
+    segment_id: segmentId,
     from: `Teach Anything™ <${fromEmail}>`,
     subject: params.subject,
     name: params.subject,
