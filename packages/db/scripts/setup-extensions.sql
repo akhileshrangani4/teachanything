@@ -19,3 +19,7 @@
 -- This is required for the RAG (Retrieval Augmented Generation) functionality
 -- to store and query embeddings in the file_chunks table
 CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Enable pg_trgm extension for trigram indexes used by text search
+-- This is required for the messages.content gin_trgm_ops index
+CREATE EXTENSION IF NOT EXISTS pg_trgm;

@@ -11,6 +11,9 @@ import { AccountDisabled } from "@/components/emails/AccountDisabled";
 import { AccountEnabled } from "@/components/emails/AccountEnabled";
 import { AccountDeleted } from "@/components/emails/AccountDeleted";
 import { PasswordReset } from "@/components/emails/PasswordReset";
+import { RequestMoreInfo } from "@/components/emails/RequestMoreInfo";
+import { IncorrectInfo } from "@/components/emails/IncorrectInfo";
+import { GenericAdminMessage } from "@/components/emails/GenericAdminMessage";
 import { db } from "@teachanything/db";
 import {
   user,
@@ -216,6 +219,72 @@ export async function sendRejectionEmail(params: {
       userName: params.name,
       supportEmail,
     }),
+    replyTo: supportEmail,
+  });
+}
+
+/**
+ * Send request-more-info email to user.
+ */
+export async function sendRequestMoreInfoEmail(params: {
+  email: string;
+  name: string;
+}) {
+  const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
+
+  return queueEmail({
+    emailType: "request_more_info",
+    to: params.email,
+    subject: "Additional information required for your registration",
+    reactComponent: RequestMoreInfo({
+      userName: params.name,
+      loginUrl,
+      supportEmail,
+    }),
+    replyTo: supportEmail,
+  });
+}
+
+/**
+ * Send incorrect-info email to user.
+ */
+export async function sendIncorrectInfoEmail(params: {
+  email: string;
+  name: string;
+}) {
+  const loginUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
+
+  return queueEmail({
+    emailType: "incorrect_info",
+    to: params.email,
+    subject: "Please review your registration details",
+    reactComponent: IncorrectInfo({
+      userName: params.name,
+      loginUrl,
+      supportEmail,
+    }),
+    replyTo: supportEmail,
+  });
+}
+
+/**
+ * Send a generic admin message email to user.
+ */
+export async function sendGenericAdminEmail(params: {
+  email: string;
+  name: string;
+  customMessage: string;
+}) {
+  return queueEmail({
+    emailType: "generic_admin_message",
+    to: params.email,
+    subject: "Message from Teach Anything administrator",
+    reactComponent: GenericAdminMessage({
+      userName: params.name,
+      customMessage: params.customMessage,
+      supportEmail,
+    }),
+    replyTo: supportEmail,
   });
 }
 
