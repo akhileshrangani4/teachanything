@@ -2,6 +2,9 @@ import "@testing-library/jest-dom";
 import { jest } from "@jest/globals";
 import { TextEncoder, TextDecoder } from "util";
 
+// Suppress noisy environment warnings during tests
+jest.spyOn(console, "warn").mockImplementation(() => {});
+
 // Polyfill TextEncoder/TextDecoder for jsdom (needed by @react-email/render)
 if (typeof globalThis.TextDecoder === "undefined") {
   Object.assign(globalThis, { TextEncoder, TextDecoder });
