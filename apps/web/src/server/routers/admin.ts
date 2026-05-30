@@ -6,9 +6,8 @@ import {
   chatbots,
   conversations,
   chatbotFileAssociations,
-  emailDeliveries,
 } from "@teachanything/db/schema";
-import { eq, sql, desc, asc, ilike, or, and, gte } from "drizzle-orm";
+import { eq, sql, desc, asc, ilike, or, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern } from "@/server/utils";
 import {
@@ -22,12 +21,13 @@ import {
   sendDemoteFromAdminEmail,
   sendAccountDisabledEmail,
   sendAccountEnabledEmail,
-  sendRequestMoreInfoEmail,
-  sendIncorrectInfoEmail,
-  sendGenericAdminEmail,
 } from "@/lib/email";
 import { deleteUserAccount } from "@/server/services/user-deletion";
 import { validateDomainForAllowlist } from "@/lib/domain-validation";
+import {
+  sendRegistrationEmail as sendRegistrationEmailHandler,
+  sendRegistrationEmailInputSchema,
+} from "@/server/routers/admin-send-registration-email";
 
 export const adminRouter = router({
   /**
@@ -114,87 +114,9 @@ export const adminRouter = router({
    * Send a templated registration email to a pending user.
    */
   sendRegistrationEmail: adminProcedure
-    .input(
-      z
-        .object({
-          userId: z.string().min(1),
-          templateId: z.enum([
-            "request_more_info",
-            "incorrect_info",
-            "generic_admin_message",
-          ]),
-          customMessage: z.string().max(1000).optional(),
-        })
-        .refine(
-          (data) =>
-            data.templateId !== "generic_admin_message" ||
-            !!data.customMessage?.trim(),
-          {
-            message: "Custom message is required for generic admin email",
-            path: ["customMessage"],
-          },
-        ),
-    )
+    .input(sendRegistrationEmailInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const [foundUser] = await ctx.db
-        .select({ email: user.email, name: user.name })
-        .from(user)
-        .where(eq(user.id, input.userId))
-        .limit(1);
-
-      if (!foundUser || !foundUser.email) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
-      }
-
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const [countResult] = await ctx.db
-        .select({ count: sql<number>`count(*)` })
-        .from(emailDeliveries)
-        .where(
-          and(
-            eq(emailDeliveries.recipientEmail, foundUser.email),
-            gte(emailDeliveries.createdAt, since),
-            or(
-              eq(emailDeliveries.emailType, "request_more_info"),
-              eq(emailDeliveries.emailType, "incorrect_info"),
-              eq(emailDeliveries.emailType, "generic_admin_message"),
-            ),
-          ),
-        );
-
-      const sentCount = Number(countResult?.count ?? 0);
-      if (sentCount >= 5) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message:
-            "You can send at most 5 registration emails to this user per day.",
-        });
-      }
-
-      const name = foundUser.name?.trim() || "User";
-      switch (input.templateId) {
-        case "request_more_info":
-          await sendRequestMoreInfoEmail({
-            email: foundUser.email,
-            name,
-          });
-          break;
-        case "incorrect_info":
-          await sendIncorrectInfoEmail({
-            email: foundUser.email,
-            name,
-          });
-          break;
-        case "generic_admin_message":
-          await sendGenericAdminEmail({
-            email: foundUser.email,
-            name,
-            customMessage: input.customMessage!.trim(),
-          });
-          break;
-      }
-
-      return { success: true };
+      return sendRegistrationEmailHandler(ctx, input);
     }),
 
   /**

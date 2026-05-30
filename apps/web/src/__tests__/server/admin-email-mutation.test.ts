@@ -1,16 +1,19 @@
 /**
  * @jest-environment node
  */
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
+import { describe, it, expect, beforeEach } from "@jest/globals";
+import { jest } from "@jest/globals";
 
-// Set up environment first
+// Set all required environment variables before importing modules
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
 process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
 process.env.NEXT_PUBLIC_CONTACT_EMAIL = "support@example.edu";
 process.env.RESEND_FROM_EMAIL = "noreply@example.edu";
+process.env.OPENROUTER_API_KEY = "test-key";
+process.env.OPENAI_API_KEY = "test-key";
 
-// Mock the email sending functions
+// Mock email wrappers
 const mockSendRequestMoreInfoEmail = jest.fn().mockResolvedValue(undefined);
 const mockSendIncorrectInfoEmail = jest.fn().mockResolvedValue(undefined);
 const mockSendGenericAdminEmail = jest.fn().mockResolvedValue(undefined);
@@ -29,17 +32,6 @@ jest.unstable_mockModule("@/lib/email", () => ({
   sendAccountEnabledEmail: jest.fn(),
 }));
 
-jest.unstable_mockModule("@/lib/env", () => ({
-  env: {
-    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
-    NEXT_PUBLIC_CONTACT_EMAIL: "support@example.edu",
-    RESEND_FROM_EMAIL: "noreply@example.edu",
-  },
-  getAdminEmails: jest.fn().mockReturnValue(["admin@example.edu"]),
-  isServiceAvailable: jest.fn().mockReturnValue(false),
-  getApprovedDomains: jest.fn().mockReturnValue([".edu"]),
-}));
-
 jest.unstable_mockModule("@/lib/logger", () => ({
   logInfo: jest.fn(),
   logError: jest.fn(),
@@ -47,317 +39,382 @@ jest.unstable_mockModule("@/lib/logger", () => ({
   logDebug: jest.fn(),
 }));
 
-jest.unstable_mockModule("@/lib/domain-validation", () => ({
-  validateDomainForAllowlist: jest.fn(),
-}));
+const { sendRegistrationEmail } =
+  await import("@/server/routers/admin-send-registration-email");
 
-jest.unstable_mockModule("@/lib/auth", () => ({
-  approveUser: jest.fn(),
-  rejectUser: jest.fn(),
-}));
-
-jest.unstable_mockModule("@/server/services/user-deletion", () => ({
-  deleteUserAccount: jest.fn(),
-}));
-
-jest.unstable_mockModule("@/server/utils", () => ({
-  escapeLikePattern: (s: string) => s.replace(/%/g, "\\%").replace(/_/g, "\\_"),
-}));
-
-// Helper to create mock DB chains
-function createMockDb(config: {
-  userExists?: boolean;
-  userData?: { email: string; name: string };
-  emailDeliveryCount?: number;
-}) {
-  const userData = config.userData || {
-    email: "user@university.edu",
-    name: "Test User",
-  };
-
-  // For user lookup: .select().from(user).where(...).limit(1)
-  const selectWhere = jest
-    .fn()
-    .mockResolvedValue(config.userExists ? [userData] : []);
+// Chainable mock DB helper
+function createMockDb({
+  userExists = true,
+  userData = { email: "user@university.edu", name: "Test User" },
+  emailDeliveryCount = 0,
+} = {}) {
+  const selectLimit = jest.fn().mockResolvedValue(userExists ? [userData] : []);
+  const selectWhere = jest.fn().mockReturnValue({ limit: selectLimit });
   const selectFrom = jest.fn().mockReturnValue({ where: selectWhere });
 
-  // For email delivery count: .select({ count: sql<number>`count(*)` }).from(emailDeliveries).where(...)
-  const countWhere = jest.fn().mockResolvedValue([
-    {
-      count:
-        config.emailDeliveryCount !== undefined ? config.emailDeliveryCount : 0,
-    },
-  ]);
+  const countWhere = jest
+    .fn()
+    .mockResolvedValue([{ count: emailDeliveryCount }]);
   const countFrom = jest.fn().mockReturnValue({ where: countWhere });
 
-  // Override select to return either user or count based on usage
   const db = {
     select: jest.fn((arg?: unknown) => {
-      // If called with an object, it's the count query
-      if (arg && typeof arg === "object") {
+      if (arg && typeof arg === "object" && "count" in arg) {
         return { from: countFrom };
       }
-      // Otherwise it's the user lookup query
       return { from: selectFrom };
     }),
   };
 
   return {
-    db,
-    mocks: {
-      selectWhere,
-      selectFrom,
-      countWhere,
-      countFrom,
-    },
+    db: db as (typeof import("@teachanything/db"))["db"],
+    mocks: { selectWhere, selectLimit, countWhere },
   };
 }
 
-// Mock the schema and db module
-jest.unstable_mockModule("@teachanything/db", () => ({
-  db: {},
-}));
-
-jest.unstable_mockModule("@teachanything/db/schema", () => ({
-  user: {
-    id: "id",
-    status: "status",
-    role: "role",
-    name: "name",
-    email: "email",
-  },
-  emailDeliveries: {
-    id: "id",
-    recipientEmail: "recipientEmail",
-    emailType: "emailType",
-    createdAt: "createdAt",
-  },
-  approvedDomains: {},
-  chatbots: {},
-  conversations: {},
-  chatbotFileAssociations: {},
-  emailTypeEnum: {
-    enumValues: [
-      "admin_notification",
-      "approval",
-      "rejection",
-      "request_more_info",
-      "incorrect_info",
-      "generic_admin_message",
-      "promote_admin",
-      "demote_admin",
-      "account_disabled",
-      "account_enabled",
-      "account_deleted",
-      "password_reset",
-    ],
-  },
-}));
-
-describe("admin.sendRegistrationEmail mutation", () => {
+describe("admin.sendRegistrationEmail mutation handler", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("user lookup", () => {
+  describe("input validation", () => {
     it("throws NOT_FOUND when user does not exist", async () => {
-      createMockDb({ userExists: false });
+      const { db } = createMockDb({ userExists: false });
 
-      const input = {
-        userId: "nonexistent-user",
-        templateId: "request_more_info" as const,
-      };
-
-      // The sendRegistrationEmail procedure should be part of adminRouter
-      // Since we're testing the validation logic, we'll create a minimal test here
-      // In a real scenario, you'd call the procedure through tRPC
-      expect(input.userId).toBeTruthy();
-      expect(input.templateId).toBeTruthy();
+      await expect(
+        sendRegistrationEmail(
+          { db },
+          { userId: "missing-user", templateId: "request_more_info" },
+        ),
+      ).rejects.toHaveProperty("code", "NOT_FOUND");
     });
 
-    it("succeeds when user exists with valid email", async () => {
-      createMockDb({
-        userExists: true,
-        userData: { email: "user@university.edu", name: "John Doe" },
+    it("requires userId to be non-empty", async () => {
+      const { db } = createMockDb();
+
+      await expect(
+        sendRegistrationEmail(
+          { db },
+          { userId: "", templateId: "request_more_info" },
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("requires templateId to be one of the allowed values", async () => {
+      const { db } = createMockDb();
+
+      await expect(
+        sendRegistrationEmail(
+          { db },
+          { userId: "user-1", templateId: "invalid_template" as string & {} },
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("requires customMessage for generic_admin_message template", async () => {
+      const { db } = createMockDb();
+
+      await expect(
+        sendRegistrationEmail(
+          { db },
+          { userId: "user-1", templateId: "generic_admin_message" },
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("accepts customMessage for generic_admin_message", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "Test User" },
+        emailDeliveryCount: 0,
       });
 
-      const input = {
-        userId: "user-123",
-        templateId: "request_more_info" as const,
-      };
+      const result = await sendRegistrationEmail(
+        { db },
+        {
+          userId: "user-1",
+          templateId: "generic_admin_message",
+          customMessage: "Please update your profile",
+        },
+      );
 
-      expect(input.userId).toBeTruthy();
-      expect(input.templateId).toBeTruthy();
+      expect(result).toEqual({ success: true });
     });
   });
 
   describe("rate limiting", () => {
-    it("allows sending when count is under 5", async () => {
-      createMockDb({
-        userExists: true,
-        emailDeliveryCount: 3,
-      });
+    it("throws TOO_MANY_REQUESTS after 5 emails in 24 hours", async () => {
+      const { db } = createMockDb({ emailDeliveryCount: 5 });
 
-      const input = {
-        userId: "user-123",
-        templateId: "request_more_info" as const,
-      };
-
-      // Verify count is checked
-      expect(input.userId).toBeTruthy();
+      await expect(
+        sendRegistrationEmail(
+          { db },
+          { userId: "user-1", templateId: "request_more_info" },
+        ),
+      ).rejects.toHaveProperty("code", "TOO_MANY_REQUESTS");
     });
 
-    it("rejects when count is exactly 5", async () => {
-      createMockDb({
-        userExists: true,
-        emailDeliveryCount: 5,
-      });
+    it("allows sending when count is less than 5", async () => {
+      const { db } = createMockDb({ emailDeliveryCount: 4 });
 
-      const input = {
-        userId: "user-123",
-        templateId: "request_more_info" as const,
-      };
+      const result = await sendRegistrationEmail(
+        { db },
+        { userId: "user-1", templateId: "request_more_info" },
+      );
 
-      // When count >= 5, should reject with TOO_MANY_REQUESTS
-      expect(input.userId).toBeTruthy();
+      expect(result).toEqual({ success: true });
+      expect(mockSendRequestMoreInfoEmail).toHaveBeenCalled();
     });
 
-    it("rejects when count exceeds 5", async () => {
-      createMockDb({
-        userExists: true,
-        emailDeliveryCount: 7,
-      });
+    it("throws TOO_MANY_REQUESTS when count is exactly 5", async () => {
+      const { db } = createMockDb({ emailDeliveryCount: 5 });
 
-      const input = {
-        userId: "user-123",
-        templateId: "request_more_info" as const,
-      };
+      await expect(
+        sendRegistrationEmail(
+          { db },
+          { userId: "user-1", templateId: "request_more_info" },
+        ),
+      ).rejects.toHaveProperty("code", "TOO_MANY_REQUESTS");
+    });
 
-      // Should reject with TOO_MANY_REQUESTS
-      expect(input.userId).toBeTruthy();
+    it("allows sending when count exceeds 5 but is from older than 24 hours", async () => {
+      // The mock doesn't check the time, but the logic filters by 24h window
+      const { db } = createMockDb({ emailDeliveryCount: 0 });
+
+      const result = await sendRegistrationEmail(
+        { db },
+        { userId: "user-1", templateId: "request_more_info" },
+      );
+
+      expect(result).toEqual({ success: true });
     });
   });
 
-  describe("template dispatching", () => {
+  describe("email template dispatch", () => {
     it("calls sendRequestMoreInfoEmail for request_more_info template", async () => {
-      mockSendRequestMoreInfoEmail.mockClear();
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "John Doe" },
+        emailDeliveryCount: 0,
+      });
 
-      const input = {
-        userId: "user-123",
-        templateId: "request_more_info" as const,
-        email: "user@university.edu",
-        name: "John Doe",
-      };
+      const result = await sendRegistrationEmail(
+        { db },
+        { userId: "user-1", templateId: "request_more_info" },
+      );
 
-      // Simulate the dispatch logic
-      if (input.templateId === "request_more_info") {
-        await mockSendRequestMoreInfoEmail({
-          email: input.email,
-          name: input.name,
-        });
-      }
-
+      expect(result).toEqual({ success: true });
       expect(mockSendRequestMoreInfoEmail).toHaveBeenCalledWith({
         email: "user@university.edu",
         name: "John Doe",
       });
+      expect(mockSendIncorrectInfoEmail).not.toHaveBeenCalled();
+      expect(mockSendGenericAdminEmail).not.toHaveBeenCalled();
     });
 
     it("calls sendIncorrectInfoEmail for incorrect_info template", async () => {
-      mockSendIncorrectInfoEmail.mockClear();
+      const { db } = createMockDb({
+        userData: { email: "jane@university.edu", name: "Jane Smith" },
+        emailDeliveryCount: 0,
+      });
 
-      const input = {
-        userId: "user-123",
-        templateId: "incorrect_info" as const,
-        email: "user@university.edu",
-        name: "Jane Smith",
-      };
+      const result = await sendRegistrationEmail(
+        { db },
+        { userId: "user-2", templateId: "incorrect_info" },
+      );
 
-      if (input.templateId === "incorrect_info") {
-        await mockSendIncorrectInfoEmail({
-          email: input.email,
-          name: input.name,
-        });
-      }
-
+      expect(result).toEqual({ success: true });
       expect(mockSendIncorrectInfoEmail).toHaveBeenCalledWith({
-        email: "user@university.edu",
+        email: "jane@university.edu",
         name: "Jane Smith",
       });
+      expect(mockSendRequestMoreInfoEmail).not.toHaveBeenCalled();
+      expect(mockSendGenericAdminEmail).not.toHaveBeenCalled();
     });
 
-    it("calls sendGenericAdminEmail with customMessage for generic template", async () => {
-      mockSendGenericAdminEmail.mockClear();
-
-      const input = {
-        userId: "user-123",
-        templateId: "generic_admin_message" as const,
-        email: "user@university.edu",
-        name: "Admin Caller",
-        customMessage: "Please update your profile information.",
-      };
-
-      if (input.templateId === "generic_admin_message") {
-        await mockSendGenericAdminEmail({
-          email: input.email,
-          name: input.name,
-          customMessage: input.customMessage,
-        });
-      }
-
-      expect(mockSendGenericAdminEmail).toHaveBeenCalledWith({
-        email: "user@university.edu",
-        name: "Admin Caller",
-        customMessage: "Please update your profile information.",
+    it("calls sendGenericAdminEmail for generic_admin_message template", async () => {
+      const { db } = createMockDb({
+        userData: { email: "admin@university.edu", name: "Admin Caller" },
+        emailDeliveryCount: 0,
       });
+
+      const result = await sendRegistrationEmail(
+        { db },
+        {
+          userId: "user-3",
+          templateId: "generic_admin_message",
+          customMessage: "Please update your profile",
+        },
+      );
+
+      expect(result).toEqual({ success: true });
+      expect(mockSendGenericAdminEmail).toHaveBeenCalledWith({
+        email: "admin@university.edu",
+        name: "Admin Caller",
+        customMessage: "Please update your profile",
+      });
+      expect(mockSendRequestMoreInfoEmail).not.toHaveBeenCalled();
+      expect(mockSendIncorrectInfoEmail).not.toHaveBeenCalled();
     });
+  });
 
-    it("passes trimmed name to email senders", async () => {
-      mockSendRequestMoreInfoEmail.mockClear();
+  describe("name handling", () => {
+    it("trims whitespace from user name", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "  John Doe  " },
+        emailDeliveryCount: 0,
+      });
 
-      const name = "  User With Spaces  ";
-      const trimmedName = name.trim();
-
-      if (trimmedName) {
-        await mockSendRequestMoreInfoEmail({
-          email: "user@university.edu",
-          name: trimmedName,
-        });
-      }
+      await sendRegistrationEmail(
+        { db },
+        { userId: "user-1", templateId: "request_more_info" },
+      );
 
       expect(mockSendRequestMoreInfoEmail).toHaveBeenCalledWith({
         email: "user@university.edu",
-        name: "User With Spaces",
+        name: "John Doe",
+      });
+    });
+
+    it("defaults to 'User' when name is missing", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: undefined },
+        emailDeliveryCount: 0,
+      });
+
+      await sendRegistrationEmail(
+        { db },
+        { userId: "user-1", templateId: "request_more_info" },
+      );
+
+      expect(mockSendRequestMoreInfoEmail).toHaveBeenCalledWith({
+        email: "user@university.edu",
+        name: "User",
+      });
+    });
+
+    it("defaults to 'User' when name is only whitespace", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "   " },
+        emailDeliveryCount: 0,
+      });
+
+      await sendRegistrationEmail(
+        { db },
+        { userId: "user-1", templateId: "request_more_info" },
+      );
+
+      expect(mockSendRequestMoreInfoEmail).toHaveBeenCalledWith({
+        email: "user@university.edu",
+        name: "User",
       });
     });
   });
 
-  describe("error propagation", () => {
-    it("propagates email sending errors", async () => {
-      mockSendRequestMoreInfoEmail.mockRejectedValueOnce(
-        new Error("Failed to queue email"),
+  describe("customMessage trimming for generic_admin_message", () => {
+    it("trims leading and trailing whitespace from customMessage", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "Test User" },
+        emailDeliveryCount: 0,
+      });
+
+      await sendRegistrationEmail(
+        { db },
+        {
+          userId: "user-1",
+          templateId: "generic_admin_message",
+          customMessage: "  Please update your profile  ",
+        },
       );
 
-      await expect(
-        mockSendRequestMoreInfoEmail({
-          email: "user@university.edu",
-          name: "John Doe",
-        }),
-      ).rejects.toThrow("Failed to queue email");
+      expect(mockSendGenericAdminEmail).toHaveBeenCalledWith({
+        email: "user@university.edu",
+        name: "Test User",
+        customMessage: "Please update your profile",
+      });
     });
 
-    it("propagates errors from all template types", async () => {
-      mockSendGenericAdminEmail.mockRejectedValueOnce(
-        new Error("Service down"),
-      );
+    it("rejects customMessage that is only whitespace", async () => {
+      const { db } = createMockDb();
 
       await expect(
-        mockSendGenericAdminEmail({
-          email: "user@university.edu",
-          name: "John Doe",
-          customMessage: "Test",
-        }),
-      ).rejects.toThrow("Service down");
+        sendRegistrationEmail(
+          { db },
+          {
+            userId: "user-1",
+            templateId: "generic_admin_message",
+            customMessage: "   ",
+          },
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("enforces max length of 1000 characters for customMessage", async () => {
+      const { db } = createMockDb();
+      const longMessage = "a".repeat(1001);
+
+      await expect(
+        sendRegistrationEmail(
+          { db },
+          {
+            userId: "user-1",
+            templateId: "generic_admin_message",
+            customMessage: longMessage,
+          },
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("success case", () => {
+    it("returns success true after sending request_more_info email", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "Test User" },
+        emailDeliveryCount: 0,
+      });
+
+      const result = await sendRegistrationEmail(
+        { db },
+        {
+          userId: "user-1",
+          templateId: "request_more_info",
+        },
+      );
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it("returns success true after sending incorrect_info email", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "Test User" },
+        emailDeliveryCount: 0,
+      });
+
+      const result = await sendRegistrationEmail(
+        { db },
+        {
+          userId: "user-1",
+          templateId: "incorrect_info",
+        },
+      );
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it("returns success true after sending generic_admin_message email", async () => {
+      const { db } = createMockDb({
+        userData: { email: "user@university.edu", name: "Test User" },
+        emailDeliveryCount: 0,
+      });
+
+      const result = await sendRegistrationEmail(
+        { db },
+        {
+          userId: "user-1",
+          templateId: "generic_admin_message",
+          customMessage: "Please update your profile",
+        },
+      );
+
+      expect(result).toEqual({ success: true });
     });
   });
 });

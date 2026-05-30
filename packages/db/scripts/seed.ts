@@ -175,11 +175,44 @@ async function seed() {
   const sql = postgres(databaseUrl!);
 
   try {
-    const existing =
+    const existingProfessor =
       await sql`SELECT id FROM "user" WHERE email = 'professor@demo.edu'`;
-    if (existing.length > 0) {
-      console.log("Demo data already exists, skipping seed.");
-      console.log("To re-seed, drop your database and run db:push + db:seed");
+    if (existingProfessor.length > 0) {
+      console.log(
+        "Demo data already exists; restoring the pending demo student if needed.\n",
+      );
+
+      await sql.begin(async (tx) => {
+        const [pendingUser] = await tx`
+          SELECT id, status FROM "user" WHERE email = 'student@demo.edu'`;
+
+        if (pendingUser) {
+          await tx`
+            UPDATE "user"
+            SET status = 'pending', updated_at = NOW()
+            WHERE id = ${pendingUser.id}`;
+
+          const existingAccount = await tx`
+            SELECT id FROM "account" WHERE user_id = ${pendingUser.id}`;
+          if (existingAccount.length === 0) {
+            await tx`
+              INSERT INTO "account" (id, user_id, account_id, provider_id, password, created_at, updated_at)
+              VALUES (gen_random_uuid()::text, ${pendingUser.id}, 'student@demo.edu', 'credential', ${demoPwHash}, NOW(), NOW())`;
+          }
+
+          console.log("  Restored student@demo.edu to pending approval\n");
+        } else {
+          const [pending] = await tx`
+            INSERT INTO "user" (id, email, name, email_verified, status, role, department, institutional_affiliation, created_at, updated_at)
+            VALUES (gen_random_uuid()::text, 'student@demo.edu', 'Alex Johnson', true, 'pending', 'user', 'Mathematics', 'Demo University', NOW(), NOW())
+            RETURNING id`;
+          await tx`
+            INSERT INTO "account" (id, user_id, account_id, provider_id, password, created_at, updated_at)
+            VALUES (gen_random_uuid()::text, ${pending!.id}, 'student@demo.edu', 'credential', ${demoPwHash}, NOW(), NOW())`;
+          console.log("  Pending: student@demo.edu / demo123\n");
+        }
+      });
+
       return;
     }
 
