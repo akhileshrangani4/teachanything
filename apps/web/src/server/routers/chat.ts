@@ -340,14 +340,24 @@ async function* processMessage(params: {
     },
   });
 
+  const ragSimilarityScore =
+    ragResult.sources.length > 0
+      ? Math.max(...ragResult.sources.map((source) => source.similarity))
+      : undefined;
+
   // Track analytics
   await database.insert(analytics).values({
     chatbotId: chatbot.id,
     eventType,
     eventData: {
+      sessionId,
       responseTime,
       messageLength: message.length,
+      responseLength: fullResponse.length,
       ragUsed: ragResult.ragUsed,
+      ragSimilarityScore,
+      sourcesCount: ragResult.sources.length,
+      question: message.slice(0, 500),
     },
     sessionId,
   });

@@ -1,0 +1,3 @@
+CREATE INDEX "analytics_chatbot_event_type_created_at_idx" ON "analytics" USING btree ("chatbot_id","event_type","created_at");--> statement-breakpoint
+CREATE INDEX "analytics_chatbot_event_type_session_id_idx" ON "analytics" USING btree ("chatbot_id","event_type","session_id");--> statement-breakpoint
+CREATE INDEX "analytics_chatbot_event_type_rag_used_idx" ON "analytics" USING btree ("chatbot_id","event_type",("event_data"->>'ragUsed'));

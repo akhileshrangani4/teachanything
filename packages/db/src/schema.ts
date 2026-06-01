@@ -350,24 +350,47 @@ export const messages = pgTable(
 );
 
 // Analytics table
-export const analytics = pgTable("analytics", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  eventType: text("event_type").notNull(), // 'session_start', 'message_sent', etc.
-  eventData: jsonb("event_data")
-    .$type<{
-      sessionId?: string;
-      messageLength?: number;
-      responseLength?: number;
-      responseTime?: number;
-      ragUsed?: boolean;
-    }>()
-    .default({}),
-  sessionId: text("session_id"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const analytics = pgTable(
+  "analytics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    eventType: text("event_type").notNull(), // 'session_start', 'message_sent', etc.
+    eventData: jsonb("event_data")
+      .$type<{
+        sessionId?: string;
+        messageLength?: number;
+        responseLength?: number;
+        responseTime?: number;
+        ragUsed?: boolean;
+        ragSimilarityScore?: number;
+        sourcesCount?: number;
+        question?: string;
+      }>()
+      .default({}),
+    sessionId: text("session_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("analytics_chatbot_event_type_created_at_idx").on(
+      table.chatbotId,
+      table.eventType,
+      table.createdAt,
+    ),
+    index("analytics_chatbot_event_type_session_id_idx").on(
+      table.chatbotId,
+      table.eventType,
+      table.sessionId,
+    ),
+    index("analytics_chatbot_event_type_rag_used_idx").on(
+      table.chatbotId,
+      table.eventType,
+      sql`(${table.eventData}->>'ragUsed')`,
+    ),
+  ],
+);
 
 // Email delivery tracking table
 export const emailDeliveries = pgTable(
