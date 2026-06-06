@@ -1,4 +1,9 @@
 import type { ChatMessage as MessageType } from "@/types/database";
+import type { Quiz } from "@/lib/quiz";
+import type { Flashcards } from "@/lib/flashcards";
+import type { Test } from "@/lib/test-mode";
+import type { MindMap } from "@/lib/mindmap";
+import type { Matching } from "@/lib/matching";
 import {
   Message,
   MessageContent,
@@ -9,18 +14,35 @@ import {
 import { CopyButton } from "@/components/ui/copy-button";
 import { TypingLoader } from "@/components/ui/loader";
 import { SourceBadge } from "@/components/ui/source-badge";
+import { QuizMessage } from "./QuizMessage";
+import { FlashcardMessage } from "./FlashcardMessage";
+import { TestMessage } from "./TestMessage";
+import { MindMapMessage } from "./MindMapMessage";
+import { MatchingMessage } from "./MatchingMessage";
+import { ConfirmModeCard } from "./ConfirmModeCard";
 import { FileText, StopCircle, AlertTriangle } from "lucide-react";
 import { useMemo } from "react";
 import { dedupeSourcesByFileName } from "@/lib/message-sources";
+import type { StructuredMessage } from "@/types/database";
 
 interface ChatMessageProps {
   message: MessageType;
   showSources?: boolean;
+  onSendText?: (text: string) => boolean;
+  /** Confirm card actions. Yes generates the tool; No answers as normal chat. */
+  onConfirmYes?: (
+    mode: StructuredMessage["messageType"],
+    topic: string,
+  ) => void;
+  onConfirmNo?: (originalMessage: string) => void;
 }
 
 export function ChatMessage({
   message,
   showSources = false,
+  onSendText,
+  onConfirmYes,
+  onConfirmNo,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
 
@@ -87,9 +109,33 @@ export function ChatMessage({
           imageClassName="grayscale"
         />
         <div className="flex-1 min-w-0">
-          <MessageContent markdown={true} className="bg-secondary">
-            {message.content}
-          </MessageContent>
+          {message.confirm ? (
+            <ConfirmModeCard
+              mode={message.confirm.mode}
+              label={message.confirm.label}
+              topic={message.confirm.topic}
+              originalMessage={message.confirm.originalMessage}
+              onYes={(mode, topic) => onConfirmYes?.(mode, topic)}
+              onNo={(original) => onConfirmNo?.(original)}
+            />
+          ) : message.messageType === "quiz" && message.structured ? (
+            <QuizMessage quiz={message.structured as Quiz} />
+          ) : message.messageType === "flashcards" && message.structured ? (
+            <FlashcardMessage flashcards={message.structured as Flashcards} />
+          ) : message.messageType === "test" && message.structured ? (
+            <TestMessage
+              test={message.structured as Test}
+              onSendText={onSendText}
+            />
+          ) : message.messageType === "mindmap" && message.structured ? (
+            <MindMapMessage mindMap={message.structured as MindMap} />
+          ) : message.messageType === "matching" && message.structured ? (
+            <MatchingMessage matching={message.structured as Matching} />
+          ) : (
+            <MessageContent markdown={true} className="bg-secondary">
+              {message.content}
+            </MessageContent>
+          )}
           {/* Display cancelled indicator */}
           {message.cancelled && (
             <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 text-xs text-muted-foreground italic">

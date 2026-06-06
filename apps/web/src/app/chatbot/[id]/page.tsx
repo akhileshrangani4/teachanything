@@ -74,6 +74,9 @@ export default function ChatbotDetailPage() {
     chatbot,
     chatbotLoading,
     handleSendMessage,
+    handleSendText,
+    confirmYes,
+    confirmNo,
     resetChat,
     stopStreaming,
   } = useChatbot(chatbotId, session);
@@ -216,6 +219,9 @@ export default function ChatbotDetailPage() {
                 currentMessage={currentMessage}
                 setCurrentMessage={setCurrentMessage}
                 handleSendMessage={handleSendMessage}
+                onSendText={handleSendText}
+                onConfirmYes={confirmYes}
+                onConfirmNo={confirmNo}
                 messagesEndRef={
                   messagesEndRef as React.RefObject<HTMLDivElement>
                 }

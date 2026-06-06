@@ -330,6 +330,15 @@ export const messages = pgTable(
         responseTime?: number;
         model?: string;
         ragUsed?: boolean;
+        // Structured Mode: when the assistant reply is an interactive widget
+        // (quiz/flashcards/test/mindmap/matching), the mode id and its validated payload
+        // are stored here so the message is structurally reconstructable. The
+        // payload shape is per-mode (see lib/modes/registry.ts); kept as unknown
+        // here since this JSONB column is mode-agnostic storage.
+        // Keep this union in sync with StructuredModeId (apps/web/src/lib/modes/
+        // types.ts) -- this package can't import app code, so it's mirrored.
+        messageType?: "quiz" | "flashcards" | "test" | "mindmap" | "matching";
+        structured?: unknown;
       }>()
       .default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),

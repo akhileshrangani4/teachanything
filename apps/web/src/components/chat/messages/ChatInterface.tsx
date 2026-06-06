@@ -1,6 +1,9 @@
 import { ChatMessage, StreamingMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
-import type { ChatMessage as MessageType } from "@/types/database";
+import type {
+  ChatMessage as MessageType,
+  StructuredMessage,
+} from "@/types/database";
 import {
   ChatContainerRoot,
   ChatContainerContent,
@@ -29,6 +32,12 @@ interface ChatInterfaceProps {
   showFrame?: boolean;
   showSources?: boolean;
   brandingText?: React.ReactNode;
+  onSendText?: (text: string) => boolean;
+  onConfirmYes?: (
+    mode: StructuredMessage["messageType"],
+    topic: string,
+  ) => void;
+  onConfirmNo?: (originalMessage: string) => void;
 }
 
 export function ChatInterface({
@@ -49,6 +58,9 @@ export function ChatInterface({
   showFrame,
   showSources = false,
   brandingText,
+  onSendText,
+  onConfirmYes,
+  onConfirmNo,
 }: ChatInterfaceProps) {
   return (
     <div
@@ -130,6 +142,9 @@ export function ChatInterface({
                     key={`${msg.role}-${idx}`}
                     message={msg}
                     showSources={showSources}
+                    onSendText={onSendText}
+                    onConfirmYes={onConfirmYes}
+                    onConfirmNo={onConfirmNo}
                   />
                 ))}
                 {isStreaming && (

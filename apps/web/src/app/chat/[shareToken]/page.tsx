@@ -31,6 +31,9 @@ export default function SharedChatPage() {
     chatbot,
     chatbotLoading,
     handleSendMessage,
+    handleSendText,
+    confirmYes,
+    confirmNo,
     resetChat,
     stopStreaming,
     error,
@@ -87,6 +90,9 @@ export default function SharedChatPage() {
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
+            onSendText={handleSendText}
+            onConfirmYes={confirmYes}
+            onConfirmNo={confirmNo}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
             resetChat={resetChat}

@@ -26,6 +26,8 @@ import {
   publicChatRateLimit,
 } from "@/lib/rate-limit";
 import { buildRAGContext } from "../rag-context";
+import { detectMode } from "@/lib/modes/registry";
+import { detectModeEager } from "@/lib/modes/detection";
 import type { db as DbType } from "@teachanything/db";
 
 /**
@@ -42,6 +44,17 @@ function clampMaxTokens(maxTokens: number | null | undefined): number {
 
   return Math.max(MIN_TOKENS, Math.min(MAX_TOKENS, maxTokens));
 }
+
+/**
+ * Hard ceiling on the buffered response in a structured mode, measured in JS
+ * string length (UTF-16 code units, not bytes). Quiz/test/matching payloads are
+ * a few KB at most; if a model streams far past that it has gone off the rails
+ * (runaway repetition, never closing the JSON). Cap the buffer so a misbehaving
+ * stream can't accumulate unbounded memory -- once exceeded we stop buffering and
+ * let the normal parse-fail path emit the friendly fallback. 32k chars is a
+ * generous bound (true byte size is within a small multiple for any UTF-8 text).
+ */
+const MAX_STRUCTURED_BUFFER_CHARS = 32_000;
 
 /**
  * Cached token counter -- initialized once, reused across all requests.
@@ -74,9 +87,49 @@ async function* processMessage(params: {
   sessionId: string | undefined;
   db: typeof DbType;
   eventType: "message_sent" | "shared_message_sent";
+  /** Yes-from-confirm: skip the confirm gate and strict-detect for generation. */
+  skipConfirm?: boolean;
+  /** No-from-confirm: bypass detection entirely and answer as normal chat. */
+  forceNormalChat?: boolean;
 }) {
-  const { chatbot, message, db: database, eventType } = params;
+  const {
+    chatbot,
+    message,
+    db: database,
+    eventType,
+    skipConfirm,
+    forceNormalChat,
+  } = params;
   const sessionId = params.sessionId || nanoid();
+
+  // Two-phase structured-mode flow:
+  //  - Phase 1 (default): eager-detect a study-tool request and, instead of
+  //    generating, emit a `confirm` event so the client can show a Yes/No card.
+  //    No LLM call, no persistence -- the confirm is ephemeral.
+  //  - Phase 2 Yes (skipConfirm): the client re-sends a canonical trigger phrase;
+  //    strict `detectMode` matches it and the normal generation pipeline runs.
+  //  - Phase 2 No (forceNormalChat): detection is bypassed; answer as plain chat.
+  if (!skipConfirm && !forceNormalChat) {
+    const eager = detectModeEager(message);
+    if (eager) {
+      // Ephemeral confirmation: announce the session, ask, and close the stream.
+      // Nothing is persisted and no analytics are written for a confirm turn.
+      yield { type: "metadata" as const, sessionId };
+      yield {
+        type: "confirm" as const,
+        mode: eager.mode.id,
+        label: eager.mode.label,
+        topic: eager.topic,
+        originalMessage: message,
+      };
+      yield { type: "done" as const, responseTime: 0, truncated: false };
+      return;
+    }
+  }
+
+  // Strict detection drives actual generation. On a phase-2 Yes the canonical
+  // trigger guarantees a match; on forceNormalChat we skip it for a plain reply.
+  const mode = forceNormalChat ? undefined : detectMode(message);
 
   // Get or create conversation
   const existingConversation = await database
@@ -211,11 +264,13 @@ async function* processMessage(params: {
   }));
 
   // ragFailureNote + systemPrompt + fileManifest + contextText
+  // In a structured mode, append the mode instruction so the model returns strict JSON.
   const systemPrompt =
     ragResult.ragFailureNote +
     chatbot.systemPrompt +
     ragResult.fileManifest +
-    ragResult.contextText;
+    ragResult.contextText +
+    (mode ? mode.instruction : "");
 
   // Kick off the user-message insert alongside the streamText handshake
   // instead of blocking on it first. We await it before saving the assistant
@@ -250,7 +305,11 @@ async function* processMessage(params: {
       ...conversationHistory,
       { role: "user", content: message },
     ],
-    temperature: (chatbot.temperature ?? 70) / 100,
+    // Lower temperature in a structured mode for more reliable, parseable JSON.
+    temperature:
+      mode != null
+        ? Math.min((chatbot.temperature ?? 70) / 100, 0.3)
+        : (chatbot.temperature ?? 70) / 100,
     maxTokens: maxOutputTokens,
   });
 
@@ -261,15 +320,30 @@ async function* processMessage(params: {
   // Emit at most one `thinking` event per reasoning phase: reasoning-delta
   // fires for every token and would spam the subscription otherwise.
   let thinkingEmitted = false;
-  for await (const part of result.fullStream) {
+  streamLoop: for await (const part of result.fullStream) {
     switch (part.type) {
       case "text-delta": {
         fullResponse += part.text;
         thinkingEmitted = false;
-        yield {
-          type: "text" as const,
-          content: part.text,
-        };
+        // In a structured mode, buffer the JSON silently -- we emit a single
+        // structured event once parsing succeeds rather than streaming raw JSON.
+        if (!mode) {
+          yield {
+            type: "text" as const,
+            content: part.text,
+          };
+        } else if (fullResponse.length > MAX_STRUCTURED_BUFFER_CHARS) {
+          // Runaway structured stream: stop reading and abandon the buffer. The
+          // post-loop parse will fail on the (truncated) JSON and emit the
+          // mode's fallback message, the desired user-facing outcome. Labeled
+          // break exits the for-await loop, not just the switch.
+          logWarn("Structured-mode buffer exceeded cap, aborting buffering", {
+            chatbotId: chatbot.id,
+            modeId: mode.id,
+            chars: fullResponse.length,
+          });
+          break streamLoop;
+        }
         break;
       }
       case "reasoning-start":
@@ -324,19 +398,60 @@ async function* processMessage(params: {
     });
   }
 
-  // Wait for the user message insert (fired in parallel with streamText) so
-  // subsequent turns see the full conversation and the ordering is correct.
+  // Parse the buffered JSON for the detected mode. On success, emit a single
+  // structured event carrying the mode id + validated payload. On failure, fall
+  // back to a friendly text message rather than dumping malformed JSON.
+  let structured: unknown;
+  if (mode) {
+    try {
+      structured = mode.schema.parse(JSON.parse(fullResponse));
+    } catch (err) {
+      logError(err, `Failed to parse ${mode.id} JSON, falling back to text`, {
+        chatbotId: chatbot.id,
+        sessionId,
+      });
+    }
+
+    if (structured !== undefined) {
+      yield { type: "structured" as const, mode: mode.id, payload: structured };
+    } else {
+      fullResponse = mode.fallbackMessage;
+      yield { type: "text" as const, content: fullResponse };
+    }
+  }
+
+  // The user message, assistant message, and analytics below are intentionally
+  // three separate inserts rather than one transaction:
+  //   - The user insert is fired in parallel *before* streaming (latency win)
+  //     and is awaited here so ordering/history stay correct.
+  //   - Analytics is best-effort telemetry; it must never roll back a real
+  //     conversation message, so it stays decoupled.
+  // A user turn with no assistant reply (if the assistant insert fails) is
+  // harmless and still useful for debugging, so atomicity isn't required here.
   await userMessageInsert;
 
-  // Save assistant response
+  // Save assistant response. Quiz messages store a human-readable fallback in
+  // `content` (so export/history isn't empty) plus the structured quiz.
   await database.insert(messages).values({
     conversationId: conversation.id,
     role: "assistant",
-    content: fullResponse,
+    content:
+      mode && structured !== undefined
+        ? mode.summarize(structured)
+        : fullResponse,
     metadata: {
       sources: ragResult.sources,
       responseTime,
       ragUsed: ragResult.ragUsed,
+      ...(mode && structured !== undefined
+        ? {
+            // mode.id is typed StructuredModeId, which matches the schema's
+            // messageType column union -- no cast needed, and a renamed/added
+            // mode id now fails to compile here instead of drifting silently.
+            messageType: mode.id,
+            structured,
+          }
+        : {}),
     },
   });
 
@@ -383,6 +498,10 @@ export const chatRouter = router({
           .max(30)
           .regex(/^[a-zA-Z0-9_-]+$/)
           .optional(),
+        // Confirm-gate flags: skipConfirm = the user clicked "Yes" (run
+        // generation); forceNormalChat = clicked "No" (answer as plain chat).
+        skipConfirm: z.boolean().optional(),
+        forceNormalChat: z.boolean().optional(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {
@@ -424,6 +543,8 @@ export const chatRouter = router({
           sessionId: input.sessionId,
           db: ctx.db,
           eventType: "message_sent",
+          skipConfirm: input.skipConfirm,
+          forceNormalChat: input.forceNormalChat,
         });
       } catch (error) {
         if (error instanceof TRPCError) throw error;
@@ -454,6 +575,10 @@ export const chatRouter = router({
           .max(30)
           .regex(/^[a-zA-Z0-9_-]+$/)
           .optional(),
+        // Confirm-gate flags: skipConfirm = "Yes" (generate); forceNormalChat =
+        // "No" (plain chat).
+        skipConfirm: z.boolean().optional(),
+        forceNormalChat: z.boolean().optional(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {
@@ -498,6 +623,8 @@ export const chatRouter = router({
           sessionId: input.sessionId,
           db: ctx.db,
           eventType: "shared_message_sent",
+          skipConfirm: input.skipConfirm,
+          forceNormalChat: input.forceNormalChat,
         });
       } catch (error) {
         if (error instanceof TRPCError) throw error;

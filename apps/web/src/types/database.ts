@@ -1,4 +1,9 @@
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
+import type { Quiz } from "@/lib/quiz";
+import type { Flashcards } from "@/lib/flashcards";
+import type { Test } from "@/lib/test-mode";
+import type { MindMap } from "@/lib/mindmap";
+import type { Matching } from "@/lib/matching";
 import {
   user,
   chatbots,
@@ -41,6 +46,18 @@ export type NewApprovedDomain = InferInsertModel<typeof approvedDomains>;
 // Client-side types (for UI/chat components)
 // ============================================
 
+/**
+ * Structured-mode payload carried on an assistant message. The `messageType`
+ * discriminates which interactive widget renders and narrows `structured`.
+ * Modes: quiz, flashcards, test, mindmap (see lib/modes/registry.ts).
+ */
+export type StructuredMessage =
+  | { messageType: "quiz"; structured: Quiz }
+  | { messageType: "flashcards"; structured: Flashcards }
+  | { messageType: "test"; structured: Test }
+  | { messageType: "mindmap"; structured: MindMap }
+  | { messageType: "matching"; structured: Matching };
+
 // Chat message type (used in frontend chat interfaces)
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -52,6 +69,22 @@ export interface ChatMessage {
   }>;
   cancelled?: boolean;
   truncated?: boolean;
+  // Structured Mode: when present, the message renders as an interactive widget
+  // (quiz/flashcards/test/mindmap) instead of markdown text. messageType
+  // discriminates which; `structured` is its validated payload.
+  messageType?: StructuredMessage["messageType"];
+  structured?: Quiz | Flashcards | Test | MindMap | Matching;
+  // Confirm gate: an ephemeral assistant message that renders a Yes/No card
+  // asking whether to generate a study tool. Not persisted server-side -- it
+  // exists only for the current turn. `mode` is the structured mode to run on
+  // Yes; `topic` seeds the canonical trigger; `originalMessage` is re-sent as
+  // normal chat on No.
+  confirm?: {
+    mode: StructuredMessage["messageType"];
+    label: string;
+    topic: string;
+    originalMessage: string;
+  };
 }
 
 // Message source type

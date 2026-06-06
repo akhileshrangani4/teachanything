@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import type { ChatMessage } from "@/types/database";
+import type { ChatMessage, StructuredMessage } from "@/types/database";
+import { STRUCTURED_MODES } from "@/lib/modes/registry";
 
 type StreamSource = {
   fileName: string;
@@ -12,6 +13,14 @@ type StreamData =
   | { type: "metadata"; sessionId?: string; sources?: StreamSource[] }
   | { type: "text"; content: string }
   | { type: "thinking" }
+  | { type: "structured"; mode: string; payload: unknown }
+  | {
+      type: "confirm";
+      mode: string;
+      label: string;
+      topic: string;
+      originalMessage: string;
+    }
   | { type: "done"; truncated?: boolean; responseTime?: number };
 
 /**
@@ -139,6 +148,80 @@ export function useChatState() {
       // Model is in a reasoning phase. Flip the indicator so the UI doesn't
       // look frozen during long pauses.
       setIsThinking(true);
+    } else if (data.type === "structured") {
+      // A structured mode (quiz/flashcards/test/mindmap) finalizes the message
+      // itself: no text was streamed, so commit the assistant message here and
+      // end the streaming UI. A trailing `done` event is harmless -- it no-ops
+      // because streamingContentRef is empty. The matching registry mode
+      // validates the payload and produces the human-readable summary; an
+      // unknown mode id is dropped rather than rendered.
+      const mode = STRUCTURED_MODES.find((m) => m.id === data.mode);
+      if (!mode) {
+        // Unknown mode id (client/server version skew). Reset the streaming UI
+        // instead of leaving it spinning until the 5-minute timeout, and tell
+        // the user, matching the safeParse-failure branch below.
+        clearStreamingTimeout();
+        setIsThinking(false);
+        updateStreamingContent("");
+        setIsStreaming(false);
+        toast.error("Couldn't display that response. Please try again.");
+        return;
+      }
+
+      const parsed = mode.schema.safeParse(data.payload);
+      if (!parsed.success) {
+        // The server validated this payload before sending, so a client-side
+        // failure means a schema/version mismatch. Don't drop it silently --
+        // tell the user and end the streaming UI so they can retry.
+        clearStreamingTimeout();
+        setIsThinking(false);
+        updateStreamingContent("");
+        setIsStreaming(false);
+        toast.error("Couldn't display that response. Please try again.");
+        return;
+      }
+
+      clearStreamingTimeout();
+      setIsThinking(false);
+      updateStreamingContent("");
+      setIsStreaming(false);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: mode.summarize(parsed.data),
+          messageType: mode.id as StructuredMessage["messageType"],
+          structured: parsed.data as ChatMessage["structured"],
+        },
+      ]);
+
+      sourcesRef.current = [];
+    } else if (data.type === "confirm") {
+      // Confirm gate: the server eager-detected a study-tool request but didn't
+      // generate. Render an ephemeral Yes/No card instead. No content streamed,
+      // so commit the card message and end the streaming UI here; a trailing
+      // `done` no-ops because streamingContentRef is empty.
+      clearStreamingTimeout();
+      setIsThinking(false);
+      updateStreamingContent("");
+      setIsStreaming(false);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "",
+          confirm: {
+            mode: data.mode as StructuredMessage["messageType"],
+            label: data.label,
+            topic: data.topic,
+            originalMessage: data.originalMessage,
+          },
+        },
+      ]);
+
+      sourcesRef.current = [];
     } else if (data.type === "done") {
       clearStreamingTimeout();
       setIsThinking(false);
@@ -220,7 +303,37 @@ export function useChatState() {
     return userMessage;
   };
 
+  /**
+   * Queue an arbitrary text message programmatically (e.g. a test's written
+   * answers submitted from its results screen). Mirrors prepareSendMessage's
+   * state updates but takes a string instead of a form event. Returns the
+   * message, or null if empty or a stream is already in flight.
+   */
+  const prepareSendText = (text: string): string | null => {
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+    if (isStreaming) {
+      // Unlike the input box (which is disabled mid-stream), a programmatic
+      // send -- e.g. submitting a test's written answers -- has no visible
+      // disabled state, so surface why nothing happened.
+      toast.error("Please wait for the current response to finish.");
+      return null;
+    }
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    return trimmed;
+  };
+
+  /**
+   * Dismiss the pending confirm card (the most recent assistant message carrying
+   * a `confirm` payload). Called when the student clicks Yes or No so the card
+   * doesn't linger alongside the answer that follows.
+   */
+  const resolveConfirm = () => {
+    setMessages((prev) => prev.filter((m) => !m.confirm));
+  };
+
   return {
+    resolveConfirm,
     messages,
     currentMessage,
     setCurrentMessage,
@@ -234,6 +347,7 @@ export function useChatState() {
     handleStreamError,
     startStreaming,
     prepareSendMessage,
+    prepareSendText,
     clearStreamingTimeout,
     resetChat,
     stopStreaming,

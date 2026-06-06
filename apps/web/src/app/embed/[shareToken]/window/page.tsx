@@ -27,6 +27,9 @@ export default function EmbedWindowPage() {
     chatbot,
     chatbotLoading,
     handleSendMessage,
+    handleSendText,
+    confirmYes,
+    confirmNo,
     resetChat,
     stopStreaming,
     error,
@@ -75,6 +78,9 @@ export default function EmbedWindowPage() {
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
+            onSendText={handleSendText}
+            onConfirmYes={confirmYes}
+            onConfirmNo={confirmNo}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
             resetChat={resetChat}
