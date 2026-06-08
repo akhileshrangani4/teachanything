@@ -3,17 +3,21 @@ import { auth } from "@/lib/auth";
 import { db } from "@teachanything/db";
 import { chatbots, analytics } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
-import { findOwnedChatbotId } from "@/server/routers/chatbot";
+import { findOwnedChatbotId } from "@/server/queries/chatbot";
 import type { Ratelimit } from "@upstash/ratelimit";
+import type { User } from "@/types/better-auth";
 import {
   transcriptionRateLimit,
   publicTranscriptionRateLimit,
+  publicTranscriptionGlobalRateLimit,
   checkRateLimit,
+  requireRateLimit,
 } from "@/lib/rate-limit";
 import {
   TRANSCRIPTION_LIMITS,
   validateAudioBlob,
 } from "@/lib/transcription-validation";
+import { getTrustedClientIp } from "@/lib/get-client-ip";
 import { env } from "@/lib/env";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import { transcribeAudio, TranscriptionError } from "@teachanything/ai";
@@ -37,25 +41,38 @@ interface SuccessResponse {
 
 type ErrorResponse = TranscribeErrorBody;
 
+type Surface = "authenticated" | "shared";
+
 interface AuthContext {
+  surface: Surface;
+  /**
+   * Rate-limit identifier. For authenticated requests this is the user
+   * id; for shared requests it's `${shareToken}:${trustedIp}`.
+   */
   identifier: string;
   limiter: Ratelimit | null;
   logContext: Record<string, unknown>;
   /**
-   * Chatbot the request is attributed to, when known. Set automatically
-   * on the shareToken path; on the authenticated path it must be
-   * supplied by the client in the form body (and re-validated).
+   * shareToken for the public path. Used to validate the chatbot AFTER
+   * the rate-limit check (so the DB lookup is gated by the limiter) and
+   * for the per-token global cap. null on the authenticated path.
    */
-  inferredChatbotId: string | null;
+  shareToken: string | null;
   /** Authenticated user id, when this is a session-based request. */
   userId: string | null;
 }
 
 /**
- * Resolve the rate-limit bucket. Authenticated session wins over
- * shareToken so a logged-in professor browsing their own share link
- * always hits their per-user bucket. For shareToken requests, the
- * identifier is computed before DB lookup so rate-limit checks happen first.
+ * Resolve who is calling and which rate-limit bucket applies. An
+ * authenticated (and approved) session wins over a shareToken so a
+ * logged-in professor browsing their own share link always hits their
+ * per-user bucket.
+ *
+ * IMPORTANT: this does NOT perform the shareToken -> chatbot DB lookup.
+ * That lookup is intentionally deferred to AFTER the rate-limit check in
+ * the handler so an unauthenticated caller can't drive unbounded DB
+ * queries before the limiter runs. We only need the (cheap, header-only)
+ * identifier here.
  */
 async function resolveAuth(
   request: NextRequest,
@@ -65,12 +82,35 @@ async function resolveAuth(
   if (hasCookies) {
     const session = await auth.api.getSession({ headers: request.headers });
     if (session?.user) {
+      // Mirror protectedProcedure: only approved users (admins bypass)
+      // get the higher per-user transcription bucket on this paid
+      // endpoint. Banned/unapproved sessions are rejected outright rather
+      // than silently falling through to the shareToken path, so a banned
+      // user can't transcribe at all (anonymous shareToken access is a
+      // separate, lower bucket).
+      const user = session.user as User;
+      if (user.role !== "admin" && user.status !== "approved") {
+        logWarn("Unapproved/banned user attempted transcription", {
+          surface: "authenticated",
+          userId: user.id,
+          status: user.status,
+        });
+        return {
+          error: jsonError(
+            "Your account is pending admin approval",
+            "unauthorized",
+            403,
+          ),
+        };
+      }
+
       return {
-        identifier: session.user.id,
+        surface: "authenticated",
+        identifier: user.id,
         limiter: transcriptionRateLimit,
-        logContext: { surface: "authenticated", userId: session.user.id },
-        inferredChatbotId: null,
-        userId: session.user.id,
+        logContext: { surface: "authenticated", userId: user.id },
+        shareToken: null,
+        userId: user.id,
       };
     }
   }
@@ -80,24 +120,109 @@ async function resolveAuth(
     return { error: jsonError("Unauthorized", "unauthorized", 401) };
   }
 
-  // Compute the rate-limit identifier from shareToken + IP before doing
-  // any DB lookups, so rate-limiting happens first and expensive lookups
-  // are protected.
-  const clientIp =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  // Derive the IP from the trusted edge hop (x-real-ip / rightmost XFF),
+  // NOT the client-controlled leftmost XFF entry — otherwise a caller can
+  // rotate the header to mint unlimited rate-limit buckets.
+  const clientIp = getTrustedClientIp(request.headers);
   const identifier = `${shareToken}:${clientIp}`;
 
-  // Validate the shareToken exists and is enabled
-  const [chatbot] = await db
-    .select({ id: chatbots.id })
-    .from(chatbots)
-    .where(
-      and(
-        eq(chatbots.shareToken, shareToken),
-        eq(chatbots.sharingEnabled, true),
-      ),
-    )
-    .limit(1);
+  return {
+    surface: "shared",
+    identifier,
+    limiter: publicTranscriptionRateLimit,
+    logContext: { surface: "shared", shareToken },
+    shareToken,
+    userId: null,
+  };
+}
+
+/**
+ * Enforce rate limits for the resolved caller. The public/shared surface
+ * is fail-CLOSED: when Redis is unavailable we deny rather than allow,
+ * because this is an unauthenticated paid (Whisper) endpoint and a
+ * fail-open path turns a Redis outage into a free transcription proxy.
+ * Authenticated callers use the fail-open path — they're known users on a
+ * bounded per-user bucket, so availability is preferred there.
+ *
+ * For the shared surface we additionally enforce a per-shareToken global
+ * cap (keyed on the token alone, no IP) so total spend attributable to a
+ * single link is bounded even if the per-(IP, token) limiter is evaded by
+ * IP rotation.
+ *
+ * Returns null on success, or a 429/internal error response to return.
+ */
+async function enforceRateLimits(
+  ctx: AuthContext,
+): Promise<NextResponse<ErrorResponse> | null> {
+  if (ctx.surface === "shared") {
+    const perIp = await requireRateLimit(ctx.limiter, ctx.identifier, {
+      route: "transcribe",
+      surface: "shared",
+    });
+    if (!perIp.success) {
+      return rateLimitedResponse(perIp.reset);
+    }
+
+    if (ctx.shareToken) {
+      const perToken = await requireRateLimit(
+        publicTranscriptionGlobalRateLimit,
+        ctx.shareToken,
+        { route: "transcribe", surface: "shared", scope: "per-share-token" },
+      );
+      if (!perToken.success) {
+        return rateLimitedResponse(perToken.reset);
+      }
+    }
+    return null;
+  }
+
+  const { success, reset } = await checkRateLimit(ctx.limiter, ctx.identifier, {
+    route: "transcribe",
+    surface: "authenticated",
+  });
+  if (!success) {
+    return rateLimitedResponse(reset);
+  }
+  return null;
+}
+
+function rateLimitedResponse(reset: number): NextResponse<ErrorResponse> {
+  const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
+  return jsonError(
+    `Too many transcription requests. Please try again in ${retryAfter} seconds.`,
+    "rate_limited",
+    429,
+    { "Retry-After": retryAfter.toString() },
+  );
+}
+
+/**
+ * Resolve the shareToken to an enabled chatbot. Runs AFTER the rate-limit
+ * check so the lookup is gated. DB errors are mapped to the JSON error
+ * contract (internal_error/500) rather than bubbling up as an HTML 500.
+ */
+async function validateShareToken(
+  shareToken: string,
+): Promise<{ chatbotId: string } | { error: NextResponse<ErrorResponse> }> {
+  let chatbot: { id: string } | undefined;
+  try {
+    [chatbot] = await db
+      .select({ id: chatbots.id })
+      .from(chatbots)
+      .where(
+        and(
+          eq(chatbots.shareToken, shareToken),
+          eq(chatbots.sharingEnabled, true),
+        ),
+      )
+      .limit(1);
+  } catch (err) {
+    logError(err, "Transcribe shareToken lookup failed", {
+      surface: "shared",
+    });
+    return { error: jsonError("Transcription failed", "internal_error", 500) };
+  }
+
   if (!chatbot) {
     return {
       error: jsonError(
@@ -107,21 +232,19 @@ async function resolveAuth(
       ),
     };
   }
-
-  return {
-    identifier,
-    limiter: publicTranscriptionRateLimit,
-    logContext: { surface: "shared", shareToken, chatbotId: chatbot.id },
-    inferredChatbotId: chatbot.id,
-    userId: null,
-  };
+  return { chatbotId: chatbot.id };
 }
 
 export async function POST(
   request: NextRequest,
 ): Promise<NextResponse<SuccessResponse | ErrorResponse>> {
   if (env.NEXT_PUBLIC_VOICE_INPUT_ENABLED === "false") {
-    return jsonError("Voice input is disabled", "feature_disabled", 404);
+    // 503 (service unavailable) + Retry-After reads as an intentional
+    // kill switch rather than a missing endpoint (404). Clients key off
+    // the `code` field, so the UI is unaffected either way.
+    return jsonError("Voice input is disabled", "feature_disabled", 503, {
+      "Retry-After": "3600",
+    });
   }
 
   const lengthError = checkContentLength(request);
@@ -129,20 +252,21 @@ export async function POST(
 
   const authResult = await resolveAuth(request);
   if ("error" in authResult) return authResult.error;
-  const { identifier, limiter, logContext, inferredChatbotId, userId } =
-    authResult;
+  const authCtx = authResult;
+  const { logContext, surface, shareToken, userId } = authCtx;
 
-  const { success, reset } = await checkRateLimit(limiter, identifier, {
-    route: "transcribe",
-  });
-  if (!success) {
-    const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
-    return jsonError(
-      `Too many transcription requests. Please try again in ${retryAfter} seconds.`,
-      "rate_limited",
-      429,
-      { "Retry-After": retryAfter.toString() },
-    );
+  // Rate-limit BEFORE any DB lookups so expensive queries are gated.
+  const rateLimitError = await enforceRateLimits(authCtx);
+  if (rateLimitError) return rateLimitError;
+
+  // Now (and only now) resolve the shareToken to a chatbot. Authenticated
+  // attribution is resolved later from the form body.
+  let inferredChatbotId: string | null = null;
+  if (surface === "shared" && shareToken) {
+    const shareResult = await validateShareToken(shareToken);
+    if ("error" in shareResult) return shareResult.error;
+    inferredChatbotId = shareResult.chatbotId;
+    logContext.chatbotId = inferredChatbotId;
   }
 
   let formData: FormData;
@@ -177,13 +301,19 @@ export async function POST(
   // Resolve the chatbot this transcription is attributed to for
   // analytics. Shared path: trust the chatbot resolved from the
   // shareToken. Authenticated path: trust the client-supplied id only
-  // after verifying it belongs to this user.
+  // after verifying it belongs to this user. The ownership lookup is
+  // wrapped so a DB failure returns the JSON error contract.
   let effectiveChatbotId: string | null = inferredChatbotId;
   if (!effectiveChatbotId && userId) {
     const claimed = formData.get("chatbotId");
     if (typeof claimed === "string" && claimed.length > 0) {
-      const owned = await findOwnedChatbotId(db, claimed, userId);
-      if (owned) effectiveChatbotId = owned.id;
+      try {
+        const owned = await findOwnedChatbotId(db, claimed, userId);
+        if (owned) effectiveChatbotId = owned.id;
+      } catch (err) {
+        logError(err, "Transcribe chatbot ownership lookup failed", logContext);
+        return jsonError("Transcription failed", "internal_error", 500);
+      }
     }
   }
 
@@ -246,7 +376,7 @@ export async function POST(
             audioBytes: validation.size,
             durationSeconds: result.durationSeconds,
             transcriptLength: result.text.length,
-            surface: logContext.surface as "authenticated" | "shared",
+            surface,
           },
         });
       } catch (err) {

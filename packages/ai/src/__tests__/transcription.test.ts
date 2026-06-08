@@ -121,6 +121,53 @@ describe("transcribeAudio", () => {
     ).rejects.toMatchObject({ reason: "timeout" });
   });
 
+  it("aborts via the real timeout wiring and maps to timeout", async () => {
+    // Exercise the actual setTimeout -> controller.abort() path rather
+    // than throwing AbortError directly: resolve fetch only when its
+    // AbortSignal fires, then advance fake timers past the timeout.
+    mockFetch(((_input: RequestInfo | URL, init?: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        const signal = init?.signal;
+        if (signal) {
+          signal.addEventListener("abort", () => {
+            const e = new Error("aborted");
+            e.name = "AbortError";
+            reject(e);
+          });
+        }
+      });
+    }) as typeof fetch);
+
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/webm" });
+    const promise = transcribeAudio({
+      apiKey: "k",
+      audio,
+      filename: "rec.webm",
+      timeoutMs: 50,
+    });
+    // Attach the rejection expectation BEFORE advancing timers so the
+    // rejection isn't briefly unhandled when the abort fires.
+    const assertion = expect(promise).rejects.toMatchObject({
+      reason: "timeout",
+    });
+    // Drive the internal timeout to fire the abort.
+    await jest.advanceTimersByTimeAsync(51);
+    await assertion;
+  });
+
+  it("throws TranscriptionError with network on a non-abort fetch throw", async () => {
+    mockFetch((async () => {
+      throw new TypeError("Failed to fetch");
+    }) as typeof fetch);
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/webm" });
+    await expect(
+      transcribeAudio({ apiKey: "k", audio, filename: "rec.webm" }),
+    ).rejects.toMatchObject({
+      name: "TranscriptionError",
+      reason: "network",
+    });
+  });
+
   it("throws when the provider returns malformed JSON", async () => {
     mockFetch((async () => jsonResponse({ noText: true })) as typeof fetch);
     const audio = new Blob([new Uint8Array([1])], { type: "audio/webm" });

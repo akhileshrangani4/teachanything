@@ -9,7 +9,6 @@ import type { TranscriptionError } from "@teachanything/ai";
  */
 export type TranscribeErrorCode =
   | "feature_disabled"
-  | "content_length_required"
   | "content_length_invalid"
   | "request_too_large"
   | "audio_too_large"
@@ -104,11 +103,23 @@ export function mapProviderError(
         "provider_unavailable",
         503,
       );
-    default:
+    case "network":
+    case "provider_error":
       return jsonError(
         "Transcription service is temporarily unavailable.",
         "provider_error",
         502,
       );
+    default: {
+      // Exhaustiveness guard: adding a new TranscriptionErrorReason
+      // without handling it here becomes a compile error rather than
+      // silently falling through to a generic 502.
+      err.reason satisfies never;
+      return jsonError(
+        "Transcription service is temporarily unavailable.",
+        "provider_error",
+        502,
+      );
+    }
   }
 }

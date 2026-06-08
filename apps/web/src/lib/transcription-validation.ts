@@ -47,6 +47,16 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "audio/x-wav": "wav",
 };
 
+/**
+ * Map an audio MIME type to a file extension for the OpenAI filename hint.
+ * Strips any `;codecs=...` parameter before lookup. Falls back to "webm"
+ * for unknown types. Single source of truth so the client and server
+ * don't drift on the extension mapping.
+ */
+export function mimeToExtension(rawMime: string): string {
+  return MIME_TO_EXTENSION[normalizeMimeType(rawMime)] ?? "webm";
+}
+
 export type AudioValidationError =
   | { ok: false; reason: "missing"; message: string }
   | { ok: false; reason: "empty"; message: string }

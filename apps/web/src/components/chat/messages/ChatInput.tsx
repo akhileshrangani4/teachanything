@@ -6,7 +6,6 @@ import {
 } from "@/components/ui/prompt-input";
 import { ArrowUp, Square } from "lucide-react";
 import { toast } from "sonner";
-import { useRef } from "react";
 import { VALIDATION_LIMITS } from "@/lib/validation";
 import { VoiceInputButton } from "./VoiceInputButton";
 
@@ -34,11 +33,6 @@ export function ChatInput({
   chatbotId,
   voiceInputEnabled = true,
 }: ChatInputProps) {
-  // Ref to the textarea so handleTranscript can read the current DOM value,
-  // avoiding closure over a stale currentMessage prop if the user types
-  // while transcription is in-flight.
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   // Global kill switch — when off, voice is hidden everywhere regardless
   // of the per-surface prop. Must match the server-side check in the
   // /api/transcribe route or users see a button that always 404s.
@@ -81,13 +75,13 @@ export function ChatInput({
   };
 
   const handleTranscript = (text: string) => {
-    // Read current textarea value instead of relying on currentMessage prop closure,
-    // which may be stale if the user typed while transcription was in-flight.
-    const current = textareaRef.current?.value ?? "";
-    const next =
-      current.trim().length === 0
-        ? text
-        : `${current.replace(/\s+$/, "")} ${text}`;
+    // Append to the current message. We read the `currentMessage` prop
+    // directly rather than the DOM: PromptInputTextarea owns its own
+    // internal ref and does not forward one, so a passed ref would be
+    // null. The prop re-renders on every keystroke, so this closure
+    // always sees the latest value (no staleness).
+    const trimmed = currentMessage.replace(/\s+$/, "");
+    const next = trimmed.length === 0 ? text : `${trimmed} ${text}`;
     const capped = next.slice(0, VALIDATION_LIMITS.MESSAGE_MAX_LENGTH);
     setCurrentMessage(capped);
     if (capped.length === VALIDATION_LIMITS.MESSAGE_MAX_LENGTH) {
@@ -106,7 +100,6 @@ export function ChatInput({
       >
         <div className="flex items-end gap-2 w-full">
           <PromptInputTextarea
-            ref={textareaRef}
             placeholder="Ask me anything..."
             aria-label="Type a message"
             className="flex-1 text-foreground text-base min-h-[60px] md:min-h-[120px] scrollbar-thin"
@@ -114,7 +107,6 @@ export function ChatInput({
           <PromptInputActions>
             {showVoiceInput && !isStreaming && (
               <VoiceInputButton
-                disabled={isStreaming}
                 shareToken={shareToken}
                 chatbotId={chatbotId}
                 onTranscript={handleTranscript}

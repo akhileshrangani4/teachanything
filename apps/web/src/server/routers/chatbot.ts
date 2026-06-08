@@ -11,6 +11,16 @@ import { TRPCError } from "@trpc/server";
 import { SUPPORTED_MODELS, DEPRECATED_MODELS } from "@teachanything/ai";
 import { checkRateLimit, chatbotCreationRateLimit } from "@/lib/rate-limit";
 import { escapeLikePattern } from "@/server/utils";
+import {
+  findChatbotForUser,
+  findOwnedChatbotId,
+  type ChatbotDb,
+} from "@/server/queries/chatbot";
+
+// Re-export the query helpers so existing tRPC-side imports keep working.
+// The implementations live in the queries module (decoupled from tRPC
+// types); non-tRPC callers like the transcribe route import them there.
+export { findChatbotForUser, findOwnedChatbotId };
 
 // Accept both current and deprecated model IDs for backwards compatibility (D-08).
 // Chatbots stored with old IDs are resolved at query time via resolveModel().
@@ -18,50 +28,6 @@ const allAcceptedModels = [...SUPPORTED_MODELS, ...DEPRECATED_MODELS] as [
   string,
   ...string[],
 ];
-
-type ChatbotDb = Parameters<
-  Parameters<typeof protectedProcedure.query>[0]
->[0]["ctx"]["db"];
-
-/**
- * Non-throwing lookup: returns the chatbot row when the user owns it, or
- * undefined when the chatbot does not exist or belongs to someone else.
- * Use this from callers that need a soft "is this owned by me?" check —
- * e.g. attributing best-effort analytics where unauthorized claims
- * should be silently dropped rather than 404'd.
- */
-export async function findChatbotForUser(
-  db: ChatbotDb,
-  chatbotId: string,
-  userId: string,
-) {
-  const [chatbot] = await db
-    .select()
-    .from(chatbots)
-    .where(and(eq(chatbots.id, chatbotId), eq(chatbots.userId, userId)))
-    .limit(1);
-  return chatbot;
-}
-
-/**
- * Lightweight ownership probe: returns `{ id }` only when the user owns
- * the chatbot, or undefined otherwise. Prefer this over
- * `findChatbotForUser` on hot paths where you only need to verify
- * ownership for attribution — avoids pulling potentially-large fields
- * like `systemPrompt` across the wire.
- */
-export async function findOwnedChatbotId(
-  db: ChatbotDb,
-  chatbotId: string,
-  userId: string,
-): Promise<{ id: string } | undefined> {
-  const [row] = await db
-    .select({ id: chatbots.id })
-    .from(chatbots)
-    .where(and(eq(chatbots.id, chatbotId), eq(chatbots.userId, userId)))
-    .limit(1);
-  return row;
-}
 
 async function getChatbotByIdForUser(
   db: ChatbotDb,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Square, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,13 @@ import {
   useVoiceRecorder,
   type VoiceRecorderError,
 } from "@/hooks/useVoiceRecorder";
+import { mimeToExtension } from "@/lib/transcription-validation";
 import { logError } from "@/lib/logger";
+
+// Client-side ceiling for the transcription request, just above the
+// server's 90s provider timeout, so a stalled response doesn't pin the
+// spinner forever if the server never replies.
+const TRANSCRIBE_CLIENT_TIMEOUT_MS = 100_000;
 
 interface VoiceInputButtonProps {
   disabled?: boolean;
@@ -44,6 +50,20 @@ export function VoiceInputButton({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [permissionHelpOpen, setPermissionHelpOpen] = useState(false);
 
+  // Track mount state and the in-flight request so a Whisper call that
+  // outlives the component (navigation, chatbot switch) is aborted and
+  // never calls setState on a dead component.
+  const mountedRef = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
+
   const handleError = useCallback((err: VoiceRecorderError) => {
     if (err.code === "permission_denied") {
       setPermissionHelpOpen(true);
@@ -55,15 +75,23 @@ export function VoiceInputButton({
   const handleComplete = useCallback(
     async (blob: Blob) => {
       setIsTranscribing(true);
+
+      // Abort any prior in-flight request before starting a new one, then
+      // arm a client-side timeout above the server's provider cap.
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        TRANSCRIBE_CLIENT_TIMEOUT_MS,
+      );
+
       try {
         const form = new FormData();
         // Hint OpenAI with a useful filename; the server validates mime
-        // independently so this is informational only.
-        const ext = blob.type.includes("mp4")
-          ? "mp4"
-          : blob.type.includes("ogg")
-            ? "ogg"
-            : "webm";
+        // independently so this is informational only. Reuse the shared
+        // MIME->extension map so this can't drift from server validation.
+        const ext = mimeToExtension(blob.type);
         form.append("audio", blob, `recording.${ext}`);
         if (chatbotId) form.append("chatbotId", chatbotId);
 
@@ -71,7 +99,15 @@ export function VoiceInputButton({
           ? `/api/transcribe?shareToken=${encodeURIComponent(shareToken)}`
           : "/api/transcribe";
 
-        const res = await fetch(url, { method: "POST", body: form });
+        const res = await fetch(url, {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        });
+        // Component unmounted while the request was in flight — drop the
+        // result silently rather than toasting/inserting on a dead
+        // component.
+        if (!mountedRef.current) return;
         if (!res.ok) {
           let rateLimitMessage: string | null = null;
           let code: string | undefined;
@@ -132,16 +168,30 @@ export function VoiceInputButton({
           return;
         }
         const data = (await res.json()) as { text?: unknown };
+        if (!mountedRef.current) return;
         if (typeof data.text !== "string" || !data.text.trim()) {
           toast.error("No speech detected. Please try again.");
           return;
         }
         onTranscript(data.text.trim());
       } catch (err) {
+        // An aborted request (unmount or client timeout) is expected
+        // teardown, not a user-facing failure — stay quiet.
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
         logError(err, "Voice transcription request failed");
-        toast.error("Network error. Please try again.");
+        if (mountedRef.current) {
+          toast.error("Network error. Please try again.");
+        }
       } finally {
-        setIsTranscribing(false);
+        clearTimeout(timeoutId);
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
+        if (mountedRef.current) {
+          setIsTranscribing(false);
+        }
       }
     },
     [onTranscript, shareToken, chatbotId],

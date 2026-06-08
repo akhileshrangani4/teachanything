@@ -83,6 +83,16 @@ export function useVoiceRecorder({
   // be trusted as a lock.
   const startingRef = useRef(false);
 
+  // Hold the latest onComplete in a ref so the recorder's `stop` listener
+  // always calls the current handler — a parent that swaps onTranscript
+  // mid-recording delivers the transcript to the new handler — without
+  // putting onComplete in `start`'s dep array (which would recreate
+  // `start` on every parent render).
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   useEffect(() => {
     setIsSupported(isSupportedEnvironment());
   }, []);
@@ -237,6 +247,8 @@ export function useVoiceRecorder({
       const blobType = recordedType.split(";")[0] || "audio/webm";
       const blob = new Blob(chunks, { type: blobType });
 
+      // Tear down tracks/timers/refs first so the mic is released even if
+      // the consumer's onComplete throws below.
       cleanup();
 
       // Component unmounted while recording was wrapping up — silently
@@ -252,7 +264,19 @@ export function useVoiceRecorder({
         emitError("no_audio", "No audio was captured. Please try again.");
         return;
       }
-      onComplete(blob);
+      // Call the latest handler via ref. Guard so a synchronous throw in
+      // the consumer doesn't surface as an unhandled error in the media
+      // event listener.
+      try {
+        onCompleteRef.current(blob);
+      } catch (err) {
+        emitError(
+          "recorder_failed",
+          err instanceof Error
+            ? err.message
+            : "Failed to process the recording. Please try again.",
+        );
+      }
     });
 
     try {
@@ -277,7 +301,9 @@ export function useVoiceRecorder({
       if (startedAtRef.current !== null) {
         setElapsedMs(Date.now() - startedAtRef.current);
       }
-    }, 100);
+      // 1s cadence: the timer display is MM:SS, so sub-second ticks just
+      // burn renders (~1800 over a 3-min clip) with no visible change.
+    }, 1000);
 
     maxTimerRef.current = setTimeout(() => {
       // Auto-stop when the cap is hit; user intent is preserved (not cancelled).
@@ -285,7 +311,7 @@ export function useVoiceRecorder({
         stop();
       }
     }, maxDurationMs);
-  }, [cleanup, emitError, maxDurationMs, onComplete, stop]);
+  }, [cleanup, emitError, maxDurationMs, stop]);
 
   return { status, elapsedMs, isSupported, start, stop, cancel };
 }
