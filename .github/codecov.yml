@@ -45,6 +45,7 @@ component_management:
 
 ignore:
   - ".github/**"
+  - "apps/web/src/components/**"
   - "**/*.test.ts"
   - "**/*.test.tsx"
   - "**/test/**"

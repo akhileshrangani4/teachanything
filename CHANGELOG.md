@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.21.0](https://github.com/akhileshrangani4/teachanything/compare/v1.20.1...v1.21.0) (2026-06-08)
+
+
+### Features
+
+* **web-sources:** add crawl/add controls to top-level Web Sources page ([#314](https://github.com/akhileshrangani4/teachanything/issues/314)) ([09e9883](https://github.com/akhileshrangani4/teachanything/commit/09e9883a131c4c983990753c4d465ff78e996743))
+
+
+### Miscellaneous Chores
+
+* **build:** exclude .next/standalone from turbo cache outputs ([#311](https://github.com/akhileshrangani4/teachanything/issues/311)) ([b350f85](https://github.com/akhileshrangani4/teachanything/commit/b350f852c3c31466a9f6e9b9073d1cfa97fad123))
+
 ## [1.20.1](https://github.com/akhileshrangani4/teachanything/compare/v1.20.0...v1.20.1) (2026-05-05)
 
 
