@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.22.0](https://github.com/akhileshrangani4/teachanything/compare/v1.21.0...v1.22.0) (2026-06-08)
+
+
+### Features
+
+* **analytics:** enhance chatbot analytics with session-level insights ([#305](https://github.com/akhileshrangani4/teachanything/issues/305)) ([992dccb](https://github.com/akhileshrangani4/teachanything/commit/992dccbd4beed9be4f6617070a0ab017493cc379))
+
+
+### Bug Fixes
+
+* **analytics:** correct common-questions counts and paginate the card ([#317](https://github.com/akhileshrangani4/teachanything/issues/317)) ([6e7d051](https://github.com/akhileshrangani4/teachanything/commit/6e7d051a18b1fcc4e552e9ff4996f98303dc7e48))
+
 ## [1.21.0](https://github.com/akhileshrangani4/teachanything/compare/v1.20.1...v1.21.0) (2026-06-08)
 
 
