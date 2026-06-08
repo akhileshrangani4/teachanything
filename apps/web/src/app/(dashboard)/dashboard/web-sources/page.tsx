@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/dashboard/files/PaginationControls";
-import { Bot, ExternalLink, Globe } from "lucide-react";
+import { Bot, ExternalLink, Globe, Loader2 } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { getSourceDisplayName } from "@/lib/crawler-metadata";
@@ -39,6 +39,11 @@ export default function WebSourcesPage() {
   const chatbotCount = chatbotsData?.totalCount ?? 0;
   const hasChatbots = chatbotCount > 0;
   const hasSources = sources.length > 0;
+  // Full skeleton only on initial load (no data yet); keep the list and show
+  // an inline spinner on background refetch / pagination (keepPreviousData).
+  const showFullLoading =
+    (isLoading && !data) || (chatbotsLoading && !chatbotsData);
+  const showInlineLoading = isFetching && !isLoading;
 
   return (
     <div className="flex-1 p-4 md:p-6 lg:p-8">
@@ -56,6 +61,9 @@ export default function WebSourcesPage() {
                   ({totalCount} {totalCount === 1 ? "source" : "sources"})
                 </span>
               )}
+              {showInlineLoading && (
+                <Loader2 className="ml-2 inline h-4 w-4 animate-spin align-[-2px] text-muted-foreground" />
+              )}
             </p>
           </div>
         </div>
@@ -64,7 +72,7 @@ export default function WebSourcesPage() {
           <AddWebSourcePanel chatbots={chatbots} />
         )}
 
-        {isLoading || chatbotsLoading || isFetching ? (
+        {showFullLoading ? (
           <div className="grid gap-4">
             {Array.from({ length: 3 }).map((_, index) => (
               <div
