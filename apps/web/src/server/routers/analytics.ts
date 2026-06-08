@@ -133,7 +133,7 @@ export const analyticsRouter = router({
 
       const [analyticsSummary] = await ctx.db
         .select({
-          eventCount: sql<number>`count(*)::int`,
+          ragEventCount: sql<number>`COALESCE(SUM(CASE WHEN (${analytics.eventData}->>'ragUsed') IS NOT NULL THEN 1 ELSE 0 END), 0)::int`,
           avgResponseTime: sql<number>`COALESCE(ROUND(AVG((${analytics.eventData}->>'responseTime')::double precision)), 0)::int`,
           ragHits: sql<number>`COALESCE(SUM(CASE WHEN ${analytics.eventData}->>'ragUsed' = 'true' THEN 1 ELSE 0 END), 0)::int`,
         })
@@ -145,10 +145,10 @@ export const analyticsRouter = router({
           ),
         );
 
-      const eventCount = analyticsSummary?.eventCount ?? 0;
+      const ragEventCount = analyticsSummary?.ragEventCount ?? 0;
       const ragHits = analyticsSummary?.ragHits ?? 0;
       const ragUsagePercentage =
-        eventCount > 0 ? Math.round((ragHits / eventCount) * 100) : 0;
+        ragEventCount > 0 ? Math.round((ragHits / ragEventCount) * 100) : 0;
 
       return {
         totalConversations,
@@ -393,7 +393,6 @@ export const analyticsRouter = router({
             "question",
           ),
           count: sql<number>`count(*)::int`.as("count"),
-          totalCount: sql<number>`count(*) OVER()::int`.as("total_count"),
         })
         .from(firstUserMessages)
         .where(
@@ -404,6 +403,10 @@ export const analyticsRouter = router({
         )
         .groupBy(firstUserMessages.normalizedQuestion)
         .as("grouped_questions");
+
+      const [total] = await ctx.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(groupedQuestions);
 
       const questions = await ctx.db
         .select()
@@ -417,7 +420,7 @@ export const analyticsRouter = router({
           question: q.question,
           count: q.count,
         })),
-        totalCount: questions[0]?.totalCount ?? 0,
+        totalCount: total?.count ?? 0,
       };
     }),
 

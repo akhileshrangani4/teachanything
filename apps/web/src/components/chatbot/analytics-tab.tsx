@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -11,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { keepPreviousData } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
@@ -27,8 +29,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+
+const COMMON_QUESTIONS_PAGE_SIZE = 5;
 
 interface ChatbotAnalyticsTabProps {
   chatbotId: string;
@@ -141,9 +146,14 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
       { chatbotId },
       { enabled: !!chatbotId },
     );
+  const [questionsOffset, setQuestionsOffset] = useState(0);
   const commonQuestionsQuery = trpc.analytics.getCommonQuestions.useQuery(
-    { chatbotId, limit: 10, offset: 0 },
-    { enabled: !!chatbotId },
+    {
+      chatbotId,
+      limit: COMMON_QUESTIONS_PAGE_SIZE,
+      offset: questionsOffset,
+    },
+    { enabled: !!chatbotId, placeholderData: keepPreviousData },
   );
   const lowConfidenceQuery = trpc.analytics.getLowConfidenceQueries.useQuery(
     { chatbotId, limit: 5, offset: 0 },
@@ -343,7 +353,7 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 shadow-xs">
+        <Card className="border border-border/60 shadow-xs xl:col-span-2">
           <CardHeader>
             <CardTitle>Session Lengths</CardTitle>
             <CardDescription>Sessions grouped by message count</CardDescription>
@@ -422,19 +432,68 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {commonQuestionsQuery.data.questions.map((question, index) => (
-                  <div
-                    key={`${question.question}-${index}`}
-                    className="flex items-start gap-3 rounded-lg border p-3"
-                  >
-                    <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
-                      {question.count}
+                <div className="space-y-3">
+                  {commonQuestionsQuery.data.questions.map(
+                    (question, index) => (
+                      <div
+                        key={`${question.question}-${index}`}
+                        className="flex items-start gap-3 rounded-lg border p-3"
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
+                          {question.count}
+                        </div>
+                        <p className="text-sm leading-6 break-words">
+                          {question.question}
+                        </p>
+                      </div>
+                    ),
+                  )}
+                </div>
+                {commonQuestionsQuery.data.totalCount >
+                  COMMON_QUESTIONS_PAGE_SIZE && (
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <span className="text-xs text-muted-foreground">
+                      Showing {questionsOffset + 1}-
+                      {Math.min(
+                        questionsOffset + COMMON_QUESTIONS_PAGE_SIZE,
+                        commonQuestionsQuery.data.totalCount,
+                      )}{" "}
+                      of {commonQuestionsQuery.data.totalCount}
+                    </span>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setQuestionsOffset(
+                            Math.max(
+                              0,
+                              questionsOffset - COMMON_QUESTIONS_PAGE_SIZE,
+                            ),
+                          )
+                        }
+                        disabled={questionsOffset === 0}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setQuestionsOffset(
+                            questionsOffset + COMMON_QUESTIONS_PAGE_SIZE,
+                          )
+                        }
+                        disabled={
+                          questionsOffset + COMMON_QUESTIONS_PAGE_SIZE >=
+                          commonQuestionsQuery.data.totalCount
+                        }
+                      >
+                        Next
+                      </Button>
                     </div>
-                    <p className="text-sm leading-6 break-words">
-                      {question.question}
-                    </p>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </CardContent>
