@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/dashboard/files/PaginationControls";
-import { Bot, ExternalLink, Globe, Plus } from "lucide-react";
+import { Bot, ExternalLink, Globe } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { getSourceDisplayName } from "@/lib/crawler-metadata";
+import { AddWebSourcePanel } from "@/components/dashboard/web-sources/AddWebSourcePanel";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -29,12 +30,14 @@ export default function WebSourcesPage() {
       { placeholderData: keepPreviousData },
     );
   const { data: chatbotsData, isLoading: chatbotsLoading } =
-    trpc.chatbot.list.useQuery({ limit: 1, offset: 0 });
+    trpc.chatbot.list.useQuery({ limit: 100, offset: 0 });
 
   const sources = data?.sources ?? [];
   const totalCount = data?.totalCount ?? 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+  const chatbots = chatbotsData?.chatbots ?? [];
   const chatbotCount = chatbotsData?.totalCount ?? 0;
+  const hasChatbots = chatbotCount > 0;
   const hasSources = sources.length > 0;
 
   return (
@@ -46,7 +49,8 @@ export default function WebSourcesPage() {
               Web Sources
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Find websites and single webpages you have added to your chatbots.
+              Crawl full websites or add single webpages, then attach them to
+              your chatbots.
               {data && (
                 <span className="ml-2 font-medium text-foreground">
                   ({totalCount} {totalCount === 1 ? "source" : "sources"})
@@ -54,15 +58,13 @@ export default function WebSourcesPage() {
               )}
             </p>
           </div>
-          <Button asChild size="lg">
-            <Link href="/dashboard/chatbots">
-              <Plus className="h-4 w-4 mr-2" />
-              Add From a Chatbot
-            </Link>
-          </Button>
         </div>
 
-        {isLoading || chatbotsLoading ? (
+        {hasChatbots && !chatbotsLoading && (
+          <AddWebSourcePanel chatbots={chatbots} />
+        )}
+
+        {isLoading || chatbotsLoading || isFetching ? (
           <div className="grid gap-4">
             {Array.from({ length: 3 }).map((_, index) => (
               <div
@@ -82,22 +84,18 @@ export default function WebSourcesPage() {
               No web sources yet
             </p>
             <p className="text-sm mt-1 max-w-xl mx-auto">
-              Web sources live inside chatbots. Open a chatbot, choose Web
-              Sources, then add a full website or a single webpage.
+              {hasChatbots
+                ? "Use the form above to crawl a full website or add a single webpage."
+                : "Create a chatbot first, then come back here to add full websites or single webpages."}
             </p>
-            <Button asChild className="mt-5">
-              <Link href="/dashboard/chatbots">
-                {chatbotCount ? "Open Chatbots" : "Create a Chatbot"}
-              </Link>
-            </Button>
+            {!hasChatbots && (
+              <Button asChild className="mt-5">
+                <Link href="/dashboard/chatbots">Create a Chatbot</Link>
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {isFetching && (
-              <p className="text-sm text-muted-foreground">
-                Updating sources...
-              </p>
-            )}
             <div className="grid gap-4">
               {sources.map((source) => (
                 <Card
