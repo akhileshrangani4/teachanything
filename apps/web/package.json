@@ -48,10 +48,10 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "drizzle-orm": "^0.45.2",
-    "framer-motion": "^12.38.0",
-    "lucide-react": "^1.11.0",
+    "framer-motion": "^12.40.0",
+    "lucide-react": "^1.17.0",
     "marked": "^18.0.3",
-    "nanoid": "^5.1.9",
+    "nanoid": "^5.1.11",
     "next": "^16.2.4",
     "postcss": "^8.5.12",
     "react": "^19.2.5",
@@ -74,7 +74,7 @@
     "use-stick-to-bottom": "^1.1.1",
     "xlsx": "^0.18.5",
     "yet-another-react-lightbox": "^3.27.0",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",
