@@ -1,6 +1,6 @@
 import { db } from "@teachanything/db";
 import { userFiles, fileChunks } from "@teachanything/db/schema";
-import { eq, ne, and } from "drizzle-orm";
+import { eq, ne, and, or, sql } from "drizzle-orm";
 import { createSupabaseClient } from "./supabase";
 import { isLocalStorageMode, readLocalFile } from "./local-storage";
 import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
@@ -8,7 +8,11 @@ import { EMBEDDING_MODEL } from "@teachanything/ai/models";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
 
-const EXTRACTION_TIMEOUT_MS = 30 * 60_000;
+// Must stay under the processing route's maxDuration (300s), leaving ~90s
+// for download/chunk/embed/store after extraction.
+const EXTRACTION_TIMEOUT_MS = 210_000;
+
+const STALE_PROCESSING_MS = 5 * 60_000;
 
 /**
  * Processing batch sizes - tuned for performance and rate limiting
@@ -30,6 +34,8 @@ function sanitizeProcessingError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
   const errorName = error instanceof Error ? error.name : "";
   if (msg.includes("timed out")) return "File processing timed out";
+  if (msg.includes("OCR time budget exceeded"))
+    return "File processing timed out";
   if (msg.includes("Unsupported file type")) return msg;
   if (msg.includes("no readable text")) return msg;
   if (msg.includes("Invalid image format")) return "Invalid image format";
@@ -58,31 +64,20 @@ async function updateProgress(
   fileId: string,
   stage: "downloading" | "extracting" | "chunking" | "embedding" | "storing",
   percentage: number,
-  currentChunk?: number,
-  totalChunks?: number,
-  currentPage?: number,
-  totalPages?: number,
+  currentChunk: number | undefined,
+  totalChunks: number | undefined,
+  currentPage: number | undefined,
+  totalPages: number | undefined,
+  startedAt: string,
 ) {
   try {
     const now = new Date().toISOString();
-
-    const [currentFile] = await db
-      .select()
-      .from(userFiles)
-      .where(eq(userFiles.id, fileId))
-      .limit(1);
-
-    const existingMetadata: FileMetadata = currentFile?.metadata || {};
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { error: _prevError, ...cleanMetadata } = existingMetadata;
-    const startedAt = existingMetadata?.processingProgress?.startedAt || now;
 
     await db
       .update(userFiles)
       .set({
         processingStatus: "processing",
         metadata: {
-          ...cleanMetadata,
           processingProgress: {
             stage,
             percentage: Math.min(100, Math.max(0, percentage)),
@@ -173,7 +168,10 @@ export async function processFile(params: {
       .where(
         and(
           eq(userFiles.id, fileId),
-          ne(userFiles.processingStatus, "processing"),
+          or(
+            ne(userFiles.processingStatus, "processing"),
+            sql`(metadata #>> '{processingProgress,lastUpdatedAt}')::timestamptz < now() - (${STALE_PROCESSING_MS}::int * interval '1 millisecond')`,
+          ),
         ),
       )
       .returning({ id: userFiles.id });
@@ -211,7 +209,16 @@ export async function processFile(params: {
     }
 
     // Stage 1: Download file from storage (0-10%)
-    await updateProgress(fileId, "downloading", 5);
+    await updateProgress(
+      fileId,
+      "downloading",
+      5,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      startTime,
+    );
 
     let buffer: Buffer;
 
@@ -252,11 +259,28 @@ export async function processFile(params: {
       buffer = Buffer.from(arrayBuffer);
     }
 
-    await updateProgress(fileId, "downloading", 10);
+    await updateProgress(
+      fileId,
+      "downloading",
+      10,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      startTime,
+    );
 
     // Stage 2: Extract text content (10-30%)
-    await updateProgress(fileId, "extracting", 10);
-    let isExtractionActive = true;
+    await updateProgress(
+      fileId,
+      "extracting",
+      10,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      startTime,
+    );
 
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -273,7 +297,6 @@ export async function processFile(params: {
         buffer,
         file.fileType,
         async (progress) => {
-          if (!isExtractionActive) return;
           if (progress.stage !== "ocr-page") return;
 
           const extractionPercentage = 10 + progress.percentage * 0.2;
@@ -285,24 +308,60 @@ export async function processFile(params: {
             undefined,
             progress.currentPage,
             progress.totalPages,
+            startTime,
           );
         },
         abortController.signal,
       );
     } finally {
       clearTimeout(timeoutId);
-      isExtractionActive = false;
     }
-    await updateProgress(fileId, "extracting", 30);
+    await updateProgress(
+      fileId,
+      "extracting",
+      30,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      startTime,
+    );
 
     // Stage 3: Chunk text (30-40%)
-    await updateProgress(fileId, "chunking", 30);
+    await updateProgress(
+      fileId,
+      "chunking",
+      30,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      startTime,
+    );
     const chunks = await ragService.chunkText(content);
-    await updateProgress(fileId, "chunking", 40, 0, chunks.length);
+    await updateProgress(
+      fileId,
+      "chunking",
+      40,
+      0,
+      chunks.length,
+      undefined,
+      undefined,
+      startTime,
+    );
 
     // Stage 4: Generate embeddings (40-90%)
     // This is the slowest part, so batch process and report progress
-    await updateProgress(fileId, "embedding", 40, 0, chunks.length);
+    await updateProgress(
+      fileId,
+      "embedding",
+      40,
+      0,
+      chunks.length,
+      undefined,
+      undefined,
+      startTime,
+    );
     const openrouterClient = createOpenRouterClient(
       env.OPENROUTER_API_KEY,
       env.OPENAI_API_KEY,
@@ -362,6 +421,9 @@ export async function processFile(params: {
         progress,
         batchEnd,
         chunks.length,
+        undefined,
+        undefined,
+        startTime,
       );
 
       logInfo(
@@ -376,7 +438,16 @@ export async function processFile(params: {
     }
 
     // Stage 5: Store chunks with embeddings in database (90-100%)
-    await updateProgress(fileId, "storing", 90, chunks.length, chunks.length);
+    await updateProgress(
+      fileId,
+      "storing",
+      90,
+      chunks.length,
+      chunks.length,
+      undefined,
+      undefined,
+      startTime,
+    );
     const chunkRecords = await Promise.all(
       chunks.map(async (chunk, index) => {
         const embedding = embeddings[index];
@@ -405,7 +476,16 @@ export async function processFile(params: {
         )
         .onConflictDoNothing();
     }
-    await updateProgress(fileId, "storing", 95, chunks.length, chunks.length);
+    await updateProgress(
+      fileId,
+      "storing",
+      95,
+      chunks.length,
+      chunks.length,
+      undefined,
+      undefined,
+      startTime,
+    );
 
     // Update file status to completed
     await db
