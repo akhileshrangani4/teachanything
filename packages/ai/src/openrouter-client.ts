@@ -4,17 +4,14 @@ import {
   generateText,
   embed,
   streamText,
-  type AsyncIterableStream,
-  type TextStreamPart,
+  type StreamTextResult,
   type ToolSet,
 } from "ai";
 import { logInfo } from "@teachanything/logger";
 import { EMBEDDING_MODEL, type SupportedModel } from "./models";
 import { isTransientError } from "./error-utils";
 
-type OpenRouterStreamTextResult = {
-  readonly fullStream: AsyncIterableStream<TextStreamPart<ToolSet>>;
-};
+export type OpenRouterStreamTextResult = StreamTextResult<ToolSet, never>;
 
 // Re-export so consumers of @teachanything/ai/openrouter subpath still get these
 export { SUPPORTED_MODELS, type SupportedModel } from "./models";
