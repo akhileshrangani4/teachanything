@@ -175,7 +175,7 @@ export function FileStatusBadge({
               Chunk {progress.currentChunk || 0} of {progress.totalChunks}
             </p>
           )}
-          {progress.totalPages && (
+          {progress.stage === "extracting" && progress.totalPages && (
             <p className="text-xs">
               Page {progress.currentPage || 0} of {progress.totalPages}
             </p>
