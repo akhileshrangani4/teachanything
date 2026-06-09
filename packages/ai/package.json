@@ -9,6 +9,7 @@
     "./models": "./src/models.ts",
     "./openrouter": "./src/openrouter-client.ts",
     "./rag": "./src/rag-service.ts",
+    "./ocr-service": "./src/ocr-service.ts",
     "./crawler": "./src/crawler.ts",
     "./token-budget": "./src/token-budget.ts"
   },
