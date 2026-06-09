@@ -3,6 +3,8 @@ import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
 import { logError } from "@/lib/logger";
 import { processFile } from "@/lib/file-processor";
 
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   try {
     // When QStash is not configured, signature verification is impossible
