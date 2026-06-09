@@ -35,8 +35,10 @@ export const ALLOWED_EXTENSIONS = [
 
 export const FILE_INPUT_ACCEPT = ALLOWED_EXTENSIONS.join(",");
 
-export const OCR_MAX_IMAGE_SIZE_MB = 25;
-export const OCR_MAX_IMAGE_SIZE_BYTES = OCR_MAX_IMAGE_SIZE_MB * 1024 * 1024;
+export {
+  OCR_MAX_IMAGE_SIZE_MB,
+  OCR_MAX_IMAGE_SIZE_BYTES,
+} from "@teachanything/ai/ocr-service";
 
 export const OCR_IMAGE_FILE_TYPES = [
   "image/jpeg",
