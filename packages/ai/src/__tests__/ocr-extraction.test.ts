@@ -43,9 +43,87 @@ const createCanvasMock = jest.fn();
 const loadImageMock =
   jest.fn<() => Promise<{ width: number; height: number }>>();
 
-const pngBuffer = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
-]);
+/**
+ * Header builders — produce minimal but byte-accurate image headers that the
+ * `probeImageDimensions` helpers in ocr-service.ts can parse. Layouts mirror
+ * those probe functions exactly.
+ */
+function makePngHeader(width: number, height: number): Buffer {
+  // 8-byte signature, IHDR length (0x0000000D), "IHDR", width@16, height@20.
+  const buf = Buffer.alloc(28);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(buf, 0);
+  buf.writeUInt32BE(0x0000000d, 8); // IHDR chunk length
+  buf.write("IHDR", 12, "ascii");
+  buf.writeUInt32BE(width, 16);
+  buf.writeUInt32BE(height, 20);
+  // 4 trailing bytes (bit depth, color type, etc.) keep length >= 24.
+  return buf;
+}
+
+function makeJpegHeader(width: number, height: number): Buffer {
+  // SOI (FF D8) + APP0 segment (FF E0, length 16) + SOF0 segment (FF C0).
+  // probeJpeg scans for the SOF0 marker, then reads height@+5 and width@+7.
+  const head = Buffer.alloc(20); // SOI(2) + APP0 marker(2) + len(2) + 14 bytes
+  head[0] = 0xff;
+  head[1] = 0xd8; // SOI
+  head[2] = 0xff;
+  head[3] = 0xe0; // APP0 marker
+  head.writeUInt16BE(0x0010, 4); // APP0 segment length = 16 (covers offsets 4..19)
+  head.write("JFIF\0", 6, "ascii");
+
+  const sof = Buffer.alloc(11);
+  sof[0] = 0xff;
+  sof[1] = 0xc0; // SOF0
+  sof.writeUInt16BE(0x0011, 2); // segment length = 17
+  sof[4] = 0x08; // precision
+  sof.writeUInt16BE(height, 5);
+  sof.writeUInt16BE(width, 7);
+  sof[9] = 0x03; // component count
+  sof[10] = 0x00;
+
+  return Buffer.concat([head, sof]);
+}
+
+function makeWebpHeader(width: number, height: number): Buffer {
+  // RIFF + size + WEBP + VP8X chunk; (w-1)@24 3-byte LE, (h-1)@27 3-byte LE.
+  const buf = Buffer.alloc(30);
+  buf.write("RIFF", 0, "ascii");
+  buf.writeUInt32LE(buf.length - 8, 4);
+  buf.write("WEBP", 8, "ascii");
+  buf.write("VP8X", 12, "ascii");
+  buf.writeUInt32LE(10, 16); // VP8X chunk size
+  // flags byte @ 20, reserved 21-23
+  buf.writeUIntLE(width - 1, 24, 3);
+  buf.writeUIntLE(height - 1, 27, 3);
+  return buf;
+}
+
+function makeTiffHeader(width: number, height: number): Buffer {
+  // Little-endian TIFF: II 2A 00, IFD offset @ 4. IFD with ImageWidth/Length.
+  const ifdOffset = 8;
+  const entryCount = 2;
+  const buf = Buffer.alloc(ifdOffset + 2 + entryCount * 12 + 4);
+  buf.write("II", 0, "ascii");
+  buf.writeUInt16LE(0x002a, 2);
+  buf.writeUInt32LE(ifdOffset, 4);
+  buf.writeUInt16LE(entryCount, ifdOffset);
+  // Entry 0: ImageWidth (0x0100), type LONG (4), count 1, value.
+  let e = ifdOffset + 2;
+  buf.writeUInt16LE(0x0100, e);
+  buf.writeUInt16LE(4, e + 2); // type LONG
+  buf.writeUInt32LE(1, e + 4); // count
+  buf.writeUInt32LE(width, e + 8);
+  // Entry 1: ImageLength (0x0101), type LONG, count 1, value.
+  e += 12;
+  buf.writeUInt16LE(0x0101, e);
+  buf.writeUInt16LE(4, e + 2);
+  buf.writeUInt32LE(1, e + 4);
+  buf.writeUInt32LE(height, e + 8);
+  return buf;
+}
+
+// Parseable 10x10 PNG used by happy-path / blank-image tests.
+const pngBuffer = makePngHeader(10, 10);
 
 jest.unstable_mockModule("@teachanything/logger", () => ({
   logWarn: jest.fn(),
@@ -93,7 +171,7 @@ describe("OCR extraction", () => {
       recognize: recognizeMock,
       terminate: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     });
-    loadImageMock.mockResolvedValue({ width: 100, height: 100 });
+    loadImageMock.mockResolvedValue({ width: 10, height: 10 });
     pdfParseMock.mockResolvedValue({ text: "  \n", numpages: 2 });
     getDocumentMock.mockReturnValue({
       promise: Promise.resolve({
@@ -154,7 +232,46 @@ describe("OCR extraction", () => {
   it("rejects images whose header does not match the declared MIME type", async () => {
     await expect(
       service.extractTextFromImage(pngBuffer, "image/jpeg"),
-    ).rejects.toThrow("Invalid image format: expected image/jpeg");
+    ).rejects.toThrow(
+      "Invalid image format: expected image/jpeg, got image/png",
+    );
+    expect(recognizeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects WEBP bytes declared as PNG", async () => {
+    await expect(
+      service.extractTextFromImage(makeWebpHeader(10, 10), "image/png"),
+    ).rejects.toThrow(
+      "Invalid image format: expected image/png, got image/webp",
+    );
+    expect(recognizeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects TIFF bytes declared as PNG", async () => {
+    await expect(
+      service.extractTextFromImage(makeTiffHeader(10, 10), "image/png"),
+    ).rejects.toThrow(
+      "Invalid image format: expected image/png, got image/tiff",
+    );
+    expect(recognizeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects JPEG bytes declared as PNG", async () => {
+    await expect(
+      service.extractTextFromImage(makeJpegHeader(10, 10), "image/png"),
+    ).rejects.toThrow(
+      "Invalid image format: expected image/png, got image/jpeg",
+    );
+    expect(recognizeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown/garbage image header", async () => {
+    const garbage = Buffer.from([
+      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    ]);
+    await expect(
+      service.extractTextFromImage(garbage, "image/png"),
+    ).rejects.toThrow("Invalid image format: unknown image header");
     expect(recognizeMock).not.toHaveBeenCalled();
   });
 
@@ -164,6 +281,37 @@ describe("OCR extraction", () => {
     await expect(
       service.extractTextFromImage(pngBuffer, "image/png"),
     ).rejects.toThrow("OCR worker failed");
+  });
+
+  it("rejects images that contain no readable text", async () => {
+    recognizeMock.mockResolvedValue({ data: { text: "   \n  " } });
+
+    await expect(
+      service.extractTextFromImage(pngBuffer, "image/png"),
+    ).rejects.toThrow("Image contains no readable text content");
+  });
+
+  it("rejects images whose header dimensions exceed the OCR pixel limit", async () => {
+    // 5000x5000 = 25M px > 12M cap; must fail before loadImage/recognize.
+    await expect(
+      service.extractTextFromImage(makePngHeader(5000, 5000), "image/png"),
+    ).rejects.toThrow("Image dimensions exceed maximum limit for OCR");
+    expect(loadImageMock).not.toHaveBeenCalled();
+    expect(recognizeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects images whose dimensions cannot be parsed from the header", async () => {
+    // Valid PNG magic bytes but truncated before the IHDR dimensions.
+    const truncated = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
+    ]);
+    await expect(
+      service.extractTextFromImage(truncated, "image/png"),
+    ).rejects.toThrow(
+      "Invalid image format: unable to determine image dimensions",
+    );
+    expect(loadImageMock).not.toHaveBeenCalled();
+    expect(recognizeMock).not.toHaveBeenCalled();
   });
 
   it("clears the worker init promise on failure so the next call retries", async () => {
@@ -190,6 +338,9 @@ describe("OCR extraction", () => {
     const terminateMock = jest
       .fn<() => Promise<void>>()
       .mockResolvedValue(undefined);
+    // Valid recognize result so the flow does not throw a spurious TypeError on
+    // result.data.text — any resolution/rejection reflects real control flow.
+    recognizeMock.mockResolvedValue({ data: { text: "text" } });
     let resolveWorker!: (w: {
       recognize: typeof recognizeMock;
       terminate: typeof terminateMock;
@@ -202,11 +353,17 @@ describe("OCR extraction", () => {
 
     const ocr = service.extractTextFromImage(pngBuffer, "image/png");
     await new Promise((resolve) => setTimeout(resolve, 0));
+    // Cleanup while worker init is still pending: the worker reference is
+    // detached and scheduled for termination once init settles.
     service.cleanup();
     resolveWorker({ recognize: recognizeMock, terminate: terminateMock });
 
-    await expect(ocr).rejects.toThrow();
+    // cleanup() does NOT abort an in-flight call (no AbortSignal is wired into
+    // extractTextFromImage's internal recognize path), so the already-captured
+    // worker still completes recognition and the call resolves normally.
+    await expect(ocr).resolves.toBe("text");
     await new Promise((r) => setTimeout(r, 0));
+    // The detached worker is still terminated exactly once by cleanup().
     expect(terminateMock).toHaveBeenCalledTimes(1);
   });
 

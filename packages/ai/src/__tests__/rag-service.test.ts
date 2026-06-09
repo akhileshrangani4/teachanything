@@ -43,26 +43,39 @@ jest.unstable_mockModule("@napi-rs/canvas", () => ({
   Path2D: class {},
 }));
 
+const getDocumentMock = jest.fn(() => ({
+  promise: Promise.resolve({
+    numPages: 1,
+    getPage: jest.fn(() =>
+      Promise.resolve({
+        getTextContent: jest.fn(() =>
+          Promise.resolve({ items: [{ str: "mocked pdf text" }] }),
+        ),
+        getViewport: jest.fn(() => ({ width: 100, height: 100 })),
+        render: jest.fn(() => ({ promise: Promise.resolve() })),
+        cleanup: jest.fn(),
+      }),
+    ),
+    destroy: jest.fn(() => Promise.resolve(undefined)),
+  }),
+}));
+
 jest.unstable_mockModule("pdfjs-dist/legacy/build/pdf.mjs", () => ({
-  getDocument: jest.fn(() => ({
-    promise: Promise.resolve({
-      numPages: 1,
-      getPage: jest.fn(() =>
-        Promise.resolve({
-          getTextContent: jest.fn(() =>
-            Promise.resolve({ items: [{ str: "mocked pdf text" }] }),
-          ),
-          getViewport: jest.fn(() => ({ width: 100, height: 100 })),
-          render: jest.fn(() => ({ promise: Promise.resolve() })),
-          cleanup: jest.fn(),
-        }),
-      ),
-      destroy: jest.fn(() => Promise.resolve(undefined)),
-    }),
-  })),
+  getDocument: getDocumentMock,
 }));
 
 const { RAGService, createRAGService } = await import("../rag-service");
+
+function makePngHeader(width: number, height: number): Buffer {
+  // 8-byte signature, IHDR length (0x0000000D), "IHDR", width@16, height@20.
+  const buf = Buffer.alloc(28);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(buf, 0);
+  buf.writeUInt32BE(0x0000000d, 8); // IHDR chunk length
+  buf.write("IHDR", 12, "ascii");
+  buf.writeUInt32BE(width, 16);
+  buf.writeUInt32BE(height, 20);
+  return buf;
+}
 
 // Suppress expected console.error from error-path tests
 beforeAll(() => {
@@ -234,8 +247,9 @@ describe("RAGService", () => {
     });
 
     it("extracts text from image buffer via OCR mock", async () => {
-      const buffer = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
-      const result = await service.extractContent(buffer, "image/jpeg");
+      const buffer = makePngHeader(10, 10);
+      loadImageMock.mockResolvedValue({ width: 10, height: 10 });
+      const result = await service.extractContent(buffer, "image/png");
       expect(result).toBe("mocked ocr text");
     });
 
@@ -260,14 +274,67 @@ describe("RAGService", () => {
       ).rejects.toThrow("Timeout Testing Abort");
     });
 
-    it("rejects oversized images during validation", async () => {
-      const buffer = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+    it("aborts mid-loop during multi-page PDF OCR fallback and destroys the document", async () => {
+      const controller = new AbortController();
+      const destroyMock = jest.fn(() => Promise.resolve(undefined));
 
-      loadImageMock.mockResolvedValue({ width: 20000, height: 20000 });
+      // A page whose text is above the per-page OCR threshold, so the loop
+      // takes the plain-text branch and the per-page abort check runs.
+      const makePage = () => ({
+        getTextContent: jest.fn(() =>
+          Promise.resolve({ items: [{ str: "this page has plenty of text" }] }),
+        ),
+        getViewport: jest.fn(() => ({ width: 100, height: 100 })),
+        render: jest.fn(() => ({ promise: Promise.resolve() })),
+        cleanup: jest.fn(),
+      });
+
+      const getPageMock = jest.fn((pageNumber?: number) => {
+        // Trigger abort when page 2 is requested so the per-page
+        // `if (signal?.aborted) throw signal.reason` check fires after page 1.
+        if (pageNumber === 2) {
+          controller.abort(new Error("aborted mid-loop"));
+        }
+        return Promise.resolve(makePage());
+      });
+
+      getDocumentMock.mockReturnValueOnce({
+        promise: Promise.resolve({
+          numPages: 5,
+          getPage: getPageMock,
+          destroy: destroyMock,
+        }),
+      });
+
+      // Force the OCR fallback path: empty parsed text => shouldUsePDFOCRFallback.
+      pdfParseMock.mockResolvedValueOnce({ text: "", numpages: 5 });
+
+      const buffer = Buffer.from("%PDF-1.4 mock data");
 
       await expect(
-        service.extractContent(buffer, "image/jpeg"),
-      ).rejects.toThrow("Image dimensions exceed maximum limit for OCR");
+        service.extractContent(
+          buffer,
+          "application/pdf",
+          undefined,
+          controller.signal,
+        ),
+      ).rejects.toThrow(/aborted mid-loop/);
+
+      expect(destroyMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects oversized images during validation", async () => {
+      // >25MB buffer with a valid PNG signature; rejected at the byte-size
+      // check in validateImageBuffer before the dimension probe runs.
+      const buffer = Buffer.alloc(26 * 1024 * 1024);
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(
+        buffer,
+        0,
+      );
+
+      await expect(service.extractContent(buffer, "image/png")).rejects.toThrow(
+        "Image exceeds OCR size limit",
+      );
     });
   });
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
-import { inferSupportedFileType } from "@/lib/upload-file-types";
+import {
+  inferSupportedFileType,
+  OCR_MAX_IMAGE_SIZE_BYTES,
+  OCR_MAX_IMAGE_SIZE_MB,
+} from "@/lib/upload-file-types";
 
 describe("inferSupportedFileType", () => {
   it("uses the declared MIME type when it is already supported", () => {
@@ -34,5 +38,15 @@ describe("inferSupportedFileType", () => {
     expect(inferSupportedFileType("animation.gif", "image/gif")).toBe(
       "image/gif",
     );
+  });
+});
+
+describe("OCR image size constants", () => {
+  it("keeps bytes derived from the MB limit (drift guard)", () => {
+    expect(OCR_MAX_IMAGE_SIZE_BYTES).toBe(OCR_MAX_IMAGE_SIZE_MB * 1024 * 1024);
+  });
+
+  it("matches the documented 25MB limit", () => {
+    expect(OCR_MAX_IMAGE_SIZE_MB).toBe(25);
   });
 });
