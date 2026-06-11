@@ -43,6 +43,26 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
+      # Apply pending DB migrations BEFORE pushing to the production branch, so
+      # the schema is ready when Vercel builds the new production deployment.
+      # drizzle-kit migrate is idempotent (journal-tracked), so this is a fast
+      # no-op on releases that don't touch packages/db. Requires the
+      # DATABASE_URL repo secret (prod connection).
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:migrate
+        working-directory: packages/db
+
       - name: Setup Git User
         run: |
           git config user.name "GitHub Actions Bot"
