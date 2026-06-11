@@ -7,9 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/dashboard/files/PaginationControls";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import { Bot, ExternalLink, Globe, Loader2 } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { getSourceDisplayName } from "@/lib/crawler-metadata";
 import { AddWebSourcePanel } from "@/components/dashboard/web-sources/AddWebSourcePanel";
 
@@ -37,6 +46,17 @@ export default function WebSourcesPage() {
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
   const chatbots = chatbotsData?.chatbots ?? [];
   const chatbotCount = chatbotsData?.totalCount ?? 0;
+
+  const utils = trpc.useUtils();
+  const attach = trpc.crawler.attachToChatbot.useMutation({
+    onSuccess: () => utils.crawler.getAllCrawlSources.invalidate(),
+    onError: (e) => toast.error("Failed to attach", { description: e.message }),
+  });
+  const detach = trpc.crawler.detachFromChatbot.useMutation({
+    onSuccess: () => utils.crawler.getAllCrawlSources.invalidate(),
+    onError: (e) =>
+      toast.error("Failed to remove", { description: e.message }),
+  });
   const hasChatbots = chatbotCount > 0;
   const hasSources = sources.length > 0;
   // Full skeleton only on initial load (no data yet); keep the list and show
@@ -145,10 +165,20 @@ export default function WebSourcesPage() {
                             {source.pageCount}{" "}
                             {source.pageCount === 1 ? "page" : "pages"}
                           </Badge>
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Bot className="h-3.5 w-3.5" />
-                            {source.chatbotName}
-                          </span>
+                          {source.chatbots.length === 0 ? (
+                            <Badge variant="outline">Not attached</Badge>
+                          ) : (
+                            source.chatbots.map((c) => (
+                              <Badge
+                                key={c.id}
+                                variant="secondary"
+                                className="gap-1"
+                              >
+                                <Bot className="h-3 w-3" />
+                                {c.name}
+                              </Badge>
+                            ))
+                          )}
                           {source.lastCrawledAt && (
                             <span className="text-xs text-muted-foreground">
                               Last crawled{" "}
@@ -159,13 +189,58 @@ export default function WebSourcesPage() {
                           )}
                         </div>
                       </div>
-                      <Button asChild variant="outline" className="shrink-0">
-                        <Link
-                          href={`/chatbot/${source.chatbotId}?tab=web-sources`}
-                        >
-                          Manage Source
-                        </Link>
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="shrink-0">
+                            <Bot className="mr-2 h-4 w-4" />
+                            Chatbots
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuLabel>
+                            Attach to chatbots
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {chatbots.length === 0 ? (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              No chatbots yet. Create one to attach this source.
+                            </div>
+                          ) : (
+                            chatbots.map((chatbot) => {
+                              const attached = source.chatbots.some(
+                                (c) => c.id === chatbot.id,
+                              );
+                              return (
+                                <DropdownMenuCheckboxItem
+                                  key={chatbot.id}
+                                  checked={attached}
+                                  disabled={
+                                    attach.isPending || detach.isPending
+                                  }
+                                  onSelect={(e) => e.preventDefault()}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      attach.mutate({
+                                        crawlSourceId: source.id,
+                                        chatbotId: chatbot.id,
+                                      });
+                                    } else {
+                                      detach.mutate({
+                                        crawlSourceId: source.id,
+                                        chatbotId: chatbot.id,
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <span className="truncate">
+                                    {chatbot.name}
+                                  </span>
+                                </DropdownMenuCheckboxItem>
+                              );
+                            })
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </CardContent>
                 </Card>
