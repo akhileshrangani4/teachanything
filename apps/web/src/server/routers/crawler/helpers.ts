@@ -1,4 +1,4 @@
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -16,39 +16,38 @@ import type { Context } from "@/server/trpc";
 type AuthedContext = Context & { session: { user: { id: string } } };
 
 /**
- * Fetch a crawl source and verify the caller owns its parent chatbot.
- * Single query (source JOIN chatbot) instead of two sequential selects.
+ * Fetch a crawl source and verify the caller owns it via userId.
  * Throws NOT_FOUND if the source doesn't exist or the user doesn't own it.
  */
 export async function assertOwnedCrawlSource(
   ctx: AuthedContext,
   crawlSourceId: string,
 ): Promise<typeof crawlSources.$inferSelect> {
-  const [row] = await ctx.db
-    .select({ source: crawlSources })
+  const [source] = await ctx.db
+    .select()
     .from(crawlSources)
-    .innerJoin(chatbots, eq(chatbots.id, crawlSources.chatbotId))
     .where(
       and(
         eq(crawlSources.id, crawlSourceId),
-        eq(chatbots.userId, ctx.session.user.id),
+        eq(crawlSources.userId, ctx.session.user.id),
       ),
     )
     .limit(1);
 
-  if (!row) {
+  if (!source) {
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "Crawl source not found",
     });
   }
 
-  return row.source;
+  return source;
 }
 
 /**
- * Same as above but for a specific crawled page: verifies the caller owns
- * the chatbot that owns the parent crawl source.
+ * Fetch a crawled page and verify the caller owns the parent crawl source
+ * via userId (crawledPages -> crawlSources.userId).
+ * Throws NOT_FOUND if the page doesn't exist or the user doesn't own it.
  */
 export async function assertOwnedCrawledPage(
   ctx: AuthedContext,
@@ -61,11 +60,10 @@ export async function assertOwnedCrawledPage(
     .select({ page: crawledPages, source: crawlSources })
     .from(crawledPages)
     .innerJoin(crawlSources, eq(crawlSources.id, crawledPages.crawlSourceId))
-    .innerJoin(chatbots, eq(chatbots.id, crawlSources.chatbotId))
     .where(
       and(
         eq(crawledPages.id, crawledPageId),
-        eq(chatbots.userId, ctx.session.user.id),
+        eq(crawlSources.userId, ctx.session.user.id),
       ),
     )
     .limit(1);
@@ -132,14 +130,38 @@ export async function deleteCrawlFileIds(
     );
 
   // Step 2: delete userFiles that are now fully orphaned (no remaining
-  // associations to any chatbot). Uses NOT EXISTS in one round-trip
-  // instead of a SELECT + client-side diff + DELETE.
+  // associations to any chatbot).
+  const remaining = await tx
+    .select({ fileId: chatbotFileAssociations.fileId })
+    .from(chatbotFileAssociations)
+    .where(inArray(chatbotFileAssociations.fileId, fileIds));
+
+  const stillLinked = new Set(remaining.map((r) => r.fileId));
+  const toDelete = fileIds.filter((id) => !stillLinked.has(id));
+
+  if (toDelete.length > 0) {
+    await tx.delete(userFiles).where(inArray(userFiles.id, toDelete));
+  }
+}
+
+/**
+ * Delete crawler userFiles regardless of which chatbots they're attached to.
+ * Removes ALL associations for the given fileIds, then deletes the userFiles
+ * (they are exclusively owned by crawled pages). Use when removing a whole
+ * crawl source or an individual page, where the page should disappear from
+ * every chatbot it was attached to.
+ *
+ * Must be run inside a transaction (pass the tx handle).
+ */
+export async function deleteAllCrawlFileIds(
+  tx: Parameters<Parameters<typeof dbType.transaction>[0]>[0],
+  fileIds: string[],
+): Promise<void> {
+  if (fileIds.length === 0) return;
+
   await tx
-    .delete(userFiles)
-    .where(
-      and(
-        inArray(userFiles.id, fileIds),
-        sql`NOT EXISTS (SELECT 1 FROM ${chatbotFileAssociations} WHERE ${chatbotFileAssociations.fileId} = ${userFiles.id})`,
-      ),
-    );
+    .delete(chatbotFileAssociations)
+    .where(inArray(chatbotFileAssociations.fileId, fileIds));
+
+  await tx.delete(userFiles).where(inArray(userFiles.id, fileIds));
 }
