@@ -1,9 +1,8 @@
 # AGENTS.md
 
-This is the project's coding-standards and architecture reference: repository
-structure, tech stack, TypeScript and API conventions, testing, and workflow
-rules. It applies to **every** contribution, regardless of how the code was
-written.
+This is the project's coding standards and architecture reference. It documents repository
+structure, tech stack, TypeScript and API conventions, testing, and workflow rules.
+It applies to **every** contribution, regardless of how the code was written.
 
 The file is named `AGENTS.md` and formatted so AI coding agents can read and
 follow it directly, but using an AI coding agent is entirely optional. For a
