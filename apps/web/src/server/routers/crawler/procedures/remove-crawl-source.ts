@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { crawlSources, crawledPages } from "@teachanything/db/schema";
 import { logInfo, logError } from "@/lib/logger";
 import { crawlSourceIdInput } from "../validation";
-import { assertOwnedCrawlSource, deleteCrawlFileIds } from "../helpers";
+import { assertOwnedCrawlSource, deleteAllCrawlFileIds } from "../helpers";
 
 export const removeCrawlSourceProcedure = protectedProcedure
   .input(crawlSourceIdInput)
@@ -45,7 +45,7 @@ export const removeCrawlSourceProcedure = protectedProcedure
           ),
         ];
 
-        await deleteCrawlFileIds(tx, source.chatbotId, fileIds);
+        await deleteAllCrawlFileIds(tx, fileIds);
 
         await tx
           .delete(crawlSources)
@@ -53,8 +53,7 @@ export const removeCrawlSourceProcedure = protectedProcedure
       });
 
       logInfo("Crawl source removed", {
-        crawlSourceId: input.crawlSourceId,
-        chatbotId: source.chatbotId,
+        crawlSourceId: source.id,
       });
 
       return { success: true };

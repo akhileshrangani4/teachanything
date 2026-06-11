@@ -1,0 +1,169 @@
+name: Migrate Database
+
+# Applies pending Drizzle migrations to the production database after CI
+# passes on main. Modeled on the tambo migrate-db workflow. Runs only when
+# packages/db changed, only for trusted pushes to main, and never from fork
+# PRs or dependabot. Requires a DATABASE_URL repo secret (prod connection).
+#
+# NOTE: this runs in parallel with the Vercel production deploy, so there is a
+# brief window where new code may serve against the pre-migration schema (and,
+# because preview deploys share the production DATABASE_URL, previews of a
+# schema-changing PR run new code against the old schema until this lands).
+# Migrations are written non-destructively (backfill before drop) to tolerate
+# that window.
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    branches: [main]
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: migrate-db
+  cancel-in-progress: false
+
+jobs:
+  deploy-migrations:
+    name: Deploy Database Migrations
+    # Only trusted pushes from this repo (never fork PRs / dependabot).
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'workflow_run' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.conclusion == 'success'
+        )
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # For workflow_run events, check out the commit that triggered the
+          # upstream workflow. For manual dispatch, use the workflow's own SHA.
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Check for changes in packages/db
+        id: check-changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.workflow_id || '' }}
+          WORKFLOW_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
+          HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -u
+
+          DB_PATH="packages/db"
+
+          if [ ! -d "$DB_PATH" ]; then
+            echo "Directory $DB_PATH does not exist; skipping migrations."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BASE_SHA=""
+
+          # When triggered by workflow_run, find the previous run of the
+          # upstream workflow on main and use its head_sha as the diff base.
+          if [ -n "${WORKFLOW_ID:-}" ] && [ -n "${WORKFLOW_RUN_ID:-}" ]; then
+            echo "Resolving previous workflow run for diff base..."
+
+            API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW_ID}/runs?branch=main&per_page=20"
+
+            set -eo pipefail
+
+            if ! runs_json="$(curl -sS -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" "$API_URL")"; then
+              set +e
+              echo "Warning: failed to fetch workflow runs; defaulting to changed=true" >&2
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            if ! BASE_SHA="$(echo "$runs_json" | jq -r --arg current_id "$WORKFLOW_RUN_ID" '
+              if (.workflow_runs | type) != "array" then
+                ""
+              else
+                .workflow_runs
+                | sort_by(.run_started_at)
+                | to_entries
+                | (map(select(.value.id == ($current_id | tonumber)) | .key) | .[0]) as $idx
+                | if $idx == null or $idx == 0 then
+                    ""
+                  else
+                    .[$idx - 1].value.head_sha
+                  end
+              end
+            ')"; then
+              set +e
+              echo "Warning: failed to resolve BASE_SHA; defaulting to changed=true" >&2
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            set +e
+          fi
+
+          if [ -z "$BASE_SHA" ]; then
+            echo "No previous workflow run found; treating as initial run for diff."
+            if git ls-tree -r --name-only "$HEAD_SHA" "$DB_PATH" | grep -q . 2>/dev/null; then
+              echo "Initial run with database files present; running migrations."
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              status=$?
+              if [ "$status" -eq 1 ]; then
+                echo "Initial run without database files; skipping migrations."
+                echo "changed=false" >> "$GITHUB_OUTPUT"
+              else
+                echo "Warning: git ls-tree/grep failed (status $status); defaulting to changed=true" >&2
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+            exit 0
+          fi
+
+          echo "Comparing $BASE_SHA..$HEAD_SHA for changes under $DB_PATH"
+
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- "$DB_PATH"; then
+            echo "No changes detected in $DB_PATH between $BASE_SHA and $HEAD_SHA"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            status=$?
+            if [ "$status" -eq 1 ]; then
+              echo "Changes detected in $DB_PATH"
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- "$DB_PATH" || true
+            else
+              echo "Warning: git diff failed (status $status); defaulting to changed=true" >&2
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Setup Node
+        if: steps.check-changes.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.check-changes.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Run database migrations
+        if: steps.check-changes.outputs.changed == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:migrate
+        working-directory: packages/db

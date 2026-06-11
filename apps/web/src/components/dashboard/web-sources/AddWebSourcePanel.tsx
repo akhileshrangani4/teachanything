@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Bot } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { Label } from "@/components/ui/label";
@@ -29,12 +28,14 @@ import {
   parsePatternList,
 } from "@/components/chatbot/web-sources/utils";
 
+const NO_CHATBOT = "__none__";
+
 interface AddWebSourcePanelProps {
   chatbots: Array<{ id: string; name: string }>;
 }
 
 export function AddWebSourcePanel({ chatbots }: AddWebSourcePanelProps) {
-  const [chatbotId, setChatbotId] = useState(chatbots[0]?.id ?? "");
+  const [chatbotId, setChatbotId] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [rootUrl, setRootUrl] = useState("");
   const [crawlDepth, setCrawlDepth] = useState(3);
@@ -79,9 +80,8 @@ export function AddWebSourcePanel({ chatbots }: AddWebSourcePanelProps) {
   });
 
   const handleAddSource = () => {
-    if (!chatbotId) return;
     addCrawlSource.mutate({
-      chatbotId,
+      ...(chatbotId ? { chatbotId } : {}),
       rootUrl: normalizeUrl(rootUrl),
       crawlDepth,
       maxPages,
@@ -91,47 +91,42 @@ export function AddWebSourcePanel({ chatbots }: AddWebSourcePanelProps) {
   };
 
   const handleAddManualUrl = () => {
-    if (!chatbotId || !manualUrl) return;
-    addManualUrl.mutate({ chatbotId, url: normalizeUrl(manualUrl) });
+    if (!manualUrl) return;
+    addManualUrl.mutate({
+      ...(chatbotId ? { chatbotId } : {}),
+      url: normalizeUrl(manualUrl),
+    });
   };
-
-  const showChatbotSelect = chatbots.length > 1;
 
   return (
     <Card className="border border-border/60 bg-card shadow-xs">
       <CardHeader>
         <CardTitle className="text-lg">Add a web source</CardTitle>
         <CardDescription>
-          Crawl a full website or add a single webpage. Content is added to the
-          chatbot you choose, just like uploading a file.
+          Crawl a website or add a single page. Attach it to chatbots anytime,
+          just like uploading a file.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {showChatbotSelect ? (
-          <div className="space-y-2 sm:max-w-xs">
-            <Label htmlFor="chatbot-select">Add to chatbot</Label>
-            <Select value={chatbotId} onValueChange={setChatbotId}>
-              <SelectTrigger id="chatbot-select">
-                <SelectValue placeholder="Choose a chatbot" />
-              </SelectTrigger>
-              <SelectContent>
-                {chatbots.map((chatbot) => (
-                  <SelectItem key={chatbot.id} value={chatbot.id}>
-                    {chatbot.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Bot className="h-3.5 w-3.5" />
-            Adding to{" "}
-            <span className="font-medium text-foreground">
-              {chatbots[0]?.name}
-            </span>
-          </p>
-        )}
+        <div className="space-y-2 sm:max-w-xs">
+          <Label htmlFor="chatbot-select">Add to chatbot (optional)</Label>
+          <Select
+            value={chatbotId || NO_CHATBOT}
+            onValueChange={(v) => setChatbotId(v === NO_CHATBOT ? "" : v)}
+          >
+            <SelectTrigger id="chatbot-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_CHATBOT}>No chatbot (add later)</SelectItem>
+              {chatbots.map((chatbot) => (
+                <SelectItem key={chatbot.id} value={chatbot.id}>
+                  {chatbot.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1">

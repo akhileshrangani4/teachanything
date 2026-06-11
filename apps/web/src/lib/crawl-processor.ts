@@ -5,7 +5,7 @@ import {
   userFiles,
   fileChunks,
   chatbotFileAssociations,
-  chatbots,
+  chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import {
@@ -297,17 +297,6 @@ export async function processCrawlPage(params: {
       return;
     }
 
-    const [chatbot] = await db
-      .select()
-      .from(chatbots)
-      .where(eq(chatbots.id, source.chatbotId))
-      .limit(1);
-
-    if (!chatbot) {
-      logInfo("Chatbot not found, skipping", { crawledPageId });
-      return;
-    }
-
     if (!(await isUrlSafeWithDns(page.url))) {
       await db
         .update(crawledPages)
@@ -395,7 +384,7 @@ export async function processCrawlPage(params: {
         const [file] = await tx
           .insert(userFiles)
           .values({
-            userId: chatbot.userId,
+            userId: source.userId,
             fileName: displayTitle,
             fileType: "text/html",
             fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
@@ -406,14 +395,6 @@ export async function processCrawlPage(params: {
 
         if (!file) throw new Error("Failed to create user file");
         userFileId = file.id;
-
-        await tx
-          .insert(chatbotFileAssociations)
-          .values({
-            chatbotId: source.chatbotId,
-            fileId: userFileId,
-          })
-          .onConflictDoNothing();
 
         await tx
           .update(crawledPages)
@@ -428,6 +409,27 @@ export async function processCrawlPage(params: {
             processingStatus: "processing",
           })
           .where(eq(userFiles.id, userFileId));
+      }
+
+      // Sync file associations to every chatbot the source is currently
+      // attached to. Read attachments INSIDE the transaction so we reflect the
+      // freshest committed attach/detach state, and run for both new and
+      // re-crawled pages (idempotent via onConflictDoNothing) so a re-crawl
+      // self-heals any association gap from an attach during this crawl.
+      const attachedChatbots = await tx
+        .select({ chatbotId: chatbotCrawlSourceAssociations.chatbotId })
+        .from(chatbotCrawlSourceAssociations)
+        .where(eq(chatbotCrawlSourceAssociations.crawlSourceId, source.id));
+      if (attachedChatbots.length > 0) {
+        await tx
+          .insert(chatbotFileAssociations)
+          .values(
+            attachedChatbots.map((r) => ({
+              chatbotId: r.chatbotId,
+              fileId: userFileId as string,
+            })),
+          )
+          .onConflictDoNothing();
       }
 
       // Delete old chunks before inserting new ones (atomic within transaction)

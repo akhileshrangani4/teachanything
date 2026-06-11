@@ -11,6 +11,9 @@ import { toggleCrawlSourceProcedure } from "./procedures/toggle-crawl-source";
 import { renameCrawlSourceProcedure } from "./procedures/rename-crawl-source";
 import { renameCrawledPageProcedure } from "./procedures/rename-crawled-page";
 import { getAllCrawlSourcesProcedure } from "./procedures/get-all-crawl-sources";
+import { attachToChatbotProcedure } from "./procedures/attach-to-chatbot";
+import { detachFromChatbotProcedure } from "./procedures/detach-from-chatbot";
+import { getAttachableSourcesProcedure } from "./procedures/get-attachable-sources";
 
 export const crawlerRouter = router({
   addCrawlSource: addCrawlSourceProcedure,
@@ -25,4 +28,7 @@ export const crawlerRouter = router({
   recrawl: recrawlProcedure,
   exportJson: exportJsonProcedure,
   toggleCrawlSource: toggleCrawlSourceProcedure,
+  attachToChatbot: attachToChatbotProcedure,
+  detachFromChatbot: detachFromChatbotProcedure,
+  getAttachableSources: getAttachableSourcesProcedure,
 });

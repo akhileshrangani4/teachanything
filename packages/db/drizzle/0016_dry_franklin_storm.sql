@@ -1,0 +1,2 @@
+CREATE INDEX "chatbot_file_associations_file_id_idx" ON "chatbot_file_associations" USING btree ("file_id");--> statement-breakpoint
+CREATE INDEX "idx_chatbot_crawl_source_assoc_crawl_source_id" ON "chatbot_crawl_source_associations" USING btree ("crawl_source_id");
