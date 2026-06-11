@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { crawledPages } from "@teachanything/db/schema";
 import { logInfo, logError } from "@/lib/logger";
 import { crawledPageIdInput } from "../validation";
-import { assertOwnedCrawledPage, deleteCrawlFileIds } from "../helpers";
+import { assertOwnedCrawledPage, deleteAllCrawlFileIds } from "../helpers";
 
 export const removeCrawledPageProcedure = protectedProcedure
   .input(crawledPageIdInput)
@@ -44,7 +44,7 @@ export const removeCrawledPageProcedure = protectedProcedure
         if (fresh.userFileId) {
           // Use the shared orphan-aware helper so a userFile shared with
           // another chatbot isn't deleted out from under it.
-          await deleteCrawlFileIds(tx, source.chatbotId, [fresh.userFileId]);
+          await deleteAllCrawlFileIds(tx, [fresh.userFileId]);
         }
 
         await tx
