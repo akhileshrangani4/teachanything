@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -130,18 +130,16 @@ export async function deleteCrawlFileIds(
     );
 
   // Step 2: delete userFiles that are now fully orphaned (no remaining
-  // associations to any chatbot).
-  const remaining = await tx
-    .select({ fileId: chatbotFileAssociations.fileId })
-    .from(chatbotFileAssociations)
-    .where(inArray(chatbotFileAssociations.fileId, fileIds));
-
-  const stillLinked = new Set(remaining.map((r) => r.fileId));
-  const toDelete = fileIds.filter((id) => !stillLinked.has(id));
-
-  if (toDelete.length > 0) {
-    await tx.delete(userFiles).where(inArray(userFiles.id, toDelete));
-  }
+  // associations to any chatbot). Uses NOT EXISTS in one round-trip
+  // instead of a SELECT + client-side diff + DELETE.
+  await tx
+    .delete(userFiles)
+    .where(
+      and(
+        inArray(userFiles.id, fileIds),
+        sql`NOT EXISTS (SELECT 1 FROM ${chatbotFileAssociations} WHERE ${chatbotFileAssociations.fileId} = ${userFiles.id})`,
+      ),
+    );
 }
 
 /**
