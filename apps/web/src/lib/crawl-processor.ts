@@ -297,15 +297,6 @@ export async function processCrawlPage(params: {
       return;
     }
 
-    // Chatbots this source is currently attached to. May be empty: the page
-    // is still crawled, embedded, and stored as a userFile, just not wired
-    // into any chatbot's RAG context until the source is attached.
-    const attachedChatbots = await db
-      .select({ chatbotId: chatbotCrawlSourceAssociations.chatbotId })
-      .from(chatbotCrawlSourceAssociations)
-      .where(eq(chatbotCrawlSourceAssociations.crawlSourceId, source.id));
-    const attachedChatbotIds = attachedChatbots.map((r) => r.chatbotId);
-
     if (!(await isUrlSafeWithDns(page.url))) {
       await db
         .update(crawledPages)
@@ -421,15 +412,20 @@ export async function processCrawlPage(params: {
       }
 
       // Sync file associations to every chatbot the source is currently
-      // attached to. Runs for both new and re-crawled pages (idempotent via
-      // onConflictDoNothing) so a re-crawl self-heals any association gap --
-      // e.g. a chatbot attached while this page was mid-crawl.
-      if (attachedChatbotIds.length > 0) {
+      // attached to. Read attachments INSIDE the transaction so we reflect the
+      // freshest committed attach/detach state, and run for both new and
+      // re-crawled pages (idempotent via onConflictDoNothing) so a re-crawl
+      // self-heals any association gap from an attach during this crawl.
+      const attachedChatbots = await tx
+        .select({ chatbotId: chatbotCrawlSourceAssociations.chatbotId })
+        .from(chatbotCrawlSourceAssociations)
+        .where(eq(chatbotCrawlSourceAssociations.crawlSourceId, source.id));
+      if (attachedChatbots.length > 0) {
         await tx
           .insert(chatbotFileAssociations)
           .values(
-            attachedChatbotIds.map((chatbotId) => ({
-              chatbotId,
+            attachedChatbots.map((r) => ({
+              chatbotId: r.chatbotId,
               fileId: userFileId as string,
             })),
           )
