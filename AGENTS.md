@@ -6,7 +6,7 @@ It applies to **every** contribution, regardless of how the code was written.
 
 The file is named `AGENTS.md` and formatted so AI coding agents can read and
 follow it directly, but using an AI coding agent is entirely optional. For a
-human contributor, treat this as the project's style guide; "follow AGENTS.md"
+human contributor, treat this as the project's style guide; "follow `AGENTS.md`"
 means "follow our coding standards," not "you must use AI."
 
 ## 1. Repository Structure
