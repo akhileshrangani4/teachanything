@@ -474,9 +474,7 @@ export const crawledPages = pgTable(
   ],
 );
 
-// Junction table: associates web sources (crawl sources) with chatbots
-// (many-to-many), mirroring chatbotFileAssociations. A source may be
-// attached to zero-or-more chatbots.
+// Junction table: Associates web sources (crawl sources) with chatbots (many-to-many)
 export const chatbotCrawlSourceAssociations = pgTable(
   "chatbot_crawl_source_associations",
   {
@@ -490,6 +488,7 @@ export const chatbotCrawlSourceAssociations = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
+    // Composite uniqueIndex doubles as a B-tree on chatbotId (leading column) + unique constraint on (chatbotId, crawlSourceId). Name abbreviated ("assoc") to stay under Postgres's 63-char identifier limit.
     uniqueIndex("chatbot_crawl_source_assoc_chatbot_id_crawl_source_id_idx").on(
       table.chatbotId,
       table.crawlSourceId,
