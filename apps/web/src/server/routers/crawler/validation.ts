@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const crawlSourceInput = z.object({
-  chatbotId: z.string().uuid(),
+  chatbotId: z.string().uuid().optional(),
   rootUrl: z.string().url(),
   crawlDepth: z.number().int().min(1).max(5).default(3),
   maxPages: z.number().int().min(1).max(500).default(100),
@@ -26,7 +26,7 @@ export const crawlSourceInput = z.object({
 });
 
 export const manualUrlInput = z.object({
-  chatbotId: z.string().uuid(),
+  chatbotId: z.string().uuid().optional(),
   url: z.string().url(),
 });
 
