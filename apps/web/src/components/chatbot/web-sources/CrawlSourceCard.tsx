@@ -164,7 +164,6 @@ export function CrawlSourceCard({
             </div>
             <CrawlSourceActions
               source={source}
-              pageCount={pageCount}
               isActive={isActive}
               isRecrawling={isRecrawling}
               isRemoving={isRemoving}
@@ -192,7 +191,6 @@ export function CrawlSourceCard({
 
 function CrawlSourceActions({
   source,
-  pageCount,
   isActive,
   isRecrawling,
   isRemoving,
@@ -201,7 +199,6 @@ function CrawlSourceActions({
   onRemove,
 }: {
   source: CrawlSource;
-  pageCount: number;
   isActive: boolean;
   isRecrawling: boolean;
   isRemoving: boolean;
@@ -239,20 +236,16 @@ function CrawlSourceActions({
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Web Source</AlertDialogTitle>
+            <AlertDialogTitle>Remove from chatbot</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the crawl source, all {pageCount} crawled page
-              {pageCount !== 1 ? "s" : ""}, and their embeddings. This action
-              cannot be undone.
+              Remove this web source from this chatbot? Its content stays
+              available to attach again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onRemove}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
+            <AlertDialogAction onClick={onRemove}>
+              Remove from chatbot
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

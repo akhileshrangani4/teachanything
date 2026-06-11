@@ -1,31 +1,21 @@
 import { protectedProcedure } from "@/server/trpc";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { chatbots, crawlSources } from "@teachanything/db/schema";
+import {
+  crawlSources,
+  chatbotCrawlSourceAssociations,
+} from "@teachanything/db/schema";
 import { verifyUrlReachable } from "@teachanything/ai/crawler";
 import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
 import { checkRateLimit, crawlSourceRateLimit } from "@/lib/rate-limit";
+import { assertOwnedChatbot } from "../helpers";
 import { crawlSourceInput } from "../validation";
 
 export const addCrawlSourceProcedure = protectedProcedure
   .input(crawlSourceInput)
   .mutation(async ({ ctx, input }) => {
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, input.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
-      });
+    if (input.chatbotId) {
+      await assertOwnedChatbot(ctx, input.chatbotId);
     }
 
     const { success } = await checkRateLimit(
@@ -57,7 +47,7 @@ export const addCrawlSourceProcedure = protectedProcedure
       .from(crawlSources)
       .where(
         and(
-          eq(crawlSources.chatbotId, input.chatbotId),
+          eq(crawlSources.userId, ctx.session.user.id),
           eq(crawlSources.rootUrl, input.rootUrl),
         ),
       )
@@ -66,30 +56,41 @@ export const addCrawlSourceProcedure = protectedProcedure
     if (existing) {
       throw new TRPCError({
         code: "CONFLICT",
-        message: "A crawl source with this URL already exists for this chatbot",
+        message: "You've already added this URL as a web source",
       });
     }
 
-    const [source] = await ctx.db
-      .insert(crawlSources)
-      .values({
-        chatbotId: input.chatbotId,
-        rootUrl: input.rootUrl,
-        crawlDepth: input.crawlDepth,
-        maxPages: input.maxPages,
-        includePatterns: input.includePatterns,
-        excludePatterns: input.excludePatterns,
-        status: "pending",
-        metadata: {},
-      })
-      .returning();
+    const source = await ctx.db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(crawlSources)
+        .values({
+          userId: ctx.session.user.id,
+          rootUrl: input.rootUrl,
+          crawlDepth: input.crawlDepth,
+          maxPages: input.maxPages,
+          includePatterns: input.includePatterns,
+          excludePatterns: input.excludePatterns,
+          status: "pending",
+          metadata: {},
+        })
+        .returning();
 
-    if (!source) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to create crawl source",
-      });
-    }
+      if (!created) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create crawl source",
+        });
+      }
+
+      if (input.chatbotId) {
+        await tx
+          .insert(chatbotCrawlSourceAssociations)
+          .values({ chatbotId: input.chatbotId, crawlSourceId: created.id })
+          .onConflictDoNothing();
+      }
+
+      return created;
+    });
 
     await dispatchCrawlJob({
       jobPath: "/api/jobs/crawl-discover",

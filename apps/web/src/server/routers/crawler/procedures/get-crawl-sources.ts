@@ -2,7 +2,12 @@ import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { chatbots, crawlSources, crawledPages } from "@teachanything/db/schema";
+import {
+  chatbots,
+  crawlSources,
+  crawledPages,
+  chatbotCrawlSourceAssociations,
+} from "@teachanything/db/schema";
 
 export const getCrawlSourcesProcedure = protectedProcedure
   .input(z.object({ chatbotId: z.string().uuid() }))
@@ -26,9 +31,27 @@ export const getCrawlSourcesProcedure = protectedProcedure
     }
 
     const sources = await ctx.db
-      .select()
-      .from(crawlSources)
-      .where(eq(crawlSources.chatbotId, input.chatbotId));
+      .select({
+        id: crawlSources.id,
+        userId: crawlSources.userId,
+        rootUrl: crawlSources.rootUrl,
+        status: crawlSources.status,
+        enabled: crawlSources.enabled,
+        crawlDepth: crawlSources.crawlDepth,
+        maxPages: crawlSources.maxPages,
+        includePatterns: crawlSources.includePatterns,
+        excludePatterns: crawlSources.excludePatterns,
+        lastCrawledAt: crawlSources.lastCrawledAt,
+        metadata: crawlSources.metadata,
+        createdAt: crawlSources.createdAt,
+        updatedAt: crawlSources.updatedAt,
+      })
+      .from(chatbotCrawlSourceAssociations)
+      .innerJoin(
+        crawlSources,
+        eq(crawlSources.id, chatbotCrawlSourceAssociations.crawlSourceId),
+      )
+      .where(eq(chatbotCrawlSourceAssociations.chatbotId, input.chatbotId));
 
     if (sources.length === 0) return [];
 

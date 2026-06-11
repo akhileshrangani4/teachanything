@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.23.0](https://github.com/akhileshrangani4/teachanything/compare/v1.22.1...v1.23.0) (2026-06-11)
+
+
+### Features
+
+* **web-sources:** make chatbot attachment optional ([#332](https://github.com/akhileshrangani4/teachanything/issues/332)) ([9ed3231](https://github.com/akhileshrangani4/teachanything/commit/9ed3231b3cdf9fe241985b61620fc33881b27210))
+
+
+### Bug Fixes
+
+* **ci:** apply DB migrations on release deploy, not every main merge ([#335](https://github.com/akhileshrangani4/teachanything/issues/335)) ([7482456](https://github.com/akhileshrangani4/teachanything/commit/74824564e8a2a7cab8769b76d6c943b636c7f80f))
+* **db:** only tolerate a missing .env (ENOENT), fail fast on other load errors ([#336](https://github.com/akhileshrangani4/teachanything/issues/336)) ([800e46e](https://github.com/akhileshrangani4/teachanything/commit/800e46ebff1219abdda491a3fff2a5fdc6ebc7d8))
+
 ## [1.22.1](https://github.com/akhileshrangani4/teachanything/compare/v1.22.0...v1.22.1) (2026-06-08)
 
 

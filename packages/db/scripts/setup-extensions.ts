@@ -19,11 +19,15 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables from apps/web/.env
+// Load environment variables from apps/web/.env when present. In CI (e.g. the
+// release deploy) that file doesn't exist and DATABASE_URL comes from the
+// ambient environment. A missing file (ENOENT) is therefore expected and
+// tolerated, but any other load error (permissions, malformed file) is a real
+// problem and still fails fast.
 const envPath = resolve(__dirname, "../../../apps/web/.env");
 const result = config({ path: envPath });
 
-if (result.error) {
+if (result.error && (result.error as NodeJS.ErrnoException).code !== "ENOENT") {
   console.error("❌ Error loading .env file:", result.error);
   process.exit(1);
 }
