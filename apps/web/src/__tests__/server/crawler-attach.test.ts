@@ -1,10 +1,8 @@
 import { jest, describe, it, expect } from "@jest/globals";
-
-jest.mock("@teachanything/db", () => ({ db: {} }));
-
-const { deleteCrawlFileIds, deleteAllCrawlFileIds } = await import(
-  "@/server/routers/crawler/helpers"
-);
+import {
+  deleteCrawlFileIds,
+  deleteAllCrawlFileIds,
+} from "@/server/routers/crawler/helpers";
 
 function makeTx() {
   const whereStub = jest.fn(() => Promise.resolve(undefined));
