@@ -11,6 +11,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CrawlSourceCard } from "./web-sources/CrawlSourceCard";
 import {
   AddFullWebSourceDialog,
@@ -40,6 +49,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
   const [expandedSources, setExpandedSources] = useState<Set<string>>(
     new Set(),
   );
+  const [selectedSourceId, setSelectedSourceId] = useState("");
 
   const {
     data: sources,
@@ -53,6 +63,34 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
     },
   );
   const utils = trpc.useUtils();
+
+  const { data: attachable } = trpc.crawler.getAttachableSources.useQuery({
+    chatbotId,
+  });
+
+  const attach = trpc.crawler.attachToChatbot.useMutation({
+    onSuccess: () => {
+      refetchSources();
+      utils.crawler.getAttachableSources.invalidate();
+      toast.success("Web source attached");
+    },
+    onError: (error) => {
+      toast.error("Failed to attach", { description: getFriendlyError(error) });
+    },
+  });
+
+  const detach = trpc.crawler.detachFromChatbot.useMutation({
+    onSuccess: () => {
+      refetchSources();
+      utils.crawler.getAttachableSources.invalidate();
+      toast.success("Removed from this chatbot");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove", { description: getFriendlyError(error) });
+    },
+  });
+
+  const unattached = (attachable ?? []).filter((s) => !s.isAttached);
 
   const addCrawlSource = trpc.crawler.addCrawlSource.useMutation({
     onSuccess: () => {
@@ -80,18 +118,6 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
     },
     onError: (error) => {
       toast.error("Failed to add URL", {
-        description: getFriendlyError(error),
-      });
-    },
-  });
-
-  const removeCrawlSource = trpc.crawler.removeCrawlSource.useMutation({
-    onSuccess: () => {
-      refetchSources();
-      toast.success("Web source removed");
-    },
-    onError: (error) => {
-      toast.error("Failed to remove source", {
         description: getFriendlyError(error),
       });
     },
@@ -204,6 +230,43 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
           onSubmit={handleAddManualUrl}
         />
 
+        {unattached.length > 0 && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1.5">
+              <Label htmlFor="attach-existing">
+                Attach an existing web source
+              </Label>
+              <Select
+                value={selectedSourceId}
+                onValueChange={setSelectedSourceId}
+              >
+                <SelectTrigger id="attach-existing">
+                  <SelectValue placeholder="Choose a web source..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {unattached.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.rootUrl}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!selectedSourceId || attach.isPending}
+              onClick={() => {
+                if (!selectedSourceId) return;
+                attach.mutate({ crawlSourceId: selectedSourceId, chatbotId });
+                setSelectedSourceId("");
+              }}
+            >
+              Attach
+            </Button>
+          </div>
+        )}
+
         {sourcesLoading ? (
           <WebSourcesSkeleton />
         ) : !sources || sources.length === 0 ? (
@@ -218,7 +281,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
                 onToggleExpand={() => toggleExpanded(source.id)}
                 onRecrawl={() => recrawl.mutate({ crawlSourceId: source.id })}
                 onRemove={() =>
-                  removeCrawlSource.mutate({ crawlSourceId: source.id })
+                  detach.mutate({ crawlSourceId: source.id, chatbotId })
                 }
                 onToggleEnabled={(enabled) =>
                   toggleCrawlSource.mutate({
@@ -233,7 +296,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
                   })
                 }
                 isRecrawling={recrawl.isPending}
-                isRemoving={removeCrawlSource.isPending}
+                isRemoving={detach.isPending}
                 isTogglingEnabled={toggleCrawlSource.isPending}
                 isRenaming={renameCrawlSource.isPending}
               />
