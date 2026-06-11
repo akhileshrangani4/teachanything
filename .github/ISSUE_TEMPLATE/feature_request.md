@@ -2,7 +2,7 @@
 name: Feature request
 about: Propose a new feature or change. Open this and agree on direction BEFORE building.
 title: ""
-labels: enhancement
+labels: "type: enhancement"
 assignees: ""
 ---
 
