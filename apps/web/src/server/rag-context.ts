@@ -2,6 +2,7 @@ import { eq, and, sql, inArray, isNotNull } from "drizzle-orm";
 import {
   fileChunks,
   chatbotFileAssociations,
+  chatbotCrawlSourceAssociations,
   userFiles,
   crawledPages,
   crawlSources,
@@ -76,11 +77,18 @@ export async function buildRAGContext(
   if (fileIds.length > 0) {
     const disabledCrawledFiles = await params.db
       .select({ userFileId: crawledPages.userFileId })
-      .from(crawlSources)
-      .innerJoin(crawledPages, eq(crawledPages.crawlSourceId, crawlSources.id))
+      .from(chatbotCrawlSourceAssociations)
+      .innerJoin(
+        crawlSources,
+        eq(crawlSources.id, chatbotCrawlSourceAssociations.crawlSourceId),
+      )
+      .innerJoin(
+        crawledPages,
+        eq(crawledPages.crawlSourceId, crawlSources.id),
+      )
       .where(
         and(
-          eq(crawlSources.chatbotId, params.chatbotId),
+          eq(chatbotCrawlSourceAssociations.chatbotId, params.chatbotId),
           eq(crawlSources.enabled, false),
           isNotNull(crawledPages.userFileId),
         ),
