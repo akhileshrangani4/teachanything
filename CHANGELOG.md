@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.23.1](https://github.com/akhileshrangani4/teachanything/compare/v1.23.0...v1.23.1) (2026-06-11)
+
+
+### Documentation
+
+* **agents:** clarify AGENTS.md applies to all contributors, AI optional ([#339](https://github.com/akhileshrangani4/teachanything/issues/339)) ([8470a22](https://github.com/akhileshrangani4/teachanything/commit/8470a2247323966e43ba8ba0bd3e7fea5e7b4c92))
+* make CONTRIBUTING.md the front door for contributors ([#337](https://github.com/akhileshrangani4/teachanything/issues/337)) ([0a77375](https://github.com/akhileshrangani4/teachanything/commit/0a773751369b5b2fd80dd4927970e51cc59250e2))
+
 ## [1.23.0](https://github.com/akhileshrangani4/teachanything/compare/v1.22.1...v1.23.0) (2026-06-11)
 
 
