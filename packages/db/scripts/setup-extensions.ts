@@ -19,12 +19,17 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables from apps/web/.env
+// Load environment variables from apps/web/.env when present. In CI (e.g. the
+// migrate-db workflow) that file doesn't exist; fall back to the ambient
+// environment, which is only an error if DATABASE_URL also isn't set.
 const envPath = resolve(__dirname, "../../../apps/web/.env");
 const result = config({ path: envPath });
 
-if (result.error) {
-  console.error("❌ Error loading .env file:", result.error);
+if (result.error && !process.env.DATABASE_URL) {
+  console.error(
+    "❌ Could not load apps/web/.env and DATABASE_URL is not set:",
+    result.error,
+  );
   process.exit(1);
 }
 
