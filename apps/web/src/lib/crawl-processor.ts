@@ -5,7 +5,7 @@ import {
   userFiles,
   fileChunks,
   chatbotFileAssociations,
-  chatbots,
+  chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import {
@@ -297,16 +297,14 @@ export async function processCrawlPage(params: {
       return;
     }
 
-    const [chatbot] = await db
-      .select()
-      .from(chatbots)
-      .where(eq(chatbots.id, source.chatbotId))
-      .limit(1);
-
-    if (!chatbot) {
-      logInfo("Chatbot not found, skipping", { crawledPageId });
-      return;
-    }
+    // Chatbots this source is currently attached to. May be empty: the page
+    // is still crawled, embedded, and stored as a userFile, just not wired
+    // into any chatbot's RAG context until the source is attached.
+    const attachedChatbots = await db
+      .select({ chatbotId: chatbotCrawlSourceAssociations.chatbotId })
+      .from(chatbotCrawlSourceAssociations)
+      .where(eq(chatbotCrawlSourceAssociations.crawlSourceId, source.id));
+    const attachedChatbotIds = attachedChatbots.map((r) => r.chatbotId);
 
     if (!(await isUrlSafeWithDns(page.url))) {
       await db
@@ -395,7 +393,7 @@ export async function processCrawlPage(params: {
         const [file] = await tx
           .insert(userFiles)
           .values({
-            userId: chatbot.userId,
+            userId: source.userId,
             fileName: displayTitle,
             fileType: "text/html",
             fileSize: Buffer.byteLength(pageContent.content, "utf-8"),
@@ -407,13 +405,17 @@ export async function processCrawlPage(params: {
         if (!file) throw new Error("Failed to create user file");
         userFileId = file.id;
 
-        await tx
-          .insert(chatbotFileAssociations)
-          .values({
-            chatbotId: source.chatbotId,
-            fileId: userFileId,
-          })
-          .onConflictDoNothing();
+        if (attachedChatbotIds.length > 0) {
+          await tx
+            .insert(chatbotFileAssociations)
+            .values(
+              attachedChatbotIds.map((chatbotId) => ({
+                chatbotId,
+                fileId: userFileId as string,
+              })),
+            )
+            .onConflictDoNothing();
+        }
 
         await tx
           .update(crawledPages)
