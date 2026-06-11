@@ -405,18 +405,6 @@ export async function processCrawlPage(params: {
         if (!file) throw new Error("Failed to create user file");
         userFileId = file.id;
 
-        if (attachedChatbotIds.length > 0) {
-          await tx
-            .insert(chatbotFileAssociations)
-            .values(
-              attachedChatbotIds.map((chatbotId) => ({
-                chatbotId,
-                fileId: userFileId as string,
-              })),
-            )
-            .onConflictDoNothing();
-        }
-
         await tx
           .update(crawledPages)
           .set({ userFileId })
@@ -430,6 +418,22 @@ export async function processCrawlPage(params: {
             processingStatus: "processing",
           })
           .where(eq(userFiles.id, userFileId));
+      }
+
+      // Sync file associations to every chatbot the source is currently
+      // attached to. Runs for both new and re-crawled pages (idempotent via
+      // onConflictDoNothing) so a re-crawl self-heals any association gap --
+      // e.g. a chatbot attached while this page was mid-crawl.
+      if (attachedChatbotIds.length > 0) {
+        await tx
+          .insert(chatbotFileAssociations)
+          .values(
+            attachedChatbotIds.map((chatbotId) => ({
+              chatbotId,
+              fileId: userFileId as string,
+            })),
+          )
+          .onConflictDoNothing();
       }
 
       // Delete old chunks before inserting new ones (atomic within transaction)
