@@ -90,7 +90,10 @@ export const addManualUrlProcedure = protectedProcedure
       if (input.chatbotId) {
         await tx
           .insert(chatbotCrawlSourceAssociations)
-          .values({ chatbotId: input.chatbotId, crawlSourceId: createdSource.id })
+          .values({
+            chatbotId: input.chatbotId,
+            crawlSourceId: createdSource.id,
+          })
           .onConflictDoNothing();
       }
 

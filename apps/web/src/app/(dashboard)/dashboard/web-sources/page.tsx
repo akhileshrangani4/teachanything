@@ -54,8 +54,7 @@ export default function WebSourcesPage() {
   });
   const detach = trpc.crawler.detachFromChatbot.useMutation({
     onSuccess: () => utils.crawler.getAllCrawlSources.invalidate(),
-    onError: (e) =>
-      toast.error("Failed to remove", { description: e.message }),
+    onError: (e) => toast.error("Failed to remove", { description: e.message }),
   });
   const hasChatbots = chatbotCount > 0;
   const hasSources = sources.length > 0;

@@ -82,10 +82,7 @@ export async function buildRAGContext(
         crawlSources,
         eq(crawlSources.id, chatbotCrawlSourceAssociations.crawlSourceId),
       )
-      .innerJoin(
-        crawledPages,
-        eq(crawledPages.crawlSourceId, crawlSources.id),
-      )
+      .innerJoin(crawledPages, eq(crawledPages.crawlSourceId, crawlSources.id))
       .where(
         and(
           eq(chatbotCrawlSourceAssociations.chatbotId, params.chatbotId),
