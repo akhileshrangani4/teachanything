@@ -246,6 +246,10 @@ export const chatbotFileAssociations = pgTable(
       table.chatbotId,
       table.fileId,
     ),
+    // B-tree on fileId for bulk deletes/lookups keyed by file alone (e.g.
+    // deleting a crawled file across all chatbots). The composite above is
+    // chatbotId-leading and can't serve fileId-only predicates.
+    index("chatbot_file_associations_file_id_idx").on(table.fileId),
   ],
 );
 
@@ -491,6 +495,12 @@ export const chatbotCrawlSourceAssociations = pgTable(
     // Composite uniqueIndex doubles as a B-tree on chatbotId (leading column) + unique constraint on (chatbotId, crawlSourceId). Name abbreviated ("assoc") to stay under Postgres's 63-char identifier limit.
     uniqueIndex("chatbot_crawl_source_assoc_chatbot_id_crawl_source_id_idx").on(
       table.chatbotId,
+      table.crawlSourceId,
+    ),
+    // B-tree on crawlSourceId for lookups keyed by source alone (crawl
+    // processor, attach/detach backfill, get-attachable). The composite above
+    // is chatbotId-leading and can't serve crawlSourceId-only predicates.
+    index("idx_chatbot_crawl_source_assoc_crawl_source_id").on(
       table.crawlSourceId,
     ),
   ],

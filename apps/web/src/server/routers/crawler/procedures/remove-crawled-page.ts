@@ -42,8 +42,9 @@ export const removeCrawledPageProcedure = protectedProcedure
         if (!fresh) return; // already deleted concurrently
 
         if (fresh.userFileId) {
-          // Use the shared orphan-aware helper so a userFile shared with
-          // another chatbot isn't deleted out from under it.
+          // A crawled page owns its userFile 1:1, so deleting the page means
+          // deleting that file everywhere: remove its associations across all
+          // chatbots, then the userFile itself.
           await deleteAllCrawlFileIds(tx, [fresh.userFileId]);
         }
 

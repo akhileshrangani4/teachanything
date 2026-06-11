@@ -1,15 +1,12 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and, inArray, isNotNull } from "drizzle-orm";
 import {
   crawledPages,
+  chatbotFileAssociations,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import {
-  assertOwnedCrawlSource,
-  assertOwnedChatbot,
-  deleteCrawlFileIds,
-} from "../helpers";
+import { assertOwnedCrawlSource, assertOwnedChatbot } from "../helpers";
 import { logInfo } from "@/lib/logger";
 
 export const detachFromChatbotProcedure = protectedProcedure
@@ -50,7 +47,21 @@ export const detachFromChatbotProcedure = protectedProcedure
         .map((p) => p.userFileId)
         .filter((id): id is string => id !== null);
 
-      await deleteCrawlFileIds(tx, input.chatbotId, fileIds);
+      // Remove ONLY this chatbot's associations to the source's crawled
+      // files. The userFiles/chunks/pages are intentionally left intact so
+      // the source can be re-attached later without re-crawling or
+      // re-embedding. (Crawled files are deleted only when the source itself
+      // is removed.)
+      if (fileIds.length > 0) {
+        await tx
+          .delete(chatbotFileAssociations)
+          .where(
+            and(
+              eq(chatbotFileAssociations.chatbotId, input.chatbotId),
+              inArray(chatbotFileAssociations.fileId, fileIds),
+            ),
+          );
+      }
     });
 
     logInfo("Web source detached from chatbot", {

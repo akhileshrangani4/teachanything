@@ -1,4 +1,4 @@
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -101,45 +101,6 @@ export async function assertOwnedChatbot(
   }
 
   return chatbot;
-}
-
-/**
- * Delete chatbot-scoped crawler userFiles safely.
- *
- * Removes this chatbot's associations to the given fileIds and deletes any
- * resulting orphans (userFiles with no remaining associations). Does NOT
- * delete files that are still linked to other chatbots.
- *
- * Must be run inside a transaction (pass the tx handle).
- */
-export async function deleteCrawlFileIds(
-  tx: Parameters<Parameters<typeof dbType.transaction>[0]>[0],
-  chatbotId: string,
-  fileIds: string[],
-): Promise<void> {
-  if (fileIds.length === 0) return;
-
-  // Step 1: remove this chatbot's associations to the target files.
-  await tx
-    .delete(chatbotFileAssociations)
-    .where(
-      and(
-        eq(chatbotFileAssociations.chatbotId, chatbotId),
-        inArray(chatbotFileAssociations.fileId, fileIds),
-      ),
-    );
-
-  // Step 2: delete userFiles that are now fully orphaned (no remaining
-  // associations to any chatbot). Uses NOT EXISTS in one round-trip
-  // instead of a SELECT + client-side diff + DELETE.
-  await tx
-    .delete(userFiles)
-    .where(
-      and(
-        inArray(userFiles.id, fileIds),
-        sql`NOT EXISTS (SELECT 1 FROM ${chatbotFileAssociations} WHERE ${chatbotFileAssociations.fileId} = ${userFiles.id})`,
-      ),
-    );
 }
 
 /**
