@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/akhileshrangani4/teachanything/blob/main/CONTRIBUTING.md
+    about: Read this first. It covers the workflow, coding standards (AGENTS.md), and how to open an issue and PR.
+  - name: Ask a question / discuss before building
+    url: https://avi.mn/calendar
+    about: Want to talk through a feature, idea, or bug before starting work? Schedule a quick chat.
