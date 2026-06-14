@@ -8,15 +8,15 @@ import {
   ExternalLink,
   Globe,
   MoreVertical,
-  Power,
+  Plus,
   RefreshCw,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EditableName } from "@/components/ui/editable-name";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -132,8 +132,9 @@ function useExportSource(source: DashboardSource) {
   };
 }
 
-// Attached-chatbot names plus a "Manage" dropdown to attach/detach.
-function ChatbotsCell({
+// A single button summarising attachment count; opens a checklist of chatbots.
+// Scales to many chatbots (shows a count, not a row of badges).
+function ChatbotAttachButton({
   source,
   chatbots,
   onAttach,
@@ -146,84 +147,112 @@ function ChatbotsCell({
   onDetach: (sourceId: string, chatbotId: string) => void;
   isPending: boolean;
 }) {
+  const count = source.chatbots.length;
+  const attachedNames = source.chatbots.map((c) => c.name).join(", ");
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {source.chatbots.length === 0 ? (
-        <span className="text-xs text-muted-foreground">Not attached</span>
-      ) : (
-        source.chatbots.map((c) => (
-          <Badge key={c.id} variant="secondary" className="gap-1 max-w-full">
-            <Bot className="h-3 w-3 shrink-0" />
-            <span className="truncate">{c.name}</span>
-          </Badge>
-        ))
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-          >
-            Manage
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          <DropdownMenuLabel>Attach to chatbots</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {chatbots.length === 0 ? (
-            <div className="px-2 py-1.5 text-sm text-muted-foreground">
-              No chatbots yet. Create one to attach this source.
-            </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8"
+          title={
+            count > 0 ? `Attached to: ${attachedNames}` : "Attach to chatbots"
+          }
+        >
+          {count > 0 ? (
+            <>
+              <Bot className="mr-1.5 h-3.5 w-3.5" />
+              {count} chatbot{count !== 1 ? "s" : ""}
+            </>
           ) : (
-            chatbots.map((chatbot) => {
-              const attached = source.chatbots.some((c) => c.id === chatbot.id);
-              return (
-                <DropdownMenuCheckboxItem
-                  key={chatbot.id}
-                  checked={attached}
-                  disabled={isPending}
-                  onSelect={(e) => e.preventDefault()}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      onAttach(source.id, chatbot.id);
-                    } else {
-                      onDetach(source.id, chatbot.id);
-                    }
-                  }}
-                >
-                  <span className="truncate">{chatbot.name}</span>
-                </DropdownMenuCheckboxItem>
-              );
-            })
+            <>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Attach
+            </>
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuLabel>Attach to chatbots</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {chatbots.length === 0 ? (
+          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+            No chatbots yet. Create one to attach this source.
+          </div>
+        ) : (
+          chatbots.map((chatbot) => {
+            const attached = source.chatbots.some((c) => c.id === chatbot.id);
+            return (
+              <DropdownMenuCheckboxItem
+                key={chatbot.id}
+                checked={attached}
+                disabled={isPending}
+                onSelect={(e) => e.preventDefault()}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    onAttach(source.id, chatbot.id);
+                  } else {
+                    onDetach(source.id, chatbot.id);
+                  }
+                }}
+              >
+                <span className="truncate">{chatbot.name}</span>
+              </DropdownMenuCheckboxItem>
+            );
+          })
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function EnabledSwitch({
+  source,
+  onToggleEnabled,
+  isTogglingEnabled,
+}: {
+  source: DashboardSource;
+  onToggleEnabled: (sourceId: string, enabled: boolean) => void;
+  isTogglingEnabled: boolean;
+}) {
+  return (
+    <div
+      title={
+        source.enabled
+          ? "Enabled — included in chat context. Toggle to disable."
+          : "Disabled — kept but excluded from chat context. Toggle to enable."
+      }
+    >
+      <Switch
+        checked={source.enabled}
+        onCheckedChange={(enabled) => onToggleEnabled(source.id, enabled)}
+        disabled={isTogglingEnabled}
+        aria-label={source.enabled ? "Disable source" : "Enable source"}
+      />
     </div>
   );
 }
 
-// Expand chevron + overflow menu (recrawl, export, enable/disable, delete).
+// Expand chevron + overflow menu (recrawl, export, delete).
 function SourceActions({
   source,
   isExpanded,
   onToggleExpand,
   onRecrawl,
   onDelete,
-  onToggleEnabled,
   isRecrawling,
   isDeleting,
-  isTogglingEnabled,
 }: {
   source: DashboardSource;
   isExpanded: boolean;
   onToggleExpand: (sourceId: string) => void;
   onRecrawl: (sourceId: string) => void;
   onDelete: (sourceId: string) => void;
-  onToggleEnabled: (sourceId: string, enabled: boolean) => void;
   isRecrawling: boolean;
   isDeleting: boolean;
-  isTogglingEnabled: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const handleExport = useExportSource(source);
@@ -273,13 +302,6 @@ function SourceActions({
               Export JSON
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem
-            disabled={isTogglingEnabled}
-            onClick={() => onToggleEnabled(source.id, !source.enabled)}
-          >
-            <Power className="mr-2 h-4 w-4" />
-            {source.enabled ? "Disable" : "Enable"}
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={isDeleting || isActive}
@@ -423,14 +445,17 @@ function DashboardTableRow({
           </span>
         </TableCell>
         <TableCell>
-          {source.enabled ? (
-            <SourceStatusBadge status={source.status} />
-          ) : (
-            <Badge variant="secondary">Disabled</Badge>
-          )}
+          <SourceStatusBadge status={source.status} />
         </TableCell>
         <TableCell>
-          <ChatbotsCell
+          <EnabledSwitch
+            source={source}
+            onToggleEnabled={onToggleEnabled}
+            isTogglingEnabled={isTogglingEnabled}
+          />
+        </TableCell>
+        <TableCell>
+          <ChatbotAttachButton
             source={source}
             chatbots={chatbots}
             onAttach={onAttach}
@@ -452,10 +477,8 @@ function DashboardTableRow({
             onToggleExpand={onToggleExpand}
             onRecrawl={onRecrawl}
             onDelete={onDelete}
-            onToggleEnabled={onToggleEnabled}
             isRecrawling={isRecrawling}
             isDeleting={isDeleting}
-            isTogglingEnabled={isTogglingEnabled}
           />
         </TableCell>
       </TableRow>
@@ -524,19 +547,13 @@ function DashboardSourceCardMobile({
           onToggleExpand={onToggleExpand}
           onRecrawl={onRecrawl}
           onDelete={onDelete}
-          onToggleEnabled={onToggleEnabled}
           isRecrawling={isRecrawling}
           isDeleting={isDeleting}
-          isTogglingEnabled={isTogglingEnabled}
         />
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        {source.enabled ? (
-          <SourceStatusBadge status={source.status} />
-        ) : (
-          <Badge variant="secondary">Disabled</Badge>
-        )}
+        <SourceStatusBadge status={source.status} />
         <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
           {source.pageCount} page{source.pageCount !== 1 ? "s" : ""}
         </span>
@@ -547,13 +564,23 @@ function DashboardSourceCardMobile({
         )}
       </div>
 
-      <ChatbotsCell
-        source={source}
-        chatbots={chatbots}
-        onAttach={onAttach}
-        onDetach={onDetach}
-        isPending={isAttaching}
-      />
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <EnabledSwitch
+            source={source}
+            onToggleEnabled={onToggleEnabled}
+            isTogglingEnabled={isTogglingEnabled}
+          />
+          {source.enabled ? "Enabled" : "Disabled"}
+        </label>
+        <ChatbotAttachButton
+          source={source}
+          chatbots={chatbots}
+          onAttach={onAttach}
+          onDetach={onDetach}
+          isPending={isAttaching}
+        />
+      </div>
 
       {isExpanded && (
         <div>
@@ -594,8 +621,8 @@ export function DashboardWebSourceTable({
   sortDir,
   onSort,
 }: DashboardWebSourceTableProps) {
-  // 7 columns: checkbox, name, pages, status, chatbots, last crawled, actions
-  const colSpan = 7;
+  // 8 columns: checkbox, name, pages, status, enabled, chatbots, last, actions
+  const colSpan = 8;
 
   const rowProps = (source: DashboardSource): RowProps => ({
     source,
@@ -624,12 +651,13 @@ export function DashboardWebSourceTable({
         <Table style={{ tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: "3%" }} />
-            <col style={{ width: "27%" }} />
-            <col style={{ width: "8%" }} />
-            <col style={{ width: "12%" }} />
             <col style={{ width: "26%" }} />
-            <col style={{ width: "12%" }} />
-            <col style={{ width: "12%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "17%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "11%" }} />
           </colgroup>
           <TableHeader>
             <TableRow>
@@ -660,6 +688,7 @@ export function DashboardWebSourceTable({
               >
                 Status
               </SortableTableHead>
+              <TableHead className="whitespace-nowrap">Enabled</TableHead>
               <TableHead className="whitespace-nowrap">Chatbots</TableHead>
               <SortableTableHead
                 column="lastCrawledAt"
