@@ -4,9 +4,36 @@ import {
   getSourceDisplayName,
   getSourceErrorCount,
   getSourcePageCount,
+  resolveSourceDisplayName,
 } from "@/lib/crawler-metadata";
 
 describe("crawler metadata helpers", () => {
+  describe("resolveSourceDisplayName", () => {
+    it("uses the trimmed display name when present", () => {
+      expect(
+        resolveSourceDisplayName("  Course Site  ", "https://example.edu"),
+      ).toBe("Course Site");
+    });
+
+    it("falls back to the root URL when display name is null", () => {
+      expect(resolveSourceDisplayName(null, "https://example.edu")).toBe(
+        "https://example.edu",
+      );
+    });
+
+    it("falls back to the root URL when display name is undefined", () => {
+      expect(resolveSourceDisplayName(undefined, "https://example.edu")).toBe(
+        "https://example.edu",
+      );
+    });
+
+    it("falls back to the root URL when display name is whitespace only", () => {
+      expect(resolveSourceDisplayName("   ", "https://example.edu")).toBe(
+        "https://example.edu",
+      );
+    });
+  });
+
   describe("getSourceDisplayName", () => {
     it("uses the trimmed custom source display name", () => {
       expect(
