@@ -226,7 +226,9 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
           onAttach={(crawlSourceId) =>
             attach.mutate({ crawlSourceId, chatbotId })
           }
-          attachingId={attach.variables?.crawlSourceId ?? null}
+          attachingId={
+            attach.isPending ? (attach.variables?.crawlSourceId ?? null) : null
+          }
           isAttaching={attach.isPending}
         />
 

@@ -4,7 +4,7 @@ import { Globe, Plus } from "lucide-react";
 import { type RouterOutputs } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { getSourceDisplayName } from "@/lib/crawler-metadata";
+import { resolveSourceDisplayName } from "@/lib/crawler-metadata";
 import { SourceStatusBadge } from "./status-badges";
 
 type AttachableSource =
@@ -28,7 +28,10 @@ export function AttachExistingSources({
       <Label>Attach an existing web source</Label>
       <div className="divide-y rounded-md border">
         {sources.map((source) => {
-          const displayName = getSourceDisplayName(source);
+          const displayName = resolveSourceDisplayName(
+            source.displayName,
+            source.rootUrl,
+          );
           return (
             <div
               key={source.id}
