@@ -49,7 +49,7 @@ export default function DashboardLayout({
           <MobileSidebarOverlay />
 
           {/* Main Content - Scrollable with subtle noise texture */}
-          <main className="flex-1 overflow-y-auto bg-noise min-w-0">
+          <main className="flex-1 overflow-y-auto bg-noise min-w-0 [scrollbar-gutter:stable]">
             {children}
           </main>
         </div>
