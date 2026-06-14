@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.0](https://github.com/akhileshrangani4/teachanything/compare/v1.24.0...v1.25.0) (2026-06-14)
+
+
+### Features
+
+* **web-sources:** table layout for chatbot tab + dashboard page ([#343](https://github.com/akhileshrangani4/teachanything/issues/343)) ([cab0dba](https://github.com/akhileshrangani4/teachanything/commit/cab0dba70a06a047370e6710d594efeb627e3a34))
+
 ## [1.24.0](https://github.com/akhileshrangani4/teachanything/compare/v1.23.1...v1.24.0) (2026-06-14)
 
 
