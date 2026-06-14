@@ -25,6 +25,7 @@ export const getAttachableSourcesProcedure = protectedProcedure
       .select({
         id: crawlSources.id,
         rootUrl: crawlSources.rootUrl,
+        metadata: crawlSources.metadata,
         status: crawlSources.status,
         createdAt: crawlSources.createdAt,
         isAttached: attachedExpr,

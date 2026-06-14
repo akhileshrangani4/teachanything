@@ -11,16 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CrawlSourceCard } from "./web-sources/CrawlSourceCard";
+import { AttachExistingSources } from "./web-sources/AttachExistingSources";
 import {
   AddFullWebSourceDialog,
   EmptyWebSourcesState,
@@ -49,7 +41,6 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
   const [expandedSources, setExpandedSources] = useState<Set<string>>(
     new Set(),
   );
-  const [selectedSourceId, setSelectedSourceId] = useState("");
 
   const {
     data: sources,
@@ -230,42 +221,14 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
           onSubmit={handleAddManualUrl}
         />
 
-        {unattached.length > 0 && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="attach-existing">
-                Attach an existing web source
-              </Label>
-              <Select
-                value={selectedSourceId}
-                onValueChange={setSelectedSourceId}
-              >
-                <SelectTrigger id="attach-existing">
-                  <SelectValue placeholder="Choose a web source..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {unattached.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.rootUrl}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!selectedSourceId || attach.isPending}
-              onClick={() => {
-                if (!selectedSourceId) return;
-                attach.mutate({ crawlSourceId: selectedSourceId, chatbotId });
-                setSelectedSourceId("");
-              }}
-            >
-              Attach
-            </Button>
-          </div>
-        )}
+        <AttachExistingSources
+          sources={unattached}
+          onAttach={(crawlSourceId) =>
+            attach.mutate({ crawlSourceId, chatbotId })
+          }
+          attachingId={attach.variables?.crawlSourceId ?? null}
+          isAttaching={attach.isPending}
+        />
 
         {sourcesLoading ? (
           <WebSourcesSkeleton />
