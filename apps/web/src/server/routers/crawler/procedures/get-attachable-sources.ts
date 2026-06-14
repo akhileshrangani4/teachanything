@@ -21,10 +21,17 @@ export const getAttachableSourcesProcedure = protectedProcedure
         AND ${chatbotCrawlSourceAssociations.chatbotId} = ${input.chatbotId}
     )`;
 
+    // Pull only the renamed display name out of metadata rather than the
+    // whole JSONB blob (which can carry large robotsText/errors fields).
+    const displayNameExpr = sql<
+      string | null
+    >`${crawlSources.metadata} ->> 'displayName'`;
+
     const rows = await ctx.db
       .select({
         id: crawlSources.id,
         rootUrl: crawlSources.rootUrl,
+        displayName: displayNameExpr,
         status: crawlSources.status,
         createdAt: crawlSources.createdAt,
         isAttached: attachedExpr,
