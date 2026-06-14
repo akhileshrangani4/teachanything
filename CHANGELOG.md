@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.24.0](https://github.com/akhileshrangani4/teachanything/compare/v1.23.1...v1.24.0) (2026-06-14)
+
+
+### Features
+
+* **web-sources:** list view for attaching existing web sources ([#341](https://github.com/akhileshrangani4/teachanything/issues/341)) ([c041a51](https://github.com/akhileshrangani4/teachanything/commit/c041a518da683ef29349b491d641374027f05433))
+
 ## [1.23.1](https://github.com/akhileshrangani4/teachanything/compare/v1.23.0...v1.23.1) (2026-06-11)
 
 
