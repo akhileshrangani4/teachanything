@@ -156,23 +156,25 @@ function ChatbotAttachButton({
         <Button
           variant="outline"
           size="sm"
-          className="h-8"
+          className="h-8 w-36 justify-between"
           title={
             count > 0 ? `Attached to: ${attachedNames}` : "Attach to chatbots"
           }
         >
-          {count > 0 ? (
-            <>
-              <Bot className="mr-1.5 h-3.5 w-3.5" />
-              {count} chatbot{count !== 1 ? "s" : ""}
-            </>
-          ) : (
-            <>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Attach
-            </>
-          )}
-          <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-60" />
+          <span className="flex items-center">
+            {count > 0 ? (
+              <>
+                <Bot className="mr-1.5 h-3.5 w-3.5" />
+                {count} chatbot{count !== 1 ? "s" : ""}
+              </>
+            ) : (
+              <>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Attach
+              </>
+            )}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
