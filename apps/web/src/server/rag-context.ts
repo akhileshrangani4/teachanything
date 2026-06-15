@@ -33,10 +33,16 @@ export interface RAGContextResult {
     fileName: string;
     chunkIndex: number;
     similarity: number;
+    // Optional: only the agentic retrieval path supplies page numbers. The
+    // static path leaves it undefined so existing consumers keep validating.
+    pageNumber?: number | null;
   }>;
   ragUsed: boolean;
   fileManifest: string;
   ragFailureNote: string;
+  // File IDs the chat router needs to build retrieval tools for the agentic
+  // path. Empty when the chatbot has no completed (enabled) files.
+  fileIds: string[];
 }
 
 /**
@@ -114,6 +120,7 @@ export async function buildRAGContext(
       ragUsed: false,
       fileManifest,
       ragFailureNote: "",
+      fileIds: [],
     };
   }
 
@@ -149,6 +156,7 @@ export async function buildRAGContext(
       ragUsed: false,
       fileManifest,
       ragFailureNote,
+      fileIds,
     };
   }
 
@@ -168,6 +176,7 @@ export async function buildRAGContext(
       ragUsed: false,
       fileManifest,
       ragFailureNote: "",
+      fileIds,
     };
   }
 
@@ -209,6 +218,7 @@ export async function buildRAGContext(
       ragUsed: false,
       fileManifest,
       ragFailureNote: "",
+      fileIds,
     };
   }
 
@@ -250,5 +260,12 @@ export async function buildRAGContext(
   });
 
   // 8. Return result
-  return { contextText, sources, ragUsed, fileManifest, ragFailureNote: "" };
+  return {
+    contextText,
+    sources,
+    ragUsed,
+    fileManifest,
+    ragFailureNote: "",
+    fileIds,
+  };
 }

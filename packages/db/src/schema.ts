@@ -331,6 +331,8 @@ export const messages = pgTable(
           fileName: string;
           chunkIndex: number;
           similarity: number;
+          // Optional: only agentic-retrieval sources carry page numbers.
+          pageNumber?: number | null;
         }>;
         responseTime?: number;
         model?: string;
