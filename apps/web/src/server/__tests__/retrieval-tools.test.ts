@@ -1,5 +1,10 @@
 import { describe, it, expect } from "@jest/globals";
 import { reciprocalRankFusion } from "@teachanything/ai/rrf";
+import {
+  searchDocumentsInput,
+  getPageInput,
+  getContextAroundInput,
+} from "../retrieval-tool-schemas";
 
 // Regression for issue #271: a close-reading detail question must surface the
 // exact-answer chunk even when dense vector search under-ranks it (semantic
@@ -23,5 +28,29 @@ describe("close-reading adjacency retrieval (fusion level)", () => {
     expect(fused[0]).toBe("chunkN");
     // The setup chunk is retrieved alongside the answer for adjacent context.
     expect(fused.slice(0, 3)).toContain("chunkN-1");
+  });
+});
+
+describe("retrieval tool input schemas", () => {
+  it("search_documents requires a query", () => {
+    expect(searchDocumentsInput.safeParse({}).success).toBe(false);
+    expect(searchDocumentsInput.safeParse({ query: "x" }).success).toBe(true);
+  });
+  it("get_page requires fileId + pageNumber", () => {
+    expect(getPageInput.safeParse({ fileId: "f" }).success).toBe(false);
+    expect(
+      getPageInput.safeParse({
+        fileId: "550e8400-e29b-41d4-a716-446655440000",
+        pageNumber: 3,
+      }).success,
+    ).toBe(true);
+  });
+  it("get_context_around requires fileId + chunkIndex", () => {
+    expect(
+      getContextAroundInput.safeParse({
+        fileId: "550e8400-e29b-41d4-a716-446655440000",
+        chunkIndex: 0,
+      }).success,
+    ).toBe(true);
   });
 });
