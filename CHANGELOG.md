@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.0](https://github.com/akhileshrangani4/teachanything/compare/v1.25.0...v1.26.0) (2026-06-15)
+
+
+### Features
+
+* **auth:** add approval email whitelist note to signup screen ([#345](https://github.com/akhileshrangani4/teachanything/issues/345)) ([796b7ea](https://github.com/akhileshrangani4/teachanything/commit/796b7ea5ae84ed08b6019e4b4d153867bd9f24f0))
+
 ## [1.25.0](https://github.com/akhileshrangani4/teachanything/compare/v1.24.0...v1.25.0) (2026-06-14)
 
 
