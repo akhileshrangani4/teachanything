@@ -23,6 +23,7 @@ import {
 } from "@teachanything/ai";
 import { logInfo, logError, logWarn } from "@/lib/logger";
 import { env } from "@/lib/env";
+import { maybeEnqueueReprocess } from "../reprocess";
 import {
   checkRateLimit,
   authenticatedChatRateLimit,
@@ -114,6 +115,11 @@ async function* processMessage(params: {
       message: "Failed to create conversation",
     });
   }
+
+  // Fire-and-forget: lazily reprocess any files ingested under an older
+  // processing version so they gain page-aware chunks (#271). Must not block
+  // the current turn — it serves immediately with whatever chunks exist.
+  void maybeEnqueueReprocess(database, chatbot.id);
 
   // Yield the sessionId immediately so the client knows the subscription is
   // live before we start the expensive RAG embedding + history fetch. Sources
