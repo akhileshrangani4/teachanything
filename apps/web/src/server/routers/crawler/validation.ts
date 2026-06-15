@@ -57,4 +57,12 @@ export const crawledPagesInput = z.object({
 export const allCrawlSourcesInput = z.object({
   limit: z.number().int().min(1).max(100).default(20),
   offset: z.number().int().min(0).default(0),
+  search: z.string().max(200).optional(),
+  status: z
+    .enum(["all", "crawling", "completed", "failed", "disabled"])
+    .default("all"),
+  sortBy: z
+    .enum(["name", "status", "lastCrawledAt", "createdAt"])
+    .default("createdAt"),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
 });

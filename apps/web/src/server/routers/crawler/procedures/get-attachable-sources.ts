@@ -1,6 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, sql, desc } from "drizzle-orm";
+import { and, eq, not, sql, desc } from "drizzle-orm";
 import {
   crawlSources,
   chatbotCrawlSourceAssociations,
@@ -21,16 +21,26 @@ export const getAttachableSourcesProcedure = protectedProcedure
         AND ${chatbotCrawlSourceAssociations.chatbotId} = ${input.chatbotId}
     )`;
 
+    // Pull only the renamed display name out of metadata rather than the
+    // whole JSONB blob (which can carry large robotsText/errors fields).
+    const displayNameExpr = sql<
+      string | null
+    >`${crawlSources.metadata} ->> 'displayName'`;
+
     const rows = await ctx.db
       .select({
         id: crawlSources.id,
         rootUrl: crawlSources.rootUrl,
+        displayName: displayNameExpr,
         status: crawlSources.status,
         createdAt: crawlSources.createdAt,
         isAttached: attachedExpr,
       })
       .from(crawlSources)
-      .where(eq(crawlSources.userId, ctx.session.user.id))
+      // Only offer sources not already attached to this chatbot.
+      .where(
+        and(eq(crawlSources.userId, ctx.session.user.id), not(attachedExpr)),
+      )
       .orderBy(desc(crawlSources.createdAt), desc(crawlSources.id));
 
     return rows;
