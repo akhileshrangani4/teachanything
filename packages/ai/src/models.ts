@@ -14,6 +14,7 @@ export interface ModelMetadata {
   displayName: string;
   provider: Provider;
   contextWindow: number;
+  supportsTools: boolean;
 }
 
 /**
@@ -27,42 +28,49 @@ export const MODEL_REGISTRY = {
     displayName: "Llama 3.3 70B",
     provider: "Meta",
     contextWindow: 131_072,
+    supportsTools: true,
   },
   "mistralai/mistral-large-2411": {
     id: "mistralai/mistral-large-2411",
     displayName: "Mistral Large 2411",
     provider: "Mistral",
     contextWindow: 131_072,
+    supportsTools: true,
   },
   "qwen/qwen3-235b-a22b": {
     id: "qwen/qwen3-235b-a22b",
     displayName: "Qwen 3 235B",
     provider: "Qwen",
     contextWindow: 131_072,
+    supportsTools: true,
   },
   "openai/gpt-oss-120b": {
     id: "openai/gpt-oss-120b",
     displayName: "GPT-OSS 120B",
     provider: "OpenAI",
     contextWindow: 131_072,
+    supportsTools: true,
   },
   "meta-llama/llama-4-maverick": {
     id: "meta-llama/llama-4-maverick",
     displayName: "Llama 4 Maverick",
     provider: "Meta",
     contextWindow: 1_048_576,
+    supportsTools: true,
   },
   "nvidia/nemotron-3-super-120b-a12b": {
     id: "nvidia/nemotron-3-super-120b-a12b",
     displayName: "Nemotron 3 Super",
     provider: "NVIDIA",
     contextWindow: 262_144,
+    supportsTools: true,
   },
   "google/gemma-4-31b-it": {
     id: "google/gemma-4-31b-it",
     displayName: "Gemma 4 31B",
     provider: "Google",
     contextWindow: 262_144,
+    supportsTools: false,
   },
 } as const satisfies Record<string, ModelMetadata>;
 
@@ -130,4 +138,16 @@ export function formatContextWindow(tokens: number): string {
     return `${Math.round(tokens / 1_000_000)}M context`;
   }
   return `${Math.round(tokens / 1024)}K context`;
+}
+
+/** Models whose tool-calling is reliable enough for agentic retrieval. */
+export function toolCapableModels(): ModelMetadata[] {
+  return (Object.values(MODEL_REGISTRY) as ModelMetadata[]).filter(
+    (m) => m.supportsTools,
+  );
+}
+
+/** Whether a (possibly deprecated) model id supports tools, after resolution. */
+export function modelSupportsTools(modelId: string): boolean {
+  return MODEL_REGISTRY[resolveModel(modelId)].supportsTools;
 }
