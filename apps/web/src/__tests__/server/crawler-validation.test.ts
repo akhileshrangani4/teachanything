@@ -47,10 +47,13 @@ describe("crawler validation schemas", () => {
   });
 
   describe("allCrawlSourcesInput", () => {
-    it("defaults pagination parameters", () => {
+    it("defaults pagination, status, and sort parameters", () => {
       expect(allCrawlSourcesInput.parse({})).toEqual({
         limit: 20,
         offset: 0,
+        status: "all",
+        sortBy: "createdAt",
+        sortDir: "desc",
       });
     });
 
@@ -58,12 +61,39 @@ describe("crawler validation schemas", () => {
       expect(allCrawlSourcesInput.parse({ limit: 50, offset: 100 })).toEqual({
         limit: 50,
         offset: 100,
+        status: "all",
+        sortBy: "createdAt",
+        sortDir: "desc",
+      });
+    });
+
+    it("accepts search, status filter, and sort options", () => {
+      expect(
+        allCrawlSourcesInput.parse({
+          search: "docs",
+          status: "failed",
+          sortBy: "name",
+          sortDir: "asc",
+        }),
+      ).toEqual({
+        limit: 20,
+        offset: 0,
+        search: "docs",
+        status: "failed",
+        sortBy: "name",
+        sortDir: "asc",
       });
     });
 
     it("rejects limits above the endpoint cap", () => {
       expect(() =>
         allCrawlSourcesInput.parse({ limit: 101, offset: 0 }),
+      ).toThrow();
+    });
+
+    it("rejects unknown status filters", () => {
+      expect(() =>
+        allCrawlSourcesInput.parse({ status: "archived" }),
       ).toThrow();
     });
   });
