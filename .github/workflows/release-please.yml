@@ -49,7 +49,7 @@ jobs:
       # no-op on releases that don't touch packages/db. Requires the
       # DATABASE_URL repo secret (prod connection).
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: npm
