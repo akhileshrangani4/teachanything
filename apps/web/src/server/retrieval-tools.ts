@@ -49,6 +49,12 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         "Search the attached documents for passages. Use the user's exact words or a quoted phrase for specific details. Returns passages with file name, page number, and chunk index. ALWAYS search before claiming something is or is not in the documents.",
       inputSchema: searchDocumentsInput,
       execute: async ({ query, fileId, limit }) => {
+        // Authorization: reject a model-supplied fileId outside this chatbot's
+        // scope, matching get_page / get_context_around (hybridSearch also
+        // intersects defensively).
+        if (fileId && !ctx.fileIds.includes(fileId)) {
+          return { error: "Unknown document" };
+        }
         const queryEmbedding = await ctx.aiClient.generateEmbedding(query);
         const results = await hybridSearch({
           db: ctx.db,

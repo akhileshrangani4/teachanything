@@ -45,7 +45,12 @@ export async function hybridSearch(
   params: HybridSearchParams,
 ): Promise<HybridChunk[]> {
   const { db, query, queryEmbedding, limit } = params;
-  const fileIds = params.fileId ? [params.fileId] : params.fileIds;
+  // Authorization: a single-file request must INTERSECT the chatbot-scoped set,
+  // never replace it. params.fileId originates from a model tool call, so a
+  // hallucinated/foreign UUID must not widen access beyond params.fileIds.
+  const fileIds = params.fileId
+    ? params.fileIds.filter((id) => id === params.fileId)
+    : params.fileIds;
   if (fileIds.length === 0) return [];
 
   const overfetch = Math.min(limit * 2, 60);
