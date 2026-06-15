@@ -204,6 +204,7 @@ export const userFiles = pgTable("user_files", {
     .notNull(),
   metadata: jsonb("metadata")
     .$type<{
+      processingVersion?: number;
       error?: string;
       chunkCount?: number;
       processedAt?: string;
