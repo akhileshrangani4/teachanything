@@ -49,6 +49,33 @@ function clampMaxTokens(maxTokens: number | null | undefined): number {
 }
 
 /**
+ * Map an agentic retrieval tool-call to a human-readable status label shown
+ * in the live status line while the model works. Only the action + the
+ * user-derived query are surfaced -- never tool RESULT content (which could
+ * contain document text on public shared bots).
+ */
+function describeToolActivity(toolName: string, input: unknown): string {
+  const args = (input ?? {}) as {
+    query?: unknown;
+    pageNumber?: unknown;
+  };
+  switch (toolName) {
+    case "search_documents":
+      return typeof args.query === "string" && args.query.length > 0
+        ? `Searching documents for “${args.query}”`
+        : "Searching documents…";
+    case "get_page":
+      return `Reading page ${String(args.pageNumber)}…`;
+    case "get_context_around":
+      return "Reading surrounding context…";
+    case "list_documents":
+      return "Looking through your documents…";
+    default:
+      return "Working…";
+  }
+}
+
+/**
  * Cached token counter -- initialized once, reused across all requests.
  */
 let counterPromise: Promise<(text: string) => number> | null = null;
@@ -356,7 +383,9 @@ async function* processMessage(params: {
    * tool-call args).
    */
   async function* streamAgentic(): AsyncGenerator<
-    { type: "text"; content: string } | { type: "thinking" },
+    | { type: "text"; content: string }
+    | { type: "thinking" }
+    | { type: "status"; label: string },
     {
       fullResponse: string;
       finishReason: FinishReason | undefined;
@@ -409,9 +438,6 @@ async function* processMessage(params: {
     let anyToolCall = false;
     let doneAnswer: string | undefined;
 
-    // Guard so a single search emits at most one `thinking` indicator. Reset
-    // on tool-result so the next search re-arms it.
-    let searchIndicatorEmitted = false;
     let thinkingEmitted = false;
 
     for await (const part of result.fullStream) {
@@ -438,30 +464,35 @@ async function* processMessage(params: {
           break;
         }
         case "tool-input-start": {
-          // A tool call is being assembled. Surface activity once per search so
-          // the UI doesn't look frozen while the model retrieves.
+          // A tool call is being assembled. The richer `status` event is
+          // emitted on `tool-call` (below) once the tool name + args are known.
           anyToolCall = true;
-          if (!searchIndicatorEmitted) {
-            yield { type: "thinking" as const };
-            searchIndicatorEmitted = true;
-          }
           break;
         }
         case "tool-call": {
           anyToolCall = true;
+          thinkingEmitted = false;
           // The `done` tool has no execute; its answer is in the tool-call
-          // args (`part.input`), never a tool-result.
+          // args (`part.input`), never a tool-result. It's not a retrieval
+          // action, so it gets no status label.
           if (part.toolName === "done") {
             const input = part.input as { answer?: unknown } | undefined;
             if (typeof input?.answer === "string") {
               doneAnswer = input.answer;
             }
+            break;
           }
+          // Surface the tool activity as a human-readable status line. The
+          // `part.input` is the parsed args object (AI SDK v6 TypedToolCall).
+          // Only the action label + user-derived query are sent -- never tool
+          // RESULT content, which could contain document text on public bots.
+          yield {
+            type: "status" as const,
+            label: describeToolActivity(part.toolName, part.input),
+          };
           break;
         }
         case "tool-result": {
-          // A search returned; re-arm the indicator for the next one.
-          searchIndicatorEmitted = false;
           break;
         }
         case "finish": {

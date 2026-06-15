@@ -6,12 +6,14 @@ type StreamSource = {
   fileName: string;
   chunkIndex: number;
   similarity: number;
+  pageNumber?: number | null;
 };
 
 type StreamData =
   | { type: "metadata"; sessionId?: string; sources?: StreamSource[] }
   | { type: "text"; content: string }
   | { type: "thinking" }
+  | { type: "status"; label: string }
   | { type: "done"; truncated?: boolean; responseTime?: number };
 
 /**
@@ -28,6 +30,7 @@ export function useChatState() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [isThinking, setIsThinking] = useState(false);
+  const [statusLabel, setStatusLabel] = useState<string | null>(null);
   const streamingContentRef = useRef("");
   // Set when the user cancels mid-stream. Gates handleStreamData so any
   // chunks that arrive after cancellation don't resurrect the streaming UI.
@@ -45,7 +48,12 @@ export function useChatState() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sourcesRef = useRef<
-    Array<{ fileName: string; chunkIndex: number; similarity: number }>
+    Array<{
+      fileName: string;
+      chunkIndex: number;
+      similarity: number;
+      pageNumber?: number | null;
+    }>
   >([]);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,6 +96,7 @@ export function useChatState() {
     setSessionId("");
     setIsStreaming(false);
     setIsThinking(false);
+    setStatusLabel(null);
     setStreamingContent("");
     streamingContentRef.current = "";
     cancelledRef.current = false;
@@ -104,6 +113,7 @@ export function useChatState() {
     updateStreamingContent("");
     setIsStreaming(false);
     setIsThinking(false);
+    setStatusLabel(null);
     sourcesRef.current = [];
 
     setMessages((prev) => [
@@ -134,14 +144,22 @@ export function useChatState() {
       // First text chunk ends the thinking phase. React bails on identical
       // state so we call unconditionally to avoid a stale-closure trap.
       setIsThinking(false);
+      // The answer has started -- clear any tool-activity status line.
+      setStatusLabel(null);
       updateStreamingContent((prev) => prev + data.content);
     } else if (data.type === "thinking") {
       // Model is in a reasoning phase. Flip the indicator so the UI doesn't
       // look frozen during long pauses.
       setIsThinking(true);
+    } else if (data.type === "status") {
+      // Agentic tool activity (e.g. "Searching documents…"). Surface it as a
+      // richer thinking indicator while the model retrieves.
+      setStatusLabel(data.label);
+      setIsThinking(true);
     } else if (data.type === "done") {
       clearStreamingTimeout();
       setIsThinking(false);
+      setStatusLabel(null);
 
       // Guard: if streaming was already stopped (e.g., user cancelled), skip.
       // Uses ref (not state) to avoid stale closure issues in subscription callbacks.
@@ -173,6 +191,7 @@ export function useChatState() {
     toast.error("Failed to send message. Please try again.");
     setIsStreaming(false);
     setIsThinking(false);
+    setStatusLabel(null);
 
     // Preserve any partial content already received so the user can see what
     // the model produced before the stream failed. Prior behavior dropped it.
@@ -199,6 +218,7 @@ export function useChatState() {
   const startStreaming = () => {
     setIsStreaming(true);
     setIsThinking(false);
+    setStatusLabel(null);
     updateStreamingContent("");
     sourcesRef.current = [];
     cancelledRef.current = false;
@@ -227,6 +247,7 @@ export function useChatState() {
     sessionId,
     isStreaming,
     isThinking,
+    statusLabel,
     streamingContent,
     messagesEndRef,
     // Streaming orchestration

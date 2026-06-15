@@ -17,6 +17,11 @@ export function SourceBadge({
   className = "text-xs",
 }: SourceBadgeProps) {
   const { isWeb, label } = describeSource(source);
+  // Web sources have no page concept; only file sources get a page suffix.
+  const displayLabel =
+    !isWeb && source.pageNumber != null
+      ? `${label} · p.${source.pageNumber}`
+      : label;
   return (
     <Badge
       variant={variant}
@@ -32,7 +37,7 @@ export function SourceBadge({
       ) : (
         <FileText className="h-3 w-3 mr-1" />
       )}
-      {label}
+      {displayLabel}
     </Badge>
   );
 }

@@ -7,21 +7,28 @@ export type SourceCitation = {
   fileName: string;
   chunkIndex: number;
   similarity: number;
+  pageNumber?: number | null;
 };
 
 /**
- * Dedupe citations by fileName, keeping the highest-similarity chunk per
- * file. O(n) via Map. Mirrors the historical behavior of ChatMessage.tsx.
+ * Dedupe citations by fileName + pageNumber, keeping the highest-similarity
+ * chunk per (file, page). O(n) via Map. The same file cited on different pages
+ * yields separate badges; chunks without a page collapse under one key.
  */
 export function dedupeSourcesByFileName<
-  T extends { fileName: string; similarity: number },
+  T extends {
+    fileName: string;
+    similarity: number;
+    pageNumber?: number | null;
+  },
 >(sources: T[]): T[] {
   if (sources.length === 0) return sources;
   const best = new Map<string, T>();
   for (const s of sources) {
-    const existing = best.get(s.fileName);
+    const key = `${s.fileName}::${s.pageNumber ?? ""}`;
+    const existing = best.get(key);
     if (!existing || s.similarity > existing.similarity) {
-      best.set(s.fileName, s);
+      best.set(key, s);
     }
   }
   return [...best.values()];
