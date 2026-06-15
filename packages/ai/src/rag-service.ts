@@ -21,11 +21,11 @@ export class RAGService {
   private encoderInitialized: boolean = false;
 
   constructor() {
-    // Initialize text splitter with optimal chunk size
-    // Increased from 1000 to 2500 to reduce number of chunks for large files
+    // Chunk size tuned for citation precision (~250 tokens). Smaller chunks keep a
+    // single claim per embedding, improving close-reading recall (issue #271).
     this.textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 2500,
-      chunkOverlap: 250,
+      chunkSize: 1000,
+      chunkOverlap: 150,
       separators: ["\n\n", "\n", ".", " ", ""],
     });
 
