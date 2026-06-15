@@ -1,6 +1,6 @@
 import { eq, and, inArray, isNotNull, sql } from "drizzle-orm";
 import { fileChunks, userFiles } from "@teachanything/db/schema";
-import { reciprocalRankFusion } from "@teachanything/ai";
+import { reciprocalRankFusion } from "@teachanything/ai/rrf";
 import type { db as DbType } from "@teachanything/db";
 
 export interface HybridSearchParams {
