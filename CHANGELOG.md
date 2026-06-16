@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/akhileshrangani4/teachanything/compare/v1.26.0...v1.27.0) (2026-06-16)
+
+
+### Features
+
+* **landing:** non-profit status note + DC flag in footer ([#350](https://github.com/akhileshrangani4/teachanything/issues/350)) ([dbcdbf4](https://github.com/akhileshrangani4/teachanything/commit/dbcdbf4270c38ca2e405d6fdd7901aaacf5ce757))
+
 ## [1.26.0](https://github.com/akhileshrangani4/teachanything/compare/v1.25.0...v1.26.0) (2026-06-15)
 
 
