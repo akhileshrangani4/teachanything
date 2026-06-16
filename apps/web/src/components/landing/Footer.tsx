@@ -48,8 +48,8 @@ export default function Footer() {
             <Image
               src="/assets/logos/dc-flag-bw.svg"
               alt="District of Columbia flag"
-              width={44}
-              height={44}
+              width={40}
+              height={30}
               className="opacity-80"
             />
             <p className="text-sm">
