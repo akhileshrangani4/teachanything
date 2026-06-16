@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { BrandName } from "@/components/brand/BrandName";
 
@@ -43,10 +44,20 @@ export default function Footer() {
               Privacy Policy
             </Link>
           </div>
-          <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()}{" "}
-            <BrandName markClassName="text-[0.45em]" />. All rights reserved.
-          </p>
+          <div className="flex items-center gap-2.5 text-muted-foreground">
+            <Image
+              src="/assets/logos/dc-flag-bw.svg"
+              alt="District of Columbia flag"
+              width={40}
+              height={30}
+              className="opacity-80"
+            />
+            <p className="text-sm">
+              © {new Date().getFullYear()}{" "}
+              <BrandName markClassName="text-[0.45em] ml-0" />. All rights
+              reserved.
+            </p>
+          </div>
         </div>
       </div>
     </footer>
