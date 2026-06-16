@@ -153,7 +153,7 @@ export default function SupportUsSection() {
 
           {/* Support Text */}
           <motion.p
-            className="text-muted-foreground text-base mb-16 leading-[1.8] max-w-3xl mx-auto"
+            className="text-muted-foreground text-base mb-8 leading-[1.8] max-w-3xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -165,6 +165,20 @@ export default function SupportUsSection() {
             University, Washington Research Library Consortium, Public Interest
             Technology Scholar program, the NSF Institute for Trustworthy AI in
             Law & Society, and George Washington University.
+          </motion.p>
+
+          {/* Non-Profit Status */}
+          <motion.p
+            className="text-muted-foreground text-sm mb-16 leading-[1.8] max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6, delay: 0.45 }}
+          >
+            Teach Anything, Inc. is a registered non-profit organization
+            incorporated in the District of Columbia. Our certificate of
+            incorporation is on file in the Washington, D.C. Department of
+            Licensing and Consumer Protection.
           </motion.p>
 
           {/* Featured In Section */}
