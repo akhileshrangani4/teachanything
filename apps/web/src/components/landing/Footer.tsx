@@ -48,9 +48,9 @@ export default function Footer() {
             <Image
               src="/assets/logos/dc-flag-bw.svg"
               alt="District of Columbia flag"
-              width={22}
-              height={22}
-              className="opacity-70"
+              width={44}
+              height={44}
+              className="opacity-80"
             />
             <p className="text-sm">
               © {new Date().getFullYear()}{" "}
