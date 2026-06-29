@@ -106,10 +106,20 @@ export async function buildRAGContext(
     }
   }
 
-  // 2. Build file manifest (D-01, D-03: anti-hallucination instruction)
+  // 2. Build file manifest (D-01, D-03: anti-hallucination instruction).
+  // Cap the listed names so chatbots with many files don't bloat the system
+  // prompt (it is re-sent on every agentic step). The model can always discover
+  // the full set via the list_documents tool / search.
+  const MANIFEST_FILE_LIMIT = 20;
   const fileManifest =
     fileNames.length > 0
-      ? `\n\nYou have access to these documents: [${fileNames.join(", ")}]. When asked about files, refer only to this list. Do not invent or guess file names.`
+      ? `\n\nYou have access to ${fileNames.length} document${fileNames.length === 1 ? "" : "s"}, including: [${fileNames
+          .slice(0, MANIFEST_FILE_LIMIT)
+          .join(", ")}${
+          fileNames.length > MANIFEST_FILE_LIMIT
+            ? `, and ${fileNames.length - MANIFEST_FILE_LIMIT} more`
+            : ""
+        }]. When asked about files, refer only to documents that actually exist. Do not invent or guess file names.`
       : "";
 
   // 3. Short-circuit if no completed files (skip embedding API call entirely)

@@ -6,6 +6,9 @@ import { env } from "@/lib/env";
 import { logError, logInfo } from "@/lib/logger";
 import type { db as DbType } from "@teachanything/db";
 
+/** Max stale files (re)enqueued per chat access — throttles the migration burst. */
+const REPROCESS_BATCH_SIZE = 5;
+
 /**
  * Lazily reprocess files ingested under an older processing version so they gain
  * page-aware chunks + pageNumber metadata (issue #271). Non-blocking and
@@ -29,7 +32,12 @@ export async function maybeEnqueueReprocess(
             sql`(${userFiles.metadata} ->> 'processingVersion')::int < ${CURRENT_PROCESSING_VERSION}`,
           ),
         ),
-      );
+      )
+      // Throttle: only (re)enqueue a small batch per chat access so a chatbot
+      // with many stale files doesn't fire a thundering herd of reprocess jobs
+      // that starves the live request. In-flight files flip to "processing" and
+      // drop out of this query, so successive accesses drain the rest.
+      .limit(REPROCESS_BATCH_SIZE);
     if (stale.length === 0) return;
     logInfo("Lazy reprocess: enqueuing stale files", {
       chatbotId,

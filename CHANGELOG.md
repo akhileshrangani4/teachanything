@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.28.2](https://github.com/akhileshrangani4/teachanything/compare/v1.28.1...v1.28.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* **chat:** stop inline citation markers in answers ([#363](https://github.com/akhileshrangani4/teachanything/issues/363)) ([dd7081d](https://github.com/akhileshrangani4/teachanything/commit/dd7081de0f247ec70e3e820a843c0624a363a5e4))
+
+
+### Performance Improvements
+
+* **chat:** fix many-files slowness/timeouts (reprocess throttle + manifest cap + step budget) ([#365](https://github.com/akhileshrangani4/teachanything/issues/365)) ([ef7b7f7](https://github.com/akhileshrangani4/teachanything/commit/ef7b7f7f50a3f9e680dfbca31f08d4c23eb95c0c))
+
 ## [1.28.1](https://github.com/akhileshrangani4/teachanything/compare/v1.28.0...v1.28.1) (2026-06-29)
 
 

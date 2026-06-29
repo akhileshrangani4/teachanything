@@ -356,8 +356,10 @@ async function* processMessage(params: {
       : "";
     const groundingRule =
       "\n\nYou can search the attached documents using tools. You MUST call search_documents before stating whether the documents do or do not contain something. " +
-      "Never say 'the document does not mention X' -- if a search returns nothing, say 'I couldn't find that in the materials.' " +
-      "Cite the file name and page number for each claim, and include the exact quote you relied on.";
+      "If a search returns nothing, say you couldn't find it in the materials rather than denying it exists. " +
+      "Do NOT put inline citations, source tags, page numbers, bracketed reference markers, or JSON anchors " +
+      '(e.g. "(file.pdf, p. 2)" or "【…】") in your answer text -- the app shows the user the sources ' +
+      "separately. Reply in clean prose.";
     const systemPrompt =
       nemotronPrefix +
       chatbot.systemPrompt +
@@ -378,7 +380,7 @@ async function* processMessage(params: {
       tools: tools as unknown as Parameters<
         OpenRouterClient["streamText"]
       >[0]["tools"],
-      stopWhen: [stepCountIs(6), hasToolCall("done")],
+      stopWhen: [stepCountIs(4), hasToolCall("done")],
       prepareStep: async ({ stepNumber }) =>
         stepNumber === 0
           ? {
