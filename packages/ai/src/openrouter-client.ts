@@ -75,15 +75,37 @@ export class OpenRouterClient {
    */
   async streamText(params: {
     model: SupportedModel;
-    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+    /**
+     * System prompt. Passed via the dedicated `system` option (not as a
+     * role:"system" message) to avoid the AI SDK prompt-injection warning and
+     * keep system instructions out of the user/assistant turn stream.
+     */
+    system?: string;
+    messages: Array<{ role: "user" | "assistant"; content: string }>;
     temperature?: number;
     maxTokens?: number;
+    // Agentic additions (all optional; omitted => behaves exactly as before)
+    tools?: Parameters<typeof streamText>[0]["tools"];
+    stopWhen?: Parameters<typeof streamText>[0]["stopWhen"];
+    prepareStep?: Parameters<typeof streamText>[0]["prepareStep"];
+    onStepFinish?: Parameters<typeof streamText>[0]["onStepFinish"];
+    experimental_repairToolCall?: Parameters<
+      typeof streamText
+    >[0]["experimental_repairToolCall"];
   }) {
     const result = await streamText({
       model: this.client(params.model),
       messages: params.messages,
       temperature: params.temperature ?? 0.7,
       maxOutputTokens: params.maxTokens ?? 2000,
+      ...(params.system ? { system: params.system } : {}),
+      ...(params.tools ? { tools: params.tools } : {}),
+      ...(params.stopWhen ? { stopWhen: params.stopWhen } : {}),
+      ...(params.prepareStep ? { prepareStep: params.prepareStep } : {}),
+      ...(params.onStepFinish ? { onStepFinish: params.onStepFinish } : {}),
+      ...(params.experimental_repairToolCall
+        ? { experimental_repairToolCall: params.experimental_repairToolCall }
+        : {}),
     });
 
     return result;

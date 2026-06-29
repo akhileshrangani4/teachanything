@@ -204,6 +204,7 @@ export const userFiles = pgTable("user_files", {
     .notNull(),
   metadata: jsonb("metadata")
     .$type<{
+      processingVersion?: number;
       error?: string;
       chunkCount?: number;
       processedAt?: string;
@@ -330,6 +331,8 @@ export const messages = pgTable(
           fileName: string;
           chunkIndex: number;
           similarity: number;
+          // Optional: only agentic-retrieval sources carry page numbers.
+          pageNumber?: number | null;
         }>;
         responseTime?: number;
         model?: string;

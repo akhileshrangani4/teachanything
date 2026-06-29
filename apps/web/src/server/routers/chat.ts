@@ -1,5 +1,7 @@
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 import type { FinishReason } from "ai";
+import { stepCountIs, hasToolCall } from "ai";
+import { modelSupportsTools } from "@teachanything/ai/models";
 import { z } from "zod";
 import {
   chatbots,
@@ -17,31 +19,20 @@ import {
   calculateChunkLimit,
   allocateTokenBudget,
   CHARS_PER_TOKEN,
+  type OpenRouterClient,
 } from "@teachanything/ai";
 import { logInfo, logError, logWarn } from "@/lib/logger";
 import { env } from "@/lib/env";
+import { maybeEnqueueReprocess } from "../reprocess";
 import {
   checkRateLimit,
   authenticatedChatRateLimit,
   publicChatRateLimit,
 } from "@/lib/rate-limit";
-import { buildRAGContext } from "../rag-context";
+import { buildRAGContext, type RAGContextResult } from "../rag-context";
+import { createRetrievalTools } from "../retrieval-tools";
+import { clampMaxTokens, describeToolActivity } from "../chat-helpers";
 import type { db as DbType } from "@teachanything/db";
-
-/**
- * Clamp maxTokens to valid range (100-4000)
- */
-function clampMaxTokens(maxTokens: number | null | undefined): number {
-  const MIN_TOKENS = 100;
-  const MAX_TOKENS = 4000;
-  const DEFAULT_TOKENS = 2000;
-
-  if (maxTokens == null || isNaN(maxTokens)) {
-    return DEFAULT_TOKENS;
-  }
-
-  return Math.max(MIN_TOKENS, Math.min(MAX_TOKENS, maxTokens));
-}
 
 /**
  * Cached token counter -- initialized once, reused across all requests.
@@ -110,6 +101,11 @@ async function* processMessage(params: {
       message: "Failed to create conversation",
     });
   }
+
+  // Fire-and-forget: lazily reprocess any files ingested under an older
+  // processing version so they gain page-aware chunks (#271). Must not block
+  // the current turn — it serves immediately with whatever chunks exist.
+  void maybeEnqueueReprocess(database, chatbot.id);
 
   // Yield the sessionId immediately so the client knows the subscription is
   // live before we start the expensive RAG embedding + history fetch. Sources
@@ -197,25 +193,31 @@ async function* processMessage(params: {
     logWarn(warning, { chatbotId: chatbot.id, modelId });
   }
 
-  // Send RAG sources now that they're available. The client handles metadata
-  // events idempotently (updates only fields that are present).
-  yield {
-    type: "metadata" as const,
-    sources: ragResult.sources,
-  };
+  // Tool-capable models with at least one searchable file use the AGENTIC
+  // retrieval path: the model calls retrieval tools mid-turn instead of
+  // receiving statically-injected chunks. Everything else uses the STATIC
+  // path (today's behavior).
+  const useTools =
+    modelSupportsTools(chatbot.model) && ragResult.fileIds.length > 0;
+
+  // Send RAG sources now that they're available (static path only). The
+  // agentic path's sources aren't known until its tools run, so it emits its
+  // own metadata event after streaming. The client handles metadata events
+  // idempotently (updates only fields that are present).
+  if (!useTools) {
+    yield {
+      type: "metadata" as const,
+      sources: ragResult.sources,
+    };
+  }
 
   // Build message history for AI (budget-trimmed)
+  // Stored conversation turns are only user/assistant; the system prompt is
+  // passed separately via the streamText `system` option.
   const conversationHistory = trimmedHistory.map((msg) => ({
-    role: msg.role as "system" | "user" | "assistant",
+    role: msg.role as "user" | "assistant",
     content: msg.content,
   }));
-
-  // ragFailureNote + systemPrompt + fileManifest + contextText
-  const systemPrompt =
-    ragResult.ragFailureNote +
-    chatbot.systemPrompt +
-    ragResult.fileManifest +
-    ragResult.contextText;
 
   // Kick off the user-message insert alongside the streamText handshake
   // instead of blocking on it first. We await it before saving the assistant
@@ -238,79 +240,307 @@ async function* processMessage(params: {
       throw err;
     });
 
-  // Stream response using the same client
   const startTime = Date.now();
-  let fullResponse = "";
-  let finishReason: FinishReason | undefined;
 
-  const result = await aiClient.streamText({
-    model: modelId,
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...conversationHistory,
-      { role: "user", content: message },
-    ],
-    temperature: (chatbot.temperature ?? 70) / 100,
-    maxTokens: maxOutputTokens,
+  /**
+   * STATIC retrieval path: inject RAG chunks into the system prompt and stream
+   * a single LLM turn. Behaviorally identical to the pre-agentic chat flow.
+   * Used directly for non-tool models and as the zero-tool-call fallback for
+   * tool models. Yields the same wire events as the agentic path and returns
+   * the accumulated response + finish reason.
+   */
+  async function* streamStatic(): AsyncGenerator<
+    { type: "text"; content: string } | { type: "thinking" },
+    { fullResponse: string; finishReason: FinishReason | undefined },
+    void
+  > {
+    // ragFailureNote + systemPrompt + fileManifest + contextText
+    const systemPrompt =
+      ragResult.ragFailureNote +
+      chatbot.systemPrompt +
+      ragResult.fileManifest +
+      ragResult.contextText;
+
+    const result = await aiClient.streamText({
+      model: modelId,
+      system: systemPrompt,
+      messages: [...conversationHistory, { role: "user", content: message }],
+      temperature: (chatbot.temperature ?? 70) / 100,
+      maxTokens: maxOutputTokens,
+    });
+
+    let staticResponse = "";
+    let staticFinishReason: FinishReason | undefined;
+
+    // Consume fullStream so we get typed events: text deltas, reasoning deltas,
+    // errors, aborts, and finish reasons. textStream swallows all non-text parts,
+    // which means mid-stream errors look identical to a clean finish on the wire.
+    //
+    // Emit at most one `thinking` event per reasoning phase: reasoning-delta
+    // fires for every token and would spam the subscription otherwise.
+    let thinkingEmitted = false;
+    for await (const part of result.fullStream) {
+      switch (part.type) {
+        case "text-delta": {
+          staticResponse += part.text;
+          thinkingEmitted = false;
+          yield { type: "text" as const, content: part.text };
+          break;
+        }
+        case "reasoning-start":
+        case "reasoning-delta": {
+          // Surface reasoning as a thinking indicator so the UI doesn't look
+          // frozen during long pauses. The reasoning text itself is never sent
+          // to the client -- on public shared chatbots it can restate system
+          // prompts or RAG context.
+          if (!thinkingEmitted) {
+            yield { type: "thinking" as const };
+            thinkingEmitted = true;
+          }
+          break;
+        }
+        case "reasoning-end":
+        case "text-start":
+        case "text-end":
+        case "finish-step": {
+          // Any phase boundary closes the current reasoning phase so the next
+          // reasoning-start/delta will re-emit the indicator.
+          thinkingEmitted = false;
+          break;
+        }
+        case "finish": {
+          thinkingEmitted = false;
+          staticFinishReason = part.finishReason;
+          break;
+        }
+        case "error": {
+          throw new Error(`Stream error: ${String(part.error)}`, {
+            cause: part.error,
+          });
+        }
+        case "abort": {
+          throw new Error("Stream aborted by provider");
+        }
+        default:
+          // Other event types (start, etc.) don't affect what we send to the
+          // client.
+          break;
+      }
+    }
+
+    return { fullResponse: staticResponse, finishReason: staticFinishReason };
+  }
+
+  /**
+   * AGENTIC retrieval path: give the model retrieval tools and let it search
+   * the attached documents during the turn. No static context injection; the
+   * model is forced to call `search_documents` on the first step. Yields the
+   * same wire events as the static path. Returns the accumulated response,
+   * finish reason, whether any tool call happened, and a captured `done`
+   * answer (the `done` tool has no execute -- its answer lives in the
+   * tool-call args).
+   */
+  async function* streamAgentic(): AsyncGenerator<
+    | { type: "text"; content: string }
+    | { type: "thinking" }
+    | { type: "status"; label: string },
+    {
+      fullResponse: string;
+      finishReason: FinishReason | undefined;
+      anyToolCall: boolean;
+    },
+    void
+  > {
+    const nemotronPrefix = modelId.includes("nemotron")
+      ? "detailed thinking on\n\n"
+      : "";
+    const groundingRule =
+      "\n\nYou can search the attached documents using tools. You MUST call search_documents before stating whether the documents do or do not contain something. " +
+      "Never say 'the document does not mention X' -- if a search returns nothing, say 'I couldn't find that in the materials.' " +
+      "Cite the file name and page number for each claim, and include the exact quote you relied on.";
+    const systemPrompt =
+      nemotronPrefix +
+      chatbot.systemPrompt +
+      ragResult.fileManifest +
+      groundingRule;
+
+    const result = await aiClient.streamText({
+      model: modelId,
+      system: systemPrompt,
+      messages: [...conversationHistory, { role: "user", content: message }],
+      temperature: (chatbot.temperature ?? 70) / 100,
+      maxTokens: maxOutputTokens,
+      // apps/web resolves `ai` to a different installed copy than
+      // @teachanything/ai does, so the `Tool` types are nominally distinct
+      // across the wrapper boundary (identical runtime shape, different
+      // package instances of @ai-sdk/provider-utils). Cast to the wrapper's
+      // own expected tools type. Runtime behavior is unchanged.
+      tools: tools as unknown as Parameters<
+        OpenRouterClient["streamText"]
+      >[0]["tools"],
+      stopWhen: [stepCountIs(6), hasToolCall("done")],
+      prepareStep: async ({ stepNumber }) =>
+        stepNumber === 0
+          ? {
+              toolChoice: { type: "tool", toolName: "search_documents" },
+              activeTools: ["search_documents"],
+            }
+          : {},
+    });
+
+    let agenticResponse = "";
+    let agenticFinishReason: FinishReason | undefined;
+    let anyToolCall = false;
+    let doneAnswer: string | undefined;
+
+    let thinkingEmitted = false;
+
+    for await (const part of result.fullStream) {
+      switch (part.type) {
+        case "text-delta": {
+          agenticResponse += part.text;
+          thinkingEmitted = false;
+          yield { type: "text" as const, content: part.text };
+          break;
+        }
+        case "reasoning-start":
+        case "reasoning-delta": {
+          if (!thinkingEmitted) {
+            yield { type: "thinking" as const };
+            thinkingEmitted = true;
+          }
+          break;
+        }
+        case "reasoning-end":
+        case "text-start":
+        case "text-end":
+        case "finish-step": {
+          thinkingEmitted = false;
+          break;
+        }
+        case "tool-input-start": {
+          // A tool call is being assembled. The richer `status` event is
+          // emitted on `tool-call` (below) once the tool name + args are known.
+          anyToolCall = true;
+          break;
+        }
+        case "tool-call": {
+          anyToolCall = true;
+          thinkingEmitted = false;
+          // The `done` tool has no execute; its answer is in the tool-call
+          // args (`part.input`), never a tool-result. It's not a retrieval
+          // action, so it gets no status label.
+          if (part.toolName === "done") {
+            const input = part.input as { answer?: unknown } | undefined;
+            if (typeof input?.answer === "string") {
+              doneAnswer = input.answer;
+            }
+            break;
+          }
+          // Surface the tool activity as a human-readable status line. The
+          // `part.input` is the parsed args object (AI SDK v6 TypedToolCall).
+          // Only the action label + user-derived query are sent -- never tool
+          // RESULT content, which could contain document text on public bots.
+          yield {
+            type: "status" as const,
+            label: describeToolActivity(part.toolName, part.input),
+          };
+          break;
+        }
+        case "tool-result": {
+          break;
+        }
+        case "finish": {
+          thinkingEmitted = false;
+          agenticFinishReason = part.finishReason;
+          break;
+        }
+        case "error": {
+          throw new Error(`Stream error: ${String(part.error)}`, {
+            cause: part.error,
+          });
+        }
+        case "abort": {
+          throw new Error("Stream aborted by provider");
+        }
+        default:
+          break;
+      }
+    }
+
+    // If the model only spoke through the `done` tool (no free-text), surface
+    // its answer as the response.
+    if (!agenticResponse && doneAnswer) {
+      agenticResponse = doneAnswer;
+      yield { type: "text" as const, content: doneAnswer };
+    }
+
+    return {
+      fullResponse: agenticResponse,
+      finishReason: agenticFinishReason,
+      anyToolCall,
+    };
+  }
+
+  // Build retrieval tools once (only the agentic path consumes them, but
+  // `toolSources` accumulates as the tools run and we read it after streaming).
+  const { tools, sources: toolSources } = createRetrievalTools({
+    db: database,
+    fileIds: ragResult.fileIds,
+    aiClient,
   });
 
-  // Consume fullStream so we get typed events: text deltas, reasoning deltas,
-  // errors, aborts, and finish reasons. textStream swallows all non-text parts,
-  // which means mid-stream errors look identical to a clean finish on the wire.
-  //
-  // Emit at most one `thinking` event per reasoning phase: reasoning-delta
-  // fires for every token and would spam the subscription otherwise.
-  let thinkingEmitted = false;
-  for await (const part of result.fullStream) {
-    switch (part.type) {
-      case "text-delta": {
-        fullResponse += part.text;
-        thinkingEmitted = false;
-        yield {
-          type: "text" as const,
-          content: part.text,
-        };
-        break;
-      }
-      case "reasoning-start":
-      case "reasoning-delta": {
-        // Surface reasoning as a thinking indicator so the UI doesn't look
-        // frozen during long pauses. The reasoning text itself is never sent
-        // to the client -- on public shared chatbots it can restate system
-        // prompts or RAG context.
-        if (!thinkingEmitted) {
-          yield { type: "thinking" as const };
-          thinkingEmitted = true;
-        }
-        break;
-      }
-      case "reasoning-end":
-      case "text-start":
-      case "text-end":
-      case "finish-step": {
-        // Any phase boundary closes the current reasoning phase so the next
-        // reasoning-start/delta will re-emit the indicator.
-        thinkingEmitted = false;
-        break;
-      }
-      case "finish": {
-        thinkingEmitted = false;
-        finishReason = part.finishReason;
-        break;
-      }
-      case "error": {
-        throw new Error(`Stream error: ${String(part.error)}`, {
-          cause: part.error,
-        });
-      }
-      case "abort": {
-        throw new Error("Stream aborted by provider");
-      }
-      default:
-        // Other event types (start, etc.) don't affect what we send to the
-        // client.
-        break;
+  let fullResponse: string;
+  let finishReason: FinishReason | undefined;
+  // Final source list for persistence + the metadata event. Static path uses
+  // ragResult.sources; agentic path maps toolSources (which carry pageNumber).
+  // similarity is coerced from null -> 0 so existing consumers (which expect a
+  // number and dedupe/score on it) keep working.
+  let finalSources: RAGContextResult["sources"];
+  let ragUsedFlag: boolean;
+
+  if (useTools) {
+    const agentic = yield* streamAgentic();
+
+    // Empty-response safety net: the agentic path produced no user-visible
+    // text (e.g. it only ran searches then hit the step cap, or called `done`
+    // with an empty answer). Fall back to the static injection path so the user
+    // always gets an answer instead of an empty, stuck-looking stream.
+    if (!agentic.fullResponse) {
+      logWarn(
+        "Agentic path produced no text response; falling back to static RAG",
+        {
+          chatbotId: chatbot.id,
+          modelId,
+          anyToolCall: agentic.anyToolCall,
+        },
+      );
+      // Emit RAG sources for the fallback path (agentic suppressed them above).
+      yield { type: "metadata" as const, sources: ragResult.sources };
+      const fallback = yield* streamStatic();
+      fullResponse = fallback.fullResponse;
+      finishReason = fallback.finishReason;
+      finalSources = ragResult.sources;
+      ragUsedFlag = ragResult.ragUsed;
+    } else {
+      fullResponse = agentic.fullResponse;
+      finishReason = agentic.finishReason;
+      finalSources = toolSources.map((s) => ({
+        fileName: s.fileName,
+        chunkIndex: s.chunkIndex,
+        similarity: s.similarity ?? 0,
+        pageNumber: s.pageNumber,
+      }));
+      ragUsedFlag = finalSources.length > 0;
+      // Agentic sources are only known after the tools run, so emit them now.
+      yield { type: "metadata" as const, sources: finalSources };
     }
+  } else {
+    const staticResult = yield* streamStatic();
+    fullResponse = staticResult.fullResponse;
+    finishReason = staticResult.finishReason;
+    finalSources = ragResult.sources;
+    ragUsedFlag = ragResult.ragUsed;
   }
 
   const responseTime = Date.now() - startTime;
@@ -328,21 +558,27 @@ async function* processMessage(params: {
   // subsequent turns see the full conversation and the ordering is correct.
   await userMessageInsert;
 
-  // Save assistant response
-  await database.insert(messages).values({
-    conversationId: conversation.id,
-    role: "assistant",
-    content: fullResponse,
-    metadata: {
-      sources: ragResult.sources,
-      responseTime,
-      ragUsed: ragResult.ragUsed,
-    },
-  });
+  // Save the assistant reply only when the model actually produced text. The
+  // model decides its own wording (the agentic loop falls back to the static
+  // RAG path, so a "couldn't find it" answer is the model's own phrasing, not a
+  // canned string). A genuinely empty turn is not persisted, so reloaded
+  // history never shows a blank bubble.
+  if (fullResponse.trim()) {
+    await database.insert(messages).values({
+      conversationId: conversation.id,
+      role: "assistant",
+      content: fullResponse,
+      metadata: {
+        sources: finalSources,
+        responseTime,
+        ragUsed: ragUsedFlag,
+      },
+    });
+  }
 
   const ragSimilarityScore =
-    ragResult.sources.length > 0
-      ? Math.max(...ragResult.sources.map((source) => source.similarity))
+    finalSources.length > 0
+      ? Math.max(...finalSources.map((source) => source.similarity))
       : undefined;
 
   // Track analytics

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.28.1](https://github.com/akhileshrangani4/teachanything/compare/v1.28.0...v1.28.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **db:** setup-extensions must run statements individually for CONCURRENTLY ([#360](https://github.com/akhileshrangani4/teachanything/issues/360)) ([8c7feb9](https://github.com/akhileshrangani4/teachanything/commit/8c7feb989a8cf3766d9ecbe91dc3feb85f4f4820))
+
+## [1.28.0](https://github.com/akhileshrangani4/teachanything/compare/v1.27.0...v1.28.0) (2026-06-29)
+
+
+### Features
+
+* **rag:** agentic retrieval with hybrid search + page citations ([#271](https://github.com/akhileshrangani4/teachanything/issues/271)) ([#357](https://github.com/akhileshrangani4/teachanything/issues/357)) ([1b6a555](https://github.com/akhileshrangani4/teachanything/commit/1b6a5551a4961f9304cb8705e4503bb154bdb328))
+
 ## [1.27.0](https://github.com/akhileshrangani4/teachanything/compare/v1.26.0...v1.27.0) (2026-06-16)
 
 

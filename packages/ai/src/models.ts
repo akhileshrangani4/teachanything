@@ -1,19 +1,14 @@
 // Centralized model registry -- single source of truth for all model metadata.
 // All consumers import from here; no independent model definitions elsewhere.
 
-export type Provider =
-  | "Meta"
-  | "Mistral"
-  | "Qwen"
-  | "OpenAI"
-  | "NVIDIA"
-  | "Google";
+export type Provider = "Meta" | "Qwen" | "OpenAI" | "NVIDIA" | "DeepSeek";
 
 export interface ModelMetadata {
   id: string;
   displayName: string;
   provider: Provider;
   contextWindow: number;
+  supportsTools: boolean;
 }
 
 /**
@@ -22,47 +17,47 @@ export interface ModelMetadata {
  * so there is exactly one place to add, remove, or update models.
  */
 export const MODEL_REGISTRY = {
-  "meta-llama/llama-3.3-70b-instruct": {
-    id: "meta-llama/llama-3.3-70b-instruct",
-    displayName: "Llama 3.3 70B",
-    provider: "Meta",
-    contextWindow: 131_072,
-  },
-  "mistralai/mistral-large-2411": {
-    id: "mistralai/mistral-large-2411",
-    displayName: "Mistral Large 2411",
-    provider: "Mistral",
-    contextWindow: 131_072,
-  },
-  "qwen/qwen3-235b-a22b": {
-    id: "qwen/qwen3-235b-a22b",
-    displayName: "Qwen 3 235B",
-    provider: "Qwen",
-    contextWindow: 131_072,
-  },
   "openai/gpt-oss-120b": {
     id: "openai/gpt-oss-120b",
     displayName: "GPT-OSS 120B",
     provider: "OpenAI",
     contextWindow: 131_072,
+    supportsTools: true,
+  },
+  "qwen/qwen3-235b-a22b-2507": {
+    id: "qwen/qwen3-235b-a22b-2507",
+    displayName: "Qwen 3 235B (2507)",
+    provider: "Qwen",
+    contextWindow: 262_144,
+    supportsTools: true,
+  },
+  "meta-llama/llama-3.3-70b-instruct": {
+    id: "meta-llama/llama-3.3-70b-instruct",
+    displayName: "Llama 3.3 70B",
+    provider: "Meta",
+    contextWindow: 131_072,
+    supportsTools: true,
+  },
+  "nvidia/nemotron-3-super-120b-a12b": {
+    id: "nvidia/nemotron-3-super-120b-a12b",
+    displayName: "Nemotron 3 Super",
+    provider: "NVIDIA",
+    contextWindow: 1_000_000,
+    supportsTools: true,
   },
   "meta-llama/llama-4-maverick": {
     id: "meta-llama/llama-4-maverick",
     displayName: "Llama 4 Maverick",
     provider: "Meta",
     contextWindow: 1_048_576,
+    supportsTools: true,
   },
-  "nvidia/nemotron-3-super-120b-a12b": {
-    id: "nvidia/nemotron-3-super-120b-a12b",
-    displayName: "Nemotron 3 Super",
-    provider: "NVIDIA",
-    contextWindow: 262_144,
-  },
-  "google/gemma-4-31b-it": {
-    id: "google/gemma-4-31b-it",
-    displayName: "Gemma 4 31B",
-    provider: "Google",
-    contextWindow: 262_144,
+  "deepseek/deepseek-v3.2": {
+    id: "deepseek/deepseek-v3.2",
+    displayName: "DeepSeek V3.2",
+    provider: "DeepSeek",
+    contextWindow: 131_072,
+    supportsTools: true,
   },
 } as const satisfies Record<string, ModelMetadata>;
 
@@ -93,8 +88,14 @@ export const SUPPORTED_MODELS = Object.keys(MODEL_REGISTRY) as [
  * Used by resolveModel() to transparently migrate stored model references.
  */
 export const DEPRECATED_MODEL_MAP: Record<string, SupportedModel> = {
-  "mistralai/mistral-large": "mistralai/mistral-large-2411",
-  "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b",
+  // Qwen 3 235B -> the cheaper, larger-context 2507 revision.
+  "qwen/qwen3-235b-a22b": "qwen/qwen3-235b-a22b-2507",
+  "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b-2507",
+  // Mistral dropped (mistral-large-2411 retired from OpenRouter) and Gemma
+  // dropped (unreliable tool-calling) -> migrate to the default tool model.
+  "mistralai/mistral-large": "meta-llama/llama-3.3-70b-instruct",
+  "mistralai/mistral-large-2411": "meta-llama/llama-3.3-70b-instruct",
+  "google/gemma-4-31b-it": "meta-llama/llama-3.3-70b-instruct",
 };
 
 /** List of deprecated model IDs for quick membership checks. */
@@ -130,4 +131,16 @@ export function formatContextWindow(tokens: number): string {
     return `${Math.round(tokens / 1_000_000)}M context`;
   }
   return `${Math.round(tokens / 1024)}K context`;
+}
+
+/** Models whose tool-calling is reliable enough for agentic retrieval. */
+export function toolCapableModels(): ModelMetadata[] {
+  return (Object.values(MODEL_REGISTRY) as ModelMetadata[]).filter(
+    (m) => m.supportsTools,
+  );
+}
+
+/** Whether a (possibly deprecated) model id supports tools, after resolution. */
+export function modelSupportsTools(modelId: string): boolean {
+  return MODEL_REGISTRY[resolveModel(modelId)].supportsTools;
 }

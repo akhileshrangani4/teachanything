@@ -45,13 +45,26 @@ async function setupExtensions() {
   try {
     console.log("🔧 Enabling required database extensions...");
 
-    // Read and execute the SQL file from same directory
+    // Read the SQL file from the same directory
     const sqlContent = readFileSync(
       resolve(__dirname, "./setup-extensions.sql"),
       "utf-8",
     );
 
-    await sql.unsafe(sqlContent);
+    // Execute statements one at a time. Sending the whole file as a single
+    // multi-statement simple query makes Postgres wrap it in an implicit
+    // transaction block, which breaks `CREATE INDEX CONCURRENTLY` ("cannot run
+    // inside a transaction block"). Running each statement on its own keeps it
+    // auto-committed so CONCURRENTLY is allowed. Chunks that are only comments
+    // (e.g. trailing) are skipped.
+    const statements = sqlContent
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.replace(/--[^\n]*/g, "").trim().length > 0);
+
+    for (const statement of statements) {
+      await sql.unsafe(statement);
+    }
 
     console.log("✅ Database extensions enabled successfully");
   } catch (error) {

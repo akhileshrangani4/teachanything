@@ -61,6 +61,7 @@ export function useChatbot(
     setCurrentMessage: state.setCurrentMessage,
     isStreaming: state.isStreaming,
     isThinking: state.isThinking,
+    statusLabel: state.statusLabel,
     streamingContent: state.streamingContent,
     messagesEndRef: state.messagesEndRef,
     chatbot,

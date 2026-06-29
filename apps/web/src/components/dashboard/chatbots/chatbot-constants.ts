@@ -1,6 +1,11 @@
-import { MODEL_REGISTRY, type SupportedModel } from "@teachanything/ai/models";
+import {
+  toolCapableModels,
+  type SupportedModel,
+} from "@teachanything/ai/models";
 
-export const MODELS = Object.values(MODEL_REGISTRY).map((m) => ({
+// Agentic retrieval requires tool calling, so only tool-capable models are
+// offered when creating a chatbot.
+export const MODELS = toolCapableModels().map((m) => ({
   value: m.id as SupportedModel,
   label: m.displayName,
 }));

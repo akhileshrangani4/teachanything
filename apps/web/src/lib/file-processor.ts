@@ -11,6 +11,13 @@ import { logInfo, logError } from "./logger";
 const EXTRACTION_TIMEOUT_MS = 60_000;
 
 /**
+ * Bump when ingestion logic changes (chunking, page metadata, etc.). Files with
+ * userFiles.metadata.processingVersion < this are reprocessed lazily on access.
+ * v1 = pre-page flat chunks @2500; v2 = page-aware @1000 with pageNumber.
+ */
+export const CURRENT_PROCESSING_VERSION = 2;
+
+/**
  * Sanitize error messages before storing in metadata visible to users.
  * Prevents internal details (hostnames, connection strings, API keys) from leaking.
  */
@@ -204,8 +211,8 @@ export async function processFile(params: {
     // Stage 2: Extract text content (10-30%)
     await updateProgress(fileId, "extracting", 10);
     const ragService = createRAGService();
-    const content = await withTimeout(
-      ragService.extractContent(buffer, file.fileType),
+    const pagedChunks = await withTimeout(
+      ragService.extractAndChunk(buffer, file.fileType),
       EXTRACTION_TIMEOUT_MS,
       `File extraction timed out after ${EXTRACTION_TIMEOUT_MS / 1000}s`,
     );
@@ -213,8 +220,8 @@ export async function processFile(params: {
 
     // Stage 3: Chunk text (30-40%)
     await updateProgress(fileId, "chunking", 30);
-    const chunks = await ragService.chunkText(content);
-    await updateProgress(fileId, "chunking", 40, 0, chunks.length);
+    const chunks = pagedChunks.map((c) => c.content);
+    await updateProgress(fileId, "chunking", 40, 0, pagedChunks.length);
 
     // Stage 4: Generate embeddings (40-90%)
     // This is the slowest part, so batch process and report progress
@@ -296,6 +303,10 @@ export async function processFile(params: {
           content: chunk,
           embedding,
           tokenCount: await ragService.countTokens(chunk),
+          metadata:
+            pagedChunks[index]?.pageNumber != null
+              ? { pageNumber: pagedChunks[index]!.pageNumber }
+              : {},
         };
       }),
     );
@@ -311,6 +322,7 @@ export async function processFile(params: {
         metadata: {
           chunkCount: chunks.length,
           processedAt: new Date().toISOString(),
+          processingVersion: CURRENT_PROCESSING_VERSION,
           processingProgress: {
             stage: "storing",
             percentage: 100,

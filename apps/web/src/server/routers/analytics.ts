@@ -827,4 +827,33 @@ export const analyticsRouter = router({
         totalCount,
       };
     }),
+
+  /**
+   * Delete one or more conversations (and their messages, via cascade) for a
+   * chatbot the caller owns. Used by the Student Chats tab to clear retry junk.
+   */
+  deleteConversations: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        conversationIds: z.array(z.string().uuid()).min(1).max(100),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      // Scope the delete to this chatbot so a caller can't delete another
+      // chatbot's conversations by id. Messages cascade-delete via FK.
+      const deleted = await ctx.db
+        .delete(conversations)
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            inArray(conversations.id, input.conversationIds),
+          ),
+        )
+        .returning({ id: conversations.id });
+
+      return { deletedCount: deleted.length };
+    }),
 });

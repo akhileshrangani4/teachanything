@@ -15,6 +15,7 @@ interface ChatInterfaceProps {
   messages: MessageType[];
   isStreaming: boolean;
   isThinking?: boolean;
+  statusLabel?: string | null;
   streamingContent: string;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
@@ -35,6 +36,7 @@ export function ChatInterface({
   messages,
   isStreaming,
   isThinking = false,
+  statusLabel = null,
   streamingContent,
   currentMessage,
   setCurrentMessage,
@@ -136,6 +138,7 @@ export function ChatInterface({
                   <StreamingMessage
                     content={streamingContent}
                     isThinking={isThinking}
+                    statusLabel={statusLabel}
                   />
                 )}
               </div>
