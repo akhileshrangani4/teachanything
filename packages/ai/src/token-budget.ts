@@ -17,6 +17,17 @@ export const CHARS_PER_TOKEN = 4;
 /** Conservative average chunk token estimate: 2500 chars / CHARS_PER_TOKEN (D-05). */
 export const AVG_CHUNK_TOKENS = 625;
 
+/**
+ * Hard ceiling on chunks injected into a single static-path request, regardless
+ * of how large the model's context window is. Without this, million-token
+ * models (e.g. Llama 4 Maverick) would inject 800+ chunks into one prompt; that
+ * oversized payload makes OpenRouter return `502 provider_unavailable`
+ * ("Response payload is not completed"). 256 leaves 128K/262K models unaffected
+ * (they self-limit below it) while bounding the 1M models. The agentic path is
+ * primary and tool-bounded; this only caps the static fallback.
+ */
+export const MAX_CONTEXT_CHUNKS = 256;
+
 /** Input for the full budget allocation (Pass 2). */
 export interface TokenBudgetInput {
   contextWindow: number;
@@ -68,7 +79,10 @@ export function calculateChunkLimit(input: {
   const remaining = Math.max(0, inputBudget - fixedTokens);
   const chunkBudget = Math.floor(remaining * CHUNK_SHARE);
 
-  return Math.max(0, Math.floor(chunkBudget / AVG_CHUNK_TOKENS));
+  return Math.min(
+    MAX_CONTEXT_CHUNKS,
+    Math.max(0, Math.floor(chunkBudget / AVG_CHUNK_TOKENS)),
+  );
 }
 
 /**
@@ -115,6 +129,7 @@ export function allocateTokenBudget(
   let chunkLimit = 0;
 
   for (const chunk of input.availableChunks) {
+    if (chunkLimit >= MAX_CONTEXT_CHUNKS) break;
     if (actualChunkTokens + chunk.tokens > chunkBudget) break;
     actualChunkTokens += chunk.tokens;
     chunkLimit++;

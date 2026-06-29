@@ -14,13 +14,18 @@ describe("supportsTools gating", () => {
   it("every registered model is tool-capable (picker requires tools)", () => {
     expect(toolCapableModels().length).toBe(Object.keys(MODEL_REGISTRY).length);
   });
-  it("dropped models (Gemma, Mistral) are no longer registered", () => {
+  it("dropped models (Gemma, Mistral, Nemotron) are no longer registered", () => {
     expect(
       (MODEL_REGISTRY as Record<string, unknown>)["google/gemma-4-31b-it"],
     ).toBeUndefined();
     expect(
       (MODEL_REGISTRY as Record<string, unknown>)[
         "mistralai/mistral-large-2411"
+      ],
+    ).toBeUndefined();
+    expect(
+      (MODEL_REGISTRY as Record<string, unknown>)[
+        "nvidia/nemotron-3-super-120b-a12b"
       ],
     ).toBeUndefined();
   });
@@ -34,5 +39,6 @@ describe("supportsTools gating", () => {
     expect(modelSupportsTools("qwen/qwen3-235b-a22b")).toBe(true);
     expect(modelSupportsTools("mistralai/mistral-large")).toBe(true);
     expect(modelSupportsTools("google/gemma-4-31b-it")).toBe(true);
+    expect(modelSupportsTools("nvidia/nemotron-3-super-120b-a12b")).toBe(true);
   });
 });

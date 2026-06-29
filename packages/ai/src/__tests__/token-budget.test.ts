@@ -5,6 +5,7 @@ import {
   BUDGET_RATIO,
   CHUNK_SHARE,
   AVG_CHUNK_TOKENS,
+  MAX_CONTEXT_CHUNKS,
 } from "../token-budget";
 import type { TokenBudgetInput } from "../token-budget";
 
@@ -203,16 +204,14 @@ describe("token-budget", () => {
       expect(result).toBe(199);
     });
 
-    it("returns ~803 for 1M model with typical fixed costs", () => {
+    it("caps at MAX_CONTEXT_CHUNKS for 1M model instead of 803", () => {
       const result = calculateChunkLimit({
         ...typicalFixed,
         contextWindow: 1_048_576,
       });
-      // inputBudget = floor(1048576 * 0.8) - 2000 = 838860 - 2000 = 836860
-      // remaining = 836860 - 33 - 78 - 21 = 836728
-      // chunkBudget = floor(836728 * 0.6) = 502036
-      // chunkLimit = floor(502036 / 625) = 803
-      expect(result).toBe(803);
+      // Uncapped this would be floor(502036 / 625) = 803, but MAX_CONTEXT_CHUNKS
+      // bounds the static-path payload so oversized prompts don't 502.
+      expect(result).toBe(MAX_CONTEXT_CHUNKS);
     });
 
     it("clamps to 0 when fixed costs exceed budget", () => {

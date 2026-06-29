@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.4](https://github.com/akhileshrangani4/teachanything/compare/v1.28.3...v1.28.4) (2026-06-29)
+
+
+### Bug Fixes
+
+* **chat:** retire nemotron from tool models + cap static-path chunks ([#368](https://github.com/akhileshrangani4/teachanything/issues/368)) ([42518bb](https://github.com/akhileshrangani4/teachanything/commit/42518bb05557d9bdb56b29bfe6a4bfd160efc909))
+
 ## [1.28.3](https://github.com/akhileshrangani4/teachanything/compare/v1.28.2...v1.28.3) (2026-06-29)
 
 

@@ -1,7 +1,7 @@
 // Centralized model registry -- single source of truth for all model metadata.
 // All consumers import from here; no independent model definitions elsewhere.
 
-export type Provider = "Meta" | "Qwen" | "OpenAI" | "NVIDIA" | "DeepSeek";
+export type Provider = "Meta" | "Qwen" | "OpenAI" | "DeepSeek";
 
 export interface ModelMetadata {
   id: string;
@@ -36,13 +36,6 @@ export const MODEL_REGISTRY = {
     displayName: "Llama 3.3 70B",
     provider: "Meta",
     contextWindow: 131_072,
-    supportsTools: true,
-  },
-  "nvidia/nemotron-3-super-120b-a12b": {
-    id: "nvidia/nemotron-3-super-120b-a12b",
-    displayName: "Nemotron 3 Super",
-    provider: "NVIDIA",
-    contextWindow: 1_000_000,
     supportsTools: true,
   },
   "meta-llama/llama-4-maverick": {
@@ -96,6 +89,11 @@ export const DEPRECATED_MODEL_MAP: Record<string, SupportedModel> = {
   "mistralai/mistral-large": "meta-llama/llama-3.3-70b-instruct",
   "mistralai/mistral-large-2411": "meta-llama/llama-3.3-70b-instruct",
   "google/gemma-4-31b-it": "meta-llama/llama-3.3-70b-instruct",
+  // Nemotron 3 Super dropped: OpenRouter serves it in v2 compatibility mode
+  // where the step-0 forced tool choice silently never fires, so the agentic
+  // retrieval loop produces no tool call and no text (~50s of dead reasoning)
+  // before falling back. Migrate to the strongest tool model (Qwen 3 235B).
+  "nvidia/nemotron-3-super-120b-a12b": "qwen/qwen3-235b-a22b-2507",
 };
 
 /** List of deprecated model IDs for quick membership checks. */

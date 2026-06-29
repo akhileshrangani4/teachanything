@@ -351,9 +351,6 @@ async function* processMessage(params: {
     },
     void
   > {
-    const nemotronPrefix = modelId.includes("nemotron")
-      ? "detailed thinking on\n\n"
-      : "";
     const groundingRule =
       "\n\nYou can search the attached documents using tools. You MUST call search_documents before stating whether the documents do or do not contain something. " +
       "If a search returns nothing, say you couldn't find it in the materials rather than denying it exists. " +
@@ -361,10 +358,7 @@ async function* processMessage(params: {
       '(e.g. "(file.pdf, p. 2)" or "【…】") in your answer text -- the app shows the user the sources ' +
       "separately. Reply in clean prose.";
     const systemPrompt =
-      nemotronPrefix +
-      chatbot.systemPrompt +
-      ragResult.fileManifest +
-      groundingRule;
+      chatbot.systemPrompt + ragResult.fileManifest + groundingRule;
 
     const result = await aiClient.streamText({
       model: modelId,
