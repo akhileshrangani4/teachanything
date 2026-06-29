@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -22,7 +22,18 @@ import {
 } from "@/components/ui/select";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { keepPreviousData } from "@tanstack/react-query";
-import { MessageSquare, Search, ArrowLeft, Clock } from "lucide-react";
+import { MessageSquare, Search, ArrowLeft, Clock, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { logError } from "@/lib/logger";
 import { formatDuration, formatTimestamp } from "@/lib/conversation-format";
 
@@ -70,17 +81,21 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const [sortBy, setSortBy] = useState<SortBy>("recent");
   const [offset, setOffset] = useState(0);
   const [limit, setLimit] = useState(MIN_LIMIT);
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
   // Measure the results area and fit as many rows as will fit so the panel
-  // doesn't leave whitespace. Re-runs when the viewport resizes. On resize,
-  // snap offset to the new page boundary that still contains the current
-  // top row instead of kicking the user back to page 1.
-  useLayoutEffect(() => {
-    const el = resultsRef.current;
+  // doesn't leave whitespace. A callback ref (not useLayoutEffect+useRef) is
+  // used so measurement re-attaches every time the list view re-mounts -- e.g.
+  // after returning from a conversation detail. The old approach left a stale
+  // ResizeObserver bound to the detached node, which fired with height 0 and
+  // reset the page size to the minimum (the "10 -> 5 after going back" bug).
+  const setResultsRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
     const update = () => {
       const rows = Math.floor(el.clientHeight / ROW_HEIGHT_PX);
+      if (rows <= 0) return; // ignore detached/zero-height measurements
       const clamped = Math.max(MIN_LIMIT, Math.min(MAX_LIMIT, rows));
       setLimit((prev) => {
         if (prev === clamped) return prev;
@@ -91,7 +106,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
+    observerRef.current = observer;
   }, []);
 
   // Reset pagination when the effective query or sort changes.
@@ -150,7 +165,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
           </Select>
         </div>
 
-        <div ref={resultsRef} className="flex flex-1 min-h-0 flex-col">
+        <div ref={setResultsRef} className="flex flex-1 min-h-0 flex-col">
           <ConversationsResults
             chatbotId={chatbotId}
             search={debouncedSearch}
@@ -260,6 +275,7 @@ function ConversationsResults({
 
   return (
     <ConversationListView
+      chatbotId={chatbotId}
       conversations={data.conversations}
       totalCount={data.totalCount}
       limit={limit}
@@ -271,6 +287,7 @@ function ConversationsResults({
 }
 
 function ConversationListView({
+  chatbotId,
   conversations,
   totalCount,
   limit,
@@ -278,6 +295,7 @@ function ConversationListView({
   onSelectConversation,
   onOffsetChange,
 }: {
+  chatbotId: string;
   conversations: ConversationRow[];
   totalCount: number;
   limit: number;
@@ -285,39 +303,174 @@ function ConversationListView({
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
+  const utils = trpc.useUtils();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Pending delete: a specific list of ids (single trash or bulk). null = closed.
+  const [pendingIds, setPendingIds] = useState<string[] | null>(null);
+
+  const deleteMutation = trpc.analytics.deleteConversations.useMutation({
+    onSuccess: async ({ deletedCount }) => {
+      toast.success(
+        `Deleted ${deletedCount} chat${deletedCount !== 1 ? "s" : ""}`,
+      );
+      setSelected(new Set());
+      setPendingIds(null);
+      // If the current page may now be empty, step back to the previous one.
+      if (offset > 0 && deletedCount >= conversations.length) {
+        onOffsetChange(Math.max(0, offset - limit));
+      }
+      await Promise.all([
+        utils.analytics.getConversationsList.invalidate({ chatbotId }),
+        utils.analytics.searchConversations.invalidate({ chatbotId }),
+      ]);
+    },
+    onError: (err) => {
+      logError(err, "[conversations] delete failed", { chatbotId });
+      toast.error("Failed to delete. Please try again.");
+      setPendingIds(null);
+    },
+  });
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allVisibleSelected =
+    conversations.length > 0 && conversations.every((c) => selected.has(c.id));
+
+  const toggleAllVisible = () =>
+    setSelected((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev);
+        conversations.forEach((c) => next.delete(c.id));
+        return next;
+      }
+      return new Set([...prev, ...conversations.map((c) => c.id)]);
+    });
+
   return (
     <div className="flex flex-1 min-h-0 flex-col gap-2">
+      {/* Selection toolbar */}
+      <div className="flex items-center justify-between gap-2 px-1 shrink-0 h-7">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5 cursor-pointer accent-primary"
+            checked={allVisibleSelected}
+            onChange={toggleAllVisible}
+            aria-label="Select all on this page"
+          />
+          {selected.size > 0 ? `${selected.size} selected` : "Select all"}
+        </label>
+        {selected.size > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-destructive hover:text-destructive"
+            onClick={() => setPendingIds([...selected])}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" />
+            Delete selected
+          </Button>
+        )}
+      </div>
       <div className="flex-1 min-h-0 overflow-y-auto divide-y rounded-lg border">
         {conversations.map((conversation) => (
-          <button
+          <div
             key={conversation.id}
-            type="button"
-            onClick={() => onSelectConversation(conversation.id)}
-            className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+            className="flex items-center gap-2 px-4 py-3 hover:bg-muted/50 transition-colors"
           >
-            <div className="min-w-0 flex-1 mr-3">
-              <p className="text-sm font-medium truncate">
-                {conversation.preview || "No messages"}
-              </p>
-              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" />
-                  {conversation.messageCount} message
-                  {conversation.messageCount !== 1 ? "s" : ""}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDuration(
-                    conversation.firstMessageAt,
-                    conversation.lastMessageAt,
-                  )}
-                </span>
-                <span>{formatTimestamp(conversation.createdAt)}</span>
+            <input
+              type="checkbox"
+              className="h-4 w-4 shrink-0 cursor-pointer accent-primary"
+              checked={selected.has(conversation.id)}
+              onChange={() => toggle(conversation.id)}
+              aria-label="Select chat"
+            />
+            <button
+              type="button"
+              onClick={() => onSelectConversation(conversation.id)}
+              className="flex items-center justify-between min-w-0 flex-1 text-left"
+            >
+              <div className="min-w-0 flex-1 mr-3">
+                <p className="text-sm font-medium truncate">
+                  {conversation.preview || "No messages"}
+                </p>
+                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" />
+                    {conversation.messageCount} message
+                    {conversation.messageCount !== 1 ? "s" : ""}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {formatDuration(
+                      conversation.firstMessageAt,
+                      conversation.lastMessageAt,
+                    )}
+                  </span>
+                  <span>{formatTimestamp(conversation.createdAt)}</span>
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+              onClick={() => setPendingIds([conversation.id])}
+              aria-label="Delete chat"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         ))}
       </div>
+
+      <AlertDialog
+        open={pendingIds !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingIds(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {pendingIds?.length ?? 0} chat
+              {(pendingIds?.length ?? 0) !== 1 ? "s" : ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the selected student chat
+              {(pendingIds?.length ?? 0) !== 1 ? "s" : ""} and all their
+              messages. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (pendingIds && pendingIds.length > 0) {
+                  deleteMutation.mutate({
+                    chatbotId,
+                    conversationIds: pendingIds,
+                  });
+                }
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {totalCount > limit && (
         <div className="flex items-center justify-between px-1 shrink-0">
           <span className="text-xs text-muted-foreground">
