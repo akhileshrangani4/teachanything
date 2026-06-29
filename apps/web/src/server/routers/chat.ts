@@ -253,8 +253,10 @@ async function* processMessage(params: {
   }
 
   // Build message history for AI (budget-trimmed)
+  // Stored conversation turns are only user/assistant; the system prompt is
+  // passed separately via the streamText `system` option.
   const conversationHistory = trimmedHistory.map((msg) => ({
-    role: msg.role as "system" | "user" | "assistant",
+    role: msg.role as "user" | "assistant",
     content: msg.content,
   }));
 
@@ -302,11 +304,8 @@ async function* processMessage(params: {
 
     const result = await aiClient.streamText({
       model: modelId,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...conversationHistory,
-        { role: "user", content: message },
-      ],
+      system: systemPrompt,
+      messages: [...conversationHistory, { role: "user", content: message }],
       temperature: (chatbot.temperature ?? 70) / 100,
       maxTokens: maxOutputTokens,
     });
@@ -408,11 +407,8 @@ async function* processMessage(params: {
 
     const result = await aiClient.streamText({
       model: modelId,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...conversationHistory,
-        { role: "user", content: message },
-      ],
+      system: systemPrompt,
+      messages: [...conversationHistory, { role: "user", content: message }],
       temperature: (chatbot.temperature ?? 70) / 100,
       maxTokens: maxOutputTokens,
       // apps/web resolves `ai` to a different installed copy than

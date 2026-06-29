@@ -1,7 +1,6 @@
 import { eq, and, or, isNull, sql } from "drizzle-orm";
 import { userFiles, chatbotFileAssociations } from "@teachanything/db/schema";
 import { CURRENT_PROCESSING_VERSION, processFile } from "@/lib/file-processor";
-import { isLocalStorageMode } from "@/lib/local-storage";
 import { publishQStashJob } from "@/lib/qstash";
 import { env } from "@/lib/env";
 import { logError, logInfo } from "@/lib/logger";
@@ -36,18 +35,24 @@ export async function maybeEnqueueReprocess(
       chatbotId,
       count: stale.length,
     });
+    // Match finalize-upload's gate: process inline in development (QStash can't
+    // deliver to localhost), publish to QStash in production. Each file is
+    // isolated so one failure doesn't abort the rest of the batch.
+    const inlineDev = env.NODE_ENV === "development";
     for (const { fileId } of stale) {
-      if (isLocalStorageMode()) {
+      if (inlineDev) {
         void processFile({ fileId }).catch((e) =>
           logError(e, "Inline reprocess failed", { fileId }),
         );
       } else {
-        // Enqueue via QStash — same helper, url, and body { fileId } as
-        // files/procedures/finalize-upload.ts.
-        await publishQStashJob({
-          url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-          body: { fileId },
-        });
+        try {
+          await publishQStashJob({
+            url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
+            body: { fileId },
+          });
+        } catch (e) {
+          logError(e, "Failed to enqueue reprocess job", { fileId });
+        }
       }
     }
   } catch (error) {
