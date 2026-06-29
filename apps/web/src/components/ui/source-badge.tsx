@@ -20,7 +20,7 @@ export function SourceBadge({
   // Web sources have no page concept; only file sources get a page suffix.
   const displayLabel =
     !isWeb && source.pageNumber != null
-      ? `${label} · p.${source.pageNumber}`
+      ? `${label} · Page ${source.pageNumber}`
       : label;
   return (
     <Badge
