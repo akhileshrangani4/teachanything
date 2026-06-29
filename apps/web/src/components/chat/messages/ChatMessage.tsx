@@ -147,11 +147,13 @@ export function ChatMessage({
 interface StreamingMessageProps {
   content: string;
   isThinking?: boolean;
+  statusLabel?: string | null;
 }
 
 export function StreamingMessage({
   content,
   isThinking = false,
+  statusLabel = null,
 }: StreamingMessageProps) {
   const hasContent = content && content.trim().length > 0;
 
@@ -176,7 +178,7 @@ export function StreamingMessage({
               {isThinking && (
                 <div className="mt-1.5 md:mt-2 flex items-center gap-2 text-xs text-muted-foreground italic">
                   <TypingLoader size="sm" className="opacity-60" />
-                  <span>Thinking…</span>
+                  <span>{statusLabel ?? "Thinking…"}</span>
                 </div>
               )}
             </div>
@@ -204,7 +206,7 @@ export function StreamingMessage({
             {isThinking ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
                 <TypingLoader size="sm" className="opacity-60" />
-                <span>Thinking…</span>
+                <span>{statusLabel ?? "Thinking…"}</span>
               </div>
             ) : (
               <TypingLoader size="md" className="opacity-60" />

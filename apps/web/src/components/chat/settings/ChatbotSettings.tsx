@@ -23,6 +23,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   MODEL_REGISTRY,
+  toolCapableModels,
   type SupportedModel,
   formatContextWindow,
 } from "@teachanything/ai/models";
@@ -34,13 +35,15 @@ import {
   VALIDATION_LIMITS,
 } from "@/lib/validation";
 
-// Group models by provider for the dropdown. Map preserves MODEL_REGISTRY insertion order.
-const modelsByProvider = Object.values(MODEL_REGISTRY).reduce((acc, model) => {
+// Group tool-capable models by provider for the dropdown. Agentic retrieval
+// requires tool calling, so non-tool models are not offered. Map preserves
+// MODEL_REGISTRY insertion order.
+const modelsByProvider = toolCapableModels().reduce((acc, model) => {
   const group = acc.get(model.provider) ?? [];
   group.push(model);
   acc.set(model.provider, group);
   return acc;
-}, new Map<string, (typeof MODEL_REGISTRY)[keyof typeof MODEL_REGISTRY][]>());
+}, new Map<string, ReturnType<typeof toolCapableModels>>());
 
 interface ChatbotSettingsProps {
   chatbot: {
@@ -77,6 +80,13 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
     chatbot.maxTokens?.toString() ?? "2000",
   );
   const [showSources, setShowSources] = useState(chatbot.showSources ?? false);
+
+  // A legacy chatbot may be saved on a model that no longer supports document
+  // tools. When that happens we still render it as a selectable option so the
+  // form stays valid and editing does not silently change the saved model.
+  const savedModelIsNonTool =
+    !!model &&
+    !MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]?.supportsTools;
 
   // Sync editable fields from server only when not actively editing
   useEffect(() => {
@@ -407,6 +417,16 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
                       ))}
                     </SelectGroup>
                   ),
+                )}
+                {/* Legacy chatbots may have a saved model that no longer
+                    supports document tools. Keep it selectable so editing
+                    other fields does not silently change the saved model. */}
+                {savedModelIsNonTool && (
+                  <SelectItem value={model}>
+                    {MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]
+                      ?.displayName ?? model}{" "}
+                    (no document tools)
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>

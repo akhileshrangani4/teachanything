@@ -79,8 +79,13 @@ export const listProcedure = protectedProcedure
     const orderBy =
       input?.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
-    // Build WHERE conditions - base + search + optional exclusion
-    const baseConditions = [eq(userFiles.userId, ctx.session.user.id)];
+    // Build WHERE conditions - base + search + optional exclusion.
+    // excludeCrawledPages keeps crawler-sourced files (storagePath = URL) out of
+    // the uploaded-files table; they're shown as grouped Web Sources rows.
+    const baseConditions = [
+      eq(userFiles.userId, ctx.session.user.id),
+      excludeCrawledPages,
+    ];
     if (searchCondition) baseConditions.push(searchCondition);
 
     // Validate chatbot ownership before using it for exclusion
