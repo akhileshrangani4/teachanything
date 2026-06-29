@@ -24,7 +24,7 @@ export interface HybridChunk {
 }
 
 /** Returns true when the query contains a "quoted phrase" — boosts FTS weight. */
-function hasQuotedPhrase(query: string): boolean {
+export function hasQuotedPhrase(query: string): boolean {
   return /"[^"]+"/.test(query);
 }
 
