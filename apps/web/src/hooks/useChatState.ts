@@ -161,15 +161,19 @@ export function useChatState() {
       setIsThinking(false);
       setStatusLabel(null);
 
-      // Guard: if streaming was already stopped (e.g., user cancelled), skip.
-      // Uses ref (not state) to avoid stale closure issues in subscription callbacks.
-      if (!streamingContentRef.current) return;
-
       const finalContent = streamingContentRef.current;
       const finalSources = [...sourcesRef.current];
 
+      // Always tear down the streaming UI on done -- even for an empty turn --
+      // so the loader never gets stuck. Only commit an assistant message when the
+      // model actually produced text: the model decides its own wording (the
+      // server falls back through the static RAG path), so a genuinely empty
+      // turn shows no bubble rather than a fabricated reply.
       updateStreamingContent("");
       setIsStreaming(false);
+      sourcesRef.current = [];
+
+      if (!finalContent) return;
 
       setMessages((prev) => [
         ...prev,
@@ -180,8 +184,6 @@ export function useChatState() {
           truncated: data.truncated || undefined,
         },
       ]);
-
-      sourcesRef.current = [];
     }
   };
 

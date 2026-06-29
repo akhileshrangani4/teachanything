@@ -547,14 +547,17 @@ async function* processMessage(params: {
   if (useTools) {
     const agentic = yield* streamAgentic();
 
-    // Zero-tool-call safety net: the model produced no tool calls AND no text.
-    // Fall back to the static injection path so the user still gets an answer.
-    if (!agentic.anyToolCall && !agentic.fullResponse) {
+    // Empty-response safety net: the agentic path produced no user-visible
+    // text (e.g. it only ran searches then hit the step cap, or called `done`
+    // with an empty answer). Fall back to the static injection path so the user
+    // always gets an answer instead of an empty, stuck-looking stream.
+    if (!agentic.fullResponse) {
       logWarn(
-        "Agentic path produced no tool calls; falling back to static RAG",
+        "Agentic path produced no text response; falling back to static RAG",
         {
           chatbotId: chatbot.id,
           modelId,
+          anyToolCall: agentic.anyToolCall,
         },
       );
       // Emit RAG sources for the fallback path (agentic suppressed them above).
@@ -600,17 +603,23 @@ async function* processMessage(params: {
   // subsequent turns see the full conversation and the ordering is correct.
   await userMessageInsert;
 
-  // Save assistant response
-  await database.insert(messages).values({
-    conversationId: conversation.id,
-    role: "assistant",
-    content: fullResponse,
-    metadata: {
-      sources: finalSources,
-      responseTime,
-      ragUsed: ragUsedFlag,
-    },
-  });
+  // Save the assistant reply only when the model actually produced text. The
+  // model decides its own wording (the agentic loop falls back to the static
+  // RAG path, so a "couldn't find it" answer is the model's own phrasing, not a
+  // canned string). A genuinely empty turn is not persisted, so reloaded
+  // history never shows a blank bubble.
+  if (fullResponse.trim()) {
+    await database.insert(messages).values({
+      conversationId: conversation.id,
+      role: "assistant",
+      content: fullResponse,
+      metadata: {
+        sources: finalSources,
+        responseTime,
+        ragUsed: ragUsedFlag,
+      },
+    });
+  }
 
   const ragSimilarityScore =
     finalSources.length > 0
