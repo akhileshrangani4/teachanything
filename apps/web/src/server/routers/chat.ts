@@ -380,7 +380,7 @@ async function* processMessage(params: {
       tools: tools as unknown as Parameters<
         OpenRouterClient["streamText"]
       >[0]["tools"],
-      stopWhen: [stepCountIs(6), hasToolCall("done")],
+      stopWhen: [stepCountIs(4), hasToolCall("done")],
       prepareStep: async ({ stepNumber }) =>
         stepNumber === 0
           ? {
