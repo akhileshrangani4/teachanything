@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.3](https://github.com/akhileshrangani4/teachanything/compare/v1.28.2...v1.28.3) (2026-06-29)
+
+
+### Bug Fixes
+
+* **files:** externalize officeparser to fix PowerPoint upload error ([#366](https://github.com/akhileshrangani4/teachanything/issues/366)) ([f0f6124](https://github.com/akhileshrangani4/teachanything/commit/f0f612438cd9037a4b2187bcdbc0787e07c7b6e9))
+
 ## [1.28.2](https://github.com/akhileshrangani4/teachanything/compare/v1.28.1...v1.28.2) (2026-06-29)
 
 
