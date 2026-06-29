@@ -11,15 +11,28 @@ describe("supportsTools gating", () => {
       expect(typeof m.supportsTools).toBe("boolean");
     }
   });
-  it("Gemma is marked non-tool (broken via OpenRouter)", () => {
-    expect(MODEL_REGISTRY["google/gemma-4-31b-it"].supportsTools).toBe(false);
+  it("every registered model is tool-capable (picker requires tools)", () => {
+    expect(toolCapableModels().length).toBe(Object.keys(MODEL_REGISTRY).length);
   });
-  it("toolCapableModels excludes non-tool models", () => {
+  it("dropped models (Gemma, Mistral) are no longer registered", () => {
+    expect(
+      (MODEL_REGISTRY as Record<string, unknown>)["google/gemma-4-31b-it"],
+    ).toBeUndefined();
+    expect(
+      (MODEL_REGISTRY as Record<string, unknown>)[
+        "mistralai/mistral-large-2411"
+      ],
+    ).toBeUndefined();
+  });
+  it("toolCapableModels includes the current Qwen revision", () => {
     const ids = toolCapableModels().map((m) => m.id);
-    expect(ids).not.toContain("google/gemma-4-31b-it");
-    expect(ids).toContain("qwen/qwen3-235b-a22b");
+    expect(ids).toContain("qwen/qwen3-235b-a22b-2507");
+    expect(ids).not.toContain("qwen/qwen3-235b-a22b");
   });
-  it("modelSupportsTools resolves deprecated ids", () => {
+  it("modelSupportsTools resolves deprecated/dropped ids to tool-capable models", () => {
+    // old Qwen 3 -> 2507; retired Mistral/Gemma -> default tool model
+    expect(modelSupportsTools("qwen/qwen3-235b-a22b")).toBe(true);
     expect(modelSupportsTools("mistralai/mistral-large")).toBe(true);
+    expect(modelSupportsTools("google/gemma-4-31b-it")).toBe(true);
   });
 });

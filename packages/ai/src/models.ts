@@ -1,13 +1,7 @@
 // Centralized model registry -- single source of truth for all model metadata.
 // All consumers import from here; no independent model definitions elsewhere.
 
-export type Provider =
-  | "Meta"
-  | "Mistral"
-  | "Qwen"
-  | "OpenAI"
-  | "NVIDIA"
-  | "Google";
+export type Provider = "Meta" | "Qwen" | "OpenAI" | "NVIDIA" | "DeepSeek";
 
 export interface ModelMetadata {
   id: string;
@@ -23,6 +17,20 @@ export interface ModelMetadata {
  * so there is exactly one place to add, remove, or update models.
  */
 export const MODEL_REGISTRY = {
+  "openai/gpt-oss-120b": {
+    id: "openai/gpt-oss-120b",
+    displayName: "GPT-OSS 120B",
+    provider: "OpenAI",
+    contextWindow: 131_072,
+    supportsTools: true,
+  },
+  "qwen/qwen3-235b-a22b-2507": {
+    id: "qwen/qwen3-235b-a22b-2507",
+    displayName: "Qwen 3 235B (2507)",
+    provider: "Qwen",
+    contextWindow: 262_144,
+    supportsTools: true,
+  },
   "meta-llama/llama-3.3-70b-instruct": {
     id: "meta-llama/llama-3.3-70b-instruct",
     displayName: "Llama 3.3 70B",
@@ -30,25 +38,11 @@ export const MODEL_REGISTRY = {
     contextWindow: 131_072,
     supportsTools: true,
   },
-  "mistralai/mistral-large-2411": {
-    id: "mistralai/mistral-large-2411",
-    displayName: "Mistral Large 2411",
-    provider: "Mistral",
-    contextWindow: 131_072,
-    supportsTools: true,
-  },
-  "qwen/qwen3-235b-a22b": {
-    id: "qwen/qwen3-235b-a22b",
-    displayName: "Qwen 3 235B",
-    provider: "Qwen",
-    contextWindow: 131_072,
-    supportsTools: true,
-  },
-  "openai/gpt-oss-120b": {
-    id: "openai/gpt-oss-120b",
-    displayName: "GPT-OSS 120B",
-    provider: "OpenAI",
-    contextWindow: 131_072,
+  "nvidia/nemotron-3-super-120b-a12b": {
+    id: "nvidia/nemotron-3-super-120b-a12b",
+    displayName: "Nemotron 3 Super",
+    provider: "NVIDIA",
+    contextWindow: 1_000_000,
     supportsTools: true,
   },
   "meta-llama/llama-4-maverick": {
@@ -58,19 +52,12 @@ export const MODEL_REGISTRY = {
     contextWindow: 1_048_576,
     supportsTools: true,
   },
-  "nvidia/nemotron-3-super-120b-a12b": {
-    id: "nvidia/nemotron-3-super-120b-a12b",
-    displayName: "Nemotron 3 Super",
-    provider: "NVIDIA",
-    contextWindow: 262_144,
+  "deepseek/deepseek-v3.2": {
+    id: "deepseek/deepseek-v3.2",
+    displayName: "DeepSeek V3.2",
+    provider: "DeepSeek",
+    contextWindow: 131_072,
     supportsTools: true,
-  },
-  "google/gemma-4-31b-it": {
-    id: "google/gemma-4-31b-it",
-    displayName: "Gemma 4 31B",
-    provider: "Google",
-    contextWindow: 262_144,
-    supportsTools: false,
   },
 } as const satisfies Record<string, ModelMetadata>;
 
@@ -101,8 +88,14 @@ export const SUPPORTED_MODELS = Object.keys(MODEL_REGISTRY) as [
  * Used by resolveModel() to transparently migrate stored model references.
  */
 export const DEPRECATED_MODEL_MAP: Record<string, SupportedModel> = {
-  "mistralai/mistral-large": "mistralai/mistral-large-2411",
-  "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b",
+  // Qwen 3 235B -> the cheaper, larger-context 2507 revision.
+  "qwen/qwen3-235b-a22b": "qwen/qwen3-235b-a22b-2507",
+  "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b-2507",
+  // Mistral dropped (mistral-large-2411 retired from OpenRouter) and Gemma
+  // dropped (unreliable tool-calling) -> migrate to the default tool model.
+  "mistralai/mistral-large": "meta-llama/llama-3.3-70b-instruct",
+  "mistralai/mistral-large-2411": "meta-llama/llama-3.3-70b-instruct",
+  "google/gemma-4-31b-it": "meta-llama/llama-3.3-70b-instruct",
 };
 
 /** List of deprecated model IDs for quick membership checks. */
