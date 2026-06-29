@@ -357,7 +357,7 @@ function ConversationListView({
       <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border">
         {/* Sticky selection header — px-4 + h-4 checkbox so it lines up
             exactly above the per-row checkboxes. */}
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 py-2 bg-background border-b">
+        <div className="sticky top-0 z-10 flex h-11 items-center justify-between gap-2 px-4 bg-background border-b">
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
               type="checkbox"
@@ -384,11 +384,11 @@ function ConversationListView({
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
-              className="flex items-center gap-2 px-4 py-3 hover:bg-muted/50 transition-colors"
+              className="flex items-start gap-2 px-4 py-3 hover:bg-muted/50 transition-colors"
             >
               <input
                 type="checkbox"
-                className="h-4 w-4 shrink-0 cursor-pointer accent-primary"
+                className="h-4 w-4 mt-0.5 shrink-0 cursor-pointer accent-primary"
                 checked={selected.has(conversation.id)}
                 onChange={() => toggle(conversation.id)}
                 aria-label="Select chat"
@@ -422,7 +422,7 @@ function ConversationListView({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                className="h-8 w-8 shrink-0 self-center text-muted-foreground hover:text-destructive"
                 onClick={() => setPendingIds([conversation.id])}
                 aria-label="Delete chat"
               >
