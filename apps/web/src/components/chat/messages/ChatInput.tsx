@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   PromptInput,
@@ -74,13 +75,20 @@ export function ChatInput({
     }
   };
 
+  // Mirror the message in a ref so an async transcript callback reads the
+  // LIVE value. The transcription fetch takes seconds; the in-flight
+  // closure was created when recording stopped, so reading the
+  // `currentMessage` prop there would see a stale snapshot and overwrite
+  // anything typed while the request was in flight. Refs are stable
+  // across renders, so even a stale closure dereferences the latest text.
+  const currentMessageRef = useRef(currentMessage);
+  currentMessageRef.current = currentMessage;
+
   const handleTranscript = (text: string) => {
-    // Append to the current message. We read the `currentMessage` prop
-    // directly rather than the DOM: PromptInputTextarea owns its own
-    // internal ref and does not forward one, so a passed ref would be
-    // null. The prop re-renders on every keystroke, so this closure
-    // always sees the latest value (no staleness).
-    const trimmed = currentMessage.replace(/\s+$/, "");
+    // Append to the live message (via ref, see above). We don't read the
+    // DOM: PromptInputTextarea owns its own internal ref and does not
+    // forward one, so a passed ref would be null.
+    const trimmed = currentMessageRef.current.replace(/\s+$/, "");
     const next = trimmed.length === 0 ? text : `${trimmed} ${text}`;
     const capped = next.slice(0, VALIDATION_LIMITS.MESSAGE_MAX_LENGTH);
     setCurrentMessage(capped);
@@ -105,8 +113,16 @@ export function ChatInput({
             className="flex-1 text-foreground text-base min-h-[60px] md:min-h-[120px] scrollbar-thin"
           />
           <PromptInputActions>
-            {showVoiceInput && !isStreaming && (
+            {showVoiceInput && (
+              // Keep the button MOUNTED while streaming (disabled, not
+              // removed): unmounting mid-recording stops the mic and
+              // silently discards the clip, and unmounting mid-request
+              // aborts the in-flight transcription — so a routine send
+              // would destroy the user's dictation. Disabled only blocks
+              // STARTING a new recording; stop/cancel and an in-flight
+              // transcript still complete and append to the input.
               <VoiceInputButton
+                disabled={isStreaming}
                 shareToken={shareToken}
                 chatbotId={chatbotId}
                 onTranscript={handleTranscript}

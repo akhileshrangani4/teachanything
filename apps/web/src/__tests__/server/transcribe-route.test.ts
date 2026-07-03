@@ -339,18 +339,32 @@ describe("POST /api/transcribe — validation & provider", () => {
     expect(body.code).toBe("provider_timeout");
   });
 
+  // chatbotId must be a real UUID now that the route validates the shape
+  // before the ownership lookup (chatbots.id is a Postgres uuid column).
+  const OWNED_CHATBOT_ID = "6f9619ff-8b86-4d01-b42d-00cf4fc964ff";
+
   it("500 JSON when ownership lookup throws on the authed path", async () => {
     mockFindOwnedChatbotId.mockRejectedValue(new Error("db down"));
-    const res = await POST(authedReq(undefined, "cb_99"));
+    const res = await POST(authedReq(undefined, OWNED_CHATBOT_ID));
     expect(res.status).toBe(500);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe("internal_error");
   });
 
   it("still succeeds (200) when analytics insert fails", async () => {
-    mockFindOwnedChatbotId.mockResolvedValue({ id: "cb_owned" });
+    mockFindOwnedChatbotId.mockResolvedValue({ id: OWNED_CHATBOT_ID });
     mockAnalyticsInsert.mockRejectedValue(new Error("insert failed"));
-    const res = await POST(authedReq(undefined, "cb_owned"));
+    const res = await POST(authedReq(undefined, OWNED_CHATBOT_ID));
     expect(res.status).toBe(200);
+  });
+
+  it("skips attribution (200, no lookup) for a non-UUID chatbotId", async () => {
+    // A malformed client-supplied id must not reach the uuid-typed DB
+    // query (Postgres would reject the cast and 500 the whole request);
+    // it's treated like an unowned id: transcription succeeds unattributed.
+    const res = await POST(authedReq(undefined, "not-a-uuid"));
+    expect(res.status).toBe(200);
+    expect(mockFindOwnedChatbotId).not.toHaveBeenCalled();
+    expect(mockAnalyticsInsert).not.toHaveBeenCalled();
   });
 });

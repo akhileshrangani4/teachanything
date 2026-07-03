@@ -176,6 +176,12 @@ export function useVoiceRecorder({
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
+      // Unmounted while the permission prompt was open — don't emit
+      // errors or set state on a dead component.
+      if (unmountedRef.current) {
+        startingRef.current = false;
+        return;
+      }
       const name = err instanceof Error ? err.name : "";
       if (name === "NotAllowedError" || name === "SecurityError") {
         emitError(
@@ -195,6 +201,19 @@ export function useVoiceRecorder({
       }
       startingRef.current = false;
       setStatus("idle");
+      return;
+    }
+
+    // Unmounted while the permission prompt was open — the unmount
+    // cleanup already ran against empty refs and can never see this
+    // late-arriving stream, so release the mic here or it stays hot
+    // (recording, indicator lit) with no owner until the max-duration
+    // timer would have fired.
+    if (unmountedRef.current) {
+      for (const track of stream.getTracks()) {
+        track.stop();
+      }
+      startingRef.current = false;
       return;
     }
 

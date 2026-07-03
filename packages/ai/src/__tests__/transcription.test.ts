@@ -175,4 +175,42 @@ describe("transcribeAudio", () => {
       transcribeAudio({ apiKey: "k", audio, filename: "rec.webm" }),
     ).rejects.toBeInstanceOf(TranscriptionError);
   });
+
+  it("maps an abort during the body read to timeout", async () => {
+    // fetch resolves (headers arrived) but the body read is aborted by
+    // the timeout — must map to `timeout`, not escape as a raw error.
+    mockFetch(
+      (async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => {
+            const e = new Error("aborted");
+            e.name = "AbortError";
+            throw e;
+          },
+        }) as unknown as Response) as typeof fetch,
+    );
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/webm" });
+    await expect(
+      transcribeAudio({ apiKey: "k", audio, filename: "rec.webm" }),
+    ).rejects.toMatchObject({ name: "TranscriptionError", reason: "timeout" });
+  });
+
+  it("maps a non-JSON success body to provider_error", async () => {
+    mockFetch(
+      (async () =>
+        new Response("<html>gateway</html>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        })) as typeof fetch,
+    );
+    const audio = new Blob([new Uint8Array([1])], { type: "audio/webm" });
+    await expect(
+      transcribeAudio({ apiKey: "k", audio, filename: "rec.webm" }),
+    ).rejects.toMatchObject({
+      name: "TranscriptionError",
+      reason: "provider_error",
+    });
+  });
 });

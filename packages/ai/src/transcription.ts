@@ -67,65 +67,84 @@ export async function transcribeAudio({
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  let response: Response;
+  // The timer stays armed until the response BODY has been consumed —
+  // fetch resolves when headers arrive, so disarming there would let a
+  // stalled body hang past timeoutMs with no abort covering the read.
   try {
-    response = await fetch(OPENAI_TRANSCRIPTIONS_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_TRANSCRIPTIONS_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new TranscriptionError(
+          "Transcription request timed out",
+          "timeout",
+        );
+      }
       throw new TranscriptionError(
-        "Transcription request timed out",
-        "timeout",
+        err instanceof Error ? err.message : "Network error",
+        "network",
       );
     }
-    throw new TranscriptionError(
-      err instanceof Error ? err.message : "Network error",
-      "network",
-    );
+
+    if (!response.ok) {
+      const status = response.status;
+      let bodyText = "";
+      try {
+        bodyText = await response.text();
+      } catch {
+        // ignore — the status alone classifies the failure
+      }
+      throw new TranscriptionError(
+        `OpenAI transcription failed (${status})`,
+        status === 429 ? "provider_rate_limit" : "provider_error",
+        { status, body: bodyText.slice(0, 500) },
+      );
+    }
+
+    let data: { text?: unknown; language?: unknown; duration?: unknown };
+    try {
+      data = (await response.json()) as {
+        text?: unknown;
+        language?: unknown;
+        duration?: unknown;
+      };
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new TranscriptionError(
+          "Transcription request timed out",
+          "timeout",
+        );
+      }
+      throw new TranscriptionError(
+        "Provider returned malformed response",
+        "provider_error",
+      );
+    }
+
+    if (typeof data.text !== "string") {
+      throw new TranscriptionError(
+        "Provider returned malformed response",
+        "provider_error",
+      );
+    }
+
+    return {
+      text: data.text.trim(),
+      language: typeof data.language === "string" ? data.language : null,
+      durationSeconds:
+        typeof data.duration === "number" && Number.isFinite(data.duration)
+          ? data.duration
+          : null,
+    };
   } finally {
     clearTimeout(timeoutId);
   }
-
-  if (!response.ok) {
-    const status = response.status;
-    let bodyText = "";
-    try {
-      bodyText = await response.text();
-    } catch {
-      // ignore
-    }
-    throw new TranscriptionError(
-      `OpenAI transcription failed (${status})`,
-      status === 429 ? "provider_rate_limit" : "provider_error",
-      { status, body: bodyText.slice(0, 500) },
-    );
-  }
-
-  const data = (await response.json()) as {
-    text?: unknown;
-    language?: unknown;
-    duration?: unknown;
-  };
-
-  if (typeof data.text !== "string") {
-    throw new TranscriptionError(
-      "Provider returned malformed response",
-      "provider_error",
-    );
-  }
-
-  return {
-    text: data.text.trim(),
-    language: typeof data.language === "string" ? data.language : null,
-    durationSeconds:
-      typeof data.duration === "number" && Number.isFinite(data.duration)
-        ? data.duration
-        : null,
-  };
 }
 
 export type TranscriptionErrorReason =

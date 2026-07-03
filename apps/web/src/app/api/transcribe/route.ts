@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@teachanything/db";
 import { chatbots, analytics } from "@teachanything/db/schema";
@@ -305,10 +306,15 @@ export async function POST(
   // wrapped so a DB failure returns the JSON error contract.
   let effectiveChatbotId: string | null = inferredChatbotId;
   if (!effectiveChatbotId && userId) {
-    const claimed = formData.get("chatbotId");
-    if (typeof claimed === "string" && claimed.length > 0) {
+    // Validate the shape BEFORE querying: chatbots.id is a Postgres uuid
+    // column, so a non-UUID string would make the cast throw (22P02) and
+    // fail the whole request 500 — but this field is only best-effort
+    // analytics attribution, and a malformed id can't match a chatbot
+    // anyway, so it's skipped exactly like an unowned one.
+    const claimed = z.string().uuid().safeParse(formData.get("chatbotId"));
+    if (claimed.success) {
       try {
-        const owned = await findOwnedChatbotId(db, claimed, userId);
+        const owned = await findOwnedChatbotId(db, claimed.data, userId);
         if (owned) effectiveChatbotId = owned.id;
       } catch (err) {
         logError(err, "Transcribe chatbot ownership lookup failed", logContext);
