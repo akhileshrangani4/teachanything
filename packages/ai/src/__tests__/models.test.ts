@@ -40,7 +40,8 @@ describe("supportsTools gating", () => {
     expect(ids).toContain("mistralai/mistral-large-2512");
   });
   it("modelSupportsTools resolves deprecated/dropped ids to tool-capable models", () => {
-    // old Qwen 3 -> 2507; retired Gemma/Nemotron -> replacement tool models
+    // old Qwen 3 -> 2507; retired Mistral -> Mistral Large 3; retired
+    // Gemma/Nemotron -> replacement tool models
     expect(modelSupportsTools("qwen/qwen3-235b-a22b")).toBe(true);
     expect(modelSupportsTools("mistralai/mistral-large")).toBe(true);
     expect(modelSupportsTools("google/gemma-4-31b-it")).toBe(true);
