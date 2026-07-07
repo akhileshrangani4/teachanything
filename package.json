@@ -1,6 +1,6 @@
 {
   "name": "teachanything",
-  "version": "1.20.1",
+  "version": "1.28.4",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -32,7 +32,7 @@
     "prettier": "^3.8.3",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "turbo": "^2.9.6",
+    "turbo": "^2.9.16",
     "typescript": "5.9.3"
   },
   "packageManager": "npm@11.4.2",

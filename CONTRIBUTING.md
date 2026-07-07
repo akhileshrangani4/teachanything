@@ -103,6 +103,7 @@ teachanything/
 
 - Find an open issue or file a new one
 - Comment on the issue to indicate you're working on it
+- Agree on the direction in the issue **before** building. For non-trivial work, discuss the technical approach with a maintainer first so we avoid duplicate or off-direction PRs
 - Branch from `main`
 
 ### 2. Branch Naming
@@ -124,6 +125,14 @@ refactor/analytics-queries
 - Add Zod validation on all tRPC inputs
 - Add ownership checks on protected resources
 - Add tests for new utility/validation logic (see [Testing in AGENTS.md](./AGENTS.md#12-testing))
+
+#### Own what you submit
+
+Using an AI coding assistant (Claude Code, etc.) is encouraged. The expectation
+is that you understand and can stand behind every line you submit, and that it
+follows [AGENTS.md](./AGENTS.md). Use the assistant's planning mode to agree on
+a plan before code is written, and give reviewers enough context in the PR
+description to see what the change does and why.
 
 ### Writing Tests
 

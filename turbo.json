@@ -27,7 +27,12 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/standalone/**",
+        "dist/**"
+      ],
       "env": [
         "OPENROUTER_API_KEY",
         "NODE_ENV",

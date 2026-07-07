@@ -204,6 +204,7 @@ export const userFiles = pgTable("user_files", {
     .notNull(),
   metadata: jsonb("metadata")
     .$type<{
+      processingVersion?: number;
       error?: string;
       chunkCount?: number;
       processedAt?: string;
@@ -246,6 +247,10 @@ export const chatbotFileAssociations = pgTable(
       table.chatbotId,
       table.fileId,
     ),
+    // B-tree on fileId for bulk deletes/lookups keyed by file alone (e.g.
+    // deleting a crawled file across all chatbots). The composite above is
+    // chatbotId-leading and can't serve fileId-only predicates.
+    index("chatbot_file_associations_file_id_idx").on(table.fileId),
   ],
 );
 
@@ -326,6 +331,8 @@ export const messages = pgTable(
           fileName: string;
           chunkIndex: number;
           similarity: number;
+          // Optional: only agentic-retrieval sources carry page numbers.
+          pageNumber?: number | null;
         }>;
         responseTime?: number;
         model?: string;
@@ -350,29 +357,52 @@ export const messages = pgTable(
 );
 
 // Analytics table
-export const analytics = pgTable("analytics", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  chatbotId: uuid("chatbot_id")
-    .references(() => chatbots.id, { onDelete: "cascade" })
-    .notNull(),
-  eventType: text("event_type").notNull(), // 'session_start', 'message_sent', etc.
-  eventData: jsonb("event_data")
-    .$type<{
-      sessionId?: string;
-      messageLength?: number;
-      responseLength?: number;
-      responseTime?: number;
-      ragUsed?: boolean;
-      // Voice transcription event fields
-      audioBytes?: number;
-      durationSeconds?: number | null;
-      transcriptLength?: number;
-      surface?: "authenticated" | "shared";
-    }>()
-    .default({}),
-  sessionId: text("session_id"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const analytics = pgTable(
+  "analytics",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    eventType: text("event_type").notNull(), // 'session_start', 'message_sent', etc.
+    eventData: jsonb("event_data")
+      .$type<{
+        sessionId?: string;
+        messageLength?: number;
+        responseLength?: number;
+        responseTime?: number;
+        ragUsed?: boolean;
+        ragSimilarityScore?: number;
+        sourcesCount?: number;
+        question?: string;
+        // Voice transcription event fields
+        audioBytes?: number;
+        durationSeconds?: number | null;
+        transcriptLength?: number;
+        surface?: "authenticated" | "shared";
+      }>()
+      .default({}),
+    sessionId: text("session_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("analytics_chatbot_event_type_created_at_idx").on(
+      table.chatbotId,
+      table.eventType,
+      table.createdAt,
+    ),
+    index("analytics_chatbot_event_type_session_id_idx").on(
+      table.chatbotId,
+      table.eventType,
+      table.sessionId,
+    ),
+    index("analytics_chatbot_event_type_rag_used_idx").on(
+      table.chatbotId,
+      table.eventType,
+      sql`(${table.eventData}->>'ragUsed')`,
+    ),
+  ],
+);
 
 // Email delivery tracking table
 export const emailDeliveries = pgTable(
@@ -403,8 +433,8 @@ export const crawlSources = pgTable(
   "crawl_sources",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    chatbotId: uuid("chatbot_id")
-      .references(() => chatbots.id, { onDelete: "cascade" })
+    userId: text("user_id")
+      .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     rootUrl: text("root_url").notNull(),
     status: crawlStatusEnum("status").default("pending").notNull(),
@@ -418,7 +448,7 @@ export const crawlSources = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("idx_crawl_sources_chatbot_id").on(table.chatbotId)],
+  (table) => [index("idx_crawl_sources_user_id").on(table.userId)],
 );
 
 export const crawledPages = pgTable(
@@ -456,12 +486,41 @@ export const crawledPages = pgTable(
   ],
 );
 
+// Junction table: Associates web sources (crawl sources) with chatbots (many-to-many)
+export const chatbotCrawlSourceAssociations = pgTable(
+  "chatbot_crawl_source_associations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    crawlSourceId: uuid("crawl_source_id")
+      .references(() => crawlSources.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // Composite uniqueIndex doubles as a B-tree on chatbotId (leading column) + unique constraint on (chatbotId, crawlSourceId). Name abbreviated ("assoc") to stay under Postgres's 63-char identifier limit.
+    uniqueIndex("chatbot_crawl_source_assoc_chatbot_id_crawl_source_id_idx").on(
+      table.chatbotId,
+      table.crawlSourceId,
+    ),
+    // B-tree on crawlSourceId for lookups keyed by source alone (crawl
+    // processor, attach/detach backfill, get-attachable). The composite above
+    // is chatbotId-leading and can't serve crawlSourceId-only predicates.
+    index("idx_chatbot_crawl_source_assoc_crawl_source_id").on(
+      table.crawlSourceId,
+    ),
+  ],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   chatbots: many(chatbots),
   sessions: many(session),
   accounts: many(account),
   approvedDomainsCreated: many(approvedDomains),
   files: many(userFiles),
+  crawlSources: many(crawlSources),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -496,7 +555,7 @@ export const chatbotsRelations = relations(chatbots, ({ one, many }) => ({
   fileAssociations: many(chatbotFileAssociations),
   conversations: many(conversations),
   analytics: many(analytics),
-  crawlSources: many(crawlSources),
+  crawlSourceAssociations: many(chatbotCrawlSourceAssociations),
 }));
 
 export const userFilesRelations = relations(userFiles, ({ one, many }) => ({
@@ -557,11 +616,26 @@ export const analyticsRelations = relations(analytics, ({ one }) => ({
 export const crawlSourcesRelations = relations(
   crawlSources,
   ({ one, many }) => ({
-    chatbot: one(chatbots, {
-      fields: [crawlSources.chatbotId],
-      references: [chatbots.id],
+    user: one(user, {
+      fields: [crawlSources.userId],
+      references: [user.id],
     }),
     pages: many(crawledPages),
+    chatbotAssociations: many(chatbotCrawlSourceAssociations),
+  }),
+);
+
+export const chatbotCrawlSourceAssociationsRelations = relations(
+  chatbotCrawlSourceAssociations,
+  ({ one }) => ({
+    chatbot: one(chatbots, {
+      fields: [chatbotCrawlSourceAssociations.chatbotId],
+      references: [chatbots.id],
+    }),
+    crawlSource: one(crawlSources, {
+      fields: [chatbotCrawlSourceAssociations.crawlSourceId],
+      references: [crawlSources.id],
+    }),
   }),
 );
 

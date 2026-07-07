@@ -15,6 +15,47 @@ import type { Context } from "@/server/trpc";
 import { checkRateLimit, conversationSearchRateLimit } from "@/lib/rate-limit";
 
 type AuthedContext = Context & { session: { user: { id: string } } };
+type SessionTimeRange = "week" | "month" | "quarter";
+
+const MESSAGE_EVENT_TYPES = ["message_sent", "shared_message_sent"];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function analyticsSessionId() {
+  return sql<string>`COALESCE(${analytics.sessionId}, ${analytics.eventData}->>'sessionId')`;
+}
+
+function getRangeStart(timeRange: SessionTimeRange): Date {
+  const now = new Date();
+  switch (timeRange) {
+    case "week":
+      return new Date(now.getTime() - 7 * DAY_MS);
+    case "quarter":
+      return new Date(now.getTime() - 90 * DAY_MS);
+    case "month":
+      return new Date(now.getTime() - 30 * DAY_MS);
+  }
+}
+
+function dateKey(date: Date): string {
+  return date.toISOString().split("T")[0]!;
+}
+
+function startOfUtcDay(date: Date): Date {
+  const next = new Date(date);
+  next.setUTCHours(0, 0, 0, 0);
+  return next;
+}
+
+function startOfUtcWeek(date: Date): Date {
+  const next = startOfUtcDay(date);
+  const day = (next.getUTCDay() + 6) % 7;
+  next.setUTCDate(next.getUTCDate() - day);
+  return next;
+}
+
+function roundToOne(value: number): number {
+  return Math.round(value * 10) / 10;
+}
 
 async function assertOwnedChatbot(
   ctx: AuthedContext,
@@ -90,39 +131,30 @@ export const analyticsRouter = router({
 
       const totalMessages = messageCount?.count ?? 0;
 
-      // Get average response time from analytics
-      const analyticsData = await ctx.db
-        .select()
+      const [analyticsSummary] = await ctx.db
+        .select({
+          ragEventCount: sql<number>`COALESCE(SUM(CASE WHEN (${analytics.eventData}->>'ragUsed') IS NOT NULL THEN 1 ELSE 0 END), 0)::int`,
+          avgResponseTime: sql<number>`COALESCE(ROUND(AVG((${analytics.eventData}->>'responseTime')::double precision)), 0)::int`,
+          ragHits: sql<number>`COALESCE(SUM(CASE WHEN ${analytics.eventData}->>'ragUsed' = 'true' THEN 1 ELSE 0 END), 0)::int`,
+        })
         .from(analytics)
         .where(
           and(
             eq(analytics.chatbotId, input.chatbotId),
-            eq(analytics.eventType, "message_sent"),
+            inArray(analytics.eventType, MESSAGE_EVENT_TYPES),
           ),
         );
 
-      let avgResponseTime = 0;
-      if (analyticsData.length > 0) {
-        const responseTimes = analyticsData
-          .map((a) => {
-            const eventData = a.eventData as Record<string, unknown> | null;
-            return eventData && typeof eventData.responseTime === "number"
-              ? eventData.responseTime
-              : null;
-          })
-          .filter((t): t is number => t !== null);
-
-        if (responseTimes.length > 0) {
-          const sum = responseTimes.reduce((a, b) => a + b, 0);
-          avgResponseTime = Math.round(sum / responseTimes.length);
-        }
-      }
+      const ragEventCount = analyticsSummary?.ragEventCount ?? 0;
+      const ragHits = analyticsSummary?.ragHits ?? 0;
+      const ragUsagePercentage =
+        ragEventCount > 0 ? Math.round((ragHits / ragEventCount) * 100) : 0;
 
       return {
         totalConversations,
         totalMessages,
-        avgResponseTime,
-        ragUsagePercentage: 0, // Can be calculated if needed
+        avgResponseTime: analyticsSummary?.avgResponseTime ?? 0,
+        ragUsagePercentage,
       };
     }),
 
@@ -167,7 +199,7 @@ export const analyticsRouter = router({
         .where(
           and(
             eq(conversations.chatbotId, input.chatbotId),
-            gte(conversations.createdAt, startDate),
+            gte(messages.createdAt, startDate),
           ),
         )
         .groupBy(sql`DATE(${messages.createdAt})`)
@@ -178,6 +210,273 @@ export const analyticsRouter = router({
         date: row.date,
         count: row.count,
       }));
+    }),
+
+  getSessionMetrics: protectedProcedure
+    .input(z.object({ chatbotId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      const sessionId = analyticsSessionId();
+      const sessionEvents = ctx.db
+        .select({
+          sessionId: sessionId.as("session_id"),
+          messageCount: sql<number>`count(*)::int`.as("message_count"),
+          firstEventAt: sql<Date>`MIN(${analytics.createdAt})`.as(
+            "first_event_at",
+          ),
+          lastEventAt: sql<Date>`MAX(${analytics.createdAt})`.as(
+            "last_event_at",
+          ),
+        })
+        .from(analytics)
+        .where(
+          and(
+            eq(analytics.chatbotId, input.chatbotId),
+            inArray(analytics.eventType, MESSAGE_EVENT_TYPES),
+            sql`${sessionId} IS NOT NULL`,
+          ),
+        )
+        .groupBy(sessionId)
+        .as("session_events");
+
+      const [summary] = await ctx.db
+        .select({
+          totalUniqueSessions: sql<number>`count(*)::int`,
+          avgMessagesPerSession: sql<number>`COALESCE(AVG(${sessionEvents.messageCount}), 0)::double precision`,
+          avgSessionDurationSeconds: sql<number>`COALESCE(AVG(EXTRACT(EPOCH FROM (${sessionEvents.lastEventAt} - ${sessionEvents.firstEventAt}))), 0)::double precision`,
+        })
+        .from(sessionEvents);
+
+      return {
+        totalUniqueSessions: summary?.totalUniqueSessions ?? 0,
+        avgMessagesPerSession: roundToOne(summary?.avgMessagesPerSession ?? 0),
+        avgSessionDurationSeconds: Math.round(
+          summary?.avgSessionDurationSeconds ?? 0,
+        ),
+      };
+    }),
+
+  getSessionsOverTime: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        timeRange: z.enum(["week", "month", "quarter"]).default("month"),
+        interval: z.enum(["day", "week"]).default("day"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      const startDate = getRangeStart(input.timeRange);
+      const now = new Date();
+      const sessionId = analyticsSessionId();
+      const periodExpr =
+        input.interval === "week"
+          ? sql<string>`DATE(date_trunc('week', ${analytics.createdAt}))`
+          : sql<string>`DATE(${analytics.createdAt})`;
+
+      const sessionsData = await ctx.db
+        .select({
+          date: periodExpr,
+          count: sql<number>`count(distinct ${sessionId})::int`,
+        })
+        .from(analytics)
+        .where(
+          and(
+            eq(analytics.chatbotId, input.chatbotId),
+            inArray(analytics.eventType, MESSAGE_EVENT_TYPES),
+            gte(analytics.createdAt, startDate),
+            sql`${sessionId} IS NOT NULL`,
+          ),
+        )
+        .groupBy(periodExpr)
+        .orderBy(periodExpr);
+
+      const dataMap = new Map<string, number>(
+        sessionsData.map((row) => [row.date, row.count]),
+      );
+      const stepDays = input.interval === "week" ? 7 : 1;
+      const firstPeriod =
+        input.interval === "week"
+          ? startOfUtcWeek(startDate)
+          : startOfUtcDay(startDate);
+      const filledData: Array<{ date: string; count: number }> = [];
+
+      for (
+        let current = firstPeriod;
+        current <= now;
+        current = new Date(current.getTime() + stepDays * DAY_MS)
+      ) {
+        const key = dateKey(current);
+        filledData.push({ date: key, count: dataMap.get(key) ?? 0 });
+      }
+
+      return filledData;
+    }),
+
+  getSessionLengthDistribution: protectedProcedure
+    .input(z.object({ chatbotId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      const sessionId = analyticsSessionId();
+      const sessionEvents = ctx.db
+        .select({
+          sessionId: sessionId.as("session_id"),
+          messageCount: sql<number>`count(*)::int`.as("message_count"),
+        })
+        .from(analytics)
+        .where(
+          and(
+            eq(analytics.chatbotId, input.chatbotId),
+            inArray(analytics.eventType, MESSAGE_EVENT_TYPES),
+            sql`${sessionId} IS NOT NULL`,
+          ),
+        )
+        .groupBy(sessionId)
+        .as("session_events");
+
+      const [distribution] = await ctx.db
+        .select({
+          one: sql<number>`count(*) FILTER (WHERE ${sessionEvents.messageCount} = 1)::int`,
+          twoToFive: sql<number>`count(*) FILTER (WHERE ${sessionEvents.messageCount} BETWEEN 2 AND 5)::int`,
+          sixToTen: sql<number>`count(*) FILTER (WHERE ${sessionEvents.messageCount} BETWEEN 6 AND 10)::int`,
+          tenPlus: sql<number>`count(*) FILTER (WHERE ${sessionEvents.messageCount} > 10)::int`,
+        })
+        .from(sessionEvents);
+
+      return [
+        { bucket: "1 message", count: distribution?.one ?? 0 },
+        { bucket: "2-5 messages", count: distribution?.twoToFive ?? 0 },
+        { bucket: "6-10 messages", count: distribution?.sixToTen ?? 0 },
+        { bucket: "10+ messages", count: distribution?.tenPlus ?? 0 },
+      ];
+    }),
+
+  getCommonQuestions: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        limit: z.number().int().min(1).max(50).default(10),
+        offset: z.number().int().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      const firstUserMessages = ctx.db
+        .select({
+          conversationId: messages.conversationId,
+          question: sql<string>`trim(${messages.content})`.as("question"),
+          normalizedQuestion: sql<string>`lower(trim(${messages.content}))`.as(
+            "normalized_question",
+          ),
+          rowNumber:
+            sql<number>`row_number() over (partition by ${messages.conversationId} order by ${messages.createdAt} asc)`.as(
+              "row_number",
+            ),
+        })
+        .from(messages)
+        .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            eq(messages.role, "user"),
+          ),
+        )
+        .as("first_user_messages");
+
+      const groupedQuestions = ctx.db
+        .select({
+          question: sql<string>`MIN(${firstUserMessages.question})`.as(
+            "question",
+          ),
+          count: sql<number>`count(*)::int`.as("count"),
+        })
+        .from(firstUserMessages)
+        .where(
+          and(
+            sql`${firstUserMessages.rowNumber} = 1`,
+            sql`${firstUserMessages.normalizedQuestion} <> ''`,
+          ),
+        )
+        .groupBy(firstUserMessages.normalizedQuestion)
+        .as("grouped_questions");
+
+      const [total] = await ctx.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(groupedQuestions);
+
+      const questions = await ctx.db
+        .select()
+        .from(groupedQuestions)
+        .orderBy(desc(groupedQuestions.count), asc(groupedQuestions.question))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return {
+        questions: questions.map((q) => ({
+          question: q.question,
+          count: q.count,
+        })),
+        totalCount: total?.count ?? 0,
+      };
+    }),
+
+  getLowConfidenceQueries: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        limit: z.number().int().min(1).max(50).default(10),
+        offset: z.number().int().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      const sessionId = analyticsSessionId();
+      const lowConfidenceWhere = and(
+        eq(analytics.chatbotId, input.chatbotId),
+        inArray(analytics.eventType, MESSAGE_EVENT_TYPES),
+        sql`${analytics.eventData}->>'ragUsed' = 'false'`,
+      );
+
+      const [total] = await ctx.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(analytics)
+        .where(lowConfidenceWhere);
+
+      const rows = await ctx.db
+        .select({
+          id: analytics.id,
+          sessionId,
+          createdAt: analytics.createdAt,
+          responseTime: sql<
+            number | null
+          >`(${analytics.eventData}->>'responseTime')::int`,
+          sourcesCount: sql<
+            number | null
+          >`(${analytics.eventData}->>'sourcesCount')::int`,
+          question: sql<string | null>`${analytics.eventData}->>'question'`,
+        })
+        .from(analytics)
+        .where(lowConfidenceWhere)
+        .orderBy(desc(analytics.createdAt), desc(analytics.id))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return {
+        queries: rows.map((row) => ({
+          id: row.id,
+          sessionId: row.sessionId,
+          createdAt: row.createdAt,
+          responseTime: row.responseTime,
+          sourcesCount: row.sourcesCount,
+          question: formatPreview(row.question) ?? "Question unavailable",
+        })),
+        totalCount: total?.count ?? 0,
+      };
     }),
 
   /**
@@ -527,5 +826,34 @@ export const analyticsRouter = router({
         })),
         totalCount,
       };
+    }),
+
+  /**
+   * Delete one or more conversations (and their messages, via cascade) for a
+   * chatbot the caller owns. Used by the Student Chats tab to clear retry junk.
+   */
+  deleteConversations: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        conversationIds: z.array(z.string().uuid()).min(1).max(100),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      // Scope the delete to this chatbot so a caller can't delete another
+      // chatbot's conversations by id. Messages cascade-delete via FK.
+      const deleted = await ctx.db
+        .delete(conversations)
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            inArray(conversations.id, input.conversationIds),
+          ),
+        )
+        .returning({ id: conversations.id });
+
+      return { deletedCount: deleted.length };
     }),
 });

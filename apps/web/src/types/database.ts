@@ -49,6 +49,7 @@ export interface ChatMessage {
     fileName: string;
     chunkIndex: number;
     similarity: number;
+    pageNumber?: number | null;
   }>;
   cancelled?: boolean;
   truncated?: boolean;
@@ -59,4 +60,5 @@ export interface MessageSource {
   fileName: string;
   chunkIndex: number;
   similarity: number;
+  pageNumber?: number | null;
 }

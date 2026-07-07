@@ -273,7 +273,17 @@ export default function RegisterPage() {
           <Alert className="mb-4">
             <AlertDescription>
               All accounts require admin approval before you can log in.
-              You&apos;ll receive an email once your account is approved.
+              You&apos;ll receive an email once your account is approved. After
+              signing up, please check your inbox and spam folder for approval
+              emails from{" "}
+              <a
+                href="mailto:admin@teachanything.ai"
+                className="text-primary hover:underline"
+              >
+                admin@teachanything.ai
+              </a>
+              . To make sure you receive updates, please add this address to
+              your contacts.
               {process.env.NEXT_PUBLIC_CONTACT_EMAIL && (
                 <>
                   {" "}

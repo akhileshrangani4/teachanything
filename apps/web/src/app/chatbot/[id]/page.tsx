@@ -26,12 +26,14 @@ import { useFilePolling } from "@/hooks/useFilePolling";
 import { WebSourcesTab } from "@/components/chatbot/WebSourcesTab";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ConversationsTab } from "@/components/chatbot/ConversationsTab";
+import { ChatbotAnalyticsTab } from "@/components/chatbot/analytics-tab";
 
 const VALID_TABS = [
   "chat",
   "files",
   "web-sources",
   "conversations",
+  "analytics",
   "settings",
   "embed",
 ];
@@ -69,6 +71,7 @@ export default function ChatbotDetailPage() {
     setCurrentMessage,
     isStreaming,
     isThinking,
+    statusLabel,
     streamingContent,
     messagesEndRef,
     chatbot,
@@ -194,11 +197,12 @@ export default function ChatbotDetailPage() {
           onValueChange={handleTabChange}
           className="space-y-6"
         >
-          <TabsList className="bg-muted-foreground/10 border border-border">
+          <TabsList className="h-auto flex-wrap justify-start gap-1 bg-muted-foreground/10 border border-border">
             <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="web-sources">Web Sources</TabsTrigger>
             <TabsTrigger value="conversations">Student Chats</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
             {chatbot.sharingEnabled && chatbot.shareToken && (
               <TabsTrigger value="embed">Embed</TabsTrigger>
@@ -212,6 +216,7 @@ export default function ChatbotDetailPage() {
                 messages={messages}
                 isStreaming={isStreaming}
                 isThinking={isThinking}
+                statusLabel={statusLabel}
                 streamingContent={streamingContent}
                 currentMessage={currentMessage}
                 setCurrentMessage={setCurrentMessage}
@@ -245,6 +250,10 @@ export default function ChatbotDetailPage() {
 
           <TabsContent value="conversations" className="mt-6">
             <ConversationsTab chatbotId={chatbotId} />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-6">
+            <ChatbotAnalyticsTab chatbotId={chatbotId} />
           </TabsContent>
 
           {/* Settings Tab */}

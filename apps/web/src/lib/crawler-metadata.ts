@@ -5,11 +5,21 @@ import type {
 
 export type { CrawledPageMetadata, CrawlSourceMetadata };
 
+// Resolves the label to show for a crawl source: the user-set display name
+// when present, otherwise the root URL. Shared by the full source list and
+// the attach picker (which only fetches displayName, not full metadata).
+export function resolveSourceDisplayName(
+  displayName: string | null | undefined,
+  rootUrl: string,
+): string {
+  return displayName?.trim() || rootUrl;
+}
+
 export function getSourceDisplayName(source: {
   rootUrl: string;
   metadata: CrawlSourceMetadata | null;
 }): string {
-  return source.metadata?.displayName?.trim() || source.rootUrl;
+  return resolveSourceDisplayName(source.metadata?.displayName, source.rootUrl);
 }
 
 export function getSourcePageCount(source: {

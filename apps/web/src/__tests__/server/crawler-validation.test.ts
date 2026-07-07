@@ -1,6 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   allCrawlSourcesInput,
+  crawlSourceInput,
+  manualUrlInput,
   renameCrawledPageInput,
   renameCrawlSourceInput,
 } from "@/server/routers/crawler/validation";
@@ -45,10 +47,13 @@ describe("crawler validation schemas", () => {
   });
 
   describe("allCrawlSourcesInput", () => {
-    it("defaults pagination parameters", () => {
+    it("defaults pagination, status, and sort parameters", () => {
       expect(allCrawlSourcesInput.parse({})).toEqual({
         limit: 20,
         offset: 0,
+        status: "all",
+        sortBy: "createdAt",
+        sortDir: "desc",
       });
     });
 
@@ -56,12 +61,81 @@ describe("crawler validation schemas", () => {
       expect(allCrawlSourcesInput.parse({ limit: 50, offset: 100 })).toEqual({
         limit: 50,
         offset: 100,
+        status: "all",
+        sortBy: "createdAt",
+        sortDir: "desc",
+      });
+    });
+
+    it("accepts search, status filter, and sort options", () => {
+      expect(
+        allCrawlSourcesInput.parse({
+          search: "docs",
+          status: "failed",
+          sortBy: "name",
+          sortDir: "asc",
+        }),
+      ).toEqual({
+        limit: 20,
+        offset: 0,
+        search: "docs",
+        status: "failed",
+        sortBy: "name",
+        sortDir: "asc",
       });
     });
 
     it("rejects limits above the endpoint cap", () => {
       expect(() =>
         allCrawlSourcesInput.parse({ limit: 101, offset: 0 }),
+      ).toThrow();
+    });
+
+    it("rejects unknown status filters", () => {
+      expect(() =>
+        allCrawlSourcesInput.parse({ status: "archived" }),
+      ).toThrow();
+    });
+  });
+
+  describe("crawlSourceInput", () => {
+    it("accepts input with no chatbotId (unattached source)", () => {
+      const parsed = crawlSourceInput.parse({ rootUrl: "https://example.com" });
+      expect(parsed.chatbotId).toBeUndefined();
+      expect(parsed.crawlDepth).toBe(3);
+    });
+
+    it("accepts a valid chatbotId", () => {
+      const id = "11111111-1111-4111-8111-111111111111";
+      const parsed = crawlSourceInput.parse({
+        rootUrl: "https://example.com",
+        chatbotId: id,
+      });
+      expect(parsed.chatbotId).toBe(id);
+    });
+
+    it("rejects a malformed chatbotId", () => {
+      expect(() =>
+        crawlSourceInput.parse({
+          rootUrl: "https://example.com",
+          chatbotId: "not-a-uuid",
+        }),
+      ).toThrow();
+    });
+  });
+
+  describe("manualUrlInput", () => {
+    it("accepts input with no chatbotId", () => {
+      const parsed = manualUrlInput.parse({ url: "https://example.com/page" });
+      expect(parsed.chatbotId).toBeUndefined();
+    });
+
+    it("rejects a malformed chatbotId", () => {
+      expect(() =>
+        manualUrlInput.parse({
+          url: "https://example.com/page",
+          chatbotId: "x",
+        }),
       ).toThrow();
     });
   });

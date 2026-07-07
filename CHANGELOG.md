@@ -1,5 +1,141 @@
 # Changelog
 
+## [1.28.4](https://github.com/akhileshrangani4/teachanything/compare/v1.28.3...v1.28.4) (2026-06-29)
+
+
+### Bug Fixes
+
+* **chat:** retire nemotron from tool models + cap static-path chunks ([#368](https://github.com/akhileshrangani4/teachanything/issues/368)) ([42518bb](https://github.com/akhileshrangani4/teachanything/commit/42518bb05557d9bdb56b29bfe6a4bfd160efc909))
+
+## [1.28.3](https://github.com/akhileshrangani4/teachanything/compare/v1.28.2...v1.28.3) (2026-06-29)
+
+
+### Bug Fixes
+
+* **files:** externalize officeparser to fix PowerPoint upload error ([#366](https://github.com/akhileshrangani4/teachanything/issues/366)) ([f0f6124](https://github.com/akhileshrangani4/teachanything/commit/f0f612438cd9037a4b2187bcdbc0787e07c7b6e9))
+
+## [1.28.2](https://github.com/akhileshrangani4/teachanything/compare/v1.28.1...v1.28.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* **chat:** stop inline citation markers in answers ([#363](https://github.com/akhileshrangani4/teachanything/issues/363)) ([dd7081d](https://github.com/akhileshrangani4/teachanything/commit/dd7081de0f247ec70e3e820a843c0624a363a5e4))
+
+
+### Performance Improvements
+
+* **chat:** fix many-files slowness/timeouts (reprocess throttle + manifest cap + step budget) ([#365](https://github.com/akhileshrangani4/teachanything/issues/365)) ([ef7b7f7](https://github.com/akhileshrangani4/teachanything/commit/ef7b7f7f50a3f9e680dfbca31f08d4c23eb95c0c))
+
+## [1.28.1](https://github.com/akhileshrangani4/teachanything/compare/v1.28.0...v1.28.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **db:** setup-extensions must run statements individually for CONCURRENTLY ([#360](https://github.com/akhileshrangani4/teachanything/issues/360)) ([8c7feb9](https://github.com/akhileshrangani4/teachanything/commit/8c7feb989a8cf3766d9ecbe91dc3feb85f4f4820))
+
+## [1.28.0](https://github.com/akhileshrangani4/teachanything/compare/v1.27.0...v1.28.0) (2026-06-29)
+
+
+### Features
+
+* **rag:** agentic retrieval with hybrid search + page citations ([#271](https://github.com/akhileshrangani4/teachanything/issues/271)) ([#357](https://github.com/akhileshrangani4/teachanything/issues/357)) ([1b6a555](https://github.com/akhileshrangani4/teachanything/commit/1b6a5551a4961f9304cb8705e4503bb154bdb328))
+
+## [1.27.0](https://github.com/akhileshrangani4/teachanything/compare/v1.26.0...v1.27.0) (2026-06-16)
+
+
+### Features
+
+* **landing:** non-profit status note + DC flag in footer ([#350](https://github.com/akhileshrangani4/teachanything/issues/350)) ([dbcdbf4](https://github.com/akhileshrangani4/teachanything/commit/dbcdbf4270c38ca2e405d6fdd7901aaacf5ce757))
+
+## [1.26.0](https://github.com/akhileshrangani4/teachanything/compare/v1.25.0...v1.26.0) (2026-06-15)
+
+
+### Features
+
+* **auth:** add approval email whitelist note to signup screen ([#345](https://github.com/akhileshrangani4/teachanything/issues/345)) ([796b7ea](https://github.com/akhileshrangani4/teachanything/commit/796b7ea5ae84ed08b6019e4b4d153867bd9f24f0))
+
+## [1.25.0](https://github.com/akhileshrangani4/teachanything/compare/v1.24.0...v1.25.0) (2026-06-14)
+
+
+### Features
+
+* **web-sources:** table layout for chatbot tab + dashboard page ([#343](https://github.com/akhileshrangani4/teachanything/issues/343)) ([cab0dba](https://github.com/akhileshrangani4/teachanything/commit/cab0dba70a06a047370e6710d594efeb627e3a34))
+
+## [1.24.0](https://github.com/akhileshrangani4/teachanything/compare/v1.23.1...v1.24.0) (2026-06-14)
+
+
+### Features
+
+* **web-sources:** list view for attaching existing web sources ([#341](https://github.com/akhileshrangani4/teachanything/issues/341)) ([c041a51](https://github.com/akhileshrangani4/teachanything/commit/c041a518da683ef29349b491d641374027f05433))
+
+## [1.23.1](https://github.com/akhileshrangani4/teachanything/compare/v1.23.0...v1.23.1) (2026-06-11)
+
+
+### Documentation
+
+* **agents:** clarify AGENTS.md applies to all contributors, AI optional ([#339](https://github.com/akhileshrangani4/teachanything/issues/339)) ([8470a22](https://github.com/akhileshrangani4/teachanything/commit/8470a2247323966e43ba8ba0bd3e7fea5e7b4c92))
+* make CONTRIBUTING.md the front door for contributors ([#337](https://github.com/akhileshrangani4/teachanything/issues/337)) ([0a77375](https://github.com/akhileshrangani4/teachanything/commit/0a773751369b5b2fd80dd4927970e51cc59250e2))
+
+## [1.23.0](https://github.com/akhileshrangani4/teachanything/compare/v1.22.1...v1.23.0) (2026-06-11)
+
+
+### Features
+
+* **web-sources:** make chatbot attachment optional ([#332](https://github.com/akhileshrangani4/teachanything/issues/332)) ([9ed3231](https://github.com/akhileshrangani4/teachanything/commit/9ed3231b3cdf9fe241985b61620fc33881b27210))
+
+
+### Bug Fixes
+
+* **ci:** apply DB migrations on release deploy, not every main merge ([#335](https://github.com/akhileshrangani4/teachanything/issues/335)) ([7482456](https://github.com/akhileshrangani4/teachanything/commit/74824564e8a2a7cab8769b76d6c943b636c7f80f))
+* **db:** only tolerate a missing .env (ENOENT), fail fast on other load errors ([#336](https://github.com/akhileshrangani4/teachanything/issues/336)) ([800e46e](https://github.com/akhileshrangani4/teachanything/commit/800e46ebff1219abdda491a3fff2a5fdc6ebc7d8))
+
+## [1.22.1](https://github.com/akhileshrangani4/teachanything/compare/v1.22.0...v1.22.1) (2026-06-08)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump turbo from 2.9.6 to 2.9.16 ([#298](https://github.com/akhileshrangani4/teachanything/issues/298)) ([8ecbb26](https://github.com/akhileshrangani4/teachanything/commit/8ecbb2627f2c4218a4440168cfcc6a7082bfd965))
+* **deps:** bump @supabase/supabase-js from 2.104.1 to 2.105.1 in the supabase group ([#277](https://github.com/akhileshrangani4/teachanything/issues/277)) ([47cdf7b](https://github.com/akhileshrangani4/teachanything/commit/47cdf7b047f79f426ade37cfa7f9db826fc36196))
+* **deps:** bump @tanstack/react-query from 5.100.6 to 5.100.8 in the tanstack group ([#276](https://github.com/akhileshrangani4/teachanything/issues/276)) ([7a0d0a9](https://github.com/akhileshrangani4/teachanything/commit/7a0d0a9f9fd24c71336ad27dbd9112d63069c932))
+* **deps:** bump axios from 1.15.2 to 1.17.0 ([#310](https://github.com/akhileshrangani4/teachanything/issues/310)) ([ef73db4](https://github.com/akhileshrangani4/teachanything/commit/ef73db4d944d963e9e8c2752fc50742ca0c1c01d))
+* **deps:** bump better-auth from 1.4.9 to 1.6.11 ([#309](https://github.com/akhileshrangani4/teachanything/issues/309)) ([7765350](https://github.com/akhileshrangani4/teachanything/commit/776535003f94a614a8bd25fab0d6805d472bfa76))
+* **deps:** bump better-auth from 1.6.11 to 1.6.14 ([#320](https://github.com/akhileshrangani4/teachanything/issues/320)) ([e0286f6](https://github.com/akhileshrangani4/teachanything/commit/e0286f691489044474d867d114af7094fa9e9a22))
+* **deps:** bump kysely from 0.28.16 to 0.28.17 ([#285](https://github.com/akhileshrangani4/teachanything/issues/285)) ([aa35373](https://github.com/akhileshrangani4/teachanything/commit/aa353731de1455e78cabea562851240e96963a8d))
+* **deps:** bump langsmith from 0.5.21 to 0.7.5 ([#308](https://github.com/akhileshrangani4/teachanything/issues/308)) ([5a96905](https://github.com/akhileshrangani4/teachanything/commit/5a96905edaa03b399f4b61149ce1921d389050e9))
+* **deps:** bump marked from 18.0.2 to 18.0.3 in the markdown group ([#280](https://github.com/akhileshrangani4/teachanything/issues/280)) ([c607af4](https://github.com/akhileshrangani4/teachanything/commit/c607af476a0bd0eaf34f286ad2ce2952cb72076a))
+* **deps:** bump mermaid from 11.12.0 to 11.15.0 ([#284](https://github.com/akhileshrangani4/teachanything/issues/284)) ([89a6feb](https://github.com/akhileshrangani4/teachanything/commit/89a6feba95310e7ea264cd49bc2550d62321ec69))
+* **deps:** bump next from 16.2.4 to 16.2.6 ([#283](https://github.com/akhileshrangani4/teachanything/issues/283)) ([82f00bf](https://github.com/akhileshrangani4/teachanything/commit/82f00bf48575eead88eb9bba7b517aed666ac8e4))
+* **deps:** bump next from 16.2.6 to 16.2.7 ([#319](https://github.com/akhileshrangani4/teachanything/issues/319)) ([ffeee3c](https://github.com/akhileshrangani4/teachanything/commit/ffeee3c590c0981a714096f1f1fc83e173f31add))
+* **deps:** bump the ai-sdk group with 2 updates ([#274](https://github.com/akhileshrangani4/teachanything/issues/274)) ([83c8d70](https://github.com/akhileshrangani4/teachanything/commit/83c8d704681fe2b16fdfd8b835088caa8dde9684))
+* **deps:** bump the langchain group across 1 directory with 3 updates ([#286](https://github.com/akhileshrangani4/teachanything/issues/286)) ([f2e8d3b](https://github.com/akhileshrangani4/teachanything/commit/f2e8d3b8bd80d9f9fc9ea7c8cf5b4dac405a8aec))
+* **deps:** bump the small-safe-packages group across 1 directory with 4 updates ([#296](https://github.com/akhileshrangani4/teachanything/issues/296)) ([f742e88](https://github.com/akhileshrangani4/teachanything/commit/f742e880426f35ebefccb0331f46b1b84c527037))
+* **deps:** bump the tailwind group across 1 directory with 4 updates ([#292](https://github.com/akhileshrangani4/teachanything/issues/292)) ([d330620](https://github.com/akhileshrangani4/teachanything/commit/d330620f00ff0a60e61e4b310bdccf1ad158aad1))
+* **deps:** bump the trpc group with 4 updates ([#272](https://github.com/akhileshrangani4/teachanything/issues/272)) ([1d4c382](https://github.com/akhileshrangani4/teachanything/commit/1d4c3821baec9cb952789e0912e6fba71495bb01))
+
+## [1.22.0](https://github.com/akhileshrangani4/teachanything/compare/v1.21.0...v1.22.0) (2026-06-08)
+
+
+### Features
+
+* **analytics:** enhance chatbot analytics with session-level insights ([#305](https://github.com/akhileshrangani4/teachanything/issues/305)) ([992dccb](https://github.com/akhileshrangani4/teachanything/commit/992dccbd4beed9be4f6617070a0ab017493cc379))
+
+
+### Bug Fixes
+
+* **analytics:** correct common-questions counts and paginate the card ([#317](https://github.com/akhileshrangani4/teachanything/issues/317)) ([6e7d051](https://github.com/akhileshrangani4/teachanything/commit/6e7d051a18b1fcc4e552e9ff4996f98303dc7e48))
+
+## [1.21.0](https://github.com/akhileshrangani4/teachanything/compare/v1.20.1...v1.21.0) (2026-06-08)
+
+
+### Features
+
+* **web-sources:** add crawl/add controls to top-level Web Sources page ([#314](https://github.com/akhileshrangani4/teachanything/issues/314)) ([09e9883](https://github.com/akhileshrangani4/teachanything/commit/09e9883a131c4c983990753c4d465ff78e996743))
+
+
+### Miscellaneous Chores
+
+* **build:** exclude .next/standalone from turbo cache outputs ([#311](https://github.com/akhileshrangani4/teachanything/issues/311)) ([b350f85](https://github.com/akhileshrangani4/teachanything/commit/b350f852c3c31466a9f6e9b9073d1cfa97fad123))
+
 ## [1.20.1](https://github.com/akhileshrangani4/teachanything/compare/v1.20.0...v1.20.1) (2026-05-05)
 
 

@@ -9,6 +9,13 @@ export type FileSortBy =
   | "processingStatus"
   | "createdAt";
 
+export type WebSourceSortBy =
+  | "name"
+  | "pageCount"
+  | "status"
+  | "lastCrawledAt"
+  | "createdAt";
+
 export type ChatbotSortBy = "name" | "model" | "createdAt";
 
 export type UserSortBy = "name" | "email" | "role" | "status" | "createdAt";

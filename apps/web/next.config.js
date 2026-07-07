@@ -3,9 +3,10 @@ const nextConfig = {
   images: {
     qualities: [75, 90, 95, 100],
   },
-  // Externalize pdf-parse to avoid bundling issues
-  // pdf-parse uses Node.js-specific modules that can't be bundled by webpack
-  serverExternalPackages: ["pdf-parse"],
+  // Externalize parsers that can't be bundled. pdf-parse uses Node.js-specific
+  // modules; officeparser dynamically requires `file-type` at runtime, which the
+  // bundler fails to trace into the function chunk (Cannot find package 'file-type').
+  serverExternalPackages: ["pdf-parse", "officeparser"],
   output: "standalone",
 };
 

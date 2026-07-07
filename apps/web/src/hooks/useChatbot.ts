@@ -28,7 +28,9 @@ export function useChatbot(
     messageToSend ?? { chatbotId: "", message: "", sessionId: undefined },
     {
       enabled: !!messageToSend,
-      onData: state.handleStreamData,
+      // Events arrive as tracked envelopes ({ id, data }) so the server can
+      // tell a reconnect replay from a fresh message; unwrap the payload.
+      onData: (envelope) => state.handleStreamData(envelope.data),
       onError: state.handleStreamError,
     },
   );
@@ -61,6 +63,7 @@ export function useChatbot(
     setCurrentMessage: state.setCurrentMessage,
     isStreaming: state.isStreaming,
     isThinking: state.isThinking,
+    statusLabel: state.statusLabel,
     streamingContent: state.streamingContent,
     messagesEndRef: state.messagesEndRef,
     chatbot,

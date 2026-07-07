@@ -9,6 +9,10 @@
   <a href="https://github.com/akhileshrangani4/teachanything/commits/main"><img src="https://img.shields.io/github/last-commit/akhileshrangani4/teachanything" alt="Last Commit" /></a>
 </p>
 
+<p align="center">
+  <strong>New here?</strong> Start with <a href="./CONTRIBUTING.md">CONTRIBUTING.md</a> before opening an issue or PR. Using an AI coding assistant? Read <a href="./AGENTS.md">AGENTS.md</a>.
+</p>
+
 ---
 
 ## What is Teach Anything?

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const crawlSourceInput = z.object({
-  chatbotId: z.string().uuid(),
+  chatbotId: z.string().uuid().optional(),
   rootUrl: z.string().url(),
   crawlDepth: z.number().int().min(1).max(5).default(3),
   maxPages: z.number().int().min(1).max(500).default(100),
@@ -26,7 +26,7 @@ export const crawlSourceInput = z.object({
 });
 
 export const manualUrlInput = z.object({
-  chatbotId: z.string().uuid(),
+  chatbotId: z.string().uuid().optional(),
   url: z.string().url(),
 });
 
@@ -57,4 +57,12 @@ export const crawledPagesInput = z.object({
 export const allCrawlSourcesInput = z.object({
   limit: z.number().int().min(1).max(100).default(20),
   offset: z.number().int().min(0).default(0),
+  search: z.string().max(200).optional(),
+  status: z
+    .enum(["all", "crawling", "completed", "failed", "disabled"])
+    .default("all"),
+  sortBy: z
+    .enum(["name", "status", "lastCrawledAt", "createdAt"])
+    .default("createdAt"),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
 });

@@ -22,6 +22,7 @@ export default function EmbedWindowPage() {
     setCurrentMessage,
     isStreaming,
     isThinking,
+    statusLabel,
     streamingContent,
     messagesEndRef,
     chatbot,
@@ -71,6 +72,7 @@ export default function EmbedWindowPage() {
             messages={messages}
             isStreaming={isStreaming}
             isThinking={isThinking}
+            statusLabel={statusLabel}
             streamingContent={streamingContent}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}

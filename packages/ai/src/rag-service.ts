@@ -21,11 +21,11 @@ export class RAGService {
   private encoderInitialized: boolean = false;
 
   constructor() {
-    // Initialize text splitter with optimal chunk size
-    // Increased from 1000 to 2500 to reduce number of chunks for large files
+    // Chunk size tuned for citation precision (~250 tokens). Smaller chunks keep a
+    // single claim per embedding, improving close-reading recall (issue #271).
     this.textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 2500,
-      chunkOverlap: 250,
+      chunkSize: 1000,
+      chunkOverlap: 150,
       separators: ["\n\n", "\n", ".", " ", ""],
     });
 
@@ -61,6 +61,18 @@ export class RAGService {
     return text
       .replace(/\0/g, "") // Remove null bytes
       .replace(/[\x01-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, " ") // Replace control characters with spaces (excluding null byte)
+      .trim();
+  }
+
+  /**
+   * Like sanitizeText but preserves form-feed (\f, \x0C) characters so PDF page
+   * boundaries survive sanitization. Per-page text is sanitized normally (with
+   * sanitizeText) once pages are split in chunkPagedText.
+   */
+  private sanitizeTextPreservingFormFeed(text: string): string {
+    return text
+      .replace(/\0/g, "")
+      .replace(/[\x01-\x08\x0B\x0E-\x1F\x7F]/g, " ") // \x0C (\f) preserved
       .trim();
   }
 
@@ -135,8 +147,9 @@ export class RAGService {
         throw new Error("PDF parsing returned no text content");
       }
 
-      // Sanitize the text to remove null bytes and other problematic characters
-      const sanitizedText = this.sanitizeText(data.text);
+      // Sanitize the text to remove null bytes and other problematic characters,
+      // but preserve form-feed (\f) page boundaries for page-aware chunking (#271)
+      const sanitizedText = this.sanitizeTextPreservingFormFeed(data.text);
 
       if (!sanitizedText) {
         throw new Error("PDF contains no readable text content");
@@ -281,6 +294,50 @@ export class RAGService {
 
     const chunks = await this.textSplitter.splitText(content);
     return chunks;
+  }
+
+  /**
+   * Split text into pages on form-feed (\f) boundaries, then chunk WITHIN each
+   * page so no chunk spans a page. pageNumber is 1-based by position; empty pages
+   * produce no chunks but still consume a page number (preserves citation accuracy).
+   */
+  async chunkPagedText(
+    text: string,
+  ): Promise<Array<{ content: string; pageNumber: number }>> {
+    const pages = text.split("\f");
+    const result: Array<{ content: string; pageNumber: number }> = [];
+
+    for (let i = 0; i < pages.length; i++) {
+      const pageText = this.sanitizeText(pages[i] ?? "");
+      if (!pageText) continue;
+      const pageChunks = await this.textSplitter.splitText(pageText);
+      for (const content of pageChunks) {
+        if (content.trim().length === 0) continue;
+        result.push({ content, pageNumber: i + 1 });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Extract + chunk a file. PDFs get page-aware chunks (pageNumber set); all other
+   * types get plain chunks (pageNumber undefined).
+   */
+  async extractAndChunk(
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<Array<{ content: string; pageNumber?: number }>> {
+    if (mimeType === "application/pdf") {
+      const text = await this.extractPDF(buffer);
+      const paged = await this.chunkPagedText(text);
+      if (paged.length > 0) return paged;
+      const flat = await this.chunkText(text);
+      return flat.map((content) => ({ content, pageNumber: 1 }));
+    }
+    const content = await this.extractContent(buffer, mimeType);
+    const chunks = await this.chunkText(content);
+    return chunks.map((c) => ({ content: c }));
   }
 
   /**
