@@ -13,7 +13,7 @@ jest.mock("@/lib/logger", () => ({
 }));
 
 // Dynamic import after mocks are set up
-const { checkRateLimit } = await import("@/lib/rate-limit");
+const { checkRateLimit, requireRateLimit } = await import("@/lib/rate-limit");
 
 function mockLimiter(response: {
   success: boolean;
@@ -68,5 +68,29 @@ describe("checkRateLimit", () => {
     expect(limiter.limit).toHaveBeenCalledWith("test-user");
     expect(result.success).toBe(false);
     expect(result.remaining).toBe(0);
+  });
+});
+
+describe("requireRateLimit (fail-closed)", () => {
+  it("DENIES when limiter is null (Redis unavailable)", async () => {
+    const result = await requireRateLimit(null, "test-user");
+    // Unlike checkRateLimit, a missing limiter must fail closed so a
+    // Redis outage can't turn a paid endpoint into a free proxy.
+    expect(result.success).toBe(false);
+    expect(result.reset).toBeGreaterThan(Date.now());
+  });
+
+  it("delegates to the limiter when one is configured", async () => {
+    const limiter = mockLimiter({
+      success: true,
+      limit: 5,
+      remaining: 4,
+      reset: Date.now() + 60000,
+    });
+
+    const result = await requireRateLimit(limiter, "test-user");
+
+    expect(limiter.limit).toHaveBeenCalledWith("test-user");
+    expect(result.success).toBe(true);
   });
 });

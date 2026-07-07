@@ -118,6 +118,34 @@ export const recrawlRateLimit = createLimiter({
   prefix: "@ratelimit/recrawl",
 });
 
+// Rate limiter for voice transcription (authenticated users)
+// 10 transcriptions per 10 minutes per user. Each call can be up to a
+// 3-minute clip, so the per-call cost is meaningfully higher than chat.
+export const transcriptionRateLimit = createLimiter({
+  window: [10, "10 m"],
+  prefix: "@ratelimit/transcription",
+});
+
+// Rate limiter for voice transcription on public/shared links
+// 5 per 10 minutes per IP+shareToken. Shared links have no userId,
+// so abuse is bounded per (IP, chatbot) pair.
+export const publicTranscriptionRateLimit = createLimiter({
+  window: [5, "10 m"],
+  prefix: "@ratelimit/transcription-public",
+});
+
+// Global per-shareToken cap for public voice transcription, keyed on the
+// shareToken alone (no IP). The per-(IP, shareToken) limiter above can be
+// defeated by rotating spoofed/rotating IPs; this bounds total Whisper
+// spend attributable to a single shared link regardless of source IP.
+// Set well above the per-IP limit so legitimate multi-user classrooms
+// aren't throttled, but low enough that a single token can't run up an
+// unbounded bill.
+export const publicTranscriptionGlobalRateLimit = createLimiter({
+  window: [20, "10 m"],
+  prefix: "@ratelimit/transcription-public-global",
+});
+
 // Rate limiter for conversation search
 // 20 searches per minute per user (each is an unindexed ILIKE scan)
 export const conversationSearchRateLimit = createLimiter({

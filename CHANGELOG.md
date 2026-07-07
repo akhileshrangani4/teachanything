@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.29.0](https://github.com/akhileshrangani4/teachanything/compare/v1.28.5...v1.29.0) (2026-07-07)
+
+
+### Features
+
+* **chat:** add multilingual voice input via Whisper ([#307](https://github.com/akhileshrangani4/teachanything/issues/307)) ([78d1c64](https://github.com/akhileshrangani4/teachanything/commit/78d1c6475bd6a7f4580ff3c47c38be72982747ee))
+
 ## [1.28.5](https://github.com/akhileshrangani4/teachanything/compare/v1.28.4...v1.28.5) (2026-07-07)
 
 

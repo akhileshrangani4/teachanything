@@ -559,6 +559,14 @@ export default function PrivacyPolicyPage() {
               relevant document excerpts. Only text content is sent; no personal
               account information is included.
             </li>
+            <li>
+              <strong>OpenAI (voice input)</strong> -- If you use the microphone
+              button to dictate a question, your audio recording is sent to
+              OpenAI&rsquo;s Whisper speech-to-text service for transcription.
+              The audio is not stored in our application; only the resulting
+              text is inserted into the chat input for you to review and send.
+              Voice input is optional; the text input always remains available.
+            </li>
           </ul>
 
           <h3>Cloud Storage</h3>

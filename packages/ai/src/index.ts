@@ -5,3 +5,4 @@ export * from "./openrouter-client";
 export * from "./rag-service";
 export * from "./rrf";
 export * from "./token-budget";
+export * from "./transcription";
