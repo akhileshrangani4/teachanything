@@ -113,7 +113,7 @@ describe("syncUserToResendAudience", () => {
     });
   });
 
-  it("returns false and logs when Resend responds with an error", async () => {
+  it("returns false and logs the Resend error when Resend responds with an error", async () => {
     mockContactsCreate.mockResolvedValue({
       data: null,
       error: { name: "validation_error", message: "Invalid email" },
@@ -125,7 +125,11 @@ describe("syncUserToResendAudience", () => {
     });
 
     expect(result).toBe(false);
-    expect(mockLogError).toHaveBeenCalled();
+    expect(mockLogError).toHaveBeenCalledWith(
+      { name: "validation_error", message: "Invalid email" },
+      "Failed to add contact to Resend audience",
+      { email: "prof@university.edu" },
+    );
   });
 
   it("returns false and logs when the request throws", async () => {

@@ -29,11 +29,9 @@ export async function syncUserToResendAudience(params: {
     });
 
     if (error) {
-      logError(
-        new Error(error.message),
-        "Failed to add contact to Resend audience",
-        { email: params.email },
-      );
+      logError(error, "Failed to add contact to Resend audience", {
+        email: params.email,
+      });
       return false;
     }
 
