@@ -31,7 +31,11 @@ import {
 } from "@/lib/rate-limit";
 import { buildRAGContext, type RAGContextResult } from "../rag-context";
 import { createRetrievalTools } from "../retrieval-tools";
-import { clampMaxTokens, describeToolActivity } from "../chat-helpers";
+import {
+  clampMaxTokens,
+  describeToolActivity,
+  mergeSources,
+} from "../chat-helpers";
 import type { db as DbType } from "@teachanything/db";
 
 /**
@@ -200,16 +204,15 @@ async function* processMessage(params: {
   const useTools =
     modelSupportsTools(chatbot.model) && ragResult.fileIds.length > 0;
 
-  // Send RAG sources now that they're available (static path only). The
-  // agentic path's sources aren't known until its tools run, so it emits its
-  // own metadata event after streaming. The client handles metadata events
+  // Send RAG sources now that they're available. Both paths inject the
+  // pre-fetched hybrid-search results, so the initial sources are known up
+  // front; the agentic path may add more as its tools run and re-emits a
+  // merged list after streaming. The client handles metadata events
   // idempotently (updates only fields that are present).
-  if (!useTools) {
-    yield {
-      type: "metadata" as const,
-      sources: ragResult.sources,
-    };
-  }
+  yield {
+    type: "metadata" as const,
+    sources: ragResult.sources,
+  };
 
   // Build message history for AI (budget-trimmed)
   // Stored conversation turns are only user/assistant; the system prompt is
@@ -332,13 +335,14 @@ async function* processMessage(params: {
   }
 
   /**
-   * AGENTIC retrieval path: give the model retrieval tools and let it search
-   * the attached documents during the turn. No static context injection; the
-   * model is forced to call `search_documents` on the first step. Yields the
-   * same wire events as the static path. Returns the accumulated response,
-   * finish reason, whether any tool call happened, and a captured `done`
-   * answer (the `done` tool has no execute -- its answer lives in the
-   * tool-call args).
+   * AGENTIC retrieval path: inject the pre-fetched hybrid-search results as
+   * context AND give the model retrieval tools for follow-up searches. The
+   * common case (initial retrieval suffices) answers in a single LLM round
+   * trip, matching static-path latency; the model only pays extra round trips
+   * when it genuinely needs to search again. Yields the same wire events as
+   * the static path. Returns the accumulated response, finish reason, whether
+   * any tool call happened, and a captured `done` answer (the `done` tool has
+   * no execute -- its answer lives in the tool-call args).
    */
   async function* streamAgentic(): AsyncGenerator<
     | { type: "text"; content: string }
@@ -352,13 +356,20 @@ async function* processMessage(params: {
     void
   > {
     const groundingRule =
-      "\n\nYou can search the attached documents using tools. You MUST call search_documents before stating whether the documents do or do not contain something. " +
+      "\n\nYou can search the attached documents using tools." +
+      (ragResult.contextText
+        ? " The passages above were already retrieved by searching the documents for the user's message; search again only when they are insufficient."
+        : "") +
+      " You MUST check the retrieved passages or call search_documents before stating whether the documents do or do not contain something. " +
       "If a search returns nothing, say you couldn't find it in the materials rather than denying it exists. " +
       "Do NOT put inline citations, source tags, page numbers, bracketed reference markers, or JSON anchors " +
       '(e.g. "(file.pdf, p. 2)" or "【…】") in your answer text -- the app shows the user the sources ' +
       "separately. Reply in clean prose.";
     const systemPrompt =
-      chatbot.systemPrompt + ragResult.fileManifest + groundingRule;
+      chatbot.systemPrompt +
+      ragResult.fileManifest +
+      ragResult.contextText +
+      groundingRule;
 
     const result = await aiClient.streamText({
       model: modelId,
@@ -375,13 +386,6 @@ async function* processMessage(params: {
         OpenRouterClient["streamText"]
       >[0]["tools"],
       stopWhen: [stepCountIs(4), hasToolCall("done")],
-      prepareStep: async ({ stepNumber }) =>
-        stepNumber === 0
-          ? {
-              toolChoice: { type: "tool", toolName: "search_documents" },
-              activeTools: ["search_documents"],
-            }
-          : {},
     });
 
     let agenticResponse = "";
@@ -489,9 +493,8 @@ async function* processMessage(params: {
   let fullResponse: string;
   let finishReason: FinishReason | undefined;
   // Final source list for persistence + the metadata event. Static path uses
-  // ragResult.sources; agentic path maps toolSources (which carry pageNumber).
-  // similarity is coerced from null -> 0 so existing consumers (which expect a
-  // number and dedupe/score on it) keep working.
+  // ragResult.sources; agentic path merges in toolSources (which carry
+  // pageNumber) from any follow-up searches the model ran.
   let finalSources: RAGContextResult["sources"];
   let ragUsedFlag: boolean;
 
@@ -511,8 +514,6 @@ async function* processMessage(params: {
           anyToolCall: agentic.anyToolCall,
         },
       );
-      // Emit RAG sources for the fallback path (agentic suppressed them above).
-      yield { type: "metadata" as const, sources: ragResult.sources };
       const fallback = yield* streamStatic();
       fullResponse = fallback.fullResponse;
       finishReason = fallback.finishReason;
@@ -521,15 +522,13 @@ async function* processMessage(params: {
     } else {
       fullResponse = agentic.fullResponse;
       finishReason = agentic.finishReason;
-      finalSources = toolSources.map((s) => ({
-        fileName: s.fileName,
-        chunkIndex: s.chunkIndex,
-        similarity: s.similarity ?? 0,
-        pageNumber: s.pageNumber,
-      }));
+      finalSources = mergeSources(ragResult.sources, toolSources);
       ragUsedFlag = finalSources.length > 0;
-      // Agentic sources are only known after the tools run, so emit them now.
-      yield { type: "metadata" as const, sources: finalSources };
+      // Follow-up tool searches discovered sources beyond the injected
+      // context -- re-emit the merged list (client overwrites idempotently).
+      if (toolSources.length > 0) {
+        yield { type: "metadata" as const, sources: finalSources };
+      }
     }
   } else {
     const staticResult = yield* streamStatic();

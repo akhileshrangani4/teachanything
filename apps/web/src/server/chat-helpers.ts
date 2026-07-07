@@ -17,6 +17,49 @@ export function clampMaxTokens(maxTokens: number | null | undefined): number {
   return Math.max(MIN_TOKENS, Math.min(MAX_TOKENS, maxTokens));
 }
 
+export interface ChatSource {
+  fileName: string;
+  chunkIndex: number;
+  similarity: number;
+  pageNumber?: number | null;
+}
+
+export interface ToolSource {
+  fileName: string;
+  chunkIndex: number;
+  pageNumber: number | null;
+  similarity: number | null;
+}
+
+/**
+ * Merge the statically-injected RAG sources with sources accumulated from
+ * agentic tool calls, deduping by file + chunk. Injected sources keep their
+ * position; tool-discovered chunks are appended in call order. Tool similarity
+ * is coerced null -> 0 so existing consumers (which expect a number and
+ * dedupe/score on it) keep working.
+ */
+export function mergeSources(
+  ragSources: ChatSource[],
+  toolSources: ToolSource[],
+): ChatSource[] {
+  const seen = new Set(
+    ragSources.map((s) => `${s.fileName}\u0000${s.chunkIndex}`),
+  );
+  const merged = [...ragSources];
+  for (const s of toolSources) {
+    const key = `${s.fileName}\u0000${s.chunkIndex}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push({
+      fileName: s.fileName,
+      chunkIndex: s.chunkIndex,
+      similarity: s.similarity ?? 0,
+      pageNumber: s.pageNumber,
+    });
+  }
+  return merged;
+}
+
 /**
  * Map an agentic retrieval tool-call to a human-readable status label shown in
  * the live status line while the model works. Only the action + the

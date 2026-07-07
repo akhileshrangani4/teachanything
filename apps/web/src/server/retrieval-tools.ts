@@ -133,6 +133,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
           rows.map((r) => ({
             chunkId: "",
             fileId,
+            storagePath: "",
             fileName: r.fileName,
             chunkIndex: r.chunkIndex,
             pageNumber:
