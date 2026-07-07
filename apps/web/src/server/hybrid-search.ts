@@ -17,6 +17,8 @@ export interface HybridChunk {
   chunkId: string;
   fileId: string;
   fileName: string;
+  /** Supabase path for uploads, source URL for crawled pages. */
+  storagePath: string;
   chunkIndex: number;
   pageNumber: number | null;
   content: string;
@@ -62,42 +64,47 @@ export async function hybridSearch(
     isNotNull(fileChunks.embedding),
   );
 
-  // 1. Vector candidates (HNSW, distance ascending)
-  const vectorRows = await db
-    .select({
-      chunkId: fileChunks.id,
-      similarity: sql<number>`1 - (${fileChunks.embedding} <=> ${embeddingLiteral})`,
-    })
-    .from(fileChunks)
-    .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-    .where(baseWhere)
-    .orderBy(sql`${fileChunks.embedding} <=> ${embeddingLiteral}`)
-    .limit(overfetch);
+  // The three retrievers are independent -- run them concurrently. Still
+  // three queries (and three pool connections), but wall-clock cost drops
+  // from the sum of all three to the slowest one.
+  const [vectorRows, ftsRows, trgmRows] = await Promise.all([
+    // 1. Vector candidates (HNSW, distance ascending)
+    db
+      .select({
+        chunkId: fileChunks.id,
+        similarity: sql<number>`1 - (${fileChunks.embedding} <=> ${embeddingLiteral})`,
+      })
+      .from(fileChunks)
+      .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
+      .where(baseWhere)
+      .orderBy(sql`${fileChunks.embedding} <=> ${embeddingLiteral}`)
+      .limit(overfetch),
 
-  // 2. Full-text candidates (websearch_to_tsquery + ts_rank_cd)
-  const ftsRows = await db
-    .select({ chunkId: fileChunks.id })
-    .from(fileChunks)
-    .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-    .where(
-      and(
-        baseWhere,
-        sql`to_tsvector('english', ${fileChunks.content}) @@ websearch_to_tsquery('english', ${query})`,
-      ),
-    )
-    .orderBy(
-      sql`ts_rank_cd(to_tsvector('english', ${fileChunks.content}), websearch_to_tsquery('english', ${query})) DESC`,
-    )
-    .limit(overfetch);
+    // 2. Full-text candidates (websearch_to_tsquery + ts_rank_cd)
+    db
+      .select({ chunkId: fileChunks.id })
+      .from(fileChunks)
+      .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
+      .where(
+        and(
+          baseWhere,
+          sql`to_tsvector('english', ${fileChunks.content}) @@ websearch_to_tsquery('english', ${query})`,
+        ),
+      )
+      .orderBy(
+        sql`ts_rank_cd(to_tsvector('english', ${fileChunks.content}), websearch_to_tsquery('english', ${query})) DESC`,
+      )
+      .limit(overfetch),
 
-  // 3. Trigram candidates (similarity DESC). Uses pg_trgm % operator.
-  const trgmRows = await db
-    .select({ chunkId: fileChunks.id })
-    .from(fileChunks)
-    .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-    .where(and(baseWhere, sql`${fileChunks.content} % ${query}`))
-    .orderBy(sql`similarity(${fileChunks.content}, ${query}) DESC`)
-    .limit(overfetch);
+    // 3. Trigram candidates (similarity DESC). Uses pg_trgm % operator.
+    db
+      .select({ chunkId: fileChunks.id })
+      .from(fileChunks)
+      .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
+      .where(and(baseWhere, sql`${fileChunks.content} % ${query}`))
+      .orderBy(sql`similarity(${fileChunks.content}, ${query}) DESC`)
+      .limit(overfetch),
+  ]);
 
   // Fuse via RRF. FTS weighted higher when the user quoted an exact phrase.
   const ftsWeight = hasQuotedPhrase(query) ? 2 : 1;
@@ -118,6 +125,7 @@ export async function hybridSearch(
       chunkId: fileChunks.id,
       fileId: fileChunks.fileId,
       fileName: userFiles.fileName,
+      storagePath: userFiles.storagePath,
       chunkIndex: fileChunks.chunkIndex,
       metadata: fileChunks.metadata,
       content: fileChunks.content,
@@ -134,6 +142,7 @@ export async function hybridSearch(
       chunkId: r.chunkId,
       fileId: r.fileId,
       fileName: r.fileName,
+      storagePath: r.storagePath,
       chunkIndex: r.chunkIndex,
       pageNumber:
         (r.metadata as { pageNumber?: number } | null)?.pageNumber ?? null,

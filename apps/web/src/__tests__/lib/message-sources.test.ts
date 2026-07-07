@@ -1,5 +1,9 @@
 import { describe, it, expect } from "@jest/globals";
-import { dedupeSourcesByFileName, describeSource } from "@/lib/message-sources";
+import {
+  dedupeSourcesByFileName,
+  describeSource,
+  sourceDisplayName,
+} from "@/lib/message-sources";
 
 describe("dedupeSourcesByFileName", () => {
   it("keeps the highest-similarity chunk per file", () => {
@@ -41,6 +45,36 @@ describe("dedupeSourcesByFileName", () => {
 
   it("returns the input untouched when empty", () => {
     expect(dedupeSourcesByFileName([])).toEqual([]);
+  });
+});
+
+describe("sourceDisplayName", () => {
+  it("collapses crawler URLs to Web: <hostname>", () => {
+    expect(
+      sourceDisplayName("Course Syllabus", "https://example.edu/syllabus"),
+    ).toBe("Web: example.edu");
+    expect(sourceDisplayName("Page", "http://sub.example.com/a/b?q=1")).toBe(
+      "Web: sub.example.com",
+    );
+  });
+
+  it("keeps the file name for storage-path uploads", () => {
+    expect(sourceDisplayName("syllabus.pdf", "uploads/user/syllabus.pdf")).toBe(
+      "syllabus.pdf",
+    );
+  });
+
+  it("keeps the file name when storagePath is missing", () => {
+    expect(sourceDisplayName("syllabus.pdf", null)).toBe("syllabus.pdf");
+    expect(sourceDisplayName("syllabus.pdf", undefined)).toBe("syllabus.pdf");
+  });
+
+  it("falls back to the raw name on a malformed URL", () => {
+    expect(sourceDisplayName("page.html", "http://")).toBe("page.html");
+  });
+
+  it("labels an empty file name as Unknown", () => {
+    expect(sourceDisplayName("", "uploads/x")).toBe("Unknown");
   });
 });
 

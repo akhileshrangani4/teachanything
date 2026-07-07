@@ -5,6 +5,7 @@ import { fileChunks, userFiles } from "@teachanything/db/schema";
 import type { db as DbType } from "@teachanything/db";
 import type { OpenRouterClient } from "@teachanything/ai/openrouter";
 import { hybridSearch, type HybridChunk } from "./hybrid-search";
+import { sourceDisplayName } from "@/lib/message-sources";
 import {
   searchDocumentsInput,
   getPageInput,
@@ -35,7 +36,9 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
   const record = (chunks: HybridChunk[]) => {
     for (const c of chunks) {
       sources.push({
-        fileName: c.fileName,
+        // Same display normalization as the static path (Web: <hostname> for
+        // crawled pages) so merged source lists dedupe on matching names.
+        fileName: sourceDisplayName(c.fileName, c.storagePath),
         chunkIndex: c.chunkIndex,
         pageNumber: c.pageNumber,
         similarity: c.vectorSimilarity,
@@ -111,10 +114,12 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         if (!ctx.fileIds.includes(fileId)) return { error: "Unknown document" };
         const rows = await ctx.db
           .select({
+            chunkId: fileChunks.id,
             content: fileChunks.content,
             chunkIndex: fileChunks.chunkIndex,
             metadata: fileChunks.metadata,
             fileName: userFiles.fileName,
+            storagePath: userFiles.storagePath,
           })
           .from(fileChunks)
           .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
@@ -131,8 +136,9 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
           .orderBy(asc(fileChunks.chunkIndex));
         record(
           rows.map((r) => ({
-            chunkId: "",
+            chunkId: r.chunkId,
             fileId,
+            storagePath: r.storagePath,
             fileName: r.fileName,
             chunkIndex: r.chunkIndex,
             pageNumber:

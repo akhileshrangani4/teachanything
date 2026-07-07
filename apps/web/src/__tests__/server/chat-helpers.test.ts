@@ -1,5 +1,9 @@
 import { describe, it, expect } from "@jest/globals";
-import { clampMaxTokens, describeToolActivity } from "@/server/chat-helpers";
+import {
+  clampMaxTokens,
+  describeToolActivity,
+  mergeSources,
+} from "@/server/chat-helpers";
 
 describe("clampMaxTokens", () => {
   it("returns the default for null/undefined/NaN", () => {
@@ -47,5 +51,57 @@ describe("describeToolActivity", () => {
   it("never throws on missing input and uses a generic fallback", () => {
     expect(describeToolActivity("done", undefined)).toBe("Working…");
     expect(describeToolActivity("unknown_tool", null)).toBe("Working…");
+  });
+});
+
+describe("mergeSources", () => {
+  const rag = (fileName: string, chunkIndex: number, similarity = 0.8) => ({
+    fileName,
+    chunkIndex,
+    similarity,
+  });
+  const tool = (
+    fileName: string,
+    chunkIndex: number,
+    similarity: number | null = 0.5,
+    pageNumber: number | null = null,
+  ) => ({ fileName, chunkIndex, similarity, pageNumber });
+
+  it("returns rag sources unchanged when no tool sources exist", () => {
+    const sources = [rag("a.pdf", 0), rag("b.pdf", 3)];
+    expect(mergeSources(sources, [])).toEqual(sources);
+  });
+
+  it("appends tool-discovered chunks after the injected sources", () => {
+    const merged = mergeSources([rag("a.pdf", 0)], [tool("b.pdf", 2, 0.6, 4)]);
+    expect(merged).toEqual([
+      rag("a.pdf", 0),
+      { fileName: "b.pdf", chunkIndex: 2, similarity: 0.6, pageNumber: 4 },
+    ]);
+  });
+
+  it("dedupes by file + chunk, keeping the injected source", () => {
+    const merged = mergeSources(
+      [rag("a.pdf", 0, 0.9)],
+      [tool("a.pdf", 0, 0.4), tool("a.pdf", 1)],
+    );
+    expect(merged).toHaveLength(2);
+    expect(merged[0]).toEqual(rag("a.pdf", 0, 0.9));
+    expect(merged[1]?.chunkIndex).toBe(1);
+  });
+
+  it("dedupes repeated tool sources (same chunk hit by multiple searches)", () => {
+    const merged = mergeSources([], [tool("a.pdf", 5), tool("a.pdf", 5)]);
+    expect(merged).toHaveLength(1);
+  });
+
+  it("coerces null tool similarity to 0", () => {
+    const merged = mergeSources([], [tool("a.pdf", 1, null)]);
+    expect(merged[0]?.similarity).toBe(0);
+  });
+
+  it("does not conflate same chunk index across different files", () => {
+    const merged = mergeSources([rag("a.pdf", 1)], [tool("b.pdf", 1)]);
+    expect(merged).toHaveLength(2);
   });
 });
