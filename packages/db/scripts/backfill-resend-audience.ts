@@ -74,12 +74,14 @@ async function backfill() {
         },
       );
 
+      // Always consume the body so undici can reuse the connection
+      const body = await res.text();
+
       if (res.ok) {
         synced++;
         console.log(`[${i + 1}/${users.length}] synced ${u.email}`);
       } else {
         failed++;
-        const body = await res.text();
         console.error(
           `[${i + 1}/${users.length}] FAILED ${u.email}: ${res.status} ${body}`,
         );
@@ -89,10 +91,14 @@ async function backfill() {
     }
 
     console.log(`Done: ${synced} synced, ${failed} failed`);
-    if (failed > 0) process.exit(1);
+    // exitCode (not process.exit) so the finally block still runs
+    if (failed > 0) process.exitCode = 1;
   } finally {
     await sql.end();
   }
 }
 
-backfill();
+backfill().catch((error) => {
+  console.error("Backfill failed:", error);
+  process.exitCode = 1;
+});
