@@ -1,7 +1,7 @@
 // Centralized model registry -- single source of truth for all model metadata.
 // All consumers import from here; no independent model definitions elsewhere.
 
-export type Provider = "Meta" | "Qwen" | "OpenAI" | "DeepSeek";
+export type Provider = "Meta" | "Qwen" | "OpenAI" | "DeepSeek" | "Mistral";
 
 export interface ModelMetadata {
   id: string;
@@ -52,6 +52,17 @@ export const MODEL_REGISTRY = {
     contextWindow: 131_072,
     supportsTools: true,
   },
+  // Successor to the retired mistral-large-2411 (open weights). Passed the
+  // live agentic-retrieval eval on OpenRouter 2026-07-07: reliable
+  // search_documents calls with valid args, grounded answers, graceful
+  // not-found handling across repeated runs.
+  "mistralai/mistral-large-2512": {
+    id: "mistralai/mistral-large-2512",
+    displayName: "Mistral Large 3",
+    provider: "Mistral",
+    contextWindow: 262_144,
+    supportsTools: true,
+  },
 } as const satisfies Record<string, ModelMetadata>;
 
 /**
@@ -84,10 +95,13 @@ export const DEPRECATED_MODEL_MAP: Record<string, SupportedModel> = {
   // Qwen 3 235B -> the cheaper, larger-context 2507 revision.
   "qwen/qwen3-235b-a22b": "qwen/qwen3-235b-a22b-2507",
   "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b-2507",
-  // Mistral dropped (mistral-large-2411 retired from OpenRouter) and Gemma
-  // dropped (unreliable tool-calling) -> migrate to the default tool model.
-  "mistralai/mistral-large": "meta-llama/llama-3.3-70b-instruct",
-  "mistralai/mistral-large-2411": "meta-llama/llama-3.3-70b-instruct",
+  // mistral-large-2411 was retired from OpenRouter; its successor
+  // (Mistral Large 3) is back in the registry, so bots that chose Mistral
+  // return to Mistral instead of staying on the Llama stopgap.
+  "mistralai/mistral-large": "mistralai/mistral-large-2512",
+  "mistralai/mistral-large-2411": "mistralai/mistral-large-2512",
+  // Gemma dropped (unreliable tool-calling) -> migrate to the default
+  // tool model.
   "google/gemma-4-31b-it": "meta-llama/llama-3.3-70b-instruct",
   // Nemotron 3 Super dropped: OpenRouter serves it in v2 compatibility mode
   // where the step-0 forced tool choice silently never fires, so the agentic

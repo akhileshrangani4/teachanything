@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.31.0](https://github.com/akhileshrangani4/teachanything/compare/v1.30.0...v1.31.0) (2026-07-07)
+
+
+### Features
+
+* **ai:** add Mistral Large 3 to the model lineup ([#375](https://github.com/akhileshrangani4/teachanything/issues/375)) ([851c170](https://github.com/akhileshrangani4/teachanything/commit/851c170df5777e879ab08ca45dba8f54995caa3f))
+
 ## [1.30.0](https://github.com/akhileshrangani4/teachanything/compare/v1.29.0...v1.30.0) (2026-07-07)
 
 
