@@ -2,8 +2,11 @@
  * Resend Audience Backfill Script
  *
  * One-time backfill: pushes every already-approved user into the Resend
- * audience configured via RESEND_AUDIENCE_ID. Safe to re-run -- Resend
- * deduplicates contacts by email within an audience.
+ * audience configured via RESEND_AUDIENCE_ID. Safe to re-run in that it
+ * never removes contacts and omits `unsubscribed`, so an existing opt-out
+ * is never overwritten. Resend does not document duplicate-create
+ * semantics, so already-synced contacts may be reported as failures on
+ * re-runs.
  *
  * Usage:
  *   npx tsx packages/db/scripts/backfill-resend-audience.ts
@@ -37,8 +40,13 @@ if (!databaseUrl || !resendApiKey || !audienceId) {
   process.exit(1);
 }
 
-// Resend's API allows 2 requests/second -- stay under it
-const REQUEST_DELAY_MS = 600;
+// Resend's documented default rate limit is 10 requests/second per team --
+// stay well under it to leave room for concurrent app traffic
+const REQUEST_DELAY_MS = 250;
+
+// Node's fetch has no overall deadline; bound each request so one hung
+// connection can't stall the serial loop
+const REQUEST_TIMEOUT_MS = 15_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -58,33 +66,38 @@ async function backfill() {
     let failed = 0;
 
     for (const [i, u] of users.entries()) {
-      const res = await fetch(
-        `https://api.resend.com/audiences/${audienceId}/contacts`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
+      try {
+        const res = await fetch(
+          `https://api.resend.com/audiences/${audienceId}/contacts`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${resendApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: u.email,
+              first_name: u.name || undefined,
+            }),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
           },
-          body: JSON.stringify({
-            email: u.email,
-            first_name: u.name ?? undefined,
-            unsubscribed: false,
-          }),
-        },
-      );
-
-      // Always consume the body so undici can reuse the connection
-      const body = await res.text();
-
-      if (res.ok) {
-        synced++;
-        console.log(`[${i + 1}/${users.length}] synced ${u.email}`);
-      } else {
-        failed++;
-        console.error(
-          `[${i + 1}/${users.length}] FAILED ${u.email}: ${res.status} ${body}`,
         );
+
+        // Always consume the body so undici can reuse the connection
+        const body = await res.text();
+
+        if (res.ok) {
+          synced++;
+          console.log(`[${i + 1}/${users.length}] synced ${u.email}`);
+        } else {
+          failed++;
+          console.error(
+            `[${i + 1}/${users.length}] FAILED ${u.email}: ${res.status} ${body}`,
+          );
+        }
+      } catch (error) {
+        failed++;
+        console.error(`[${i + 1}/${users.length}] FAILED ${u.email}:`, error);
       }
 
       if (i < users.length - 1) await sleep(REQUEST_DELAY_MS);
