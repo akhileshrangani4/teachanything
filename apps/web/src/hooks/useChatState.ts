@@ -188,9 +188,15 @@ export function useChatState() {
   };
 
   /** Shared onError handler for tRPC streaming subscriptions. */
-  const handleStreamError = () => {
+  const handleStreamError = (error?: { data?: { code?: string } | null }) => {
     clearStreamingTimeout();
-    toast.error("Failed to send message. Please try again.");
+    // CONFLICT is the server refusing an EventSource reconnect replay: the
+    // stream died mid-turn and regenerating would duplicate the answer.
+    toast.error(
+      error?.data?.code === "CONFLICT"
+        ? "The connection was interrupted. Keeping the partial response."
+        : "Failed to send message. Please try again.",
+    );
     setIsStreaming(false);
     setIsThinking(false);
     setStatusLabel(null);

@@ -64,8 +64,9 @@ export async function hybridSearch(
     isNotNull(fileChunks.embedding),
   );
 
-  // The three retrievers are independent -- run them concurrently so the
-  // search costs one DB round trip instead of three.
+  // The three retrievers are independent -- run them concurrently. Still
+  // three queries (and three pool connections), but wall-clock cost drops
+  // from the sum of all three to the slowest one.
   const [vectorRows, ftsRows, trgmRows] = await Promise.all([
     // 1. Vector candidates (HNSW, distance ascending)
     db

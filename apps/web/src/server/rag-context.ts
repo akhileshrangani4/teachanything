@@ -7,6 +7,7 @@ import {
   crawlSources,
 } from "@teachanything/db/schema";
 import { hybridSearch } from "./hybrid-search";
+import { sourceDisplayName } from "@/lib/message-sources";
 import {
   createOpenRouterClient,
   EMBEDDING_MODEL,
@@ -223,19 +224,10 @@ export async function buildRAGContext(
     relevantChunks
       .map((chunk) => {
         const rawName = chunk.fileName || "Unknown";
-        // Crawler-sourced files have storagePath as a URL. Collapse the
-        // display name to "Web: <hostname>" so many pages from one site
-        // dedupe into a single source badge in the UI.
-        let displayName = rawName;
-        if (chunk.storagePath && /^https?:\/\//i.test(chunk.storagePath)) {
-          try {
-            displayName = `Web: ${new URL(chunk.storagePath).hostname}`;
-          } catch {
-            // malformed URL, fall back to raw filename
-          }
-        }
         sources.push({
-          fileName: displayName,
+          // Crawler-sourced files collapse to "Web: <hostname>" so many pages
+          // from one site dedupe into a single source badge in the UI.
+          fileName: sourceDisplayName(chunk.fileName, chunk.storagePath),
           chunkIndex: chunk.chunkIndex,
           // D-05: real similarity in metadata only. Chunks surfaced by the
           // lexical retrievers (FTS/trigram) but outside the vector top-k have

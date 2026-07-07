@@ -11,7 +11,7 @@ import {
 } from "@teachanything/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { TRPCError } from "@trpc/server";
+import { TRPCError, tracked } from "@trpc/server";
 import {
   createOpenRouterClient,
   resolveModel,
@@ -198,11 +198,15 @@ async function* processMessage(params: {
   }
 
   // Tool-capable models with at least one searchable file use the AGENTIC
-  // retrieval path: the model calls retrieval tools mid-turn instead of
-  // receiving statically-injected chunks. Everything else uses the STATIC
-  // path (today's behavior).
+  // retrieval path: the model gets the pre-fetched context plus retrieval
+  // tools for follow-up searches. Everything else uses the STATIC path.
+  // A ragFailureNote means embeddings are down -- tool searches would fail
+  // the same way, so take the static path, whose prompt carries the note
+  // instructing the model to tell the user document search is unavailable.
   const useTools =
-    modelSupportsTools(chatbot.model) && ragResult.fileIds.length > 0;
+    modelSupportsTools(chatbot.model) &&
+    ragResult.fileIds.length > 0 &&
+    !ragResult.ragFailureNote;
 
   // Send RAG sources now that they're available. Both paths inject the
   // pre-fetched hybrid-search results, so the initial sources are known up
@@ -609,6 +613,38 @@ async function* processMessage(params: {
   };
 }
 
+/**
+ * Guard against EventSource replay. tRPC's httpSubscriptionLink auto-
+ * reconnects when a stream dies abnormally (function timeout, network drop,
+ * or a retryable error code like INTERNAL_SERVER_ERROR) and re-invokes the
+ * subscription with the same input plus the last received event id. For chat
+ * that would silently regenerate the whole answer: duplicate LLM cost,
+ * duplicate message inserts, and new deltas appended onto the partial text
+ * already on screen. A lastEventId can only mean such a reconnect, so refuse
+ * with CONFLICT -- a non-retryable code -- which the client surfaces as a
+ * terminal "interrupted" error while keeping the partial response.
+ */
+function rejectStreamReplay(lastEventId: string | null | undefined): void {
+  if (!lastEventId) return;
+  throw new TRPCError({
+    code: "CONFLICT",
+    message: "The response stream was interrupted.",
+  });
+}
+
+/**
+ * Wrap every stream event in tracked() so the browser's EventSource carries a
+ * Last-Event-ID on reconnect, which rejectStreamReplay uses to distinguish a
+ * replay from a fresh message. IDs are opaque; only their presence matters.
+ */
+async function* trackEvents<T>(events: AsyncIterable<T>) {
+  const streamId = nanoid();
+  let seq = 0;
+  for await (const event of events) {
+    yield tracked(`${streamId}:${seq++}`, event);
+  }
+}
+
 export const chatRouter = router({
   /**
    * Send message to chatbot with streaming (protected - requires auth)
@@ -624,10 +660,16 @@ export const chatRouter = router({
           .max(30)
           .regex(/^[a-zA-Z0-9_-]+$/)
           .optional(),
+        // Populated by tRPC from the Last-Event-ID header when the client's
+        // EventSource reconnects after a dropped stream. Never sent on a
+        // fresh message.
+        lastEventId: z.string().nullish(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {
       try {
+        rejectStreamReplay(input.lastEventId);
+
         // Rate limit per user
         const { success } = await checkRateLimit(
           authenticatedChatRateLimit,
@@ -659,13 +701,15 @@ export const chatRouter = router({
           });
         }
 
-        yield* processMessage({
-          chatbot,
-          message: input.message,
-          sessionId: input.sessionId,
-          db: ctx.db,
-          eventType: "message_sent",
-        });
+        yield* trackEvents(
+          processMessage({
+            chatbot,
+            message: input.message,
+            sessionId: input.sessionId,
+            db: ctx.db,
+            eventType: "message_sent",
+          }),
+        );
       } catch (error) {
         if (error instanceof TRPCError) throw error;
 
@@ -695,10 +739,16 @@ export const chatRouter = router({
           .max(30)
           .regex(/^[a-zA-Z0-9_-]+$/)
           .optional(),
+        // Populated by tRPC from the Last-Event-ID header when the client's
+        // EventSource reconnects after a dropped stream. Never sent on a
+        // fresh message.
+        lastEventId: z.string().nullish(),
       }),
     )
     .subscription(async function* ({ ctx, input }) {
       try {
+        rejectStreamReplay(input.lastEventId);
+
         // Rate limit by IP + share token (public endpoint, no userId available)
         const clientIp =
           ctx.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -733,13 +783,15 @@ export const chatRouter = router({
           });
         }
 
-        yield* processMessage({
-          chatbot,
-          message: input.message,
-          sessionId: input.sessionId,
-          db: ctx.db,
-          eventType: "shared_message_sent",
-        });
+        yield* trackEvents(
+          processMessage({
+            chatbot,
+            message: input.message,
+            sessionId: input.sessionId,
+            db: ctx.db,
+            eventType: "shared_message_sent",
+          }),
+        );
       } catch (error) {
         if (error instanceof TRPCError) throw error;
 
