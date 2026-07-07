@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.5](https://github.com/akhileshrangani4/teachanything/compare/v1.28.4...v1.28.5) (2026-07-07)
+
+
+### Bug Fixes
+
+* **chat:** cut agentic RAG latency and harden stream transport ([#370](https://github.com/akhileshrangani4/teachanything/issues/370)) ([cad7843](https://github.com/akhileshrangani4/teachanything/commit/cad7843d76e4b1adfb85cb947ddcc60b6d873f25))
+
 ## [1.28.4](https://github.com/akhileshrangani4/teachanything/compare/v1.28.3...v1.28.4) (2026-06-29)
 
 
