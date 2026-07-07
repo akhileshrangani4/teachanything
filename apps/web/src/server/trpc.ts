@@ -25,6 +25,13 @@ export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 // Initialize tRPC
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
+  sse: {
+    // Keep-alive comments on subscription streams. Agentic chat turns can go
+    // 10-30s with nothing on the wire (tool execution, reasoning phases);
+    // idle SSE connections get dropped by proxies, and a drop makes the
+    // client's EventSource reconnect and replay the whole message.
+    ping: { enabled: true, intervalMs: 10_000 },
+  },
   errorFormatter({ shape, error }) {
     // Only surface Zod validation errors to the client. Spreading any
     // `cause.message` leaks provider/internal error details (upstream URLs,

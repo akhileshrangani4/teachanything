@@ -1,12 +1,13 @@
-import { eq, and, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
 import {
-  fileChunks,
   chatbotFileAssociations,
   chatbotCrawlSourceAssociations,
   userFiles,
   crawledPages,
   crawlSources,
 } from "@teachanything/db/schema";
+import { hybridSearch } from "./hybrid-search";
+import { sourceDisplayName } from "@/lib/message-sources";
 import {
   createOpenRouterClient,
   EMBEDDING_MODEL,
@@ -33,8 +34,7 @@ export interface RAGContextResult {
     fileName: string;
     chunkIndex: number;
     similarity: number;
-    // Optional: only the agentic retrieval path supplies page numbers. The
-    // static path leaves it undefined so existing consumers keep validating.
+    // Present when the chunk carries page metadata (page-aware PDF ingestion).
     pageNumber?: number | null;
   }>;
   ragUsed: boolean;
@@ -49,8 +49,9 @@ export interface RAGContextResult {
  * Build RAG context for a chatbot message.
  *
  * Queries completed files, builds a file manifest with anti-hallucination
- * instructions, generates a query embedding, performs vector similarity search,
- * and formats chunk context with source attribution.
+ * instructions, generates a query embedding, runs the same hybrid search
+ * (vector + full-text + trigram, RRF-fused) the agentic tools use, and formats
+ * chunk context with source attribution.
  *
  * Returns fileManifest even when embedding fails (file awareness without RAG).
  */
@@ -190,33 +191,19 @@ export async function buildRAGContext(
     };
   }
 
-  // 5. Vector similarity search with all fixes
+  // 5. Hybrid retrieval (vector + FTS + trigram, RRF-fused). Same retriever
+  // the agentic search_documents tool uses, so both chat paths share one
+  // embedding and one search implementation.
   const effectiveChunkLimit =
     params.chunkLimit ?? Math.min(fileIds.length * 2, 30);
 
-  // D-06, RAG-03: Real cosine similarity in SELECT
-  const similarityExpr = sql<number>`1 - (${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)})`;
-
-  const relevantChunks = await params.db
-    .select({
-      content: fileChunks.content,
-      chunkIndex: fileChunks.chunkIndex,
-      fileName: userFiles.fileName,
-      storagePath: userFiles.storagePath,
-      similarity: similarityExpr,
-    })
-    .from(fileChunks)
-    .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-    .where(
-      and(
-        inArray(fileChunks.fileId, fileIds),
-        eq(userFiles.processingStatus, "completed"), // D-08: defense-in-depth
-        isNotNull(fileChunks.embedding), // D-09, RAG-06
-      ),
-    )
-    // CRITICAL: ORDER BY raw distance ascending to use HNSW index
-    .orderBy(sql`${fileChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}`)
-    .limit(effectiveChunkLimit);
+  const relevantChunks = await hybridSearch({
+    db: params.db,
+    fileIds,
+    query: params.message,
+    queryEmbedding,
+    limit: effectiveChunkLimit,
+  });
 
   // 6. Format chunks with source attribution (D-04)
   const sources: RAGContextResult["sources"] = [];
@@ -237,21 +224,16 @@ export async function buildRAGContext(
     relevantChunks
       .map((chunk) => {
         const rawName = chunk.fileName || "Unknown";
-        // Crawler-sourced files have storagePath as a URL. Collapse the
-        // display name to "Web: <hostname>" so many pages from one site
-        // dedupe into a single source badge in the UI.
-        let displayName = rawName;
-        if (chunk.storagePath && /^https?:\/\//i.test(chunk.storagePath)) {
-          try {
-            displayName = `Web: ${new URL(chunk.storagePath).hostname}`;
-          } catch {
-            // malformed URL, fall back to raw filename
-          }
-        }
         sources.push({
-          fileName: displayName,
+          // Crawler-sourced files collapse to "Web: <hostname>" so many pages
+          // from one site dedupe into a single source badge in the UI.
+          fileName: sourceDisplayName(chunk.fileName, chunk.storagePath),
           chunkIndex: chunk.chunkIndex,
-          similarity: chunk.similarity, // D-05: real similarity in metadata only
+          // D-05: real similarity in metadata only. Chunks surfaced by the
+          // lexical retrievers (FTS/trigram) but outside the vector top-k have
+          // no vector similarity -- record 0 rather than a fake score.
+          similarity: chunk.vectorSimilarity ?? 0,
+          pageNumber: chunk.pageNumber,
         });
         // D-04: give the LLM the actual page title/URL for accurate citations
         return `[Source: ${rawName}, Part ${chunk.chunkIndex + 1}]\n${chunk.content}`;
