@@ -4,7 +4,6 @@ type CreateContactPayload = {
   audienceId: string;
   email: string;
   firstName?: string;
-  unsubscribed?: boolean;
 };
 
 type CreateContactResponse = {
@@ -21,6 +20,7 @@ const mockContactsCreate =
 const mockResend = jest.fn();
 const mockIsServiceAvailable = jest.fn<(service: string) => boolean>();
 const mockEnv: { RESEND_API_KEY?: string; RESEND_AUDIENCE_ID?: string } = {};
+const mockLogWarn = jest.fn();
 const mockLogError = jest.fn();
 
 // Use unstable_mockModule for ESM compatibility
@@ -33,6 +33,7 @@ jest.unstable_mockModule("@/lib/env", () => ({
 
 jest.unstable_mockModule("@/lib/logger", () => ({
   logInfo: jest.fn(),
+  logWarn: mockLogWarn,
   logError: mockLogError,
 }));
 
@@ -49,7 +50,7 @@ describe("syncUserToResendAudience", () => {
     mockEnv.RESEND_AUDIENCE_ID = "aud_123";
   });
 
-  it("returns false without calling Resend when the API key is not configured", async () => {
+  it("warns and returns false without calling Resend when the API key is not configured", async () => {
     mockIsServiceAvailable.mockReturnValue(false);
 
     const result = await syncUserToResendAudience({
@@ -59,9 +60,10 @@ describe("syncUserToResendAudience", () => {
 
     expect(result).toBe(false);
     expect(mockContactsCreate).not.toHaveBeenCalled();
+    expect(mockLogWarn).toHaveBeenCalled();
   });
 
-  it("returns false without calling Resend when RESEND_AUDIENCE_ID is not configured", async () => {
+  it("warns and returns false without calling Resend when RESEND_AUDIENCE_ID is not configured", async () => {
     mockEnv.RESEND_AUDIENCE_ID = undefined;
 
     const result = await syncUserToResendAudience({
@@ -71,6 +73,7 @@ describe("syncUserToResendAudience", () => {
 
     expect(result).toBe(false);
     expect(mockContactsCreate).not.toHaveBeenCalled();
+    expect(mockLogWarn).toHaveBeenCalled();
   });
 
   it("adds the contact to the configured audience and returns true", async () => {
@@ -90,7 +93,6 @@ describe("syncUserToResendAudience", () => {
       audienceId: "aud_123",
       email: "prof@university.edu",
       firstName: "Prof Joubin",
-      unsubscribed: false,
     });
   });
 
@@ -109,7 +111,6 @@ describe("syncUserToResendAudience", () => {
       audienceId: "aud_123",
       email: "prof@university.edu",
       firstName: undefined,
-      unsubscribed: false,
     });
   });
 
@@ -142,5 +143,31 @@ describe("syncUserToResendAudience", () => {
 
     expect(result).toBe(false);
     expect(mockLogError).toHaveBeenCalled();
+  });
+
+  it("returns false and logs when the request exceeds the timeout", async () => {
+    jest.useFakeTimers();
+    try {
+      mockContactsCreate.mockReturnValue(
+        new Promise<CreateContactResponse>(() => {}),
+      );
+
+      const promise = syncUserToResendAudience({
+        email: "prof@university.edu",
+        name: "Prof Joubin",
+      });
+      await jest.advanceTimersByTimeAsync(10_000);
+
+      await expect(promise).resolves.toBe(false);
+      expect(mockLogError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining("timed out"),
+        }),
+        "Failed to add contact to Resend audience",
+        { email: "prof@university.edu" },
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
