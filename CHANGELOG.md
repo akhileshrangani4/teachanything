@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.30.0](https://github.com/akhileshrangani4/teachanything/compare/v1.29.0...v1.30.0) (2026-07-07)
+
+
+### Features
+
+* **embed:** enable voice input in embedded chatbots via delegation opt-in ([#373](https://github.com/akhileshrangani4/teachanything/issues/373)) ([7a3bbc4](https://github.com/akhileshrangani4/teachanything/commit/7a3bbc4fa70f6f9222ce5b78ba8dd8b407d38380))
+
 ## [1.29.0](https://github.com/akhileshrangani4/teachanything/compare/v1.28.5...v1.29.0) (2026-07-07)
 
 
