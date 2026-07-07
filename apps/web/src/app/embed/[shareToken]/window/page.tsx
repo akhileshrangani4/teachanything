@@ -8,6 +8,7 @@ import { EmbedError } from "@/components/embed/EmbedError";
 import { EmbedHeader } from "@/components/embed/EmbedHeader";
 import { EmbedFooter } from "@/components/embed/EmbedFooter";
 import { useEmbedVisibility } from "@/hooks/useEmbedVisibility";
+import { useEmbedVoice } from "@/hooks/useEmbedVoice";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function EmbedWindowPage() {
@@ -15,6 +16,7 @@ export default function EmbedWindowPage() {
   const shareToken =
     typeof params.shareToken === "string" ? params.shareToken : "";
   const { isMounted, isVisible, withExitX, close } = useEmbedVisibility();
+  const voiceInputEnabled = useEmbedVoice();
 
   const {
     messages,
@@ -86,13 +88,16 @@ export default function EmbedWindowPage() {
             embedMode={true}
             showSources={chatbot.showSources ?? false}
             shareToken={shareToken}
-            // Voice disabled in embeds: getUserMedia() inside a third-party
-            // iframe requires the embedding page to set
-            // `<iframe allow="microphone">`, which most embedders won't.
-            // Rather than ship a half-working mic that fails silently on
-            // most sites, the feature stays off here. Re-enable per-embed
-            // once we expose an opt-in flag on the share configuration.
-            voiceInputEnabled={false}
+            // Voice in embeds is opt-in: getUserMedia() inside a
+            // third-party iframe only works when the embedding page sets
+            // `<iframe allow="microphone">`. Current embed snippets carry
+            // that attribute plus a `voice=1` URL param; useEmbedVoice
+            // requires the param and, where the browser exposes the
+            // Permissions Policy API, verifies the delegation actually
+            // survived (some CMS editors strip iframe attributes). Older
+            // pasted embeds have neither and stay text-only rather than
+            // showing a mic that can never get permission.
+            voiceInputEnabled={voiceInputEnabled}
           />
         </ErrorBoundary>
       </div>
