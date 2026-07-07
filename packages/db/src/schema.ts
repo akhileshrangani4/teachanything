@@ -375,6 +375,11 @@ export const analytics = pgTable(
         ragSimilarityScore?: number;
         sourcesCount?: number;
         question?: string;
+        // Voice transcription event fields
+        audioBytes?: number;
+        durationSeconds?: number | null;
+        transcriptLength?: number;
+        surface?: "authenticated" | "shared";
       }>()
       .default({}),
     sessionId: text("session_id"),
