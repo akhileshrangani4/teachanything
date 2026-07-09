@@ -337,6 +337,12 @@ export const messages = pgTable(
         responseTime?: number;
         model?: string;
         ragUsed?: boolean;
+        // Structured study-tool payloads: the assistant UIMessage `parts`
+        // (incl. tool-call parts). Typed `unknown[]` here because this package
+        // must not import app code or the `ai` package; the app casts to
+        // UIMessagePart[] when rehydrating.
+        parts?: unknown[];
+        truncated?: boolean;
       }>()
       .default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
