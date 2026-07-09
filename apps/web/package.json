@@ -14,6 +14,7 @@
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -42,6 +43,7 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "@vercel/analytics": "^1.6.1",
+    "ai": "^6.0.175",
     "bcryptjs": "^3.0.3",
     "better-auth": "^1.6.14",
     "class-variance-authority": "^0.7.1",
