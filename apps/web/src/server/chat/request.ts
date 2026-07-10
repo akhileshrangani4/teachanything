@@ -15,8 +15,16 @@ const MAX_MESSAGE_CHARS = 16000;
  */
 const incomingMessageSchema = z.object({
   role: z.string().optional(),
+  // Bound the array length and per-part text so an oversized payload is rejected
+  // at the boundary instead of being filtered/joined before the length cap.
   parts: z
-    .array(z.object({ type: z.string(), text: z.string().optional() }))
+    .array(
+      z.object({
+        type: z.string(),
+        text: z.string().max(MAX_MESSAGE_CHARS).optional(),
+      }),
+    )
+    .max(64)
     .optional(),
 });
 

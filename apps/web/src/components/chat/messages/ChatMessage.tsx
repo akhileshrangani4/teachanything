@@ -93,9 +93,7 @@ export function ChatMessage({
                   </MessageContent>
                 );
               case "tool-showQuiz":
-                // Render once the model has finished filling the input. Earlier
-                // states (input-streaming / errors) render nothing -- the typing
-                // indicator covers the gap.
+                // Render once the model has finished filling the input.
                 if (
                   part.state === "input-available" ||
                   part.state === "output-available"
@@ -108,6 +106,23 @@ export function ChatMessage({
                     />
                   );
                 }
+                // The model produced a malformed quiz (input failed validation
+                // -> output-error). Surface a notice instead of a blank bubble;
+                // without this the message renders nothing at all.
+                if (part.state === "output-error") {
+                  return (
+                    <div
+                      key={part.toolCallId}
+                      className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>
+                        Couldn&apos;t build the quiz. Try asking again.
+                      </span>
+                    </div>
+                  );
+                }
+                // input-streaming: the typing indicator covers the gap.
                 return null;
               default:
                 // Retrieval tool parts, reasoning, step markers, etc. are not

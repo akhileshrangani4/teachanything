@@ -449,6 +449,11 @@ export async function streamChat(params: {
       writer.write({ type: "finish", finishReason, messageMetadata: metadata });
     },
     onFinish: async ({ responseMessage }) => {
+      // On a client disconnect or the stream timeout, the generation was cut
+      // short -- don't persist a partial assistant turn (or its analytics). The
+      // user message was already saved up front, so the turn just has no reply.
+      if (abortSignal.aborted) return;
+
       // Strip retrieval-tool parts (raw chunk outputs) before persisting: the
       // professor dashboard viewer only needs text + study-tool parts.
       const persistedParts = responseMessage.parts.filter(
@@ -499,9 +504,12 @@ export async function streamChat(params: {
             responseTime: finalResponseTime,
             messageLength: messageText.length,
             responseLength: content.length,
-            ragUsed: ragResult.ragUsed,
+            // Use the merged final sources (initial RAG + tool-retrieved) so an
+            // agentic turn whose sources came only from tool calls isn't logged
+            // as ragUsed:false / sourcesCount:0 alongside a real similarity.
+            ragUsed: ragUsedFlag,
             ragSimilarityScore,
-            sourcesCount: ragResult.sources.length,
+            sourcesCount: finalSources.length,
             question: messageText.slice(0, 500),
           },
           sessionId,
@@ -509,7 +517,7 @@ export async function streamChat(params: {
         logInfo("Chat message processed", {
           chatbotId: chatbot.id,
           sessionId,
-          responseTime,
+          responseTime: finalResponseTime,
           eventType,
         });
       } catch (err) {

@@ -63,6 +63,10 @@ export function useChat(shareToken: string) {
   };
 
   const resetChat = () => {
+    // Abort any in-flight stream first: re-keying useChat below discards the old
+    // Chat without cancelling its request, so without this the server keeps
+    // generating (burning tokens) until the timeout.
+    void chat.stop();
     chat.setMessages([]);
     setCurrentMessage("");
     // Start a fresh server-side conversation (matches the prior behavior). The
