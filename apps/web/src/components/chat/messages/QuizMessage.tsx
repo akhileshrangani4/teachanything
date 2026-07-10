@@ -16,9 +16,15 @@ import { Check, X, RotateCcw, Trophy } from "lucide-react";
 
 interface QuizMessageProps {
   quiz: Quiz;
+  /**
+   * Read-only reveal (professor dashboard): show every question with its
+   * correct answer + explanation inline, and no answer-taking flow. Students
+   * get the default interactive widget.
+   */
+  readOnly?: boolean;
 }
 
-export function QuizMessage({ quiz }: QuizMessageProps) {
+export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
   const total = quiz.questions.length;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -67,6 +73,57 @@ export function QuizMessage({ quiz }: QuizMessageProps) {
   // Schema guarantees at least one question, but the indexed access is
   // optional under strict settings -- guard so TS is satisfied.
   if (!question) return null;
+
+  // Read-only reveal for the professor dashboard: every question with its
+  // correct answer highlighted and explanation shown, no answer submission.
+  if (readOnly) {
+    return (
+      <Card className="bg-secondary">
+        <CardHeader>
+          <CardTitle className="text-base md:text-lg">
+            {quiz.quiz_title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {quiz.questions.map((q, qi) => (
+            <div key={qi} className="flex flex-col gap-2">
+              <p className="text-sm md:text-base font-medium">
+                {qi + 1}. {q.question}
+              </p>
+              <div className="flex flex-col gap-2">
+                {q.options.map((option, optionIndex) => {
+                  const isCorrect = option === q.correct_answer;
+                  return (
+                    <div
+                      key={`${optionIndex}-${option}`}
+                      aria-label={`${option}${isCorrect ? " (correct answer)" : ""}`}
+                      className={cn(
+                        "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm",
+                        isCorrect
+                          ? "border-green-500/60 bg-green-500/10 text-green-700 dark:text-green-400"
+                          : "border-border/40 bg-background opacity-70",
+                      )}
+                    >
+                      <span>{option}</span>
+                      {isCorrect && (
+                        <Check
+                          className="h-4 w-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-xs md:text-sm text-muted-foreground">
+                {q.explanation}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (finished) {
     return (

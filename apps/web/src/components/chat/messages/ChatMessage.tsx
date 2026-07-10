@@ -18,6 +18,8 @@ import { dedupeSourcesByFileName } from "@/lib/message-sources";
 interface ChatMessageProps {
   message: StudyUIMessage;
   showSources?: boolean;
+  /** Render study-tool widgets read-only (professor dashboard viewer). */
+  readOnly?: boolean;
 }
 
 /** Concatenate the text of all `text` parts (newline-joined). */
@@ -34,6 +36,7 @@ function textOf(message: StudyUIMessage): string {
 export function ChatMessage({
   message,
   showSources = false,
+  readOnly = false,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const sources = useMemo(
@@ -98,7 +101,11 @@ export function ChatMessage({
                   part.state === "output-available"
                 ) {
                   return (
-                    <QuizMessage key={part.toolCallId} quiz={part.input} />
+                    <QuizMessage
+                      key={part.toolCallId}
+                      quiz={part.input}
+                      readOnly={readOnly}
+                    />
                   );
                 }
                 return null;

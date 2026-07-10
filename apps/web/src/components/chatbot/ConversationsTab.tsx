@@ -601,6 +601,7 @@ function ConversationDetail({
                     key={msg.id}
                     message={rowToUIMessage(msg)}
                     showSources
+                    readOnly
                   />
                 ))}
             </div>
