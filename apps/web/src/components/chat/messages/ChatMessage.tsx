@@ -22,6 +22,20 @@ interface ChatMessageProps {
   readOnly?: boolean;
 }
 
+/**
+ * Shown when the model produced a malformed quiz whose input failed validation
+ * (arrives as an `output-error` tool part). Without it the message renders
+ * nothing at all -- a blank assistant bubble.
+ */
+function QuizErrorNotice() {
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic">
+      <AlertTriangle className="h-3 w-3" />
+      <span>Couldn&apos;t build the quiz. Try asking again.</span>
+    </div>
+  );
+}
+
 /** Concatenate the text of all `text` parts (newline-joined). */
 function textOf(message: StudyUIMessage): string {
   return message.parts
@@ -107,22 +121,24 @@ export function ChatMessage({
                   );
                 }
                 // The model produced a malformed quiz (input failed validation
-                // -> output-error). Surface a notice instead of a blank bubble;
-                // without this the message renders nothing at all.
+                // -> output-error). Surface a notice instead of a blank bubble.
                 if (part.state === "output-error") {
-                  return (
-                    <div
-                      key={part.toolCallId}
-                      className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic"
-                    >
-                      <AlertTriangle className="h-3 w-3" />
-                      <span>
-                        Couldn&apos;t build the quiz. Try asking again.
-                      </span>
-                    </div>
-                  );
+                  return <QuizErrorNotice key={part.toolCallId} />;
                 }
                 // input-streaming: the typing indicator covers the gap.
+                return null;
+              case "dynamic-tool":
+                // A tool call the provider returned atomically (no preceding
+                // input-start) lands as a `dynamic-tool` part. A valid quiz
+                // renders as `tool-showQuiz` above; only the invalid case (which
+                // the SDK flags dynamic) reaches here -- show the same notice
+                // rather than a blank bubble.
+                if (
+                  part.toolName === "showQuiz" &&
+                  part.state === "output-error"
+                ) {
+                  return <QuizErrorNotice key={part.toolCallId} />;
+                }
                 return null;
               default:
                 // Retrieval tool parts, reasoning, step markers, etc. are not
