@@ -35,6 +35,30 @@ describe("rowToUIMessage", () => {
     });
     expect(msg.parts).toEqual(parts);
   });
+
+  it("carries metadata (sources/truncated/responseTime) for the dashboard viewer", () => {
+    const sources = [{ fileName: "a.pdf", chunkIndex: 1, similarity: 0.9 }];
+    const msg = rowToUIMessage({
+      id: "m4",
+      role: "assistant",
+      content: "hi",
+      metadata: { sources, truncated: true, responseTime: 120 },
+    });
+    expect(msg.metadata?.sources).toEqual(sources);
+    expect(msg.metadata?.truncated).toBe(true);
+    expect(msg.metadata?.responseTime).toBe(120);
+  });
+
+  it("leaves metadata fields undefined for a legacy row", () => {
+    const msg = rowToUIMessage({
+      id: "m5",
+      role: "assistant",
+      content: "legacy",
+      metadata: {},
+    });
+    expect(msg.metadata?.sources).toBeUndefined();
+    expect(msg.metadata?.truncated).toBeUndefined();
+  });
 });
 
 describe("extractText", () => {
@@ -51,6 +75,21 @@ describe("extractText", () => {
         { type: "text", text: "b" },
       ] as never),
     ).toBe("a\nb");
+  });
+
+  it("returns empty string for a quiz-only turn (no text parts)", () => {
+    // Load-bearing: this empty content drives the `content.trim() ||
+    // hasStudyPart` persistence branch so quiz-only turns still save.
+    expect(
+      extractText([
+        {
+          type: "tool-showQuiz",
+          toolCallId: "c",
+          state: "input-available",
+          input: {},
+        },
+      ] as never),
+    ).toBe("");
   });
 });
 
