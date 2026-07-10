@@ -14,6 +14,7 @@ import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
 import { RETRIEVAL_PART_TYPES } from "@/lib/retrieval-tool-names";
+import { describeToolActivity } from "@/server/chat-helpers";
 import { toast } from "sonner";
 
 /** Derive the live status line client-side (reasoning is never streamed). */
@@ -26,7 +27,12 @@ function deriveStatusLine(
   const parts = last?.role === "assistant" ? last.parts : [];
   const lastPart = parts[parts.length - 1];
   if (lastPart && RETRIEVAL_PART_TYPES.has(lastPart.type)) {
-    return "Searching documents…";
+    // Retrieval tool *inputs* stream to the client (only results are filtered
+    // server-side), so the label can name the query/page being fetched.
+    return describeToolActivity(
+      lastPart.type.slice("tool-".length),
+      "input" in lastPart ? lastPart.input : undefined,
+    );
   }
   if (isThinking) return "Thinking…";
   return "Thinking…";
