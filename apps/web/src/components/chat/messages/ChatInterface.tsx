@@ -38,7 +38,13 @@ function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
   return message.parts.some(
     (p) =>
       (p.type === "text" && p.text.trim().length > 0) ||
-      p.type === "tool-showQuiz",
+      // A quiz part only renders once its input is complete (or errored);
+      // while the input is still streaming, ChatMessage shows nothing, so
+      // keep the typing indicator up.
+      (p.type === "tool-showQuiz" &&
+        (p.state === "input-available" ||
+          p.state === "output-available" ||
+          p.state === "output-error")),
   );
 }
 
