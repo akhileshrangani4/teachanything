@@ -24,14 +24,12 @@ export default function EmbedWindowPage() {
     setCurrentMessage,
     isStreaming,
     isThinking,
-    statusLabel,
-    streamingContent,
     messagesEndRef,
     chatbot,
     chatbotLoading,
     handleSendMessage,
     resetChat,
-    stopStreaming,
+    stop,
     error,
   } = useChat(shareToken);
 
@@ -74,15 +72,13 @@ export default function EmbedWindowPage() {
             messages={messages}
             isStreaming={isStreaming}
             isThinking={isThinking}
-            statusLabel={statusLabel}
-            streamingContent={streamingContent}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
             resetChat={resetChat}
-            stopStreaming={stopStreaming}
+            stop={stop}
             height="h-full"
             hideHeader={withExitX}
             embedMode={true}

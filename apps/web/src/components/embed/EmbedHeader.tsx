@@ -2,7 +2,7 @@ import { X, RotateCcw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportChatAsText } from "@/lib/export-chat";
 import { toast } from "sonner";
-import type { ChatMessage } from "@/types/database";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
 
 interface EmbedHeaderProps {
   chatbotName: string;
@@ -10,7 +10,7 @@ interface EmbedHeaderProps {
   isStreaming: boolean;
   onReset: () => void;
   onClose: () => void;
-  messages: ChatMessage[];
+  messages: StudyUIMessage[];
 }
 
 export function EmbedHeader({

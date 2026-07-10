@@ -1,4 +1,14 @@
-import type { ChatMessage } from "@/types/database";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
+import { extractText } from "@/server/chat/ui-messages";
+
+/** Flatten a UIMessage into the plain { role, content, sources } shape export needs. */
+function toExportRows(messages: StudyUIMessage[]) {
+  return messages.map((message) => ({
+    role: message.role,
+    content: extractText(message.parts),
+    sources: message.metadata?.sources,
+  }));
+}
 
 /**
  * Exports chat messages as a formatted text file
@@ -7,13 +17,14 @@ import type { ChatMessage } from "@/types/database";
  * @param includeSources - Whether to include source citations
  */
 export function exportChatAsText(
-  messages: ChatMessage[],
+  uiMessages: StudyUIMessage[],
   chatbotName: string,
   includeSources: boolean = true,
 ): void {
-  if (messages.length === 0) {
+  if (uiMessages.length === 0) {
     return;
   }
+  const messages = toExportRows(uiMessages);
 
   const date = new Date().toLocaleString();
   let content = `Chat Export: ${chatbotName}\n`;
@@ -63,12 +74,13 @@ export function exportChatAsText(
  * @param chatbotName - Name of the chatbot
  */
 export function exportChatAsJSON(
-  messages: ChatMessage[],
+  uiMessages: StudyUIMessage[],
   chatbotName: string,
 ): void {
-  if (messages.length === 0) {
+  if (uiMessages.length === 0) {
     return;
   }
+  const messages = toExportRows(uiMessages);
 
   const exportData = {
     chatbotName,

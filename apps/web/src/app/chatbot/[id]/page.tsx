@@ -71,14 +71,12 @@ export default function ChatbotDetailPage() {
     setCurrentMessage,
     isStreaming,
     isThinking,
-    statusLabel,
-    streamingContent,
     messagesEndRef,
     chatbot,
     chatbotLoading,
     handleSendMessage,
     resetChat,
-    stopStreaming,
+    stop,
   } = useChatbot(chatbotId, session);
 
   // Fetch files associated with this chatbot (will be paginated in ChatbotFilesTab)
@@ -216,8 +214,6 @@ export default function ChatbotDetailPage() {
                 messages={messages}
                 isStreaming={isStreaming}
                 isThinking={isThinking}
-                statusLabel={statusLabel}
-                streamingContent={streamingContent}
                 currentMessage={currentMessage}
                 setCurrentMessage={setCurrentMessage}
                 handleSendMessage={handleSendMessage}
@@ -226,7 +222,7 @@ export default function ChatbotDetailPage() {
                 }
                 chatbotName={chatbot.name || "Chatbot"}
                 resetChat={resetChat}
-                stopStreaming={stopStreaming}
+                stop={stop}
                 showSources={chatbot.showSources ?? false}
                 chatbotId={chatbot.id}
                 voiceInputEnabled

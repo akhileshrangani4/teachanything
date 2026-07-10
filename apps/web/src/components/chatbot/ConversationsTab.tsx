@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "@/components/chat/messages/ChatMessage";
-import type { ChatMessage as ChatMessageType } from "@/types/database";
+import { rowToUIMessage } from "@/server/chat/ui-messages";
 import {
   Select,
   SelectContent,
@@ -596,20 +596,13 @@ function ConversationDetail({
                   (m): m is typeof m & { role: "user" | "assistant" } =>
                     m.role === "user" || m.role === "assistant",
                 )
-                .map((msg) => {
-                  const chatMessage: ChatMessageType = {
-                    role: msg.role,
-                    content: msg.content,
-                    sources: msg.metadata?.sources,
-                  };
-                  return (
-                    <ChatMessage
-                      key={msg.id}
-                      message={chatMessage}
-                      showSources
-                    />
-                  );
-                })}
+                .map((msg) => (
+                  <ChatMessage
+                    key={msg.id}
+                    message={rowToUIMessage(msg)}
+                    showSources
+                  />
+                ))}
             </div>
             {data.totalCount > limit && (
               <div className="flex items-center justify-between pt-3 border-t shrink-0">

@@ -1,4 +1,8 @@
-import type { ChatMessage as MessageType } from "@/types/database";
+"use client";
+
+import { useMemo } from "react";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
+import { QuizMessage } from "./QuizMessage";
 import {
   Message,
   MessageContent,
@@ -7,15 +11,24 @@ import {
   MessageAvatar,
 } from "@/components/ui/message";
 import { CopyButton } from "@/components/ui/copy-button";
-import { TypingLoader } from "@/components/ui/loader";
 import { SourceBadge } from "@/components/ui/source-badge";
-import { FileText, StopCircle, AlertTriangle } from "lucide-react";
-import { useMemo } from "react";
+import { FileText, AlertTriangle } from "lucide-react";
 import { dedupeSourcesByFileName } from "@/lib/message-sources";
 
 interface ChatMessageProps {
-  message: MessageType;
+  message: StudyUIMessage;
   showSources?: boolean;
+}
+
+/** Concatenate the text of all `text` parts (newline-joined). */
+function textOf(message: StudyUIMessage): string {
+  return message.parts
+    .filter(
+      (p): p is Extract<(typeof message.parts)[number], { type: "text" }> =>
+        p.type === "text",
+    )
+    .map((p) => p.text)
+    .join("\n");
 }
 
 export function ChatMessage({
@@ -23,11 +36,13 @@ export function ChatMessage({
   showSources = false,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
-
-  const uniqueSources = useMemo(
-    () => dedupeSourcesByFileName(message.sources ?? []),
-    [message.sources],
+  const sources = useMemo(
+    () => dedupeSourcesByFileName(message.metadata?.sources ?? []),
+    [message.metadata?.sources],
   );
+  const truncated = message.metadata?.truncated;
+  const textContent = textOf(message);
+  const hasContent = textContent.trim().length > 0;
 
   if (isUser) {
     return (
@@ -37,43 +52,18 @@ export function ChatMessage({
             markdown={false}
             className="bg-primary/10 text-foreground whitespace-pre-wrap shadow-xs border border-primary/20"
           >
-            {message.content}
+            {textContent}
           </MessageContent>
           <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
             <MessageAction tooltip="Copy message">
               <CopyButton
-                text={message.content}
+                text={textContent}
                 successMessage="Message copied to clipboard"
                 errorMessage="Failed to copy message"
               />
             </MessageAction>
           </MessageActions>
         </div>
-      </div>
-    );
-  }
-
-  const hasContent = message.content && message.content.trim().length > 0;
-
-  // Handle cancelled message with no content
-  if (message.cancelled && !hasContent) {
-    return (
-      <div className="flex flex-col gap-1 md:gap-2 max-w-[90%] md:max-w-[85%] min-w-0 group">
-        <Message className="items-start gap-2 md:gap-3">
-          <MessageAvatar
-            src="/logo.svg"
-            alt="Teach Anything™"
-            imageClassName="grayscale"
-          />
-          <div className="flex-1 min-w-0">
-            <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 shadow-xs border border-border/50 w-fit">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
-                <StopCircle className="h-3 w-3" />
-                <span>Cancelled</span>
-              </div>
-            </div>
-          </div>
-        </Message>
       </div>
     );
   }
@@ -86,19 +76,41 @@ export function ChatMessage({
           alt="Teach Anything™"
           imageClassName="grayscale"
         />
-        <div className="flex-1 min-w-0">
-          <MessageContent markdown={true} className="bg-secondary">
-            {message.content}
-          </MessageContent>
-          {/* Display cancelled indicator */}
-          {message.cancelled && (
-            <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 text-xs text-muted-foreground italic">
-              <StopCircle className="h-3 w-3" />
-              <span>Cancelled</span>
-            </div>
-          )}
-          {/* Display truncated indicator */}
-          {message.truncated && (
+        <div className="flex-1 min-w-0 space-y-2">
+          {message.parts.map((part, index) => {
+            switch (part.type) {
+              case "text":
+                return (
+                  <MessageContent
+                    key={index}
+                    markdown={true}
+                    className="bg-secondary"
+                  >
+                    {part.text}
+                  </MessageContent>
+                );
+              case "tool-showQuiz":
+                // Render once the model has finished filling the input. Earlier
+                // states (input-streaming / errors) render nothing -- the typing
+                // indicator covers the gap.
+                if (
+                  part.state === "input-available" ||
+                  part.state === "output-available"
+                ) {
+                  return (
+                    <QuizMessage key={part.toolCallId} quiz={part.input} />
+                  );
+                }
+                return null;
+              default:
+                // Retrieval tool parts, reasoning, step markers, etc. are not
+                // rendered (retrieval RESULTS are filtered server-side; their
+                // inputs only feed the status line).
+                return null;
+            }
+          })}
+
+          {truncated && (
             <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic">
               <AlertTriangle className="h-3 w-3" />
               <span>
@@ -107,14 +119,14 @@ export function ChatMessage({
               </span>
             </div>
           )}
-          {/* Display sources if available and enabled */}
-          {showSources && uniqueSources.length > 0 && (
+
+          {showSources && sources.length > 0 && (
             <div className="mt-2 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <FileText className="h-3.5 w-3.5" />
                 <span className="font-medium">Sources:</span>
               </div>
-              {uniqueSources.map((source, index) => (
+              {sources.map((source, index) => (
                 <SourceBadge
                   key={index}
                   source={source}
@@ -132,86 +144,12 @@ export function ChatMessage({
           <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
             <MessageAction tooltip="Copy message">
               <CopyButton
-                text={message.content}
+                text={textContent}
                 successMessage="Message copied to clipboard"
                 errorMessage="Failed to copy message"
               />
             </MessageAction>
           </MessageActions>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface StreamingMessageProps {
-  content: string;
-  isThinking?: boolean;
-  statusLabel?: string | null;
-}
-
-export function StreamingMessage({
-  content,
-  isThinking = false,
-  statusLabel = null,
-}: StreamingMessageProps) {
-  const hasContent = content && content.trim().length > 0;
-
-  return (
-    <div className="flex flex-col gap-1 md:gap-2 max-w-[90%] md:max-w-[85%] min-w-0 group">
-      {hasContent ? (
-        <>
-          <Message className="items-start gap-2 md:gap-3">
-            <MessageAvatar
-              src="/logo.svg"
-              alt="Teach Anything™"
-              imageClassName="grayscale"
-            />
-            <div className="flex-1 min-w-0">
-              <MessageContent
-                markdown={true}
-                parseIncompleteMarkdown={true}
-                className="bg-secondary"
-              >
-                {content}
-              </MessageContent>
-              {isThinking && (
-                <div className="mt-1.5 md:mt-2 flex items-center gap-2 text-xs text-muted-foreground italic">
-                  <TypingLoader size="sm" className="opacity-60" />
-                  <span>{statusLabel ?? "Thinking…"}</span>
-                </div>
-              )}
-            </div>
-          </Message>
-          <div className="pl-9 md:pl-12">
-            <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <MessageAction tooltip="Copy message">
-                <CopyButton
-                  text={content}
-                  successMessage="Message copied to clipboard"
-                  errorMessage="Failed to copy message"
-                />
-              </MessageAction>
-            </MessageActions>
-          </div>
-        </>
-      ) : (
-        <div className="flex gap-2 md:gap-3 items-start">
-          <MessageAvatar
-            src="/logo.svg"
-            alt="Teach Anything™"
-            imageClassName="grayscale"
-          />
-          <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-xs border border-border/50">
-            {isThinking ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
-                <TypingLoader size="sm" className="opacity-60" />
-                <span>{statusLabel ?? "Thinking…"}</span>
-              </div>
-            ) : (
-              <TypingLoader size="md" className="opacity-60" />
-            )}
-          </div>
         </div>
       )}
     </div>

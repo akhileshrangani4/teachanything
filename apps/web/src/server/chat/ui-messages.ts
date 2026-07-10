@@ -24,7 +24,9 @@ export function extractText(parts: StudyUIMessage["parts"]): string {
  * part built from `content`.
  */
 export function rowToUIMessage(row: MessageRow): StudyUIMessage {
-  const metadata = (row.metadata ?? {}) as { parts?: unknown[] };
+  const metadata = (row.metadata ?? {}) as {
+    parts?: unknown[];
+  } & StudyUIMessage["metadata"];
   const parts = (metadata.parts as StudyUIMessage["parts"] | undefined) ?? [
     { type: "text", text: row.content },
   ];
@@ -32,6 +34,11 @@ export function rowToUIMessage(row: MessageRow): StudyUIMessage {
     id: row.id,
     role: row.role as StudyUIMessage["role"],
     parts,
+    metadata: {
+      sources: metadata?.sources,
+      responseTime: metadata?.responseTime,
+      truncated: metadata?.truncated,
+    },
   };
 }
 

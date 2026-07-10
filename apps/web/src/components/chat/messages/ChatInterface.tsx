@@ -1,29 +1,72 @@
-import { ChatMessage, StreamingMessage } from "./ChatMessage";
+"use client";
+
+import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
-import type { ChatMessage as MessageType } from "@/types/database";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
 import {
   ChatContainerRoot,
   ChatContainerContent,
   ChatContainerScrollAnchor,
 } from "@/components/ui/chat-container";
 import { Button } from "@/components/ui/button";
+import { MessageAvatar } from "@/components/ui/message";
+import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
 import { toast } from "sonner";
 
+/**
+ * Retrieval tool part types. When the last part of the in-flight assistant
+ * message is one of these, the model is searching documents (its tool *inputs*
+ * stream to the client; the RESULTS are filtered server-side, so these parts
+ * never reach `output-available` -- we key off "the last part is a retrieval
+ * part", not part state).
+ */
+const RETRIEVAL_PART_TYPES = new Set([
+  "tool-search_documents",
+  "tool-get_page",
+  "tool-get_context_around",
+  "tool-list_documents",
+  "tool-done",
+]);
+
+/** Derive the live status line client-side (reasoning is never streamed). */
+function deriveStatusLine(
+  last: StudyUIMessage | undefined,
+  isStreaming: boolean,
+  isThinking: boolean,
+): string {
+  if (!isStreaming) return "Thinking…";
+  const parts = last?.role === "assistant" ? last.parts : [];
+  const lastPart = parts[parts.length - 1];
+  if (lastPart && RETRIEVAL_PART_TYPES.has(lastPart.type)) {
+    return "Searching documents…";
+  }
+  if (isThinking) return "Thinking…";
+  return "Thinking…";
+}
+
+/** Does the in-flight assistant message already have visible content to render? */
+function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
+  if (!message || message.role !== "assistant") return false;
+  return message.parts.some(
+    (p) =>
+      (p.type === "text" && p.text.trim().length > 0) ||
+      p.type === "tool-showQuiz",
+  );
+}
+
 interface ChatInterfaceProps {
-  messages: MessageType[];
+  messages: StudyUIMessage[];
   isStreaming: boolean;
   isThinking?: boolean;
-  statusLabel?: string | null;
-  streamingContent: string;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
   handleSendMessage: (e: React.FormEvent) => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   chatbotName: string;
   resetChat: () => void;
-  stopStreaming?: () => void;
+  stop?: () => void;
   height?: string;
   hideHeader?: boolean;
   embedMode?: boolean;
@@ -39,15 +82,13 @@ export function ChatInterface({
   messages,
   isStreaming,
   isThinking = false,
-  statusLabel = null,
-  streamingContent,
   currentMessage,
   setCurrentMessage,
   handleSendMessage,
   messagesEndRef,
   chatbotName,
   resetChat,
-  stopStreaming,
+  stop,
   height = "h-[600px]",
   hideHeader = false,
   embedMode = false,
@@ -58,6 +99,12 @@ export function ChatInterface({
   chatbotId,
   voiceInputEnabled = true,
 }: ChatInterfaceProps) {
+  const lastMessage = messages[messages.length - 1];
+  // Show the typing/status indicator while streaming until the assistant
+  // message has visible content of its own (text or a rendered study tool).
+  const showIndicator = isStreaming && !hasVisibleContent(lastMessage);
+  const statusLine = deriveStatusLine(lastMessage, isStreaming, isThinking);
+
   return (
     <div
       className={`flex flex-col ${height} ${(showFrame ?? !embedMode) ? "border rounded-lg" : ""} bg-background overflow-hidden`}
@@ -133,19 +180,27 @@ export function ChatInterface({
               </div>
             ) : (
               <div className="space-y-3 md:space-y-4">
-                {messages.map((msg, idx) => (
+                {messages.map((msg) => (
                   <ChatMessage
-                    key={`${msg.role}-${idx}`}
+                    key={msg.id}
                     message={msg}
                     showSources={showSources}
                   />
                 ))}
-                {isStreaming && (
-                  <StreamingMessage
-                    content={streamingContent}
-                    isThinking={isThinking}
-                    statusLabel={statusLabel}
-                  />
+                {showIndicator && (
+                  <div className="flex gap-2 md:gap-3 items-start">
+                    <MessageAvatar
+                      src="/logo.svg"
+                      alt="Teach Anything™"
+                      imageClassName="grayscale"
+                    />
+                    <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-xs border border-border/50">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                        <TypingLoader size="sm" className="opacity-60" />
+                        <span>{statusLine}</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -161,7 +216,7 @@ export function ChatInterface({
           setCurrentMessage={setCurrentMessage}
           isStreaming={isStreaming}
           onSendMessage={handleSendMessage}
-          onStopStreaming={stopStreaming}
+          onStopStreaming={stop}
           shareToken={shareToken}
           chatbotId={chatbotId}
           voiceInputEnabled={voiceInputEnabled}
