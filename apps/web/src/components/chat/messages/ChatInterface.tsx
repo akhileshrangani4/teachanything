@@ -13,22 +13,8 @@ import { MessageAvatar } from "@/components/ui/message";
 import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
+import { RETRIEVAL_PART_TYPES } from "@/lib/retrieval-tool-names";
 import { toast } from "sonner";
-
-/**
- * Retrieval tool part types. When the last part of the in-flight assistant
- * message is one of these, the model is searching documents (its tool *inputs*
- * stream to the client; the RESULTS are filtered server-side, so these parts
- * never reach `output-available` -- we key off "the last part is a retrieval
- * part", not part state).
- */
-const RETRIEVAL_PART_TYPES = new Set([
-  "tool-search_documents",
-  "tool-get_page",
-  "tool-get_context_around",
-  "tool-list_documents",
-  "tool-done",
-]);
 
 /** Derive the live status line client-side (reasoning is never streamed). */
 function deriveStatusLine(

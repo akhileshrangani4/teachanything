@@ -34,6 +34,17 @@ export const publicChatRateLimit = createLimiter({
   prefix: "@ratelimit/public-chat",
 });
 
+// Global per-shareToken cap for public chat, keyed on the shareToken alone (no
+// IP). The per-(IP, shareToken) limiter above can be defeated by a distributed
+// caller rotating source IPs; this bounds total LLM spend attributable to a
+// single shared link regardless of source IP. Set well above the per-IP limit
+// so a legitimate multi-student classroom isn't throttled, but low enough that
+// one token can't run up an unbounded bill.
+export const publicChatGlobalRateLimit = createLimiter({
+  window: [300, "1 m"],
+  prefix: "@ratelimit/public-chat-global",
+});
+
 // Rate limiter for file uploads
 // 20 uploads per minute per user
 export const fileUploadRateLimit = createLimiter({

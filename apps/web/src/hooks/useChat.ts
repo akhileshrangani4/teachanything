@@ -14,7 +14,7 @@ import type { StudyUIMessage } from "@/server/chat/study-tools";
  * no cross-reload history rehydration in this phase).
  */
 export function useChat(shareToken: string) {
-  const [sessionId] = useState(() => nanoid());
+  const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +65,10 @@ export function useChat(shareToken: string) {
   const resetChat = () => {
     chat.setMessages([]);
     setCurrentMessage("");
+    // Start a fresh server-side conversation (matches the prior behavior). The
+    // new id also re-keys useChat, so the transport no longer reloads the
+    // old conversation's history on the next send.
+    setSessionId(nanoid());
   };
 
   // Auto-scroll on new content.

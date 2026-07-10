@@ -17,7 +17,7 @@ export function useChatbot(
   chatbotId: string,
   session: { user: { id: string } } | null,
 ) {
-  const [sessionId] = useState(() => nanoid());
+  const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -62,6 +62,10 @@ export function useChatbot(
   const resetChat = () => {
     chat.setMessages([]);
     setCurrentMessage("");
+    // Start a fresh server-side conversation (matches the prior behavior). The
+    // new id also re-keys useChat, so the transport no longer reloads the
+    // old conversation's history on the next send.
+    setSessionId(nanoid());
   };
 
   // Auto-scroll on new content.

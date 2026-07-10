@@ -44,19 +44,10 @@ import {
   extractText,
 } from "./ui-messages";
 
-/**
- * Retrieval tool names whose RESULTS (raw document chunks) must never reach the
- * browser -- especially on public/embed bots. Their tool *inputs* still stream
- * (they power the client "Searching documents…" status line); only outputs are
- * filtered. The same set is stripped from the persisted `metadata.parts`.
- */
-const RETRIEVAL_TOOL_NAMES = new Set([
-  "search_documents",
-  "get_page",
-  "get_context_around",
-  "list_documents",
-  "done",
-]);
+import {
+  isRetrievalToolName,
+  isRetrievalToolPart,
+} from "@/lib/retrieval-tool-names";
 
 /** Grounding rule ported verbatim from the agentic path in chat.ts. */
 function buildGroundingRule(hasInjectedContext: boolean): string {
@@ -86,9 +77,17 @@ function stripRetrievalOutputs(): TransformStream<
   const retrievalCallIds = new Set<string>();
   return new TransformStream({
     transform(chunk, controller) {
+      // Register retrieval call ids from EVERY input chunk that carries a tool
+      // name. Providers that return tool calls atomically (no streamed args)
+      // emit `tool-input-available` with no preceding `tool-input-start`, so
+      // tracking only the latter would let their output chunk slip through --
+      // a raw-document-chunk leak on public bots. All three input variants
+      // carry `toolName`.
       if (
-        chunk.type === "tool-input-start" &&
-        RETRIEVAL_TOOL_NAMES.has(chunk.toolName)
+        (chunk.type === "tool-input-start" ||
+          chunk.type === "tool-input-available" ||
+          chunk.type === "tool-input-error") &&
+        isRetrievalToolName(chunk.toolName)
       ) {
         retrievalCallIds.add(chunk.toolCallId);
       }
@@ -121,14 +120,26 @@ export function newSessionId(): string {
  * - Retrieval tool RESULTS never reach the browser (privacy) and are stripped
  *   before persistence.
  */
+/** Cap a single chat turn's generation. Backstops `maxDuration` (Vercel-only). */
+const STREAM_TIMEOUT_MS = 300_000;
+
 export async function streamChat(params: {
   chatbot: typeof chatbots.$inferSelect;
   userMessage: StudyUIMessage;
   sessionId: string;
   db: typeof DbType;
   eventType: "message_sent" | "shared_message_sent";
+  /** Request abort signal so a client disconnect / stop() halts generation. */
+  signal?: AbortSignal;
 }): Promise<Response> {
   const { chatbot, userMessage, sessionId, db: database, eventType } = params;
+
+  // Stop the LLM when the client disconnects/aborts OR the turn runs too long.
+  // Without this, an aborted request keeps the model generating server-side
+  // (wasted spend), and a stalled upstream hangs the request off-Vercel.
+  const abortSignal = params.signal
+    ? AbortSignal.any([params.signal, AbortSignal.timeout(STREAM_TIMEOUT_MS)])
+    : AbortSignal.timeout(STREAM_TIMEOUT_MS);
   const messageText = extractText(userMessage.parts);
 
   // Get or create the conversation for this session.
@@ -292,7 +303,10 @@ export async function streamChat(params: {
   const temperature = (chatbot.temperature ?? 70) / 100;
 
   // Persist the user message up front; awaited before saving the assistant reply
-  // so ordering stays correct if either fails.
+  // so ordering stays correct. The `.catch` records the failure instead of
+  // rethrowing so this promise never becomes a dangling rejection (onFinish may
+  // await it seconds later, or never); onFinish checks the flag.
+  let userInsertFailed = false;
   const userMessageInsert = database
     .insert(messages)
     .values({
@@ -302,11 +316,11 @@ export async function streamChat(params: {
       metadata: { parts: userMessage.parts },
     })
     .catch((err) => {
+      userInsertFailed = true;
       logError(err, "Failed to insert user message", {
         chatbotId: chatbot.id,
         sessionId,
       });
-      throw err;
     });
 
   const startTime = Date.now();
@@ -336,6 +350,7 @@ export async function streamChat(params: {
         stopWhen: [stepCountIs(5), hasToolCall("done")],
         temperature,
         maxOutputTokens,
+        abortSignal,
       });
 
       writer.merge(
@@ -391,6 +406,7 @@ export async function streamChat(params: {
           messages: modelMessages,
           temperature,
           maxOutputTokens,
+          abortSignal,
         });
         writer.merge(
           fallback.toUIMessageStream<StudyUIMessage>({
@@ -435,18 +451,23 @@ export async function streamChat(params: {
     onFinish: async ({ responseMessage }) => {
       // Strip retrieval-tool parts (raw chunk outputs) before persisting: the
       // professor dashboard viewer only needs text + study-tool parts.
-      const persistedParts = responseMessage.parts.filter((p) => {
-        const toolName = /^tool-(.+)$/.exec(p.type)?.[1];
-        return !toolName || !RETRIEVAL_TOOL_NAMES.has(toolName);
-      });
+      const persistedParts = responseMessage.parts.filter(
+        (p) => !isRetrievalToolPart(p.type),
+      );
       const { content, parts } = assistantMessageForDb({
         ...responseMessage,
         parts: persistedParts,
       });
       const hasStudyPart = parts.some((p) => p.type.startsWith("tool-"));
+      // If `execute` errored before setting responseTime, fall back to elapsed
+      // time so we never persist/report a misleading 0.
+      const finalResponseTime = responseTime || Date.now() - startTime;
 
       try {
         await userMessageInsert;
+        // Ordering intent: if the user turn failed to persist, don't attach an
+        // assistant reply (or analytics) to a missing turn.
+        if (userInsertFailed) return;
 
         // Persist when the model produced text OR a render-only study part
         // (a quiz-only turn has empty content but must be saved). A genuinely
@@ -459,7 +480,7 @@ export async function streamChat(params: {
             metadata: {
               parts,
               sources: finalSources,
-              responseTime,
+              responseTime: finalResponseTime,
               ragUsed: ragUsedFlag,
               truncated: truncated || undefined,
             },
@@ -475,7 +496,7 @@ export async function streamChat(params: {
           eventType,
           eventData: {
             sessionId,
-            responseTime,
+            responseTime: finalResponseTime,
             messageLength: messageText.length,
             responseLength: content.length,
             ragUsed: ragResult.ragUsed,
