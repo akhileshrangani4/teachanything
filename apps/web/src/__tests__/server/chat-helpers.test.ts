@@ -41,6 +41,8 @@ describe("describeToolActivity", () => {
     expect(describeToolActivity("get_page", { pageNumber: 14 })).toBe(
       "Reading page 14…",
     );
+    // Partial input (still streaming): pageNumber may not have arrived yet.
+    expect(describeToolActivity("get_page", {})).toBe("Reading a page…");
     expect(describeToolActivity("get_context_around", {})).toBe(
       "Reading surrounding context…",
     );

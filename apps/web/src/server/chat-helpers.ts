@@ -77,7 +77,11 @@ export function describeToolActivity(toolName: string, input: unknown): string {
         ? `Searching documents for “${args.query}”`
         : "Searching documents…";
     case "get_page":
-      return `Reading page ${String(args.pageNumber)}…`;
+      // The client calls this while the tool input is still streaming, so
+      // pageNumber may not have arrived yet.
+      return typeof args.pageNumber === "number"
+        ? `Reading page ${args.pageNumber}…`
+        : "Reading a page…";
     case "get_context_around":
       return "Reading surrounding context…";
     case "list_documents":
