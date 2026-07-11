@@ -41,6 +41,8 @@ function deriveStatusLine(
 /** Does the in-flight assistant message already have visible content to render? */
 function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
   if (!message || message.role !== "assistant") return false;
+  // Mirrors ChatMessage's render conditions -- if that switch changes, this
+  // must change with it, or the typing indicator lies.
   return message.parts.some(
     (p) =>
       (p.type === "text" && p.text.trim().length > 0) ||
@@ -50,7 +52,12 @@ function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
       (p.type === "tool-showQuiz" &&
         (p.state === "input-available" ||
           p.state === "output-available" ||
-          p.state === "output-error")),
+          p.state === "output-error")) ||
+      // Atomic-provider malformed quizzes land as dynamic-tool parts and
+      // render the same error notice in ChatMessage.
+      (p.type === "dynamic-tool" &&
+        p.toolName === "showQuiz" &&
+        p.state === "output-error"),
   );
 }
 
@@ -137,9 +144,13 @@ export function ChatInterface({
                     }
                   }}
                   disabled={isStreaming}
+                  aria-label="Export chat"
                   className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
                 >
-                  <Download className="h-3.5 w-3.5 md:mr-1.5" />
+                  <Download
+                    className="h-3.5 w-3.5 md:mr-1.5"
+                    aria-hidden="true"
+                  />
                   <span className="hidden md:inline">Export Chat</span>
                 </Button>
                 <Button
@@ -147,9 +158,13 @@ export function ChatInterface({
                   size="sm"
                   onClick={resetChat}
                   disabled={isStreaming}
+                  aria-label="New chat"
                   className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
                 >
-                  <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" />
+                  <RotateCcw
+                    className="h-3.5 w-3.5 md:mr-1.5"
+                    aria-hidden="true"
+                  />
                   <span className="hidden md:inline">New Chat</span>
                 </Button>
               </>

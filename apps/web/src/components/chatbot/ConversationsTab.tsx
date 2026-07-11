@@ -537,8 +537,13 @@ function ConversationDetail({
     <Card className={PANEL_SHELL} style={PANEL_STYLE}>
       <CardHeader className="shrink-0">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            aria-label="Back to student chats"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           </Button>
           <div>
             <CardTitle className="text-lg">Student Chat</CardTitle>

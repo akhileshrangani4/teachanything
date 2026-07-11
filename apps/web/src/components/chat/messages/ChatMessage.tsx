@@ -14,6 +14,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { SourceBadge } from "@/components/ui/source-badge";
 import { FileText, AlertTriangle } from "lucide-react";
 import { dedupeSourcesByFileName } from "@/lib/message-sources";
+import { extractText } from "@/server/chat/ui-messages";
 
 interface ChatMessageProps {
   message: StudyUIMessage;
@@ -30,21 +31,10 @@ interface ChatMessageProps {
 function QuizErrorNotice() {
   return (
     <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic">
-      <AlertTriangle className="h-3 w-3" />
+      <AlertTriangle className="h-3 w-3" aria-hidden="true" />
       <span>Couldn&apos;t build the quiz. Try asking again.</span>
     </div>
   );
-}
-
-/** Concatenate the text of all `text` parts (newline-joined). */
-function textOf(message: StudyUIMessage): string {
-  return message.parts
-    .filter(
-      (p): p is Extract<(typeof message.parts)[number], { type: "text" }> =>
-        p.type === "text",
-    )
-    .map((p) => p.text)
-    .join("\n");
 }
 
 export function ChatMessage({
@@ -58,7 +48,7 @@ export function ChatMessage({
     [message.metadata?.sources],
   );
   const truncated = message.metadata?.truncated;
-  const textContent = textOf(message);
+  const textContent = extractText(message.parts);
   const hasContent = textContent.trim().length > 0;
 
   if (isUser) {
@@ -154,7 +144,7 @@ export function ChatMessage({
 
           {truncated && (
             <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic">
-              <AlertTriangle className="h-3 w-3" />
+              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
               <span>
                 Response was cut off at the token limit. Try raising max tokens
                 or asking a shorter question.
@@ -165,7 +155,7 @@ export function ChatMessage({
           {showSources && sources.length > 0 && (
             <div className="mt-2 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <FileText className="h-3.5 w-3.5" />
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="font-medium">Sources:</span>
               </div>
               {sources.map((source, index) => (

@@ -50,9 +50,10 @@ export function EmbedHeader({
               size="sm"
               onClick={handleExportChat}
               disabled={isStreaming}
+              aria-label="Export chat"
               className="h-7 md:h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
             >
-              <Download className="h-3.5 w-3.5 md:mr-1.5" />
+              <Download className="h-3.5 w-3.5 md:mr-1.5" aria-hidden="true" />
               <span className="hidden md:inline">Export Chat</span>
             </Button>
             <Button
@@ -60,9 +61,10 @@ export function EmbedHeader({
               size="sm"
               onClick={onReset}
               disabled={isStreaming}
+              aria-label="New chat"
               className="h-7 md:h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
             >
-              <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" />
+              <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" aria-hidden="true" />
               <span className="hidden md:inline">New Chat</span>
             </Button>
           </>
