@@ -59,9 +59,9 @@ export function buildUserMessage(
 ): StudyUIMessage | null {
   const text = (raw.parts ?? [])
     .filter(
-      (p): p is { type: "text"; text: string } => typeof p.text === "string",
+      (p): p is { type: "text"; text: string } =>
+        p.type === "text" && typeof p.text === "string",
     )
-    .filter((p) => p.type === "text")
     .map((p) => p.text)
     .join("\n")
     .slice(0, MAX_MESSAGE_CHARS);

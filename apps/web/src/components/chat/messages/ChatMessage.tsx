@@ -101,6 +101,10 @@ export function ChatMessage({
                   <MessageContent
                     key={index}
                     markdown={true}
+                    // The in-flight assistant message streams in place, so
+                    // text can be mid-token incomplete Markdown (unclosed
+                    // bold/code fences). Harmless on completed text.
+                    parseIncompleteMarkdown={true}
                     className="bg-secondary"
                   >
                     {part.text}
