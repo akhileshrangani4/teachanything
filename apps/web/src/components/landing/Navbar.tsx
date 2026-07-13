@@ -98,6 +98,12 @@ export default function Navbar() {
                 Support Us
               </Link>
               <a
+                href="/docs"
+                className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors duration-200"
+              >
+                Docs
+              </a>
+              <a
                 href={
                   process.env.NEXT_PUBLIC_GITHUB_URL ||
                   "https://github.com/akhileshrangani4/teachanything"
@@ -178,6 +184,12 @@ export default function Navbar() {
                 >
                   Support Us
                 </Link>
+                <a
+                  href="/docs"
+                  className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors duration-200 px-2 py-2"
+                >
+                  Docs
+                </a>
                 <a
                   href={
                     process.env.NEXT_PUBLIC_GITHUB_URL ||

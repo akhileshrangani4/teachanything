@@ -60,14 +60,15 @@ export default defineConfig({
         path: "/instructors",
         icon: "graduation-cap",
       },
+      { label: "Tutorials", path: "/tutorials", icon: "compass" },
       { label: "For Students", path: "/students", icon: "book-open" },
     ],
   },
 
-  // No landing page here — the marketing site owns the root. Send the docs
-  // root straight into the instructor guide. `deployment.base` is NOT applied
-  // to redirect targets, so the /docs prefix is written explicitly here.
-  redirects: [{ from: "/", to: "/docs/instructors" }],
+  // No landing page here — the marketing site owns the root, and the Next.js
+  // app HTTP-redirects /docs → /docs/instructors (see apps/web/next.config.js).
+  // We intentionally do NOT use a Blume redirect: it emits a meta-refresh HTML
+  // page that briefly flashes "Redirecting to…" before navigating.
 
   // Per-page OG images, sitemap, robots, and JSON-LD are on by default (a
   // deployment `site` is set). No X/Twitter handle is configured because

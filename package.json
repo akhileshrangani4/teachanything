@@ -44,6 +44,6 @@
     "packages/*"
   ],
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,md,css,yml,yaml}": "prettier --write"
+    "*.{ts,tsx,js,jsx,json,md,mdx,css,yml,yaml}": "prettier --write"
   }
 }
