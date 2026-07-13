@@ -1,6 +1,6 @@
 {
   "name": "teachanything",
-  "version": "1.31.0",
+  "version": "1.31.1",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -44,6 +44,6 @@
     "packages/*"
   ],
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,md,css,yml,yaml}": "prettier --write"
+    "*.{ts,tsx,js,jsx,json,md,mdx,css,yml,yaml}": "prettier --write"
   }
 }

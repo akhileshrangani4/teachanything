@@ -1,0 +1,91 @@
+---
+title: Upload course materials
+description: Which file types work, how uploading works, and how your assistant turns documents into answers.
+sidebar:
+  label: Upload materials
+  icon: upload
+---
+
+This is where your assistant actually learns. Upload the documents you want it to answer from, and it reads every page so it can find the right passage when a student asks.
+
+## What you can upload
+
+<CardGroup cols={3}>
+  <Card title="PDF" icon="file-text">
+    Readings, articles, textbook chapters, problem sets.
+  </Card>
+  <Card title="Word" icon="file-type">
+    `.docx` documents — notes, handouts, syllabi.
+  </Card>
+  <Card title="PowerPoint" icon="presentation">
+    `.pptx` slide decks, including your speaker notes.
+  </Card>
+  <Card title="Text & Markdown" icon="file-code">
+    Plain `.txt` and `.md` notes.
+  </Card>
+  <Card title="Spreadsheets & data" icon="table">
+    `.csv` and `.json` files.
+  </Card>
+</CardGroup>
+
+:::note[File size and format notes]
+
+- Each file can be up to **50 MB**.
+- Word and PowerPoint must be the newer `.docx` / `.pptx` formats. If you have an older `.doc` or `.ppt` file, open it and choose **Save As → .docx** (or **.pptx**) first.
+- Scanned PDFs that are just images of text may not read well. A PDF with real, selectable text works best.
+  :::
+
+## How to upload
+
+<Steps>
+  <Step title="Open your assistant">
+    From the dashboard, click the assistant you want to add materials to.
+  </Step>
+  <Step title="Add files">
+    Go to the materials area and click **Upload**, then choose your files. You
+    can select several at once.
+  </Step>
+  <Step title="Wait for processing">
+    After uploading, each file is read and indexed in the background. You'll see
+    its status change to ready when it's done. Large files take a little longer.
+  </Step>
+</Steps>
+
+:::tip[You can keep working]
+Processing happens in the background, so you can upload a batch and come back later. You don't need to keep the page open.
+:::
+
+## What happens behind the scenes
+
+You don't need to understand this to use it, but here's the gist:
+
+<Steps>
+  <Step title="It reads the text">
+    The assistant pulls the readable text out of your document — including slide
+    boundaries and speaker notes for PowerPoint.
+  </Step>
+  <Step title="It breaks it into pieces">
+    Long documents are split into smaller passages so the assistant can pinpoint
+    the exact relevant part later.
+  </Step>
+  <Step title="It builds a searchable memory">
+    Each passage is indexed so that, when a student asks a question, the
+    assistant can instantly find the passages that matter and answer from them.
+  </Step>
+</Steps>
+
+This is why answers can cite the specific file (and part of the file) they came from.
+
+## Managing your materials
+
+- **Remove a file** any time — the assistant immediately forgets it.
+- **Add more** whenever your course evolves. New uploads are available as soon as they finish processing.
+- The same file can be shared across multiple assistants if you teach related courses.
+
+<Card
+  title="Next: Add website content"
+  href="/instructors/add-website-content"
+  icon="globe"
+>
+  Point your assistant at a course website instead of downloading pages.
+</Card>

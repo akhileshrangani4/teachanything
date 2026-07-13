@@ -20,6 +20,9 @@ export default function Footer() {
             >
               Features
             </Link>
+            <a href="/docs" className="hover:text-foreground transition-colors">
+              Docs
+            </a>
             <Link
               href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || ""}`}
               className="hover:text-foreground transition-colors"
