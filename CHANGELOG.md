@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.31.1](https://github.com/akhileshrangani4/teachanything/compare/v1.31.0...v1.31.1) (2026-07-13)
+
+
+### Documentation
+
+* **site:** add non-technical docs site served at /docs ([#381](https://github.com/akhileshrangani4/teachanything/issues/381)) ([f9442da](https://github.com/akhileshrangani4/teachanything/commit/f9442da872da52a9d40654c2344bd8c9ff650191))
+
 ## [1.31.0](https://github.com/akhileshrangani4/teachanything/compare/v1.30.0...v1.31.0) (2026-07-07)
 
 
