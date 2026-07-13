@@ -51,4 +51,10 @@ uploads/
 
 # Superset
 .superset/
-docs/
+
+# Local-only planning docs at the repo root (adr, templates, superpowers).
+# Anchored to root so the Blume docs site under apps/docs stays tracked.
+/docs/
+
+# Generated: Blume docs site embedded into the web app at build time
+apps/web/public/docs/
