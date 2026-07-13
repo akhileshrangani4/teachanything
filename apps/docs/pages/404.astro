@@ -1,0 +1,36 @@
+---
+import PageLayout from "blume/components/layout/PageLayout.astro";
+import data from "blume:data";
+
+// Root-relative links in a custom .astro page aren't rewritten by the
+// Markdown base-path plugin, so prepend the deployment base ourselves.
+// import.meta.env.BASE_URL carries deployment.base with a trailing slash
+// (e.g. "/docs/").
+const base = import.meta.env.BASE_URL;
+---
+
+<PageLayout
+  site={{ title: data.config.title, description: data.config.description }}
+  logo={data.config.logo}
+  navigation={data.navigation}
+  themeMode={data.config.theme.mode}
+  searchEnabled={data.config.search.enabled}
+  page={{ title: "Page not found", route: "/404" }}
+  noindex={true}
+>
+  <section class="mx-auto max-w-2xl px-6 py-24 text-center">
+    <p style="font-size:4rem;font-weight:700;line-height:1;margin:0;opacity:0.15;">
+      404
+    </p>
+    <h1 style="margin-top:1rem;">We couldn't find that page</h1>
+    <p style="opacity:0.75;">
+      The link may be out of date, or the page may have moved. Try one of these
+      instead:
+    </p>
+    <p style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-top:2rem;">
+      <a href={`${base}instructors`}>For Instructors</a>
+      <span aria-hidden="true" style="opacity:0.4;">·</span>
+      <a href={`${base}students`}>For Students</a>
+    </p>
+  </section>
+</PageLayout>
