@@ -168,12 +168,27 @@ export default function SupportUsSection() {
           </motion.p>
 
           {/* Non-Profit Status */}
+          <motion.div
+            className="flex justify-center mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6, delay: 0.45 }}
+          >
+            <Image
+              src="/assets/logos/dc-flag-bw.svg"
+              alt="District of Columbia flag"
+              width={40}
+              height={30}
+              className="opacity-80"
+            />
+          </motion.div>
           <motion.p
             className="text-muted-foreground text-sm mb-16 leading-[1.8] max-w-2xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6, delay: 0.45 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
           >
             Teach Anything, Inc. is a registered non-profit organization
             incorporated in the District of Columbia. Our certificate of
