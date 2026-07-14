@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.32.0](https://github.com/akhileshrangani4/teachanything/compare/v1.31.1...v1.32.0) (2026-07-14)
+
+
+### Features
+
+* **legal:** add Terms of Use page and reposition DC flag on homepage ([#383](https://github.com/akhileshrangani4/teachanything/issues/383)) ([861f4e9](https://github.com/akhileshrangani4/teachanything/commit/861f4e9283158c01cafc43c74a4218cc2611da3b))
+
+
+### Documentation
+
+* **readme:** add docs site + apps/docs to README ([#385](https://github.com/akhileshrangani4/teachanything/issues/385)) ([e2d6423](https://github.com/akhileshrangani4/teachanything/commit/e2d6423e2a1f03873046ec5048e6bbb626800748))
+
 ## [1.31.1](https://github.com/akhileshrangani4/teachanything/compare/v1.31.0...v1.31.1) (2026-07-13)
 
 
