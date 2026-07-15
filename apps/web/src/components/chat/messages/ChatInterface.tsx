@@ -1,6 +1,6 @@
 "use client";
 
-import { ChatMessage } from "./ChatMessage";
+import { ChatMessage, isVisiblePart } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import {
@@ -21,7 +21,6 @@ import { toast } from "sonner";
 function deriveStatusLine(
   last: StudyUIMessage | undefined,
   isStreaming: boolean,
-  isThinking: boolean,
 ): string {
   if (!isStreaming) return "Thinking…";
   const parts = last?.role === "assistant" ? last.parts : [];
@@ -34,37 +33,17 @@ function deriveStatusLine(
       "input" in lastPart ? lastPart.input : undefined,
     );
   }
-  if (isThinking) return "Thinking…";
   return "Thinking…";
 }
 
-/** Does the in-flight assistant message already have visible content to render? */
 function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
   if (!message || message.role !== "assistant") return false;
-  // Mirrors ChatMessage's render conditions -- if that switch changes, this
-  // must change with it, or the typing indicator lies.
-  return message.parts.some(
-    (p) =>
-      (p.type === "text" && p.text.trim().length > 0) ||
-      // A quiz part only renders once its input is complete (or errored);
-      // while the input is still streaming, ChatMessage shows nothing, so
-      // keep the typing indicator up.
-      (p.type === "tool-showQuiz" &&
-        (p.state === "input-available" ||
-          p.state === "output-available" ||
-          p.state === "output-error")) ||
-      // Atomic-provider malformed quizzes land as dynamic-tool parts and
-      // render the same error notice in ChatMessage.
-      (p.type === "dynamic-tool" &&
-        p.toolName === "showQuiz" &&
-        p.state === "output-error"),
-  );
+  return message.parts.some(isVisiblePart);
 }
 
 interface ChatInterfaceProps {
   messages: StudyUIMessage[];
   isStreaming: boolean;
-  isThinking?: boolean;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
   handleSendMessage: (e: React.FormEvent) => void;
@@ -86,7 +65,6 @@ interface ChatInterfaceProps {
 export function ChatInterface({
   messages,
   isStreaming,
-  isThinking = false,
   currentMessage,
   setCurrentMessage,
   handleSendMessage,
@@ -108,7 +86,7 @@ export function ChatInterface({
   // Show the typing/status indicator while streaming until the assistant
   // message has visible content of its own (text or a rendered study tool).
   const showIndicator = isStreaming && !hasVisibleContent(lastMessage);
-  const statusLine = deriveStatusLine(lastMessage, isStreaming, isThinking);
+  const statusLine = deriveStatusLine(lastMessage, isStreaming);
 
   return (
     <div

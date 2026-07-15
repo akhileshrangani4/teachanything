@@ -9,6 +9,7 @@ import { streamChat, newSessionId } from "@/server/chat/stream-chat";
 import {
   authedChatRequestSchema,
   buildUserMessage,
+  ChatRequestError,
 } from "@/server/chat/request";
 
 // Allow long streams (mirrors the prior 5-minute subscription cap).
@@ -46,7 +47,9 @@ export async function POST(req: Request): Promise<Response> {
       });
     }
 
-    const parsed = authedChatRequestSchema.safeParse(await req.json());
+    const parsed = authedChatRequestSchema.safeParse(
+      await req.json().catch(() => null),
+    );
     if (!parsed.success) {
       return new Response("Invalid request", { status: 400 });
     }
@@ -78,6 +81,9 @@ export async function POST(req: Request): Promise<Response> {
       signal: req.signal,
     });
   } catch (error) {
+    if (error instanceof ChatRequestError) {
+      return new Response(error.message, { status: error.status });
+    }
     logError(error, "POST /api/chat failed");
     return new Response("Failed to send message", { status: 500 });
   }

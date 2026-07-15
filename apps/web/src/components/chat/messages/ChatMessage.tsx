@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { QuizMessage } from "./QuizMessage";
 import {
@@ -37,7 +37,20 @@ function QuizErrorNotice() {
   );
 }
 
-export function ChatMessage({
+export function isVisiblePart(part: StudyUIMessage["parts"][number]): boolean {
+  return (
+    (part.type === "text" && part.text.trim().length > 0) ||
+    (part.type === "tool-showQuiz" &&
+      (part.state === "input-available" ||
+        part.state === "output-available" ||
+        part.state === "output-error")) ||
+    (part.type === "dynamic-tool" &&
+      part.toolName === "showQuiz" &&
+      part.state === "output-error")
+  );
+}
+
+function ChatMessageImpl({
   message,
   showSources = false,
   readOnly = false,
@@ -50,6 +63,16 @@ export function ChatMessage({
   const truncated = message.metadata?.truncated;
   const textContent = extractText(message.parts);
   const hasContent = textContent.trim().length > 0;
+  const hasVisiblePart = message.parts.some(isVisiblePart);
+
+  if (
+    !isUser &&
+    !hasVisiblePart &&
+    !truncated &&
+    !(showSources && sources.length > 0)
+  ) {
+    return null;
+  }
 
   if (isUser) {
     return (
@@ -187,3 +210,5 @@ export function ChatMessage({
     </div>
   );
 }
+
+export const ChatMessage = memo(ChatMessageImpl);

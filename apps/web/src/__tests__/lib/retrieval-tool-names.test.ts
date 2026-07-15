@@ -45,4 +45,12 @@ describe("isRetrievalToolPart", () => {
     expect(isRetrievalToolPart("text")).toBe(false);
     expect(isRetrievalToolPart("reasoning")).toBe(false);
   });
+
+  it("matches exactly, not by prefix or case", () => {
+    expect(isRetrievalToolPart("tool-search_documents_v2")).toBe(false);
+    expect(isRetrievalToolPart("tool-Search_documents")).toBe(false);
+    expect(isRetrievalToolPart("tool-")).toBe(false);
+    expect(isRetrievalToolName("search_documents_v2")).toBe(false);
+    expect(isRetrievalToolName("SEARCH_DOCUMENTS")).toBe(false);
+  });
 });

@@ -17,7 +17,7 @@ describe("rowToUIMessage", () => {
     expect(msg.parts).toEqual([{ type: "text", text: "Hello there" }]);
   });
 
-  it("rehydrates a tool message from metadata.parts", () => {
+  it("rehydrates a tool message from version-stamped metadata.parts", () => {
     const parts = [
       { type: "text", text: "Here is a quiz:" },
       {
@@ -31,9 +31,39 @@ describe("rowToUIMessage", () => {
       id: "m2",
       role: "assistant",
       content: "Here is a quiz:",
-      metadata: { parts },
+      metadata: { parts, partsVersion: 1 },
     });
     expect(msg.parts).toEqual(parts);
+  });
+
+  it("falls back to the content text part when parts lack a version stamp", () => {
+    const msg = rowToUIMessage({
+      id: "m6",
+      role: "assistant",
+      content: "plain",
+      metadata: { parts: [{ type: "text", text: "unstamped" }] },
+    });
+    expect(msg.parts).toEqual([{ type: "text", text: "plain" }]);
+  });
+
+  it("falls back on null metadata, empty parts, and corrupt parts", () => {
+    const fallback = [{ type: "text", text: "safe" }];
+    const rows = [
+      { metadata: null },
+      { metadata: { parts: [], partsVersion: 1 } },
+      { metadata: { parts: "corrupt", partsVersion: 1 } },
+      { metadata: { parts: [{ noType: true }], partsVersion: 1 } },
+      { metadata: { parts: [null], partsVersion: 1 } },
+    ];
+    for (const row of rows) {
+      const msg = rowToUIMessage({
+        id: "m7",
+        role: "assistant",
+        content: "safe",
+        ...row,
+      });
+      expect(msg.parts).toEqual(fallback);
+    }
   });
 
   it("carries metadata (sources/truncated/responseTime) for the dashboard viewer", () => {
@@ -110,5 +140,47 @@ describe("assistantMessageForDb", () => {
     } as never);
     expect(out.content).toBe("hi");
     expect(out.parts).toHaveLength(2);
+  });
+
+  it("completes render-only quiz parts so convertToModelMessages keeps them", () => {
+    const input = { quiz_title: "T", questions: [] };
+    const out = assistantMessageForDb({
+      id: "m8",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-showQuiz",
+          toolCallId: "c",
+          state: "input-available",
+          input,
+        },
+      ],
+    } as never);
+    expect(out.parts).toEqual([
+      {
+        type: "tool-showQuiz",
+        toolCallId: "c",
+        state: "output-available",
+        output: "rendered",
+        input,
+      },
+    ]);
+  });
+
+  it("leaves errored quiz parts untouched", () => {
+    const parts = [
+      {
+        type: "tool-showQuiz",
+        toolCallId: "c",
+        state: "output-error",
+        errorText: "invalid",
+      },
+    ];
+    const out = assistantMessageForDb({
+      id: "m9",
+      role: "assistant",
+      parts,
+    } as never);
+    expect(out.parts).toEqual(parts);
   });
 });

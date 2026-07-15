@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { describeChatError } from "@/lib/chat-error-message";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 
 /**
@@ -41,12 +42,12 @@ export function useChat(shareToken: string) {
         };
       },
     }),
-    onError: () => toast.error("Failed to send message. Please try again."),
+    onError: (error) => toast.error(describeChatError(error)),
+    experimental_throttle: 50,
   });
 
   const isStreaming =
     chat.status === "submitted" || chat.status === "streaming";
-  const isThinking = chat.status === "submitted";
 
   const sendMessage = useCallback(
     (text: string): boolean => {
@@ -75,27 +76,11 @@ export function useChat(shareToken: string) {
     setSessionId(nanoid());
   };
 
-  // Auto-scroll on new content.
-  useEffect(() => {
-    const id = setTimeout(() => {
-      const el = messagesEndRef.current;
-      if (!el) return;
-      const container = el.closest(
-        "[data-scroll-container]",
-      ) as HTMLElement | null;
-      if (container) container.scrollTop = container.scrollHeight;
-      else el.scrollIntoView({ behavior: "instant", block: "end" });
-    }, 0);
-    return () => clearTimeout(id);
-  }, [chat.messages]);
-
   return {
     messages: chat.messages,
     currentMessage,
     setCurrentMessage,
     isStreaming,
-    isThinking,
-    sendMessage,
     handleSendMessage,
     stop: chat.stop,
     resetChat,

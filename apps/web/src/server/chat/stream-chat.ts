@@ -5,11 +5,9 @@ import {
   hasToolCall,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  type InferUIMessageChunk,
 } from "ai";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { TRPCError } from "@trpc/server";
 import {
   createOpenRouterClient,
   resolveModel,
@@ -42,12 +40,12 @@ import {
   rowToUIMessage,
   assistantMessageForDb,
   extractText,
+  PARTS_VERSION,
 } from "./ui-messages";
+import { stripRetrievalOutputs } from "./stream-filter";
+import { ChatRequestError } from "./request";
 
-import {
-  isRetrievalToolName,
-  isRetrievalToolPart,
-} from "@/lib/retrieval-tool-names";
+import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 
 /** Grounding rule ported verbatim from the agentic path in chat.ts. */
 function buildGroundingRule(hasInjectedContext: boolean): string {
@@ -62,42 +60,6 @@ function buildGroundingRule(hasInjectedContext: boolean): string {
     '(e.g. "(file.pdf, p. 2)" or "【…】") in your answer text -- the app shows the user the sources ' +
     "separately. Reply in clean prose."
   );
-}
-
-/**
- * Filter retrieval-tool RESULT chunks out of a UI message stream while letting
- * tool *inputs* (status-line data) and every other chunk through. Output chunks
- * carry only `toolCallId`, so retrieval call ids are tracked at
- * `tool-input-start` (which carries the tool name).
- */
-function stripRetrievalOutputs(): TransformStream<
-  InferUIMessageChunk<StudyUIMessage>,
-  InferUIMessageChunk<StudyUIMessage>
-> {
-  const retrievalCallIds = new Set<string>();
-  return new TransformStream({
-    transform(chunk, controller) {
-      // Register retrieval call ids from EVERY input chunk that carries a tool
-      // name. Providers that return tool calls atomically (no streamed args)
-      // emit `tool-input-available` with no preceding `tool-input-start`, so
-      // tracking only the latter would let their output chunk slip through --
-      // a raw-document-chunk leak on public bots. All three input variants
-      // carry `toolName`.
-      if (
-        (chunk.type === "tool-input-start" ||
-          chunk.type === "tool-input-available" ||
-          chunk.type === "tool-input-error") &&
-        isRetrievalToolName(chunk.toolName)
-      ) {
-        retrievalCallIds.add(chunk.toolCallId);
-      }
-      const isRetrievalOutput =
-        (chunk.type === "tool-output-available" ||
-          chunk.type === "tool-output-error") &&
-        retrievalCallIds.has(chunk.toolCallId);
-      if (!isRetrievalOutput) controller.enqueue(chunk);
-    },
-  });
 }
 
 /** Generate a fresh session id (client-compatible: alnum, length 21). */
@@ -120,8 +82,10 @@ export function newSessionId(): string {
  * - Retrieval tool RESULTS never reach the browser (privacy) and are stripped
  *   before persistence.
  */
-/** Cap a single chat turn's generation. Backstops `maxDuration` (Vercel-only). */
-const STREAM_TIMEOUT_MS = 300_000;
+/** Cap a single chat turn's generation. Kept below `maxDuration` (300s) so the
+ * internal timeout fires before Vercel kills the function, giving `onFinish`
+ * time to persist the partial turn. */
+const STREAM_TIMEOUT_MS = 290_000;
 
 export async function streamChat(params: {
   chatbot: typeof chatbots.$inferSelect;
@@ -137,9 +101,10 @@ export async function streamChat(params: {
   // Stop the LLM when the client disconnects/aborts OR the turn runs too long.
   // Without this, an aborted request keeps the model generating server-side
   // (wasted spend), and a stalled upstream hangs the request off-Vercel.
+  const timeoutSignal = AbortSignal.timeout(STREAM_TIMEOUT_MS);
   const abortSignal = params.signal
-    ? AbortSignal.any([params.signal, AbortSignal.timeout(STREAM_TIMEOUT_MS)])
-    : AbortSignal.timeout(STREAM_TIMEOUT_MS);
+    ? AbortSignal.any([params.signal, timeoutSignal])
+    : timeoutSignal;
   const messageText = extractText(userMessage.parts);
 
   // Get or create the conversation for this session.
@@ -158,14 +123,25 @@ export async function streamChat(params: {
     const [created] = await database
       .insert(conversations)
       .values({ chatbotId: chatbot.id, sessionId, metadata: {} })
+      .onConflictDoNothing()
       .returning();
     conversation = created;
   }
   if (!conversation) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to create conversation",
-    });
+    const [retry] = await database
+      .select()
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.chatbotId, chatbot.id),
+          eq(conversations.sessionId, sessionId),
+        ),
+      )
+      .limit(1);
+    conversation = retry;
+  }
+  if (!conversation) {
+    throw new ChatRequestError("Session id is already in use", 409);
   }
   const conversationId = conversation.id;
 
@@ -313,7 +289,7 @@ export async function streamChat(params: {
       conversationId,
       role: "user",
       content: messageText,
-      metadata: { parts: userMessage.parts },
+      metadata: {},
     })
     .catch((err) => {
       userInsertFailed = true;
@@ -330,13 +306,16 @@ export async function streamChat(params: {
   let ragUsedFlag = ragResult.ragUsed;
   let responseTime = 0;
   let truncated = false;
+  let executeErrored = false;
+
+  const onStreamError = (error: unknown): string => {
+    logError(error, "stream error in streamChat", { chatbotId: chatbot.id });
+    return "Failed to generate a response. Please try again.";
+  };
 
   const stream = createUIMessageStream<StudyUIMessage>({
     originalMessages: uiMessages,
-    onError: (error) => {
-      logError(error, "stream error in streamChat", { chatbotId: chatbot.id });
-      return "Failed to generate a response. Please try again.";
-    },
+    onError: onStreamError,
     execute: async ({ writer }) => {
       // Primary turn: retrieval + study tools (or study-only / none).
       const primary = streamText({
@@ -358,14 +337,22 @@ export async function streamChat(params: {
           .toUIMessageStream<StudyUIMessage>({
             sendReasoning: false,
             sendFinish: false,
+            onError: onStreamError,
           })
           .pipeThrough(stripRetrievalOutputs()),
       );
 
-      const [primaryText, primarySteps] = await Promise.all([
-        primary.text,
-        primary.steps,
-      ]);
+      let primaryText: string;
+      let primarySteps: Awaited<typeof primary.steps>;
+      try {
+        [primaryText, primarySteps] = await Promise.all([
+          primary.text,
+          primary.steps,
+        ]);
+      } catch {
+        executeErrored = true;
+        return;
+      }
       const allToolCalls = primarySteps.flatMap((s) => s.toolCalls ?? []);
       const doneCall = allToolCalls.find((tc) => tc.toolName === "done");
       const doneInput = doneCall?.input as { answer?: unknown } | undefined;
@@ -391,7 +378,7 @@ export async function streamChat(params: {
 
       let finishReason = await primary.finishReason;
 
-      if (!hasVisibleAnswer && useRetrievalTools) {
+      if (!hasVisibleAnswer && useRetrievalTools && !abortSignal.aborted) {
         // Empty-response safety net (#357): the agentic turn produced no
         // user-visible content (searched then hit the step cap, or `done` with
         // an empty answer). Fall back to a static, no-tools turn so the user
@@ -413,10 +400,16 @@ export async function streamChat(params: {
             sendReasoning: false,
             sendStart: false,
             sendFinish: false,
+            onError: onStreamError,
           }),
         );
-        await fallback.text;
-        finishReason = await fallback.finishReason;
+        try {
+          await fallback.text;
+          finishReason = await fallback.finishReason;
+        } catch {
+          executeErrored = true;
+          return;
+        }
         finalSources = ragResult.sources;
         ragUsedFlag = ragResult.ragUsed;
       } else {
@@ -438,6 +431,8 @@ export async function streamChat(params: {
         });
       }
 
+      if (abortSignal.aborted) return;
+
       // Close the message with a single finish chunk carrying the per-message
       // metadata (sources / responseTime / truncated). Both sub-streams used
       // `sendFinish: false`, so this is the only finish event.
@@ -449,10 +444,12 @@ export async function streamChat(params: {
       writer.write({ type: "finish", finishReason, messageMetadata: metadata });
     },
     onFinish: async ({ responseMessage }) => {
-      // On a client disconnect or the stream timeout, the generation was cut
-      // short -- don't persist a partial assistant turn (or its analytics). The
-      // user message was already saved up front, so the turn just has no reply.
-      if (abortSignal.aborted) return;
+      // On a client disconnect, don't persist a partial assistant turn (or its
+      // analytics). The user message was already saved up front, so the turn
+      // just has no reply.
+      if (abortSignal.aborted && !timeoutSignal.aborted) return;
+
+      const interrupted = timeoutSignal.aborted || executeErrored;
 
       // Strip retrieval-tool parts (raw chunk outputs) before persisting: the
       // professor dashboard viewer only needs text + study-tool parts.
@@ -474,52 +471,67 @@ export async function streamChat(params: {
         // assistant reply (or analytics) to a missing turn.
         if (userInsertFailed) return;
 
+        const inserts: PromiseLike<unknown>[] = [];
+
         // Persist when the model produced text OR a render-only study part
         // (a quiz-only turn has empty content but must be saved). A genuinely
         // empty turn is not persisted, so reloaded history has no blank bubble.
         if (content.trim() || hasStudyPart) {
-          await database.insert(messages).values({
-            conversationId,
-            role: "assistant",
-            content,
-            metadata: {
-              parts,
-              sources: finalSources,
-              responseTime: finalResponseTime,
-              ragUsed: ragUsedFlag,
-              truncated: truncated || undefined,
-            },
-          });
+          inserts.push(
+            database.insert(messages).values({
+              conversationId,
+              role: "assistant",
+              content,
+              metadata: {
+                parts,
+                partsVersion: PARTS_VERSION,
+                sources: finalSources,
+                responseTime: finalResponseTime,
+                ragUsed: ragUsedFlag,
+                truncated: truncated || undefined,
+                interrupted: interrupted || undefined,
+              },
+            }),
+          );
         }
 
-        const ragSimilarityScore =
-          finalSources.length > 0
-            ? Math.max(...finalSources.map((s) => s.similarity))
-            : undefined;
-        await database.insert(analytics).values({
-          chatbotId: chatbot.id,
-          eventType,
-          eventData: {
+        if (!interrupted) {
+          const ragSimilarityScore =
+            finalSources.length > 0
+              ? Math.max(...finalSources.map((s) => s.similarity))
+              : undefined;
+          inserts.push(
+            database.insert(analytics).values({
+              chatbotId: chatbot.id,
+              eventType,
+              eventData: {
+                sessionId,
+                responseTime: finalResponseTime,
+                messageLength: messageText.length,
+                responseLength: content.length,
+                // Use the merged final sources (initial RAG + tool-retrieved) so an
+                // agentic turn whose sources came only from tool calls isn't logged
+                // as ragUsed:false / sourcesCount:0 alongside a real similarity.
+                ragUsed: ragUsedFlag,
+                ragSimilarityScore,
+                sourcesCount: finalSources.length,
+                question: messageText.slice(0, 500),
+              },
+              sessionId,
+            }),
+          );
+        }
+
+        await Promise.all(inserts);
+
+        if (!interrupted) {
+          logInfo("Chat message processed", {
+            chatbotId: chatbot.id,
             sessionId,
             responseTime: finalResponseTime,
-            messageLength: messageText.length,
-            responseLength: content.length,
-            // Use the merged final sources (initial RAG + tool-retrieved) so an
-            // agentic turn whose sources came only from tool calls isn't logged
-            // as ragUsed:false / sourcesCount:0 alongside a real similarity.
-            ragUsed: ragUsedFlag,
-            ragSimilarityScore,
-            sourcesCount: finalSources.length,
-            question: messageText.slice(0, 500),
-          },
-          sessionId,
-        });
-        logInfo("Chat message processed", {
-          chatbotId: chatbot.id,
-          sessionId,
-          responseTime: finalResponseTime,
-          eventType,
-        });
+            eventType,
+          });
+        }
       } catch (err) {
         logError(err, "Failed to persist assistant message", {
           chatbotId: chatbot.id,

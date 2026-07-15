@@ -342,7 +342,9 @@ export const messages = pgTable(
         // must not import app code or the `ai` package; the app casts to
         // UIMessagePart[] when rehydrating.
         parts?: unknown[];
+        partsVersion?: number;
         truncated?: boolean;
+        interrupted?: boolean;
       }>()
       .default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),

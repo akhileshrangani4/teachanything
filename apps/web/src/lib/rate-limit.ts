@@ -182,8 +182,18 @@ export async function checkRateLimit(
     return { success: true, limit: 0, remaining: 0, reset: 0 };
   }
 
-  const { success, limit, remaining, reset } =
-    await ratelimiter.limit(identifier);
+  let result: Awaited<ReturnType<Ratelimit["limit"]>>;
+  try {
+    result = await ratelimiter.limit(identifier);
+  } catch (err) {
+    logWarn("Rate limiter check failed; allowing request", {
+      ...context,
+      identifier,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { success: true, limit: 0, remaining: 0, reset: 0 };
+  }
+  const { success, limit, remaining, reset } = result;
 
   if (!success) {
     logWarn("Rate limit exceeded", {

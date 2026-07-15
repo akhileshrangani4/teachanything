@@ -25,7 +25,6 @@ export default function SharedChatPage() {
     currentMessage,
     setCurrentMessage,
     isStreaming,
-    isThinking,
     messagesEndRef,
     chatbot,
     chatbotLoading,
@@ -81,7 +80,6 @@ export default function SharedChatPage() {
           <ChatInterface
             messages={messages}
             isStreaming={isStreaming}
-            isThinking={isThinking}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}

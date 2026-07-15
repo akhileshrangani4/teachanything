@@ -7,6 +7,21 @@ type MessageRow = {
   metadata: unknown;
 };
 
+export const PARTS_VERSION = 1;
+
+function isValidParts(value: unknown): value is StudyUIMessage["parts"] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      (p) =>
+        typeof p === "object" &&
+        p !== null &&
+        typeof (p as { type?: unknown }).type === "string",
+    )
+  );
+}
+
 /** Concatenate the text of all `text` parts (newline-joined). */
 export function extractText(parts: StudyUIMessage["parts"]): string {
   return parts
@@ -25,11 +40,13 @@ export function extractText(parts: StudyUIMessage["parts"]): string {
  */
 export function rowToUIMessage(row: MessageRow): StudyUIMessage {
   const metadata = (row.metadata ?? {}) as {
-    parts?: unknown[];
+    parts?: unknown;
+    partsVersion?: number;
   } & StudyUIMessage["metadata"];
-  const parts = (metadata.parts as StudyUIMessage["parts"] | undefined) ?? [
-    { type: "text", text: row.content },
-  ];
+  const parts: StudyUIMessage["parts"] =
+    metadata.partsVersion === PARTS_VERSION && isValidParts(metadata.parts)
+      ? metadata.parts
+      : [{ type: "text", text: row.content }];
   return {
     id: row.id,
     role: row.role as StudyUIMessage["role"],
@@ -42,10 +59,26 @@ export function rowToUIMessage(row: MessageRow): StudyUIMessage {
   };
 }
 
+function completeStudyToolPart(
+  part: StudyUIMessage["parts"][number],
+): StudyUIMessage["parts"][number] {
+  if (part.type === "tool-showQuiz" && part.state === "input-available") {
+    return {
+      ...part,
+      state: "output-available",
+      output: "rendered",
+    } as unknown as StudyUIMessage["parts"][number];
+  }
+  return part;
+}
+
 /** Split a generated assistant UIMessage into the `content` + `parts` we store. */
 export function assistantMessageForDb(msg: StudyUIMessage): {
   content: string;
   parts: StudyUIMessage["parts"];
 } {
-  return { content: extractText(msg.parts), parts: msg.parts };
+  return {
+    content: extractText(msg.parts),
+    parts: msg.parts.map(completeStudyToolPart),
+  };
 }

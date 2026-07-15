@@ -61,6 +61,24 @@ describe("authedChatRequestSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts part text and part count exactly at the boundary", () => {
+    const base = { chatbotId: CHATBOT_ID };
+    expect(
+      authedChatRequestSchema.safeParse({
+        ...base,
+        message: { parts: [{ type: "text", text: "x".repeat(16000) }] },
+      }).success,
+    ).toBe(true);
+    expect(
+      authedChatRequestSchema.safeParse({
+        ...base,
+        message: {
+          parts: Array(64).fill({ type: "text", text: "x" }),
+        },
+      }).success,
+    ).toBe(true);
+  });
 });
 
 describe("sharedChatRequestSchema", () => {
@@ -72,6 +90,22 @@ describe("sharedChatRequestSchema", () => {
     expect(
       sharedChatRequestSchema.safeParse({ message, shareToken: "tok" }).success,
     ).toBe(true);
+  });
+
+  it("bounds shareToken length at 100", () => {
+    const message = { parts: [{ type: "text", text: "hi" }] };
+    expect(
+      sharedChatRequestSchema.safeParse({
+        message,
+        shareToken: "t".repeat(100),
+      }).success,
+    ).toBe(true);
+    expect(
+      sharedChatRequestSchema.safeParse({
+        message,
+        shareToken: "t".repeat(101),
+      }).success,
+    ).toBe(false);
   });
 });
 

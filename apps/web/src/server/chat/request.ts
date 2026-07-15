@@ -5,6 +5,16 @@ import type { StudyUIMessage } from "./study-tools";
 /** Matches the prior tRPC `message` bound (z.string().min(1).max(16000)). */
 const MAX_MESSAGE_CHARS = 16000;
 
+export class ChatRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ChatRequestError";
+  }
+}
+
 /**
  * The incoming message is an `@ai-sdk/react` UIMessage the client fully
  * controls. We deliberately validate it loosely here and then REBUILD a trusted
