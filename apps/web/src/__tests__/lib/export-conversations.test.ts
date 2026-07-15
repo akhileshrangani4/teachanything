@@ -73,6 +73,30 @@ describe("buildCsv", () => {
     const csv = buildCsv(makeExport());
     expect(csv).toContain("gramsci.pdf (91.2%)");
   });
+
+  it("neutralizes spreadsheet formula injection with a leading apostrophe", () => {
+    const csv = buildCsv(
+      makeExport({
+        conversations: [
+          {
+            id: "c1",
+            sessionId: "s1",
+            createdAt: "2026-07-10T10:00:00.000Z",
+            messages: [
+              {
+                role: "user",
+                content: "=SUM(A1:A9)+cmd|' /C calc'!A0",
+                createdAt: "2026-07-10T10:00:01.000Z",
+                sources: [],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    // The formula-looking cell is prefixed so Excel/Sheets treat it as text.
+    expect(csv).toContain(`"'=SUM(A1:A9)+cmd|' /C calc'!A0"`);
+  });
 });
 
 describe("buildText", () => {

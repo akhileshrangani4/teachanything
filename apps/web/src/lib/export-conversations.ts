@@ -88,9 +88,16 @@ function escapeHtml(value: string): string {
 /**
  * RFC-4180-style CSV cell: wrap in quotes and double any embedded quotes so
  * commas, quotes and newlines inside message content stay in one cell.
+ *
+ * Also guards against spreadsheet formula injection: a value starting with
+ * `=`, `+`, `-`, `@` (or a leading tab/CR) makes Excel / Google Sheets treat
+ * the cell as a formula. Prefixing with an apostrophe forces it to text; both
+ * Excel and Sheets hide that apostrophe, so the professor still reads the
+ * original content unchanged.
  */
 function csvCell(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+  const guarded = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${guarded.replace(/"/g, '""')}"`;
 }
 
 /** Human-readable count helper: "1 conversation" / "3 conversations". */
