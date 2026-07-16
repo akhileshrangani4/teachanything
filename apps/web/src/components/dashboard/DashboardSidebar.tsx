@@ -12,6 +12,7 @@ import {
   Shield,
   ScrollText,
   Globe,
+  BookOpen,
 } from "lucide-react";
 
 const navigation = [
@@ -141,8 +142,17 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
         </nav>
       </div>
 
-      {/* Privacy Policy link */}
-      <div className="px-3 pb-2 flex-shrink-0">
+      {/* Documentation + Privacy Policy links */}
+      <div className="px-3 pb-2 flex-shrink-0 space-y-1">
+        <a
+          href="/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        >
+          <BookOpen className="mr-3 h-4 w-4 flex-shrink-0 text-sidebar-foreground/40 group-hover:text-sidebar-foreground" />
+          Documentation
+        </a>
         <Link
           href="/privacy-policy"
           target="_blank"

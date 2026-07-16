@@ -28,7 +28,7 @@ Teach Anything is a production-ready platform for creating AI chatbots that answ
 - **Conversation Analytics** — Professors can browse, search, and replay every student conversation with sort, pagination, and cited sources
 - **Embeddable Widget** — Drop a chatbot into any website with a single script tag
 - **Professor Approval Workflow** — Admin-controlled registration, domain allow-listing, and self-service account deletion
-- **Privacy Policy + Account Deletion** — Full legal policy page and self-service deletion with password confirmation
+- **Legal Pages + Account Deletion** — Privacy Policy and Terms of Use pages, plus self-service deletion with password confirmation
 - **Tested & Type-Safe** — 350+ Jest tests, strict TypeScript, end-to-end type safety via tRPC, CI with Codecov
 
 ## Get Started
@@ -47,6 +47,12 @@ npm run dev                              # Start development server
 Visit http://localhost:3000 and login with the credentials printed by `db:seed`.
 
 Only Docker, an [OpenRouter API key](https://openrouter.ai/), and an [OpenAI API key](https://platform.openai.com/) (for embeddings) are required to get started. See [SETUP.md](./SETUP.md) for detailed configuration.
+
+## Documentation
+
+User-facing guides live at **[teachanything.ai/docs](https://teachanything.ai/docs)** — how-tos for instructors and students plus step-by-step tutorials. The docs are a Blume static site sourced in [`apps/docs`](./apps/docs) and served at `/docs`.
+
+For developers, see [SETUP.md](./SETUP.md) (environment configuration), [CONTRIBUTING.md](./CONTRIBUTING.md) (development setup), and [AGENTS.md](./AGENTS.md) (coding standards).
 
 ## Tech Stack
 
@@ -68,6 +74,7 @@ teachanything/
 │   ├── src/app/        # Pages & API routes
 │   ├── src/components/ # UI components
 │   └── src/server/     # tRPC routers (incl. rag-context, analytics, crawler)
+├── apps/docs/          # User guides (Blume static site, served at /docs)
 ├── packages/
 │   ├── db/             # Database schema (Drizzle, pgvector, HNSW index)
 │   ├── ai/             # Model registry, RAG service, web crawler, token budgeter

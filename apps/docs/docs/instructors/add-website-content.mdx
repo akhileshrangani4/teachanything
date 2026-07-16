@@ -1,0 +1,72 @@
+---
+title: Add website content
+description: Let your assistant learn from a course website by crawling its pages, with controls for how deep and how far it goes.
+sidebar:
+  label: Add website content
+  icon: globe
+---
+
+If your course material lives on a website — a syllabus page, a course wiki, a set of lecture notes online — you don't have to download it. Point your assistant at the site and it will read the pages for you.
+
+## Two ways to add web pages
+
+<CardGroup cols={2}>
+  <Card title="Add a single page" icon="link">
+    Give it one web address and it reads just that page. Great for a single
+    syllabus or policy page.
+  </Card>
+  <Card title="Crawl a whole site" icon="network">
+    Give it a starting address and it follows links to read many related pages
+    at once.
+  </Card>
+</CardGroup>
+
+## Crawling a site
+
+<Steps>
+  <Step title="Enter the starting address">
+    Paste the web address (URL) of the page you want to start from, such as your
+    course homepage.
+  </Step>
+  <Step title="Set how deep to go">
+    **Crawl depth** controls how many links away from the starting page it will
+    follow (from 1 to 5). Depth 1 reads only pages linked directly from the
+    start; higher numbers reach further into the site.
+  </Step>
+  <Step title="Set a page limit">
+    **Maximum pages** caps how many pages it will read in total (up to 500).
+    This keeps a large site from being read end to end when you only want part
+    of it.
+  </Step>
+  <Step title="Narrow it down (optional)">
+    Use **include** and **exclude** patterns to keep the crawl on the pages you
+    care about — for example, include only pages under `/notes/` and exclude a
+    `/blog/` section.
+  </Step>
+  <Step title="Start the crawl">
+    The assistant visits the pages, reads the main content of each, and adds
+    them to its memory just like uploaded files.
+  </Step>
+</Steps>
+
+:::tip[Start small]
+If you're not sure, start with a low depth (1 or 2) and a modest page limit. Look at what it picked up, then widen the crawl if you need more.
+:::
+
+## Good manners and limits
+
+- The crawler respects a site's `robots.txt` rules, which is the standard way sites say what may be read automatically. Only crawl sites you own or have permission to use.
+- It reads the **main content** of each page and skips navigation menus, ads, and boilerplate.
+- If you re-crawl later, it notices which pages actually changed, so your assistant stays current without duplicating everything.
+
+## Keeping content fresh
+
+Course websites change. You can re-crawl a source to pull in updates, and you can remove a web source entirely if it's no longer relevant — the assistant forgets it right away.
+
+<Card
+  title="Next: Customize your assistant"
+  href="/instructors/customize"
+  icon="sliders"
+>
+  Fine-tune how it sounds, which model it uses, and how it looks.
+</Card>
