@@ -25,6 +25,20 @@ export const STUDY_TOOLS_SYSTEM_ADDENDUM = `
 
 You can render interactive study tools. When the student asks to be quizzed on a topic, call the \`showQuiz\` tool and fill it with well-formed questions based on the course material above - do not write the quiz out as prose. If the student is only asking a question, answer normally without calling a tool.`;
 
+/**
+ * True if the model produced a *renderable* quiz: a `showQuiz` tool call whose
+ * input passed schema validation. When input validation fails, the AI SDK still
+ * returns the call in `steps`, but flagged `invalid: true` -- and the client
+ * shows the student an error notice, not a quiz. Such a call must NOT count as a
+ * visible answer, otherwise the empty-response fallback is suppressed and the
+ * student is left with the error and no prose answer / retry.
+ */
+export function producedRenderableQuiz(
+  toolCalls: ReadonlyArray<{ toolName: string; invalid?: boolean }>,
+): boolean {
+  return toolCalls.some((tc) => tc.toolName === "showQuiz" && !tc.invalid);
+}
+
 export type StudyTools = InferUITools<typeof studyTools>;
 
 /** Custom per-message metadata streamed via `toUIMessageStreamResponse`. */

@@ -32,6 +32,7 @@ import { env } from "@/lib/env";
 import { logInfo, logError, logWarn } from "@/lib/logger";
 import {
   studyTools,
+  producedRenderableQuiz,
   STUDY_TOOLS_SYSTEM_ADDENDUM,
   type StudyUIMessage,
   type StudyMessageMetadata,
@@ -40,6 +41,8 @@ import {
   rowToUIMessage,
   assistantMessageForDb,
   extractText,
+  hasPersistableStudyPart,
+  stripToolPartsForTextModel,
   PARTS_VERSION,
 } from "./ui-messages";
 import { stripRetrievalOutputs } from "./stream-filter";
@@ -269,7 +272,12 @@ export async function streamChat(params: {
     ragResult.contextText;
 
   // History rows -> UIMessages -> ModelMessages, then append the new message.
-  const historyUiMessages = trimmedHistory.map(rowToUIMessage);
+  // A non-tool model (e.g. the bot was switched after a quiz was persisted)
+  // must not receive tool-call messages, or the provider can 400 the turn, so
+  // down-convert any persisted study-tool parts to text first.
+  const historyUiMessages = trimmedHistory
+    .map(rowToUIMessage)
+    .map((m) => (modelCanUseTools ? m : stripToolPartsForTextModel(m)));
   const uiMessages: StudyUIMessage[] = [...historyUiMessages, userMessage];
   const modelMessages = await convertToModelMessages(uiMessages, {
     tools,
@@ -358,9 +366,10 @@ export async function streamChat(params: {
       const doneInput = doneCall?.input as { answer?: unknown } | undefined;
       const doneAnswer =
         typeof doneInput?.answer === "string" ? doneInput.answer : undefined;
-      const producedQuiz = allToolCalls.some(
-        (tc) => tc.toolName === "showQuiz",
-      );
+      // Only a schema-valid showQuiz call counts as a visible answer; an
+      // `invalid: true` call renders as an error, so it must not suppress the
+      // fallback below.
+      const producedQuiz = producedRenderableQuiz(allToolCalls);
 
       // If the model answered only through the `done` tool (no free text),
       // surface that answer as a text part so it renders and persists as text.
@@ -378,11 +387,14 @@ export async function streamChat(params: {
 
       let finishReason = await primary.finishReason;
 
-      if (!hasVisibleAnswer && useRetrievalTools && !abortSignal.aborted) {
-        // Empty-response safety net (#357): the agentic turn produced no
-        // user-visible content (searched then hit the step cap, or `done` with
-        // an empty answer). Fall back to a static, no-tools turn so the user
-        // always gets an answer instead of a stuck, empty stream.
+      if (!hasVisibleAnswer && modelCanUseTools && !abortSignal.aborted) {
+        // Empty-response safety net (#357): a tool-capable turn produced no
+        // user-visible content (searched then hit the step cap, `done` with an
+        // empty answer, an invalid-only quiz, or a study-only bot that emitted
+        // neither text nor a valid quiz). Gated on `modelCanUseTools` -- not
+        // `useRetrievalTools` -- so the study-only path (zero files, or RAG
+        // unhealthy) is covered too. Fall back to a static, no-tools turn so the
+        // user always gets an answer instead of a stuck, empty stream.
         logWarn(
           "Agentic path produced no text response; falling back to static RAG",
           { chatbotId: chatbot.id, modelId },
@@ -460,7 +472,7 @@ export async function streamChat(params: {
         ...responseMessage,
         parts: persistedParts,
       });
-      const hasStudyPart = parts.some((p) => p.type.startsWith("tool-"));
+      const hasStudyPart = hasPersistableStudyPart(parts);
       // If `execute` errored before setting responseTime, fall back to elapsed
       // time so we never persist/report a misleading 0.
       const finalResponseTime = responseTime || Date.now() - startTime;

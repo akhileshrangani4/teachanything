@@ -82,3 +82,51 @@ export function assistantMessageForDb(msg: StudyUIMessage): {
     parts: msg.parts.map(completeStudyToolPart),
   };
 }
+
+/**
+ * True if `parts` contains a study-tool part that will actually render on
+ * reload -- a completed (`output-available`) tool part. A part still stuck in
+ * `input-streaming` (the turn timed out mid tool-input) or in `output-error` is
+ * invisible/unrenderable, so it must not, on its own, cause an otherwise-empty
+ * assistant turn to be persisted as a ghost row.
+ */
+export function hasPersistableStudyPart(
+  parts: StudyUIMessage["parts"],
+): boolean {
+  return parts.some(
+    (p) =>
+      p.type.startsWith("tool-") &&
+      "state" in p &&
+      p.state === "output-available",
+  );
+}
+
+/**
+ * Down-convert study-tool parts to plain text for a model that can't use tools.
+ *
+ * If a chatbot is switched to a non-tool model mid-session, persisted history
+ * can still contain completed `tool-showQuiz` parts. Feeding those through
+ * `convertToModelMessages` emits provider tool-call / tool-result messages into
+ * a request that declares no tools, which some providers reject with a 400 that
+ * breaks every later turn. Replacing each quiz with a short text summary (and
+ * dropping any other tool part) keeps the history readable with no tool-call
+ * messages. Guarantees at least one part so an assistant turn is never empty.
+ */
+export function stripToolPartsForTextModel(
+  msg: StudyUIMessage,
+): StudyUIMessage {
+  const parts = msg.parts.flatMap((p) => {
+    if (!p.type.startsWith("tool-")) return [p];
+    if (p.type === "tool-showQuiz") {
+      const input = (p as { input?: { quiz_title?: unknown } }).input;
+      const title =
+        typeof input?.quiz_title === "string" ? input.quiz_title : "quiz";
+      return [{ type: "text" as const, text: `[Interactive quiz: ${title}]` }];
+    }
+    return [];
+  });
+  return {
+    ...msg,
+    parts: parts.length > 0 ? parts : [{ type: "text", text: "" }],
+  };
+}

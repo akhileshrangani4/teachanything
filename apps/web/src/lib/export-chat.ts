@@ -1,11 +1,29 @@
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { extractText } from "@/server/chat/ui-messages";
 
+/**
+ * The exportable text of a message: its joined text parts, or -- for a
+ * quiz-only turn that has no text -- a placeholder so the export doesn't write a
+ * blank `[N] Assistant:` line.
+ */
+export function messageExportContent(message: StudyUIMessage): string {
+  const text = extractText(message.parts);
+  if (text.trim()) return text;
+  const quiz = message.parts.find((p) => p.type === "tool-showQuiz");
+  if (quiz) {
+    const input = (quiz as { input?: { quiz_title?: unknown } }).input;
+    const title =
+      typeof input?.quiz_title === "string" ? input.quiz_title : "quiz";
+    return `[Interactive quiz: ${title}]`;
+  }
+  return text;
+}
+
 /** Flatten a UIMessage into the plain { role, content, sources } shape export needs. */
 function toExportRows(messages: StudyUIMessage[]) {
   return messages.map((message) => ({
     role: message.role,
-    content: extractText(message.parts),
+    content: messageExportContent(message),
     sources: message.metadata?.sources,
   }));
 }

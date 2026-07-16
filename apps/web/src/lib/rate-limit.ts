@@ -164,14 +164,27 @@ export const conversationSearchRateLimit = createLimiter({
   prefix: "@ratelimit/conversation-search",
 });
 
+/** Deny result used when a rate limiter is unavailable and we fail closed. */
+function failClosedResult() {
+  return { success: false, limit: 0, remaining: 0, reset: Date.now() + 60000 };
+}
+
 /**
  * Check rate limit and log if exceeded.
- * When limiter is null (Redis not configured), returns success as a noop.
+ *
+ * When the limiter is null (Redis not configured) or throws at runtime
+ * (partition/timeout), behavior depends on `failOpen`:
+ * - `failOpen: true` (default): allow the request through (best-effort limiting
+ *   for public/non-critical endpoints).
+ * - `failOpen: false`: deny the request. `requireRateLimit` passes this so a
+ *   security-critical endpoint never becomes a free proxy during a Redis
+ *   outage -- an error must NOT fall through to the allow path.
  */
 export async function checkRateLimit(
   ratelimiter: Ratelimit | null,
   identifier: string,
   context?: Record<string, unknown>,
+  failOpen: boolean = true,
 ): Promise<{
   success: boolean;
   limit: number;
@@ -179,19 +192,28 @@ export async function checkRateLimit(
   reset: number;
 }> {
   if (!ratelimiter) {
-    return { success: true, limit: 0, remaining: 0, reset: 0 };
+    return failOpen
+      ? { success: true, limit: 0, remaining: 0, reset: 0 }
+      : failClosedResult();
   }
 
   let result: Awaited<ReturnType<Ratelimit["limit"]>>;
   try {
     result = await ratelimiter.limit(identifier);
   } catch (err) {
-    logWarn("Rate limiter check failed; allowing request", {
-      ...context,
-      identifier,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return { success: true, limit: 0, remaining: 0, reset: 0 };
+    logWarn(
+      failOpen
+        ? "Rate limiter check failed; allowing request"
+        : "Rate limiter check failed; denying request (fail closed)",
+      {
+        ...context,
+        identifier,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    );
+    return failOpen
+      ? { success: true, limit: 0, remaining: 0, reset: 0 }
+      : failClosedResult();
   }
   const { success, limit, remaining, reset } = result;
 
@@ -227,13 +249,10 @@ export async function requireRateLimit(
       "Rate limiter unavailable for security-critical operation",
       context,
     );
-    return {
-      success: false,
-      limit: 0,
-      remaining: 0,
-      reset: Date.now() + 60000,
-    };
+    return failClosedResult();
   }
 
-  return checkRateLimit(ratelimiter, identifier, context);
+  // Fail closed: a configured limiter that errors at runtime must deny, not
+  // inherit checkRateLimit's best-effort allow-on-error.
+  return checkRateLimit(ratelimiter, identifier, context, /* failOpen */ false);
 }

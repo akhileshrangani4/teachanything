@@ -28,8 +28,10 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
   const total = quiz.questions.length;
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  // One selected answer per question; null until the student picks.
-  const [selected, setSelected] = useState<(string | null)[]>(() =>
+  // One selected option INDEX per question; null until the student picks. We
+  // track the index (not the option text) so duplicate option strings can't
+  // collide and so scoring compares directly against `correct_index`.
+  const [selected, setSelected] = useState<(number | null)[]>(() =>
     Array(total).fill(null),
   );
   const [finished, setFinished] = useState(false);
@@ -39,19 +41,19 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
   const answered = chosen !== null;
   const isLast = currentIndex === total - 1;
 
-  const score = selected.reduce(
-    (acc, answer, idx) =>
-      answer !== null && answer === quiz.questions[idx]?.correct_answer
+  const score = selected.reduce<number>(
+    (acc, answerIndex, idx) =>
+      answerIndex !== null && answerIndex === quiz.questions[idx]?.correct_index
         ? acc + 1
         : acc,
     0,
   );
 
-  const handleSelect = (option: string) => {
+  const handleSelect = (optionIndex: number) => {
     if (answered) return; // lock the answer once chosen
     setSelected((prev) => {
       const next = [...prev];
-      next[currentIndex] = option;
+      next[currentIndex] = optionIndex;
       return next;
     });
   };
@@ -92,11 +94,10 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
               </p>
               <div className="flex flex-col gap-2">
                 {q.options.map((option, optionIndex) => {
-                  const isCorrect = option === q.correct_answer;
+                  const isCorrect = optionIndex === q.correct_index;
                   return (
                     <div
                       key={`${optionIndex}-${option}`}
-                      aria-label={`${option}${isCorrect ? " (correct answer)" : ""}`}
                       className={cn(
                         "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm",
                         isCorrect
@@ -104,7 +105,15 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
                           : "border-border/40 bg-background opacity-70",
                       )}
                     >
-                      <span>{option}</span>
+                      <span>
+                        {option}
+                        {/* A non-interactive <div>'s aria-label is not reliably
+                            announced; a real (visually hidden) text node is, so
+                            screen-reader users learn which option is correct. */}
+                        {isCorrect && (
+                          <span className="sr-only"> (correct answer)</span>
+                        )}
+                      </span>
                       {isCorrect && (
                         <Check
                           className="h-4 w-4 shrink-0"
@@ -184,8 +193,8 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
           aria-label={question.question}
         >
           {question.options.map((option, optionIndex) => {
-            const isCorrect = option === question.correct_answer;
-            const isChosen = option === chosen;
+            const isCorrect = optionIndex === question.correct_index;
+            const isChosen = optionIndex === chosen;
             const answerState =
               answered && isCorrect
                 ? " (correct answer)"
@@ -199,7 +208,7 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
                 // so option text alone can collide. Index disambiguates.
                 key={`${optionIndex}-${option}`}
                 type="button"
-                onClick={() => handleSelect(option)}
+                onClick={() => handleSelect(optionIndex)}
                 disabled={answered}
                 aria-label={`${option}${answerState}`}
                 className={cn(
@@ -239,7 +248,7 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
             aria-live="polite"
           >
             <span className="font-medium text-foreground">
-              {chosen === question.correct_answer ? "Correct! " : "Not quite. "}
+              {chosen === question.correct_index ? "Correct! " : "Not quite. "}
             </span>
             {question.explanation}
           </div>

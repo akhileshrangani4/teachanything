@@ -3,6 +3,8 @@ import {
   rowToUIMessage,
   extractText,
   assistantMessageForDb,
+  hasPersistableStudyPart,
+  stripToolPartsForTextModel,
 } from "@/server/chat/ui-messages";
 
 describe("rowToUIMessage", () => {
@@ -182,5 +184,93 @@ describe("assistantMessageForDb", () => {
       parts,
     } as never);
     expect(out.parts).toEqual(parts);
+  });
+});
+
+describe("hasPersistableStudyPart", () => {
+  it("is true for a completed (output-available) study part", () => {
+    expect(
+      hasPersistableStudyPart([
+        {
+          type: "tool-showQuiz",
+          toolCallId: "c",
+          state: "output-available",
+          output: "rendered",
+          input: {},
+        },
+      ] as never),
+    ).toBe(true);
+  });
+
+  it("is false for a part stuck mid-input (ghost row from a timeout)", () => {
+    // input-streaming never renders; persisting it writes an invisible row.
+    expect(
+      hasPersistableStudyPart([
+        { type: "tool-showQuiz", toolCallId: "c", state: "input-streaming" },
+      ] as never),
+    ).toBe(false);
+  });
+
+  it("is false for an errored study part and for text-only parts", () => {
+    expect(
+      hasPersistableStudyPart([
+        { type: "tool-showQuiz", toolCallId: "c", state: "output-error" },
+      ] as never),
+    ).toBe(false);
+    expect(
+      hasPersistableStudyPart([{ type: "text", text: "hi" }] as never),
+    ).toBe(false);
+  });
+});
+
+describe("stripToolPartsForTextModel", () => {
+  it("down-converts a completed quiz part to a text placeholder", () => {
+    const msg = stripToolPartsForTextModel({
+      id: "m10",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Here's a quiz:" },
+        {
+          type: "tool-showQuiz",
+          toolCallId: "c",
+          state: "output-available",
+          output: "rendered",
+          input: { quiz_title: "Photosynthesis", questions: [] },
+        },
+      ],
+    } as never);
+    expect(msg.parts).toEqual([
+      { type: "text", text: "Here's a quiz:" },
+      { type: "text", text: "[Interactive quiz: Photosynthesis]" },
+    ]);
+  });
+
+  it("never leaves a message with zero parts (quiz-only turn)", () => {
+    const msg = stripToolPartsForTextModel({
+      id: "m11",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-showQuiz",
+          toolCallId: "c",
+          state: "output-available",
+          output: "rendered",
+          input: { quiz_title: "Cells", questions: [] },
+        },
+      ],
+    } as never);
+    expect(msg.parts).toEqual([
+      { type: "text", text: "[Interactive quiz: Cells]" },
+    ]);
+  });
+
+  it("leaves a plain text message unchanged", () => {
+    const parts = [{ type: "text", text: "just text" }];
+    const msg = stripToolPartsForTextModel({
+      id: "m12",
+      role: "assistant",
+      parts,
+    } as never);
+    expect(msg.parts).toEqual(parts);
   });
 });
