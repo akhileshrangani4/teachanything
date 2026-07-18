@@ -54,6 +54,24 @@ describe("quizSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects an over-long quiz_title", () => {
+    // The title reaches the dashboard, exports, and (sanitized) the model
+    // results note -- it must be bounded at the schema so the model can't be
+    // steered into emitting a multi-KB title.
+    const result = quizSchema.safeParse({
+      quiz_title: "x".repeat(201),
+      questions: [
+        {
+          question: "Q?",
+          options: ["A", "B"],
+          correct_index: 0,
+          explanation: "x",
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects more than 5 questions", () => {
     const q = {
       question: "Q?",

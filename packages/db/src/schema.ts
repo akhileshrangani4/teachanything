@@ -380,7 +380,12 @@ export const studyToolResponses = pgTable(
       .notNull(),
     toolCallId: text("tool_call_id").notNull(),
     toolName: text("tool_name").notNull(),
-    attempt: integer("attempt").notNull(), // 1-based; increments per retake
+    // 1-based, incremented per retake. INFORMATIONAL ONLY: it is derived via
+    // count+1 without a transaction, so concurrent submissions can duplicate a
+    // number. Every consumer (dashboard, model note, export) numbers attempts
+    // by createdAt order at read time instead -- do not build logic on this
+    // column without first adding a unique constraint + conflict retry.
+    attempt: integer("attempt").notNull(),
     response: jsonb("response").$type<unknown>().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

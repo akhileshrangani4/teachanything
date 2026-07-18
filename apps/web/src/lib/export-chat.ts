@@ -21,6 +21,12 @@ export function messageExportContent(message: StudyUIMessage): string {
   const quiz = message.parts.find((p) => p.type === "tool-showQuiz");
   if (quiz) {
     const input = (quiz as { input?: { quiz_title?: unknown } }).input;
+    // Mirror the client: an unrenderable quiz (failed validation or
+    // out-of-range correct_index) showed an error notice, not a quiz, so the
+    // export shouldn't claim an interactive quiz existed.
+    if (!isRenderableQuiz(input as Quiz)) {
+      return "[Quiz could not be generated]";
+    }
     const title =
       typeof input?.quiz_title === "string" ? input.quiz_title : "quiz";
     return `[Interactive quiz: ${title}]`;

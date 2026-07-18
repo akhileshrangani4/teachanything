@@ -23,14 +23,21 @@ import { Check, X, RotateCcw, Trophy, Sparkles } from "lucide-react";
  */
 export function QuizSkeleton() {
   return (
-    <Card className="bg-secondary" aria-hidden="true">
+    // The Card itself is NOT aria-hidden: the typing indicator is suppressed
+    // while this shows (it counts as visible content), so "Building your quiz…"
+    // is the only signal a screen-reader user gets for this phase.
+    <Card className="bg-secondary">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base md:text-lg text-muted-foreground">
-          <Sparkles className="h-4 w-4 animate-pulse" />
+        <CardTitle
+          className="flex items-center gap-2 text-base md:text-lg text-muted-foreground"
+          role="status"
+          aria-live="polite"
+        >
+          <Sparkles className="h-4 w-4 animate-pulse" aria-hidden="true" />
           Building your quiz…
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-3" aria-hidden="true">
         <Skeleton className="h-4 w-3/4" />
         <div className="flex flex-col gap-2">
           <Skeleton className="h-9 w-full rounded-lg" />
@@ -57,9 +64,10 @@ interface QuizMessageProps {
    */
   onAttempt?: (response: QuizResponse) => void;
   /**
-   * Read-only mode only: the student's persisted attempts, oldest first. Shown
-   * as an "Attempts" section beneath the answer key so a professor sees what the
-   * student submitted across retakes.
+   * The student's attempts for this quiz, oldest first. Rendered as a paginated
+   * viewer in BOTH modes: beneath the answer key on the professor dashboard
+   * (persisted attempts), and on the student's score screen (in-session
+   * attempts) so they can page back through retakes.
    */
   attempts?: QuizResponse[];
 }

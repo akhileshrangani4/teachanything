@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Quiz, QuizResponse } from "@/lib/quiz";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,9 +25,19 @@ export function QuizAttemptsViewer({
   attempts,
   label,
 }: QuizAttemptsViewerProps) {
-  // Default to the latest attempt; clamp in case `attempts` changes length
-  // (e.g. a new attempt is submitted) while this stays mounted.
+  // Default to the latest attempt; clamp in case `attempts` shrinks while
+  // mounted. When a NEW attempt arrives while mounted (e.g. the professor's
+  // dashboard query refetches on window focus after a student retake), jump to
+  // it -- the initial useState only runs once, so without this the viewer would
+  // silently stay on the older attempt.
   const [index, setIndex] = useState(attempts.length - 1);
+  const prevLengthRef = useRef(attempts.length);
+  useEffect(() => {
+    if (attempts.length > prevLengthRef.current) {
+      setIndex(attempts.length - 1);
+    }
+    prevLengthRef.current = attempts.length;
+  }, [attempts.length]);
   const current = Math.min(Math.max(index, 0), attempts.length - 1);
   const attempt = attempts[current];
   if (!attempt) return null;

@@ -500,13 +500,6 @@ export async function streamChat(params: {
       writer.write({ type: "finish", finishReason, messageMetadata: metadata });
     },
     onFinish: async ({ responseMessage }) => {
-      // On a client disconnect, don't persist a partial assistant turn (or its
-      // analytics). The user message was already saved up front, so the turn
-      // just has no reply.
-      if (abortSignal.aborted && !timeoutSignal.aborted) return;
-
-      const interrupted = timeoutSignal.aborted || executeErrored;
-
       // Strip retrieval-tool parts (raw chunk outputs) before persisting: the
       // professor dashboard viewer only needs text + study-tool parts.
       const persistedParts = responseMessage.parts.filter(
@@ -517,6 +510,18 @@ export async function streamChat(params: {
         parts: persistedParts,
       });
       const hasStudyPart = hasPersistableStudyPart(parts);
+
+      // On a client disconnect, don't persist a partial assistant turn (or its
+      // analytics) -- UNLESS it carries a completed study part. The rendered
+      // quiz stays interactive on screen after a Stop, and recording an attempt
+      // requires the persisted part to validate against; skipping the persist
+      // would make every submission for that quiz 404 forever. The user message
+      // was already saved up front either way.
+      const clientAborted = abortSignal.aborted && !timeoutSignal.aborted;
+      if (clientAborted && !hasStudyPart) return;
+
+      const interrupted =
+        timeoutSignal.aborted || executeErrored || clientAborted;
       // If `execute` errored before setting responseTime, fall back to elapsed
       // time so we never persist/report a misleading 0.
       const finalResponseTime = responseTime || Date.now() - startTime;

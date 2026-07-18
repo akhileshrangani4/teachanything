@@ -19,6 +19,11 @@ export function buildStudyResultsNote(
   history: StudyUIMessage[],
   responsesByToolCallId: Map<string, StoredStudyResponse[]>,
 ): string {
+  // Cap how many attempts one tool contributes to its line: the query behind
+  // `responsesByToolCallId` is already bounded, but a retake-spamming student
+  // shouldn't inflate the prompt -- the most recent attempts carry the signal.
+  const MAX_ATTEMPTS_PER_TOOL = 10;
+
   const lines: string[] = [];
   for (const msg of history) {
     if (msg.role !== "assistant") continue;
@@ -27,6 +32,10 @@ export function buildStudyResultsNote(
       const toolName = part.type.slice("tool-".length);
       const handler = STUDY_TOOL_HANDLERS[toolName];
       if (!handler) continue; // not a response-capturing study tool
+      // Only completed (rendered) parts: a part persisted mid-input-streaming
+      // on an interrupted turn was never shown as an interactive widget, so
+      // reporting it as "shown" would mislead the model.
+      if ((part as { state?: unknown }).state !== "output-available") continue;
       const toolCallId = (part as { toolCallId?: unknown }).toolCallId;
       if (typeof toolCallId !== "string") continue;
       const input = (part as { input?: unknown }).input;
@@ -37,13 +46,17 @@ export function buildStudyResultsNote(
           `- ${label}: shown to the student, but they have not answered it yet.`,
         );
       } else {
-        const attempts = responses
+        const shown = responses.slice(-MAX_ATTEMPTS_PER_TOOL);
+        const offset = responses.length - shown.length;
+        const attempts = shown
           .map(
             (r, i) =>
-              `attempt ${i + 1} ${handler.summarizeResponseForModel(r.response)}`,
+              `attempt ${offset + i + 1} ${handler.summarizeResponseForModel(r.response)}`,
           )
           .join("; ");
-        lines.push(`- ${label}: ${attempts}.`);
+        const omitted =
+          offset > 0 ? ` (${offset} earlier attempts omitted)` : "";
+        lines.push(`- ${label}: ${attempts}${omitted}.`);
       }
     }
   }

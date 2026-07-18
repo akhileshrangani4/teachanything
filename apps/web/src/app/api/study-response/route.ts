@@ -3,7 +3,7 @@ import { db } from "@teachanything/db";
 import { chatbots } from "@teachanything/db/schema";
 import { auth } from "@/lib/auth";
 import type { User } from "@/types/better-auth";
-import { logError, logWarn } from "@/lib/logger";
+import { logError } from "@/lib/logger";
 import { checkRateLimit, studyResponseRateLimit } from "@/lib/rate-limit";
 import {
   authedStudyRequestSchema,
@@ -75,7 +75,6 @@ export async function POST(req: Request): Promise<Response> {
       return new Response(error.message, { status: error.status });
     }
     logError(error, "POST /api/study-response failed");
-    logWarn("study-response persist failed");
     return new Response("Failed to save response", { status: 500 });
   }
 }

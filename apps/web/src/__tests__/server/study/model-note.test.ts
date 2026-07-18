@@ -55,4 +55,42 @@ describe("buildStudyResultsNote", () => {
     expect(note).toContain('"Cell Division" quiz');
     expect(note).toContain("have not answered it yet");
   });
+
+  it("ignores parts that never finished rendering (input-streaming)", () => {
+    // A part persisted mid-input-streaming (interrupted turn) was never shown
+    // as an interactive widget; reporting it as "shown" would mislead the model.
+    const history = [
+      {
+        id: "m-ghost",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-showQuiz",
+            toolCallId: "c3",
+            state: "input-streaming",
+            input: { quiz_title: "Ghost", questions: [] },
+          },
+        ],
+      },
+    ] as unknown as StudyUIMessage[];
+    expect(buildStudyResultsNote(history, new Map())).toBe("");
+  });
+
+  it("caps the attempts shown per tool and notes the omission", () => {
+    const history = [assistantWithQuiz("c4", "Marathon")];
+    const responses = new Map<string, StoredStudyResponse[]>([
+      [
+        "c4",
+        Array.from({ length: 13 }, (_, i) => ({
+          toolName: "showQuiz",
+          response: { score: i, total: 13 },
+        })),
+      ],
+    ]);
+    const note = buildStudyResultsNote(history, responses);
+    expect(note).toContain("(3 earlier attempts omitted)");
+    expect(note).not.toContain("attempt 3 "); // oldest omitted
+    expect(note).toContain("attempt 4 scored 3/13"); // window starts here
+    expect(note).toContain("attempt 13 scored 12/13"); // latest kept
+  });
 });

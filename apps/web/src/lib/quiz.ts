@@ -6,7 +6,10 @@ import { mcQuestionSchema, type MCQuestion } from "@/lib/questions";
  * `inputSchema` of the `showQuiz` tool, so the model fills this in directly.
  */
 export const quizSchema = z.object({
-  quiz_title: z.string().min(1),
+  // Bounded: the title is echoed into the professor dashboard, exports, and
+  // (sanitized) the model results note, so an unbounded student-steerable
+  // string is both a UI and prompt-size hazard.
+  quiz_title: z.string().min(1).max(200),
   questions: z.array(mcQuestionSchema).min(1).max(5),
 });
 

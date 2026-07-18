@@ -28,11 +28,41 @@ describe("messageExportContent", () => {
             toolCallId: "c",
             state: "output-available",
             output: "rendered",
-            input: { quiz_title: "Photosynthesis", questions: [] },
+            input: {
+              quiz_title: "Photosynthesis",
+              questions: [
+                {
+                  question: "Q?",
+                  options: ["A", "B"],
+                  correct_index: 0,
+                  explanation: "x",
+                },
+              ],
+            },
           },
         ],
       } as never),
     ).toBe("[Interactive quiz: Photosynthesis]");
+  });
+
+  it("marks an unrenderable quiz as not generated (mirrors the client notice)", () => {
+    // The client showed "Couldn't build the quiz", so the export must not
+    // claim an interactive quiz existed.
+    expect(
+      messageExportContent({
+        id: "m3",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-showQuiz",
+            toolCallId: "c",
+            state: "output-available",
+            output: "rendered",
+            input: { quiz_title: "Broken", questions: [] },
+          },
+        ],
+      } as never),
+    ).toBe("[Quiz could not be generated]");
   });
 });
 

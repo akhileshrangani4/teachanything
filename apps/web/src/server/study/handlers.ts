@@ -50,16 +50,22 @@ const quizHandler: StudyToolHandler = {
     return gradeQuiz(quiz.data, answers as number[]);
   },
   summarizeResponseForModel(response) {
-    const r = response as { score?: unknown; total?: unknown };
+    // Null-safe: the handler always stores an object today, but this reads a
+    // raw jsonb column -- a throw here would take down the whole chat turn.
+    const r = (response ?? {}) as { score?: unknown; total?: unknown };
     const score = typeof r.score === "number" ? r.score : "?";
     const total = typeof r.total === "number" ? r.total : "?";
     return `scored ${score}/${total}`;
   },
   labelForModel(shownInput) {
     const title = (shownInput as { quiz_title?: unknown } | null)?.quiz_title;
-    return typeof title === "string" && title.trim()
-      ? `"${title}" quiz`
-      : "quiz";
+    if (typeof title !== "string" || !title.trim()) return "quiz";
+    // The title is model-generated but student-steerable ("make a quiz titled
+    // ..."), and this string lands in the SYSTEM prompt on every later turn.
+    // Collapse newlines/whitespace (so it can't break out of its list-item
+    // framing to fake system-level instructions) and cap the length.
+    const sanitized = title.replace(/\s+/g, " ").trim().slice(0, 120);
+    return `"${sanitized}" quiz`;
   },
 };
 
