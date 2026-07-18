@@ -29,7 +29,7 @@ export default defineConfig({
   // and the same 0.75rem corner radius. Headings use Geist — a crisp, modern
   // display sans that pairs cleanly with the Inter body.
   theme: {
-    mode: "system",
+    mode: "light",
     radius: "lg",
     accent: {
       light: "oklch(0.5248 0.1373 149.83)",
