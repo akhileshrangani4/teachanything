@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import { findQuizByToolCallId } from "@/server/study/request";
+import { findToolPartByToolCallId } from "@/server/study/request";
 
 const quiz = {
   quiz_title: "Photosynthesis",
@@ -17,15 +17,34 @@ function rowWithParts(parts: unknown[]) {
   return { metadata: { parts } };
 }
 
-describe("findQuizByToolCallId", () => {
-  it("finds the quiz for a matching tool-showQuiz part", () => {
+describe("findToolPartByToolCallId", () => {
+  it("returns the tool name and shown input for a matching part", () => {
     const rows = [
       rowWithParts([
         { type: "text", text: "here you go" },
         { type: "tool-showQuiz", toolCallId: "call_1", input: quiz },
       ]),
     ];
-    expect(findQuizByToolCallId(rows, "call_1")).toEqual(quiz);
+    expect(findToolPartByToolCallId(rows, "call_1")).toEqual({
+      toolName: "showQuiz",
+      input: quiz,
+    });
+  });
+
+  it("is tool-agnostic (works for any tool-* part)", () => {
+    const rows = [
+      rowWithParts([
+        {
+          type: "tool-showFlashcards",
+          toolCallId: "call_9",
+          input: { cards: [] },
+        },
+      ]),
+    ];
+    expect(findToolPartByToolCallId(rows, "call_9")).toEqual({
+      toolName: "showFlashcards",
+      input: { cards: [] },
+    });
   });
 
   it("returns null when the toolCallId does not match", () => {
@@ -34,36 +53,22 @@ describe("findQuizByToolCallId", () => {
         { type: "tool-showQuiz", toolCallId: "call_1", input: quiz },
       ]),
     ];
-    expect(findQuizByToolCallId(rows, "call_2")).toBeNull();
+    expect(findToolPartByToolCallId(rows, "call_2")).toBeNull();
   });
 
-  it("ignores non-quiz tool parts with the same id", () => {
-    const rows = [
-      rowWithParts([
-        { type: "tool-search_documents", toolCallId: "call_1", input: {} },
-      ]),
-    ];
-    expect(findQuizByToolCallId(rows, "call_1")).toBeNull();
-  });
-
-  it("returns null when the stored input is not a valid quiz", () => {
-    const rows = [
-      rowWithParts([
-        { type: "tool-showQuiz", toolCallId: "call_1", input: { bogus: true } },
-      ]),
-    ];
-    expect(findQuizByToolCallId(rows, "call_1")).toBeNull();
-  });
-
-  it("tolerates rows with missing or malformed metadata/parts", () => {
+  it("ignores non-tool parts and tolerates malformed metadata", () => {
     const rows = [
       { metadata: null },
       { metadata: {} },
       { metadata: { parts: "nope" } },
+      rowWithParts([{ type: "text", text: "hi" }]),
       rowWithParts([
         { type: "tool-showQuiz", toolCallId: "call_1", input: quiz },
       ]),
     ];
-    expect(findQuizByToolCallId(rows, "call_1")).toEqual(quiz);
+    expect(findToolPartByToolCallId(rows, "call_1")).toEqual({
+      toolName: "showQuiz",
+      input: quiz,
+    });
   });
 });

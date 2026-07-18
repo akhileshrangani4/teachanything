@@ -76,7 +76,7 @@ export default function ChatbotDetailPage() {
     handleSendMessage,
     resetChat,
     stop,
-    onQuizAttempt,
+    onStudyAttempt,
     studyAttempts,
   } = useChatbot(chatbotId, session);
 
@@ -226,7 +226,7 @@ export default function ChatbotDetailPage() {
                 showSources={chatbot.showSources ?? false}
                 chatbotId={chatbot.id}
                 voiceInputEnabled
-                onQuizAttempt={onQuizAttempt}
+                onStudyAttempt={onStudyAttempt}
                 studyAttempts={studyAttempts}
               />
             </ErrorBoundary>

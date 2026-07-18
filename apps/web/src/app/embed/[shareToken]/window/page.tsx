@@ -30,7 +30,7 @@ export default function EmbedWindowPage() {
     resetChat,
     stop,
     error,
-    onQuizAttempt,
+    onStudyAttempt,
     studyAttempts,
   } = useChat(shareToken);
 
@@ -95,7 +95,7 @@ export default function EmbedWindowPage() {
             // pasted embeds have neither and stay text-only rather than
             // showing a mic that can never get permission.
             voiceInputEnabled={voiceInputEnabled}
-            onQuizAttempt={onQuizAttempt}
+            onStudyAttempt={onStudyAttempt}
             studyAttempts={studyAttempts}
           />
         </ErrorBoundary>

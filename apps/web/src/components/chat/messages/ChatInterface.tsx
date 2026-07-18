@@ -3,7 +3,7 @@
 import { ChatMessage, isVisiblePart } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
-import type { QuizResponse } from "@/lib/quiz";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 import {
   ChatContainerRoot,
   ChatContainerContent,
@@ -61,10 +61,10 @@ interface ChatInterfaceProps {
   shareToken?: string;
   chatbotId?: string;
   voiceInputEnabled?: boolean;
-  /** Called when the student finishes a quiz attempt (keyed by toolCallId). */
-  onQuizAttempt?: (toolCallId: string, response: QuizResponse) => void;
-  /** Student's own attempts by quiz toolCallId, for the chat export. */
-  studyAttempts?: Record<string, QuizResponse[]>;
+  /** Called when the student finishes a study-tool attempt (keyed by toolCallId). */
+  onStudyAttempt?: (toolCallId: string, response: StudyResponsePayload) => void;
+  /** Student's own attempts by tool toolCallId, for the chat export. */
+  studyAttempts?: Record<string, StudyResponsePayload[]>;
 }
 
 export function ChatInterface({
@@ -86,7 +86,7 @@ export function ChatInterface({
   shareToken,
   chatbotId,
   voiceInputEnabled = true,
-  onQuizAttempt,
+  onStudyAttempt,
   studyAttempts,
 }: ChatInterfaceProps) {
   const lastMessage = messages[messages.length - 1];
@@ -185,7 +185,7 @@ export function ChatInterface({
                     key={msg.id}
                     message={msg}
                     showSources={showSources}
-                    onQuizAttempt={onQuizAttempt}
+                    onStudyAttempt={onStudyAttempt}
                   />
                 ))}
                 {showIndicator && (

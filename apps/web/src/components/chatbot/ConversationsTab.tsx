@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "@/components/chat/messages/ChatMessage";
 import { rowToUIMessage } from "@/server/chat/ui-messages";
-import type { QuizResponse } from "@/lib/quiz";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 import {
   Select,
   SelectContent,
@@ -534,13 +534,14 @@ function ConversationDetail({
     }
   }, [error, chatbotId, conversationId]);
 
-  // Group the student's persisted study-tool attempts by quiz toolCallId
-  // (already ordered oldest-first) so the read-only quiz can show each attempt.
-  const quizAttempts = useMemo(() => {
-    const map: Record<string, QuizResponse[]> = {};
+  // Group the student's persisted study-tool attempts by toolCallId (already
+  // oldest-first) so each read-only tool can show its own attempts. Keyed by
+  // toolCallId, so each entry belongs to exactly one tool; the rendering
+  // component casts to its own response type. Tool-agnostic.
+  const studyAttempts = useMemo(() => {
+    const map: Record<string, StudyResponsePayload[]> = {};
     for (const r of data?.studyResponses ?? []) {
-      if (r.toolName !== "showQuiz") continue;
-      (map[r.toolCallId] ??= []).push(r.response as QuizResponse);
+      (map[r.toolCallId] ??= []).push(r.response as StudyResponsePayload);
     }
     return map;
   }, [data?.studyResponses]);
@@ -619,7 +620,7 @@ function ConversationDetail({
                     message={rowToUIMessage(msg)}
                     showSources
                     readOnly
-                    quizAttempts={quizAttempts}
+                    studyAttempts={studyAttempts}
                   />
                 ))}
             </div>

@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { describeChatError } from "@/lib/chat-error-message";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
-import type { QuizResponse } from "@/lib/quiz";
-import { postStudyResponse } from "@/lib/submit-study-response";
+import {
+  postStudyResponse,
+  type StudyResponsePayload,
+} from "@/lib/submit-study-response";
 
 /**
  * Chat with a shared/public chatbot (share-token pages + embed widget), backed
@@ -19,10 +21,10 @@ import { postStudyResponse } from "@/lib/submit-study-response";
 export function useChat(shareToken: string) {
   const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
-  // The student's own finished quiz attempts this session, by quiz toolCallId,
-  // for the chat export. Persistence to the server happens in parallel.
+  // The student's own finished study-tool responses this session, by tool
+  // toolCallId, for the chat export. Persistence to the server runs in parallel.
   const [studyAttempts, setStudyAttempts] = useState<
-    Record<string, QuizResponse[]>
+    Record<string, StudyResponsePayload[]>
   >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -70,18 +72,13 @@ export function useChat(shareToken: string) {
     if (sendMessage(currentMessage)) setCurrentMessage("");
   };
 
-  const onQuizAttempt = useCallback(
-    (toolCallId: string, response: QuizResponse) => {
+  const onStudyAttempt = useCallback(
+    (toolCallId: string, response: StudyResponsePayload) => {
       setStudyAttempts((prev) => ({
         ...prev,
         [toolCallId]: [...(prev[toolCallId] ?? []), response],
       }));
-      void postStudyResponse({
-        shareToken,
-        sessionId,
-        toolCallId,
-        answers: response.answers,
-      });
+      void postStudyResponse({ shareToken, sessionId, toolCallId, response });
     },
     [shareToken, sessionId],
   );
@@ -112,7 +109,7 @@ export function useChat(shareToken: string) {
     chatbot,
     chatbotLoading,
     error,
-    onQuizAttempt,
+    onStudyAttempt,
     studyAttempts,
   };
 }

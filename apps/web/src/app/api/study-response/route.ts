@@ -65,8 +65,7 @@ export async function POST(req: Request): Promise<Response> {
       chatbotId: chatbot.id,
       sessionId: parsed.data.sessionId,
       toolCallId: parsed.data.toolCallId,
-      toolName: parsed.data.toolName,
-      answers: parsed.data.answers,
+      response: parsed.data.response,
       db,
     });
 

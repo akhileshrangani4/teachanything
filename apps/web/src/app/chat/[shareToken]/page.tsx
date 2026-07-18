@@ -32,7 +32,7 @@ export default function SharedChatPage() {
     resetChat,
     stop,
     error,
-    onQuizAttempt,
+    onStudyAttempt,
     studyAttempts,
   } = useChat(shareToken);
 
@@ -94,7 +94,7 @@ export default function SharedChatPage() {
             showSources={chatbot.showSources ?? false}
             shareToken={shareToken}
             voiceInputEnabled
-            onQuizAttempt={onQuizAttempt}
+            onStudyAttempt={onStudyAttempt}
             studyAttempts={studyAttempts}
             brandingText={
               <span className="inline-flex items-center gap-1.5">

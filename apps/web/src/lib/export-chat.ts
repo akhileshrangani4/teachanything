@@ -1,11 +1,12 @@
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { extractText } from "@/server/chat/ui-messages";
 import { isRenderableQuiz, type Quiz, type QuizResponse } from "@/lib/quiz";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 
 export interface ExportOptions {
   includeSources?: boolean;
-  /** The student's own finished quiz attempts, keyed by quiz toolCallId. */
-  studyAttempts?: Record<string, QuizResponse[]>;
+  /** The student's own finished study-tool attempts, keyed by tool toolCallId. */
+  studyAttempts?: Record<string, StudyResponsePayload[]>;
 }
 
 /**
@@ -30,7 +31,7 @@ export function messageExportContent(message: StudyUIMessage): string {
 /** The renderable quizzes in a message, paired with the student's attempts. */
 function messageQuizzes(
   message: StudyUIMessage,
-  studyAttempts: Record<string, QuizResponse[]> = {},
+  studyAttempts: Record<string, StudyResponsePayload[]> = {},
 ): Array<{ quiz: Quiz; attempts: QuizResponse[] }> {
   const out: Array<{ quiz: Quiz; attempts: QuizResponse[] }> = [];
   for (const part of message.parts) {
@@ -41,7 +42,9 @@ function messageQuizzes(
     ) {
       out.push({
         quiz: part.input,
-        attempts: studyAttempts[part.toolCallId] ?? [],
+        // This toolCallId belongs to a showQuiz part, so its attempts are quiz
+        // responses.
+        attempts: (studyAttempts[part.toolCallId] ?? []) as QuizResponse[],
       });
     }
   }
@@ -87,7 +90,7 @@ export function formatQuizForExport(
 /** The full text body for a message: prose text and/or its quiz block(s). */
 function messageExportBody(
   message: StudyUIMessage,
-  studyAttempts: Record<string, QuizResponse[]>,
+  studyAttempts: Record<string, StudyResponsePayload[]>,
 ): string {
   const quizzes = messageQuizzes(message, studyAttempts);
   if (quizzes.length === 0) return messageExportContent(message);
@@ -101,7 +104,7 @@ function messageExportBody(
 /** Flatten a UIMessage into the plain { role, content, sources } shape export needs. */
 function toExportRows(
   messages: StudyUIMessage[],
-  studyAttempts: Record<string, QuizResponse[]> = {},
+  studyAttempts: Record<string, StudyResponsePayload[]> = {},
 ) {
   return messages.map((message) => ({
     role: message.role,

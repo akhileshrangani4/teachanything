@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { exportChatAsText } from "@/lib/export-chat";
 import { toast } from "sonner";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
-import type { QuizResponse } from "@/lib/quiz";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 
 interface EmbedHeaderProps {
   chatbotName: string;
@@ -12,8 +12,8 @@ interface EmbedHeaderProps {
   onReset: () => void;
   onClose: () => void;
   messages: StudyUIMessage[];
-  /** Student's own quiz attempts by toolCallId, included in the export. */
-  studyAttempts?: Record<string, QuizResponse[]>;
+  /** Student's own study-tool attempts by toolCallId, included in the export. */
+  studyAttempts?: Record<string, StudyResponsePayload[]>;
 }
 
 export function EmbedHeader({

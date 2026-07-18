@@ -6,12 +6,10 @@ import {
   messages,
   studyToolResponses,
 } from "@teachanything/db/schema";
-import {
-  quizSchema,
-  isValidQuizAnswers,
-  gradeQuiz,
-  type Quiz,
-} from "@/lib/quiz";
+import { StudyRequestError } from "./errors";
+import { STUDY_TOOL_HANDLERS } from "./handlers";
+
+export { StudyRequestError };
 
 /** Mirror the chat send-path session id bound (client-minted nanoid). */
 const sessionIdSchema = z
@@ -20,30 +18,17 @@ const sessionIdSchema = z
   .max(30)
   .regex(/^[a-zA-Z0-9_-]+$/);
 
-/** A quiz has at most 5 questions; cap the answers array a bit above that. */
-const answersSchema = z.array(z.number().int()).max(16);
-
-export class StudyRequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "StudyRequestError";
-  }
-}
-
 /**
- * A student's study-tool response from the client. `toolName` is a literal so
- * new tools are added deliberately (each with its own answer validation). Only
- * `showQuiz` exists in Phase 1. The score is NOT accepted from the client -- it
- * is graded server-side from the persisted quiz.
+ * A student's study-tool response from the client. The `response` shape is
+ * tool-specific and validated server-side by the tool's handler, so it's
+ * `unknown` at the boundary. The tool NAME is NOT taken from the client -- it is
+ * derived from the persisted tool part for `toolCallId`, so a caller can't route
+ * a payload to the wrong handler.
  */
 const baseStudyRequestSchema = z.object({
   sessionId: sessionIdSchema,
   toolCallId: z.string().min(1).max(200),
-  toolName: z.literal("showQuiz"),
-  answers: answersSchema,
+  response: z.unknown(),
 });
 
 export const authedStudyRequestSchema = baseStudyRequestSchema.extend({
@@ -57,17 +42,18 @@ export const sharedStudyRequestSchema = baseStudyRequestSchema.extend({
 type StudyMessageRow = { metadata: unknown };
 
 /**
- * Find the quiz that was shown for `toolCallId` in a conversation's persisted
- * messages. The assistant turn stores its UI parts in `metadata.parts`, and a
- * rendered quiz is a `tool-showQuiz` part carrying the quiz as its `input`. The
- * `toolCallId` is stable across the live stream and persistence, so it links an
- * attempt to the exact quiz. Returns null when no such (valid) quiz exists,
- * which the caller treats as an unknown/forged tool-call id.
+ * Find the study-tool part for `toolCallId` in a conversation's persisted
+ * messages, returning its tool name and the input that was shown. The assistant
+ * turn stores its UI parts in `metadata.parts`, and a rendered study tool is a
+ * `tool-<name>` part carrying its payload as `input`. The `toolCallId` is stable
+ * across the live stream and persistence, so it links a response to the exact
+ * tool instance. Tool-agnostic: works for any `tool-*` part. Returns null when
+ * no such part exists (an unknown/forged tool-call id).
  */
-export function findQuizByToolCallId(
+export function findToolPartByToolCallId(
   rows: StudyMessageRow[],
   toolCallId: string,
-): Quiz | null {
+): { toolName: string; input: unknown } | null {
   for (const row of rows) {
     const parts = (row.metadata as { parts?: unknown[] } | null)?.parts;
     if (!Array.isArray(parts)) continue;
@@ -77,9 +63,12 @@ export function findQuizByToolCallId(
         toolCallId?: unknown;
         input?: unknown;
       };
-      if (p.type === "tool-showQuiz" && p.toolCallId === toolCallId) {
-        const parsed = quizSchema.safeParse(p.input);
-        if (parsed.success) return parsed.data;
+      if (
+        typeof p.type === "string" &&
+        p.type.startsWith("tool-") &&
+        p.toolCallId === toolCallId
+      ) {
+        return { toolName: p.type.slice("tool-".length), input: p.input };
       }
     }
   }
@@ -87,21 +76,21 @@ export function findQuizByToolCallId(
 }
 
 /**
- * Validate + persist one study-tool attempt. Resolves the conversation from
+ * Validate + persist one study-tool response. Resolves the conversation from
  * (chatbot, session), confirms the `toolCallId` was actually shown in it,
- * grades the answers server-side, and appends a `study_tool_responses` row. The
- * attempt number is derived server-side (existing count + 1) so the client
- * can't spoof ordering. Throws `StudyRequestError` on any validation failure.
+ * derives the tool name from that part, hands the raw client response to the
+ * tool's registered handler (which validates + grades server-side), and appends
+ * a `study_tool_responses` row. The attempt number is derived server-side
+ * (existing count + 1). Throws `StudyRequestError` on any validation failure.
  */
 export async function recordStudyResponse(params: {
   chatbotId: string;
   sessionId: string;
   toolCallId: string;
-  toolName: "showQuiz";
-  answers: number[];
+  response: unknown;
   db: typeof DbType;
-}): Promise<{ attempt: number }> {
-  const { chatbotId, sessionId, toolCallId, answers, db } = params;
+}): Promise<{ attempt: number; toolName: string }> {
+  const { chatbotId, sessionId, toolCallId, response, db } = params;
 
   const [conversation] = await db
     .select({ id: conversations.id })
@@ -122,18 +111,24 @@ export async function recordStudyResponse(params: {
     .from(messages)
     .where(eq(messages.conversationId, conversation.id));
 
-  const quiz = findQuizByToolCallId(rows, toolCallId);
-  if (!quiz) {
-    // Either the quiz turn isn't persisted yet or the id doesn't belong to this
-    // conversation. Both are 404: we won't store an attempt we can't grade.
-    throw new StudyRequestError("Quiz not found for this conversation", 404);
+  const part = findToolPartByToolCallId(rows, toolCallId);
+  if (!part) {
+    // Either the tool turn isn't persisted yet or the id doesn't belong to this
+    // conversation. Both are 404: we won't store a response we can't attribute.
+    throw new StudyRequestError(
+      "Study tool not found for this conversation",
+      404,
+    );
   }
 
-  if (!isValidQuizAnswers(quiz, answers)) {
-    throw new StudyRequestError("Answers do not match the quiz", 400);
+  const handler = STUDY_TOOL_HANDLERS[part.toolName];
+  if (!handler) {
+    throw new StudyRequestError("Unsupported study tool", 400);
   }
 
-  const response = gradeQuiz(quiz, answers);
+  // Validates the client response against the shown input and grades it; throws
+  // StudyRequestError on invalid input.
+  const stored = handler.buildResponse(part.input, response);
 
   const [existing] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -149,10 +144,10 @@ export async function recordStudyResponse(params: {
   await db.insert(studyToolResponses).values({
     conversationId: conversation.id,
     toolCallId,
-    toolName: "showQuiz",
+    toolName: part.toolName,
     attempt,
-    response,
+    response: stored,
   });
 
-  return { attempt };
+  return { attempt, toolName: part.toolName };
 }

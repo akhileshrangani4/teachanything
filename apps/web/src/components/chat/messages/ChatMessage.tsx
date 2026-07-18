@@ -3,7 +3,8 @@
 import { memo, useMemo } from "react";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { QuizMessage, QuizSkeleton } from "./QuizMessage";
-import { isRenderableQuiz, type QuizResponse } from "@/lib/quiz";
+import { isRenderableQuiz } from "@/lib/quiz";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 import {
   Message,
   MessageContent,
@@ -23,17 +24,17 @@ interface ChatMessageProps {
   /** Render study-tool widgets read-only (professor dashboard viewer). */
   readOnly?: boolean;
   /**
-   * Called when the student finishes a quiz attempt, keyed by the quiz's
+   * Called when the student finishes a study-tool attempt, keyed by the tool's
    * `toolCallId`. Wired only in interactive mode; the parent persists + keeps
    * it for export. Must be stable (memoized) so this memoized row can skip
    * re-renders.
    */
-  onQuizAttempt?: (toolCallId: string, response: QuizResponse) => void;
+  onStudyAttempt?: (toolCallId: string, response: StudyResponsePayload) => void;
   /**
-   * Read-only mode: the student's persisted attempts by quiz `toolCallId`, so
+   * Read-only mode: the student's persisted attempts by tool `toolCallId`, so
    * the dashboard reveal can show what the student submitted per attempt.
    */
-  quizAttempts?: Record<string, QuizResponse[]>;
+  studyAttempts?: Record<string, StudyResponsePayload[]>;
 }
 
 /**
@@ -68,8 +69,8 @@ function ChatMessageImpl({
   message,
   showSources = false,
   readOnly = false,
-  onQuizAttempt,
-  quizAttempts,
+  onStudyAttempt,
+  studyAttempts,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const sources = useMemo(
@@ -157,11 +158,11 @@ function ChatMessageImpl({
                       key={part.toolCallId}
                       quiz={part.input}
                       readOnly={readOnly}
-                      attempts={quizAttempts?.[part.toolCallId]}
+                      attempts={studyAttempts?.[part.toolCallId]}
                       onAttempt={
-                        onQuizAttempt
+                        onStudyAttempt
                           ? (response) =>
-                              onQuizAttempt(part.toolCallId, response)
+                              onStudyAttempt(part.toolCallId, response)
                           : undefined
                       }
                     />
