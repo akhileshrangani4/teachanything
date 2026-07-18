@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import type { UIMessage, InferUITools, UIDataTypes } from "ai";
-import { quizSchema } from "@/lib/quiz";
+import { quizSchema, isRenderableQuiz, type Quiz } from "@/lib/quiz";
 
 /**
  * Render-only study tools. Each tool's `inputSchema` IS the widget payload;
@@ -27,16 +27,28 @@ You can render interactive study tools. When the student asks to be quizzed on a
 
 /**
  * True if the model produced a *renderable* quiz: a `showQuiz` tool call whose
- * input passed schema validation. When input validation fails, the AI SDK still
- * returns the call in `steps`, but flagged `invalid: true` -- and the client
- * shows the student an error notice, not a quiz. Such a call must NOT count as a
- * visible answer, otherwise the empty-response fallback is suppressed and the
- * student is left with the error and no prose answer / retry.
+ * input passed schema validation AND whose `correct_index` values are all in
+ * range. When input validation fails, the AI SDK still returns the call in
+ * `steps`, but flagged `invalid: true`; an out-of-range `correct_index` is
+ * structurally valid (so not flagged) but still unrenderable (see
+ * `isRenderableQuiz`). In both cases the client shows an error notice, not a
+ * quiz, so the call must NOT count as a visible answer -- otherwise the
+ * empty-response fallback is suppressed and the student is left with the error
+ * and no prose answer / retry.
  */
 export function producedRenderableQuiz(
-  toolCalls: ReadonlyArray<{ toolName: string; invalid?: boolean }>,
+  toolCalls: ReadonlyArray<{
+    toolName: string;
+    invalid?: boolean;
+    input?: unknown;
+  }>,
 ): boolean {
-  return toolCalls.some((tc) => tc.toolName === "showQuiz" && !tc.invalid);
+  return toolCalls.some(
+    (tc) =>
+      tc.toolName === "showQuiz" &&
+      !tc.invalid &&
+      isRenderableQuiz(tc.input as Quiz),
+  );
 }
 
 export type StudyTools = InferUITools<typeof studyTools>;

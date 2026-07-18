@@ -26,10 +26,21 @@ describe("studyTools", () => {
 });
 
 describe("producedRenderableQuiz", () => {
-  it("counts a valid showQuiz call as a rendered quiz", () => {
-    expect(producedRenderableQuiz([{ toolName: "showQuiz" }])).toBe(true);
+  const quizInput = (correct_index = 0) => ({
+    quiz_title: "T",
+    questions: [
+      { question: "Q?", options: ["A", "B"], correct_index, explanation: "x" },
+    ],
+  });
+
+  it("counts a valid, in-range showQuiz call as a rendered quiz", () => {
     expect(
-      producedRenderableQuiz([{ toolName: "showQuiz", invalid: false }]),
+      producedRenderableQuiz([{ toolName: "showQuiz", input: quizInput() }]),
+    ).toBe(true);
+    expect(
+      producedRenderableQuiz([
+        { toolName: "showQuiz", invalid: false, input: quizInput(1) },
+      ]),
     ).toBe(true);
   });
 
@@ -38,6 +49,14 @@ describe("producedRenderableQuiz", () => {
     // the student an error, not a quiz, so it must not suppress the fallback.
     expect(
       producedRenderableQuiz([{ toolName: "showQuiz", invalid: true }]),
+    ).toBe(false);
+  });
+
+  it("does NOT count a showQuiz call whose correct_index is out of range", () => {
+    // Structurally valid (not flagged invalid) but unrenderable -- it must fall
+    // through to the empty-response fallback like a malformed quiz.
+    expect(
+      producedRenderableQuiz([{ toolName: "showQuiz", input: quizInput(2) }]),
     ).toBe(false);
   });
 
@@ -52,7 +71,7 @@ describe("producedRenderableQuiz", () => {
     expect(
       producedRenderableQuiz([
         { toolName: "showQuiz", invalid: true },
-        { toolName: "showQuiz", invalid: false },
+        { toolName: "showQuiz", invalid: false, input: quizInput() },
       ]),
     ).toBe(true);
   });

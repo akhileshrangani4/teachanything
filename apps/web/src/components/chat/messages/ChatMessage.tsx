@@ -3,6 +3,7 @@
 import { memo, useMemo } from "react";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { QuizMessage } from "./QuizMessage";
+import { isRenderableQuiz } from "@/lib/quiz";
 import {
   Message,
   MessageContent,
@@ -129,6 +130,13 @@ function ChatMessageImpl({
                   part.state === "input-available" ||
                   part.state === "output-available"
                 ) {
+                  // A structurally valid quiz can still carry an out-of-range
+                  // correct_index (the schema can't upper-bound it; see
+                  // isRenderableQuiz). That would render an unwinnable quiz with
+                  // no correct option, so show the same notice as a malformed one.
+                  if (!isRenderableQuiz(part.input)) {
+                    return <QuizErrorNotice key={part.toolCallId} />;
+                  }
                   return (
                     <QuizMessage
                       key={part.toolCallId}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "@jest/globals";
-import { z } from "zod";
-import { quizSchema } from "@/lib/quiz";
+import { asSchema } from "ai";
+import { quizSchema, isRenderableQuiz } from "@/lib/quiz";
 
 describe("quizSchema", () => {
   it("accepts a valid quiz", () => {
@@ -62,15 +62,48 @@ describe("quizSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("uses only structural constraints so the model-facing JSON schema carries them", () => {
+  it("exposes correct_index (not correct_answer) in the model-facing JSON schema", () => {
     // The correct answer is an index, not a cross-field (`answer in options`)
     // refinement. Refinements are stripped from the JSON schema the model
     // receives, so an index -- which zod expresses as a plain integer bound --
-    // is the constraint the model actually sees. Guard: a mismatch can no
-    // longer land as an SDK validation error that suppresses the fallback, so
-    // an in-range structural quiz always parses.
-    const jsonSchema = z.toJSONSchema(quizSchema);
-    expect(JSON.stringify(jsonSchema)).toContain("correct_index");
-    expect(JSON.stringify(jsonSchema)).not.toContain("correct_answer");
+    // is the constraint the model actually sees. Assert against the SAME
+    // converter the AI SDK uses for a tool's inputSchema (`asSchema`), not a
+    // stand-in like `z.toJSONSchema`, so the test tracks what the model is
+    // really sent.
+    const jsonSchema = JSON.stringify(asSchema(quizSchema).jsonSchema);
+    expect(jsonSchema).toContain("correct_index");
+    expect(jsonSchema).not.toContain("correct_answer");
+  });
+});
+
+describe("isRenderableQuiz", () => {
+  const question = (correct_index: number) => ({
+    question: "Q?",
+    options: ["A", "B"],
+    correct_index,
+    explanation: "x",
+  });
+
+  it("accepts a quiz whose correct_index points at a real option", () => {
+    expect(
+      isRenderableQuiz({ quiz_title: "T", questions: [question(1)] }),
+    ).toBe(true);
+  });
+
+  it("rejects a quiz whose correct_index is out of range", () => {
+    // Structurally valid (index >= 0) but points past the options, so it would
+    // render an unwinnable quiz with no correct option.
+    expect(
+      isRenderableQuiz({ quiz_title: "T", questions: [question(2)] }),
+    ).toBe(false);
+  });
+
+  it("rejects when any one question is out of range", () => {
+    expect(
+      isRenderableQuiz({
+        quiz_title: "T",
+        questions: [question(0), question(5)],
+      }),
+    ).toBe(false);
   });
 });
