@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QuizAttemptsViewer } from "./QuizAttemptsViewer";
 import { cn } from "@/lib/utils";
 import { Check, X, RotateCcw, Trophy, Sparkles } from "lucide-react";
 
@@ -181,50 +182,11 @@ export function QuizMessage({
           ))}
 
           {attempts && attempts.length > 0 && (
-            <div className="flex flex-col gap-3 border-t border-border/50 pt-4">
-              <p className="text-sm font-semibold">
-                Student answers
-                {attempts.length > 1 ? ` (${attempts.length} attempts)` : ""}
-              </p>
-              {attempts.map((attempt, ai) => (
-                <div key={ai} className="flex flex-col gap-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Attempt {ai + 1} — scored {attempt.score}/{attempt.total}
-                  </p>
-                  <div className="flex flex-col gap-1">
-                    {quiz.questions.map((q, qi) => {
-                      const choiceIndex = attempt.answers[qi];
-                      const isCorrect = choiceIndex === q.correct_index;
-                      const chosenText =
-                        typeof choiceIndex === "number" &&
-                        q.options[choiceIndex] !== undefined
-                          ? q.options[choiceIndex]
-                          : "(no answer)";
-                      return (
-                        <div
-                          key={qi}
-                          className={cn(
-                            "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-xs",
-                            isCorrect
-                              ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
-                              : "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400",
-                          )}
-                        >
-                          <span className="min-w-0 truncate">
-                            Q{qi + 1}: {chosenText}
-                          </span>
-                          {isCorrect ? (
-                            <Check className="h-3.5 w-3.5 shrink-0" />
-                          ) : (
-                            <X className="h-3.5 w-3.5 shrink-0" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <QuizAttemptsViewer
+              quiz={quiz}
+              attempts={attempts}
+              label="Student answers"
+            />
           )}
         </CardContent>
       </Card>
@@ -253,6 +215,15 @@ export function QuizMessage({
             You answered {score} of {total} correctly.
           </p>
         </CardContent>
+        {attempts && attempts.length > 0 && (
+          <CardContent className="pt-0">
+            <QuizAttemptsViewer
+              quiz={quiz}
+              attempts={attempts}
+              label="Your answers"
+            />
+          </CardContent>
+        )}
         <CardFooter>
           <Button variant="outline" size="sm" onClick={handleRetake}>
             <RotateCcw className="h-3.5 w-3.5 mr-1.5" />

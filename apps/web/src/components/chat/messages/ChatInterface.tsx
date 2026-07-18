@@ -186,6 +186,7 @@ export function ChatInterface({
                     message={msg}
                     showSources={showSources}
                     onStudyAttempt={onStudyAttempt}
+                    studyAttempts={studyAttempts}
                   />
                 ))}
                 {showIndicator && (
