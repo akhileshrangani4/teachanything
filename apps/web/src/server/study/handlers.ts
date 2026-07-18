@@ -21,6 +21,16 @@ import { StudyRequestError } from "./errors";
  */
 export interface StudyToolHandler {
   buildResponse(shownInput: unknown, clientResponse: unknown): unknown;
+  /**
+   * One-line summary of a single stored response for the model, e.g.
+   * "scored 3/5". Used to tell the model how the student did so it can react.
+   */
+  summarizeResponseForModel(response: unknown): string;
+  /**
+   * Optional human label derived from the shown input (e.g. a quiz title), used
+   * in the model results note. Falls back to the tool name.
+   */
+  labelForModel?(shownInput: unknown): string | undefined;
 }
 
 const quizHandler: StudyToolHandler = {
@@ -38,6 +48,18 @@ const quizHandler: StudyToolHandler = {
       throw new StudyRequestError("Answers do not match the quiz", 400);
     }
     return gradeQuiz(quiz.data, answers as number[]);
+  },
+  summarizeResponseForModel(response) {
+    const r = response as { score?: unknown; total?: unknown };
+    const score = typeof r.score === "number" ? r.score : "?";
+    const total = typeof r.total === "number" ? r.total : "?";
+    return `scored ${score}/${total}`;
+  },
+  labelForModel(shownInput) {
+    const title = (shownInput as { quiz_title?: unknown } | null)?.quiz_title;
+    return typeof title === "string" && title.trim()
+      ? `"${title}" quiz`
+      : "quiz";
   },
 };
 

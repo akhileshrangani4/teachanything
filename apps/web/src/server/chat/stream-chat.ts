@@ -22,6 +22,7 @@ import {
   conversations,
   messages,
   analytics,
+  studyToolResponses,
 } from "@teachanything/db/schema";
 import type { db as DbType } from "@teachanything/db";
 import { buildRAGContext, type RAGContextResult } from "@/server/rag-context";
@@ -47,6 +48,7 @@ import {
 } from "./ui-messages";
 import { stripRetrievalOutputs } from "./stream-filter";
 import { ChatRequestError } from "./request";
+import { buildStudyResultsNote } from "@/server/study/model-note";
 
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 
@@ -172,8 +174,9 @@ export async function streamChat(params: {
     env.OPENAI_API_KEY,
   );
 
-  // History + RAG in parallel (bounded by the slower of the two).
-  const [historyRows, ragResult] = await Promise.all([
+  // History + RAG + prior study-tool responses in parallel (bounded by the
+  // slowest of the three).
+  const [historyRows, ragResult, studyResponseRows] = await Promise.all([
     database
       .select()
       .from(messages)
@@ -189,8 +192,34 @@ export async function streamChat(params: {
       chunkLimit: estimatedChunkLimit,
       aiClient,
     }),
+    // Student responses to study tools shown earlier, so the model can be told
+    // scores / unfinished quizzes. Small per conversation; ordered oldest-first
+    // so attempts number naturally.
+    database
+      .select({
+        toolCallId: studyToolResponses.toolCallId,
+        toolName: studyToolResponses.toolName,
+        response: studyToolResponses.response,
+      })
+      .from(studyToolResponses)
+      .where(eq(studyToolResponses.conversationId, conversationId))
+      .orderBy(studyToolResponses.createdAt)
+      // Bounded so the results note can't balloon the prompt on a pathological
+      // conversation; far above any realistic count of quiz attempts.
+      .limit(200),
   ]);
   historyRows.reverse();
+
+  // Group study responses by toolCallId for the model results note.
+  const studyResponsesByToolCallId = new Map<
+    string,
+    Array<{ toolName: string; response: unknown }>
+  >();
+  for (const row of studyResponseRows) {
+    const list = studyResponsesByToolCallId.get(row.toolCallId) ?? [];
+    list.push({ toolName: row.toolName, response: row.response });
+    studyResponsesByToolCallId.set(row.toolCallId, list);
+  }
 
   // Pass 2: allocate budget with real token counts.
   const fileManifestTokens = countTokens(ragResult.fileManifest);
@@ -253,31 +282,46 @@ export async function streamChat(params: {
   // study addendum when retrieval tools are on; otherwise it mirrors the static
   // path (failure note prepended, no grounding rule) plus the study addendum.
   // The fallback is the pure static prompt (no tools, no addendum).
+  // History rows -> UIMessages. Built once here so the study-results note can be
+  // derived from the full (pre-strip) history.
+  const rawHistoryUiMessages = trimmedHistory.map(rowToUIMessage);
+
+  // Tell the model how the student did on study tools shown earlier (quiz
+  // scores per attempt, or "not yet answered"), since render-only tools return
+  // no result to the model. Appended to whichever system prompt is used so it
+  // reaches tool-capable and non-tool models alike.
+  const studyResultsNote = buildStudyResultsNote(
+    rawHistoryUiMessages,
+    studyResponsesByToolCallId,
+  );
+
   const studyAddendum = modelCanUseTools ? STUDY_TOOLS_SYSTEM_ADDENDUM : "";
-  const primarySystemPrompt = useRetrievalTools
-    ? chatbot.systemPrompt +
-      ragResult.fileManifest +
-      ragResult.contextText +
-      buildGroundingRule(Boolean(ragResult.contextText)) +
-      studyAddendum
-    : ragResult.ragFailureNote +
-      chatbot.systemPrompt +
-      ragResult.fileManifest +
-      ragResult.contextText +
-      studyAddendum;
+  const primarySystemPrompt =
+    (useRetrievalTools
+      ? chatbot.systemPrompt +
+        ragResult.fileManifest +
+        ragResult.contextText +
+        buildGroundingRule(Boolean(ragResult.contextText)) +
+        studyAddendum
+      : ragResult.ragFailureNote +
+        chatbot.systemPrompt +
+        ragResult.fileManifest +
+        ragResult.contextText +
+        studyAddendum) + studyResultsNote;
   const fallbackSystemPrompt =
     ragResult.ragFailureNote +
     chatbot.systemPrompt +
     ragResult.fileManifest +
-    ragResult.contextText;
+    ragResult.contextText +
+    studyResultsNote;
 
-  // History rows -> UIMessages -> ModelMessages, then append the new message.
-  // A non-tool model (e.g. the bot was switched after a quiz was persisted)
-  // must not receive tool-call messages, or the provider can 400 the turn, so
-  // down-convert any persisted study-tool parts to text first.
-  const historyUiMessages = trimmedHistory
-    .map(rowToUIMessage)
-    .map((m) => (modelCanUseTools ? m : stripToolPartsForTextModel(m)));
+  // History -> ModelMessages, then append the new message. A non-tool model
+  // (e.g. the bot was switched after a quiz was persisted) must not receive
+  // tool-call messages, or the provider can 400 the turn, so down-convert any
+  // persisted study-tool parts to text first.
+  const historyUiMessages = modelCanUseTools
+    ? rawHistoryUiMessages
+    : rawHistoryUiMessages.map(stripToolPartsForTextModel);
   const uiMessages: StudyUIMessage[] = [...historyUiMessages, userMessage];
   const modelMessages = await convertToModelMessages(uiMessages, {
     tools,

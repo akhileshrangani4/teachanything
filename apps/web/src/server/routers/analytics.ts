@@ -733,8 +733,9 @@ export const analyticsRouter = router({
 
       // Student study-tool attempts for this conversation (quiz answers, etc.),
       // in chronological order so the client can label them Attempt 1, 2, ...
-      // per toolCallId. The whole conversation's responses are small, so no
-      // pagination.
+      // per toolCallId. Loaded in full (not tied to the message page) so a quiz
+      // on any message page shows all its attempts; responses per conversation
+      // are small, but capped defensively against a pathological conversation.
       const studyResponses = await ctx.db
         .select({
           toolCallId: studyToolResponses.toolCallId,
@@ -744,7 +745,8 @@ export const analyticsRouter = router({
         })
         .from(studyToolResponses)
         .where(eq(studyToolResponses.conversationId, input.conversationId))
-        .orderBy(asc(studyToolResponses.createdAt));
+        .orderBy(asc(studyToolResponses.createdAt))
+        .limit(500);
 
       return {
         messages: conversationMessages,
