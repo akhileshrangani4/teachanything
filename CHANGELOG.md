@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.32.1](https://github.com/akhileshrangani4/teachanything/compare/v1.32.0...v1.32.1) (2026-07-18)
+
+
+### Documentation
+
+* **instructors:** apply Prof Joubin's requested revisions ([#387](https://github.com/akhileshrangani4/teachanything/issues/387)) ([ebbdc19](https://github.com/akhileshrangani4/teachanything/commit/ebbdc199cf73a93eadb48c14080fc3c1d4f3ce7b))
+
 ## [1.32.0](https://github.com/akhileshrangani4/teachanything/compare/v1.31.1...v1.32.0) (2026-07-14)
 
 
