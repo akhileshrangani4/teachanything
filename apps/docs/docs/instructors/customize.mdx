@@ -1,6 +1,6 @@
 ---
 title: Customize your assistant
-description: Tune the tone, pick an AI model, control answer length and creativity, and decide whether answers cite their sources.
+description: Tune the tone, pick an LLM, control max tokens and temperature, and decide whether answers cite their sources.
 sidebar:
   label: Customize
   icon: sliders
@@ -22,29 +22,31 @@ Rewrite the instructions whenever answers aren't landing the way you want. It's 
 
 ## Choosing a model
 
-The **model** is the AI engine that writes the answers. Several are available, and they all work the same way from your point of view — you don't need to know the technical differences.
+The **LLM** is the engine that writes the answers. We offer multiple open-access
+LLMs, and they all work the same way from your point of view — you don't need to
+know the technical differences.
 
 <CardGroup cols={2}>
   <Card title="Stick with the default" icon="check">
-    The default model is a well-rounded choice that works for most courses. When
+    The default LLM is a well-rounded choice that works for most courses. When
     in doubt, leave it.
   </Card>
   <Card title="Try another if needed" icon="repeat">
-    If answers feel too short, too long, or off-tone, switch models and compare.
+    If answers feel too short, too long, or off-tone, switch LLMs and compare.
     It's a safe experiment — nothing else changes.
   </Card>
 </CardGroup>
 
-## Creativity and answer length
+## Temperature and max tokens
 
 <CardGroup cols={2}>
-  <Card title="Creativity" icon="sparkles">
-    Lower keeps answers focused and consistent — best for factual course
-    content. Higher makes wording more varied and exploratory.
+  <Card title="Temperature" icon="sparkles">
+    Lower values keep answers focused and predictable — best for factual course
+    material. Higher values make answers more "creative."
   </Card>
-  <Card title="Answer length" icon="ruler">
-    A ceiling on answer length. Raise it for detailed explanations; lower it to
-    keep answers short and to the point.
+  <Card title="Max tokens" icon="ruler">
+    A cap on how long (detailed) or concise each answer can get. 100 tokens are
+    equal to roughly 75 English words.
   </Card>
 </CardGroup>
 
