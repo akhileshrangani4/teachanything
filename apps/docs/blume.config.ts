@@ -75,9 +75,14 @@ export default defineConfig({
   // Teach Anything doesn't have one — the share card still renders fine
   // without an attribution account.
 
-  // "Was this helpful?" widget and last-updated stamps keep the docs honest.
-  // (No `github` block, so there are no "Edit on GitHub" page actions or
-  // header repo link — this is an end-user product site, not a repo.)
-  feedback: true,
+  // Last-updated stamps keep the docs honest. (No `github` block, so there are
+  // no "Edit on GitHub" page actions or header repo link — this is an end-user
+  // product site, not a repo.)
+  //
+  // The "Was this page helpful?" widget is off: it only reports votes through
+  // an analytics provider (PostHog/gtag/Plausible) or a `blume:track` listener,
+  // none of which this static site loads, so every vote went nowhere. Re-enable
+  // once an analytics provider is wired up.
+  feedback: false,
   lastModified: true,
 });
