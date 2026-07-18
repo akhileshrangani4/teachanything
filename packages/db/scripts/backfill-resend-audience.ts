@@ -2,11 +2,11 @@
  * Resend Audience Backfill Script
  *
  * One-time backfill: pushes every already-approved user into the Resend
- * audience configured via RESEND_AUDIENCE_ID. Safe to re-run in that it
- * never removes contacts and omits `unsubscribed`, so an existing opt-out
- * is never overwritten. Resend does not document duplicate-create
- * semantics, so already-synced contacts may be reported as failures on
- * re-runs.
+ * audience configured via RESEND_AUDIENCE_ID. Safe to re-run: it never
+ * removes contacts and omits `unsubscribed`, so an existing opt-out is
+ * never overwritten, and contacts already in the audience (HTTP 409 / an
+ * "already" response) are counted separately rather than as failures, so a
+ * clean re-run exits 0.
  *
  * Usage:
  *   npx tsx packages/db/scripts/backfill-resend-audience.ts
