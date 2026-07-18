@@ -2,8 +2,8 @@
 
 import { memo, useMemo } from "react";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
-import { QuizMessage } from "./QuizMessage";
-import { isRenderableQuiz } from "@/lib/quiz";
+import { QuizMessage, QuizSkeleton } from "./QuizMessage";
+import { isRenderableQuiz, type QuizResponse } from "@/lib/quiz";
 import {
   Message,
   MessageContent,
@@ -22,6 +22,18 @@ interface ChatMessageProps {
   showSources?: boolean;
   /** Render study-tool widgets read-only (professor dashboard viewer). */
   readOnly?: boolean;
+  /**
+   * Called when the student finishes a quiz attempt, keyed by the quiz's
+   * `toolCallId`. Wired only in interactive mode; the parent persists + keeps
+   * it for export. Must be stable (memoized) so this memoized row can skip
+   * re-renders.
+   */
+  onQuizAttempt?: (toolCallId: string, response: QuizResponse) => void;
+  /**
+   * Read-only mode: the student's persisted attempts by quiz `toolCallId`, so
+   * the dashboard reveal can show what the student submitted per attempt.
+   */
+  quizAttempts?: Record<string, QuizResponse[]>;
 }
 
 /**
@@ -42,7 +54,8 @@ export function isVisiblePart(part: StudyUIMessage["parts"][number]): boolean {
   return (
     (part.type === "text" && part.text.trim().length > 0) ||
     (part.type === "tool-showQuiz" &&
-      (part.state === "input-available" ||
+      (part.state === "input-streaming" ||
+        part.state === "input-available" ||
         part.state === "output-available" ||
         part.state === "output-error")) ||
     (part.type === "dynamic-tool" &&
@@ -55,6 +68,8 @@ function ChatMessageImpl({
   message,
   showSources = false,
   readOnly = false,
+  onQuizAttempt,
+  quizAttempts,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const sources = useMemo(
@@ -142,6 +157,13 @@ function ChatMessageImpl({
                       key={part.toolCallId}
                       quiz={part.input}
                       readOnly={readOnly}
+                      attempts={quizAttempts?.[part.toolCallId]}
+                      onAttempt={
+                        onQuizAttempt
+                          ? (response) =>
+                              onQuizAttempt(part.toolCallId, response)
+                          : undefined
+                      }
                     />
                   );
                 }
@@ -150,8 +172,10 @@ function ChatMessageImpl({
                 if (part.state === "output-error") {
                   return <QuizErrorNotice key={part.toolCallId} />;
                 }
-                // input-streaming: the typing indicator covers the gap.
-                return null;
+                // input-streaming: the model is still filling the quiz; show a
+                // skeleton so the build reads as in-progress. Never persisted in
+                // this state, so the read-only dashboard never hits this branch.
+                return <QuizSkeleton key={part.toolCallId} />;
               case "dynamic-tool":
                 // A tool call the provider returned atomically (no preceding
                 // input-start) lands as a `dynamic-tool` part. A valid quiz

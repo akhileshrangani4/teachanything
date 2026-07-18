@@ -6,6 +6,7 @@ import {
   messages,
   analytics,
   user,
+  studyToolResponses,
 } from "@teachanything/db/schema";
 import type { SQL } from "drizzle-orm";
 import { eq, and, sql, gte, lte, desc, asc, inArray, ilike } from "drizzle-orm";
@@ -730,10 +731,26 @@ export const analyticsRouter = router({
         .limit(input.limit)
         .offset(input.offset);
 
+      // Student study-tool attempts for this conversation (quiz answers, etc.),
+      // in chronological order so the client can label them Attempt 1, 2, ...
+      // per toolCallId. The whole conversation's responses are small, so no
+      // pagination.
+      const studyResponses = await ctx.db
+        .select({
+          toolCallId: studyToolResponses.toolCallId,
+          toolName: studyToolResponses.toolName,
+          attempt: studyToolResponses.attempt,
+          response: studyToolResponses.response,
+        })
+        .from(studyToolResponses)
+        .where(eq(studyToolResponses.conversationId, input.conversationId))
+        .orderBy(asc(studyToolResponses.createdAt));
+
       return {
         messages: conversationMessages,
         conversation: row.conversation,
         totalCount: totalResult?.count ?? 0,
+        studyResponses,
       };
     }),
 

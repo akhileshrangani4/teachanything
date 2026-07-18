@@ -76,6 +76,8 @@ export default function ChatbotDetailPage() {
     handleSendMessage,
     resetChat,
     stop,
+    onQuizAttempt,
+    studyAttempts,
   } = useChatbot(chatbotId, session);
 
   // Fetch files associated with this chatbot (will be paginated in ChatbotFilesTab)
@@ -224,6 +226,8 @@ export default function ChatbotDetailPage() {
                 showSources={chatbot.showSources ?? false}
                 chatbotId={chatbot.id}
                 voiceInputEnabled
+                onQuizAttempt={onQuizAttempt}
+                studyAttempts={studyAttempts}
               />
             </ErrorBoundary>
           </TabsContent>

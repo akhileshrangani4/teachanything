@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { exportChatAsText } from "@/lib/export-chat";
 import { toast } from "sonner";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
+import type { QuizResponse } from "@/lib/quiz";
 
 interface EmbedHeaderProps {
   chatbotName: string;
@@ -11,6 +12,8 @@ interface EmbedHeaderProps {
   onReset: () => void;
   onClose: () => void;
   messages: StudyUIMessage[];
+  /** Student's own quiz attempts by toolCallId, included in the export. */
+  studyAttempts?: Record<string, QuizResponse[]>;
 }
 
 export function EmbedHeader({
@@ -20,6 +23,7 @@ export function EmbedHeader({
   onReset,
   onClose,
   messages,
+  studyAttempts,
 }: EmbedHeaderProps) {
   const handleExportChat = () => {
     if (messages.length === 0) {
@@ -28,7 +32,7 @@ export function EmbedHeader({
     }
 
     try {
-      exportChatAsText(messages, chatbotName);
+      exportChatAsText(messages, chatbotName, { studyAttempts });
       toast.success("Chat exported successfully");
     } catch (error) {
       toast.error("Failed to export chat", {

@@ -1,6 +1,12 @@
 import { describe, it, expect } from "@jest/globals";
 import { asSchema } from "ai";
-import { quizSchema, isRenderableQuiz } from "@/lib/quiz";
+import {
+  quizSchema,
+  isRenderableQuiz,
+  isValidQuizAnswers,
+  gradeQuiz,
+  type Quiz,
+} from "@/lib/quiz";
 
 describe("quizSchema", () => {
   it("accepts a valid quiz", () => {
@@ -105,5 +111,81 @@ describe("isRenderableQuiz", () => {
         questions: [question(0), question(5)],
       }),
     ).toBe(false);
+  });
+});
+
+describe("isValidQuizAnswers", () => {
+  const quiz: Quiz = {
+    quiz_title: "T",
+    questions: [
+      {
+        question: "Q1",
+        options: ["A", "B", "C"],
+        correct_index: 2,
+        explanation: "x",
+      },
+      {
+        question: "Q2",
+        options: ["A", "B"],
+        correct_index: 0,
+        explanation: "x",
+      },
+    ],
+  };
+
+  it("accepts one in-range answer per question", () => {
+    expect(isValidQuizAnswers(quiz, [1, 0])).toBe(true);
+  });
+
+  it("rejects a wrong-length answer array", () => {
+    expect(isValidQuizAnswers(quiz, [1])).toBe(false);
+    expect(isValidQuizAnswers(quiz, [1, 0, 1])).toBe(false);
+  });
+
+  it("rejects an out-of-range selection", () => {
+    expect(isValidQuizAnswers(quiz, [3, 0])).toBe(false); // Q1 has 3 options (0-2)
+    expect(isValidQuizAnswers(quiz, [0, -1])).toBe(false);
+  });
+
+  it("rejects a non-integer selection", () => {
+    expect(isValidQuizAnswers(quiz, [1.5, 0])).toBe(false);
+  });
+});
+
+describe("gradeQuiz", () => {
+  const quiz: Quiz = {
+    quiz_title: "T",
+    questions: [
+      {
+        question: "Q1",
+        options: ["A", "B", "C"],
+        correct_index: 2,
+        explanation: "x",
+      },
+      {
+        question: "Q2",
+        options: ["A", "B"],
+        correct_index: 0,
+        explanation: "x",
+      },
+    ],
+  };
+
+  it("computes score against correct_index and echoes answers", () => {
+    expect(gradeQuiz(quiz, [2, 0])).toEqual({
+      answers: [2, 0],
+      score: 2,
+      total: 2,
+    });
+    expect(gradeQuiz(quiz, [2, 1])).toEqual({
+      answers: [2, 1],
+      score: 1,
+      total: 2,
+    });
+    expect(gradeQuiz(quiz, [0, 1])).toEqual({
+      answers: [0, 1],
+      score: 0,
+      total: 2,
+    });
   });
 });

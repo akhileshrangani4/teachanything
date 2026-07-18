@@ -1,10 +1,18 @@
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { extractText } from "@/server/chat/ui-messages";
+import { isRenderableQuiz, type Quiz, type QuizResponse } from "@/lib/quiz";
+
+export interface ExportOptions {
+  includeSources?: boolean;
+  /** The student's own finished quiz attempts, keyed by quiz toolCallId. */
+  studyAttempts?: Record<string, QuizResponse[]>;
+}
 
 /**
  * The exportable text of a message: its joined text parts, or -- for a
  * quiz-only turn that has no text -- a placeholder so the export doesn't write a
- * blank `[N] Assistant:` line.
+ * blank `[N] Assistant:` line. (Turns with a renderable quiz get the full quiz
+ * block appended separately; this is the fallback content line.)
  */
 export function messageExportContent(message: StudyUIMessage): string {
   const text = extractText(message.parts);
@@ -19,30 +27,105 @@ export function messageExportContent(message: StudyUIMessage): string {
   return text;
 }
 
+/** The renderable quizzes in a message, paired with the student's attempts. */
+function messageQuizzes(
+  message: StudyUIMessage,
+  studyAttempts: Record<string, QuizResponse[]> = {},
+): Array<{ quiz: Quiz; attempts: QuizResponse[] }> {
+  const out: Array<{ quiz: Quiz; attempts: QuizResponse[] }> = [];
+  for (const part of message.parts) {
+    if (
+      part.type === "tool-showQuiz" &&
+      (part.state === "input-available" || part.state === "output-available") &&
+      isRenderableQuiz(part.input)
+    ) {
+      out.push({
+        quiz: part.input,
+        attempts: studyAttempts[part.toolCallId] ?? [],
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Human-readable block for one quiz: each question with its options (the correct
+ * one marked), then the student's attempt(s) showing what they picked + score.
+ * Pure + exported so it can be unit-tested.
+ */
+export function formatQuizForExport(
+  quiz: Quiz,
+  attempts: QuizResponse[],
+): string {
+  let s = `Quiz: ${quiz.quiz_title}\n`;
+  quiz.questions.forEach((q, qi) => {
+    s += `  Q${qi + 1}. ${q.question}\n`;
+    q.options.forEach((opt, oi) => {
+      const mark = oi === q.correct_index ? "  [correct]" : "";
+      s += `      ${String.fromCharCode(65 + oi)}. ${opt}${mark}\n`;
+    });
+  });
+  if (attempts.length === 0) {
+    s += `  (no answer submitted)\n`;
+    return s;
+  }
+  attempts.forEach((att, ai) => {
+    s += `  Attempt ${ai + 1} — score ${att.score}/${att.total}:\n`;
+    quiz.questions.forEach((q, qi) => {
+      const chosen = att.answers[qi];
+      const chosenText =
+        typeof chosen === "number" && q.options[chosen] !== undefined
+          ? q.options[chosen]
+          : "(no answer)";
+      const ok = chosen === q.correct_index ? "correct" : "incorrect";
+      s += `      Q${qi + 1}: ${chosenText} (${ok})\n`;
+    });
+  });
+  return s;
+}
+
+/** The full text body for a message: prose text and/or its quiz block(s). */
+function messageExportBody(
+  message: StudyUIMessage,
+  studyAttempts: Record<string, QuizResponse[]>,
+): string {
+  const quizzes = messageQuizzes(message, studyAttempts);
+  if (quizzes.length === 0) return messageExportContent(message);
+  const quizText = quizzes
+    .map(({ quiz, attempts }) => formatQuizForExport(quiz, attempts))
+    .join("\n");
+  const text = extractText(message.parts);
+  return text.trim() ? `${text}\n\n${quizText}` : quizText;
+}
+
 /** Flatten a UIMessage into the plain { role, content, sources } shape export needs. */
-function toExportRows(messages: StudyUIMessage[]) {
+function toExportRows(
+  messages: StudyUIMessage[],
+  studyAttempts: Record<string, QuizResponse[]> = {},
+) {
   return messages.map((message) => ({
     role: message.role,
-    content: messageExportContent(message),
+    content: messageExportBody(message, studyAttempts),
     sources: message.metadata?.sources,
+    quizzes: messageQuizzes(message, studyAttempts),
   }));
 }
 
 /**
- * Exports chat messages as a formatted text file
- * @param messages - Array of chat messages to export
- * @param chatbotName - Name of the chatbot
- * @param includeSources - Whether to include source citations
+ * Exports chat messages as a formatted text file. When `studyAttempts` is
+ * provided, each quiz turn includes its questions/correct answers and the
+ * student's own submitted answers per attempt.
  */
 export function exportChatAsText(
   uiMessages: StudyUIMessage[],
   chatbotName: string,
-  includeSources: boolean = true,
+  options: ExportOptions = {},
 ): void {
   if (uiMessages.length === 0) {
     return;
   }
-  const messages = toExportRows(uiMessages);
+  const { includeSources = true, studyAttempts = {} } = options;
+  const messages = toExportRows(uiMessages, studyAttempts);
 
   const date = new Date().toLocaleString();
   let content = `Chat Export: ${chatbotName}\n`;
@@ -87,18 +170,19 @@ export function exportChatAsText(
 }
 
 /**
- * Exports chat messages as JSON
- * @param messages - Array of chat messages to export
- * @param chatbotName - Name of the chatbot
+ * Exports chat messages as JSON. When `studyAttempts` is provided, each message
+ * carries a structured `quizzes` array (quiz + the student's attempts).
  */
 export function exportChatAsJSON(
   uiMessages: StudyUIMessage[],
   chatbotName: string,
+  options: ExportOptions = {},
 ): void {
   if (uiMessages.length === 0) {
     return;
   }
-  const messages = toExportRows(uiMessages);
+  const { studyAttempts = {} } = options;
+  const messages = toExportRows(uiMessages, studyAttempts);
 
   const exportData = {
     chatbotName,
@@ -108,6 +192,7 @@ export function exportChatAsJSON(
       role: message.role,
       content: message.content,
       sources: message.sources,
+      quizzes: message.quizzes.length > 0 ? message.quizzes : undefined,
     })),
   };
 

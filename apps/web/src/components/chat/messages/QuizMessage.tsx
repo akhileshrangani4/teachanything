@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Quiz } from "@/lib/quiz";
+import type { Quiz, QuizResponse } from "@/lib/quiz";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -11,8 +11,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Check, X, RotateCcw, Trophy } from "lucide-react";
+import { Check, X, RotateCcw, Trophy, Sparkles } from "lucide-react";
+
+/**
+ * Placeholder shown while the model is still streaming the quiz tool input
+ * (`input-streaming`), so a quiz-in-progress reads as "building" rather than a
+ * blank gap covered only by the input's Stop button.
+ */
+export function QuizSkeleton() {
+  return (
+    <Card className="bg-secondary" aria-hidden="true">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base md:text-lg text-muted-foreground">
+          <Sparkles className="h-4 w-4 animate-pulse" />
+          Building your quiz…
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Skeleton className="h-4 w-3/4" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-9 w-full rounded-lg" />
+          <Skeleton className="h-9 w-full rounded-lg" />
+          <Skeleton className="h-9 w-5/6 rounded-lg" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface QuizMessageProps {
   quiz: Quiz;
@@ -22,9 +49,26 @@ interface QuizMessageProps {
    * get the default interactive widget.
    */
   readOnly?: boolean;
+  /**
+   * Called once when the student finishes an attempt (interactive mode only),
+   * with their selected option indices + score. The parent persists it and
+   * keeps it for export.
+   */
+  onAttempt?: (response: QuizResponse) => void;
+  /**
+   * Read-only mode only: the student's persisted attempts, oldest first. Shown
+   * as an "Attempts" section beneath the answer key so a professor sees what the
+   * student submitted across retakes.
+   */
+  attempts?: QuizResponse[];
 }
 
-export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
+export function QuizMessage({
+  quiz,
+  readOnly = false,
+  onAttempt,
+  attempts,
+}: QuizMessageProps) {
   const total = quiz.questions.length;
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -60,6 +104,12 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
 
   const handleNext = () => {
     if (isLast) {
+      // Report the completed attempt once. Every question is answered by now
+      // (Next/Finish is disabled until the current one is), so `selected` has no
+      // nulls; guard anyway so a bad state can't send a malformed attempt.
+      if (!finished && selected.every((s) => s !== null)) {
+        onAttempt?.({ answers: selected as number[], score, total });
+      }
       setFinished(true);
     } else {
       setCurrentIndex((i) => i + 1);
@@ -129,6 +179,53 @@ export function QuizMessage({ quiz, readOnly = false }: QuizMessageProps) {
               </div>
             </div>
           ))}
+
+          {attempts && attempts.length > 0 && (
+            <div className="flex flex-col gap-3 border-t border-border/50 pt-4">
+              <p className="text-sm font-semibold">
+                Student answers
+                {attempts.length > 1 ? ` (${attempts.length} attempts)` : ""}
+              </p>
+              {attempts.map((attempt, ai) => (
+                <div key={ai} className="flex flex-col gap-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Attempt {ai + 1} — scored {attempt.score}/{attempt.total}
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {quiz.questions.map((q, qi) => {
+                      const choiceIndex = attempt.answers[qi];
+                      const isCorrect = choiceIndex === q.correct_index;
+                      const chosenText =
+                        typeof choiceIndex === "number" &&
+                        q.options[choiceIndex] !== undefined
+                          ? q.options[choiceIndex]
+                          : "(no answer)";
+                      return (
+                        <div
+                          key={qi}
+                          className={cn(
+                            "flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-xs",
+                            isCorrect
+                              ? "border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400"
+                              : "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400",
+                          )}
+                        >
+                          <span className="min-w-0 truncate">
+                            Q{qi + 1}: {chosenText}
+                          </span>
+                          {isCorrect ? (
+                            <Check className="h-3.5 w-3.5 shrink-0" />
+                          ) : (
+                            <X className="h-3.5 w-3.5 shrink-0" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     );

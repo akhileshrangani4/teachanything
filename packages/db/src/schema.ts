@@ -364,6 +364,34 @@ export const messages = pgTable(
   ],
 );
 
+// Student study-tool responses (quiz answers now; flashcards / test / mindmap
+// later). One append-only row per completed attempt. General across study-tool
+// types: `toolName` discriminates and `response` is a per-tool JSONB payload
+// (the app owns the typed shape; the db package stays generic). Keyed by
+// `toolCallId` (identical in the live stream and persisted `messages.metadata.
+// parts`) so an attempt links to the exact tool part shown, sidestepping the
+// live-UIMessage-id vs persisted-row-id mismatch.
+export const studyToolResponses = pgTable(
+  "study_tool_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    toolCallId: text("tool_call_id").notNull(),
+    toolName: text("tool_name").notNull(),
+    attempt: integer("attempt").notNull(), // 1-based; increments per retake
+    response: jsonb("response").$type<unknown>().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("study_tool_responses_conversation_tool_call_idx").on(
+      table.conversationId,
+      table.toolCallId,
+    ),
+  ],
+);
+
 // Analytics table
 export const analytics = pgTable(
   "analytics",
@@ -604,6 +632,7 @@ export const conversationsRelations = relations(
       references: [chatbots.id],
     }),
     messages: many(messages),
+    studyToolResponses: many(studyToolResponses),
   }),
 );
 
@@ -613,6 +642,16 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [conversations.id],
   }),
 }));
+
+export const studyToolResponsesRelations = relations(
+  studyToolResponses,
+  ({ one }) => ({
+    conversation: one(conversations, {
+      fields: [studyToolResponses.conversationId],
+      references: [conversations.id],
+    }),
+  }),
+);
 
 export const analyticsRelations = relations(analytics, ({ one }) => ({
   chatbot: one(chatbots, {

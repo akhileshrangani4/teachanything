@@ -32,6 +32,8 @@ export default function SharedChatPage() {
     resetChat,
     stop,
     error,
+    onQuizAttempt,
+    studyAttempts,
   } = useChat(shareToken);
 
   // Error state - show immediately if there's an error
@@ -92,6 +94,8 @@ export default function SharedChatPage() {
             showSources={chatbot.showSources ?? false}
             shareToken={shareToken}
             voiceInputEnabled
+            onQuizAttempt={onQuizAttempt}
+            studyAttempts={studyAttempts}
             brandingText={
               <span className="inline-flex items-center gap-1.5">
                 <span>Powered by</span>

@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { describeChatError } from "@/lib/chat-error-message";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
+import type { QuizResponse } from "@/lib/quiz";
+import { postStudyResponse } from "@/lib/submit-study-response";
 
 /**
  * Chat with a shared/public chatbot (share-token pages + embed widget), backed
@@ -17,6 +19,11 @@ import type { StudyUIMessage } from "@/server/chat/study-tools";
 export function useChat(shareToken: string) {
   const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
+  // The student's own finished quiz attempts this session, by quiz toolCallId,
+  // for the chat export. Persistence to the server happens in parallel.
+  const [studyAttempts, setStudyAttempts] = useState<
+    Record<string, QuizResponse[]>
+  >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -63,6 +70,22 @@ export function useChat(shareToken: string) {
     if (sendMessage(currentMessage)) setCurrentMessage("");
   };
 
+  const onQuizAttempt = useCallback(
+    (toolCallId: string, response: QuizResponse) => {
+      setStudyAttempts((prev) => ({
+        ...prev,
+        [toolCallId]: [...(prev[toolCallId] ?? []), response],
+      }));
+      void postStudyResponse({
+        shareToken,
+        sessionId,
+        toolCallId,
+        answers: response.answers,
+      });
+    },
+    [shareToken, sessionId],
+  );
+
   const resetChat = () => {
     // Abort any in-flight stream first: re-keying useChat below discards the old
     // Chat without cancelling its request, so without this the server keeps
@@ -70,6 +93,7 @@ export function useChat(shareToken: string) {
     void chat.stop();
     chat.setMessages([]);
     setCurrentMessage("");
+    setStudyAttempts({});
     // Start a fresh server-side conversation (matches the prior behavior). The
     // new id also re-keys useChat, so the transport no longer reloads the
     // old conversation's history on the next send.
@@ -88,5 +112,7 @@ export function useChat(shareToken: string) {
     chatbot,
     chatbotLoading,
     error,
+    onQuizAttempt,
+    studyAttempts,
   };
 }

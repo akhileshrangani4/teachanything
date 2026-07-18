@@ -87,6 +87,22 @@ export const authenticatedChatRateLimit = createLimiter({
   prefix: "@ratelimit/authenticated-chat",
 });
 
+// Rate limiter for authenticated study-tool responses (quiz attempts, etc.)
+// 60 per minute per user. Cheaper than chat (a DB write, no LLM), so a higher
+// cap; a student answering/retaking several quizzes shouldn't be throttled.
+export const studyResponseRateLimit = createLimiter({
+  window: [60, "1 m"],
+  prefix: "@ratelimit/study-response",
+});
+
+// Rate limiter for study-tool responses on public/shared links
+// 30 per minute per (IP, shareToken). No LLM cost, so no global per-token cap
+// is needed; this bounds write spam per source.
+export const publicStudyResponseRateLimit = createLimiter({
+  window: [30, "1 m"],
+  prefix: "@ratelimit/study-response-public",
+});
+
 // Rate limiter for password reset requests
 // 2 requests per 2 minutes per email (prevents email bombing)
 export const passwordResetRateLimit = createLimiter({

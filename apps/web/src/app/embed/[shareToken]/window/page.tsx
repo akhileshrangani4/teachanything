@@ -30,6 +30,8 @@ export default function EmbedWindowPage() {
     resetChat,
     stop,
     error,
+    onQuizAttempt,
+    studyAttempts,
   } = useChat(shareToken);
 
   if (!isMounted || chatbotLoading) {
@@ -62,6 +64,7 @@ export default function EmbedWindowPage() {
           onReset={resetChat}
           onClose={close}
           messages={messages}
+          studyAttempts={studyAttempts}
         />
       )}
 
@@ -92,6 +95,8 @@ export default function EmbedWindowPage() {
             // pasted embeds have neither and stay text-only rather than
             // showing a mic that can never get permission.
             voiceInputEnabled={voiceInputEnabled}
+            onQuizAttempt={onQuizAttempt}
+            studyAttempts={studyAttempts}
           />
         </ErrorBoundary>
       </div>

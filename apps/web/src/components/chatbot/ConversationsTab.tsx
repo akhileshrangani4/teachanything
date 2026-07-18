@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "@/components/chat/messages/ChatMessage";
 import { rowToUIMessage } from "@/server/chat/ui-messages";
+import type { QuizResponse } from "@/lib/quiz";
 import {
   Select,
   SelectContent,
@@ -533,6 +534,17 @@ function ConversationDetail({
     }
   }, [error, chatbotId, conversationId]);
 
+  // Group the student's persisted study-tool attempts by quiz toolCallId
+  // (already ordered oldest-first) so the read-only quiz can show each attempt.
+  const quizAttempts = useMemo(() => {
+    const map: Record<string, QuizResponse[]> = {};
+    for (const r of data?.studyResponses ?? []) {
+      if (r.toolName !== "showQuiz") continue;
+      (map[r.toolCallId] ??= []).push(r.response as QuizResponse);
+    }
+    return map;
+  }, [data?.studyResponses]);
+
   return (
     <Card className={PANEL_SHELL} style={PANEL_STYLE}>
       <CardHeader className="shrink-0">
@@ -607,6 +619,7 @@ function ConversationDetail({
                     message={rowToUIMessage(msg)}
                     showSources
                     readOnly
+                    quizAttempts={quizAttempts}
                   />
                 ))}
             </div>
