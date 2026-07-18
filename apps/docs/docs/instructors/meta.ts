@@ -9,6 +9,7 @@ export default defineMeta({
     "create-a-chatbot",
     "upload-materials",
     "add-website-content",
+    "attach-materials",
     "customize",
     "share-and-embed",
     "review-conversations",

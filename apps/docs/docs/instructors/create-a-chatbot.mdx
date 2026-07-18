@@ -6,7 +6,7 @@ sidebar:
   icon: plus
 ---
 
-Your first step is to create the assistant itself. This is quick — you can always change everything later. From your [dashboard](https://teachanything.ai/dashboard), click **New chatbot** and fill out the form.
+Name your assistant and give it instructions on how to behave (this is called the system prompt). Here is a walkthrough of every setting. This is quick — you can always change everything later. From your [dashboard](https://teachanything.ai/dashboard), click **New chatbot** and fill out the form.
 
 ## Name and description
 
@@ -37,18 +37,18 @@ You don't have to get this perfect. Start simple, watch how it answers, and adju
 A few settings control the style of the answers:
 
 <CardGroup cols={2}>
-  <Card title="AI model" icon="cpu">
-    The underlying AI that writes the answers. Several are available; the
-    default is a strong general-purpose choice. See [Customize your
-    assistant](/instructors/customize#choosing-a-model).
+  <Card title="LLM model" icon="cpu">
+    The underlying large language model (LLM) is the "engine." We offer multiple
+    open-access LLMs; the default is a strong general-purpose choice. See
+    [Customize your assistant](/instructors/customize#choosing-a-model).
   </Card>
-  <Card title="Creativity" icon="sparkles">
+  <Card title="Temperature" icon="sparkles">
     Lower values keep answers focused and predictable — best for factual course
-    material. Higher values make answers more varied.
+    material. Higher values make answers more "creative."
   </Card>
-  <Card title="Answer length" icon="ruler">
-    A cap on how long each answer can get. Longer allows more detail; shorter
-    keeps things concise.
+  <Card title="Max tokens" icon="ruler">
+    This is a cap on how long (detailed) or concise each answer can get. 100
+    tokens are equal to roughly 75 English words.
   </Card>
   <Card title="Show sources" icon="quote">
     When on, answers list which of your files they drew from, so students can
