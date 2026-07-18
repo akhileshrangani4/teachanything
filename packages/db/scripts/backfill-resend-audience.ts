@@ -52,6 +52,21 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// The user schema stores a single `name`; split it into Resend's
+// first_name/last_name on whitespace (first token first, the rest last).
+function splitName(name: string | null): {
+  first_name?: string;
+  last_name?: string;
+} {
+  const trimmed = name?.trim();
+  if (!trimmed) return {};
+  const [first, ...rest] = trimmed.split(/\s+/);
+  return {
+    first_name: first,
+    last_name: rest.length ? rest.join(" ") : undefined,
+  };
+}
+
 async function backfill() {
   const sql = postgres(databaseUrl!);
 
@@ -63,6 +78,7 @@ async function backfill() {
     console.log(`Found ${users.length} approved users to sync`);
 
     let synced = 0;
+    let alreadyPresent = 0;
     let failed = 0;
 
     for (const [i, u] of users.entries()) {
@@ -77,7 +93,7 @@ async function backfill() {
             },
             body: JSON.stringify({
               email: u.email,
-              first_name: u.name || undefined,
+              ...splitName(u.name),
             }),
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
           },
@@ -89,6 +105,11 @@ async function backfill() {
         if (res.ok) {
           synced++;
           console.log(`[${i + 1}/${users.length}] synced ${u.email}`);
+        } else if (res.status === 409 || /already/i.test(body)) {
+          // Contact already in the audience — expected on a re-run, not a
+          // failure, so it doesn't set a nonzero exit code.
+          alreadyPresent++;
+          console.log(`[${i + 1}/${users.length}] already present ${u.email}`);
         } else {
           failed++;
           console.error(
@@ -103,8 +124,11 @@ async function backfill() {
       if (i < users.length - 1) await sleep(REQUEST_DELAY_MS);
     }
 
-    console.log(`Done: ${synced} synced, ${failed} failed`);
-    // exitCode (not process.exit) so the finally block still runs
+    console.log(
+      `Done: ${synced} synced, ${alreadyPresent} already present, ${failed} failed`,
+    );
+    // exitCode (not process.exit) so the finally block still runs. Only real
+    // failures fail the run — a clean re-run (all already present) exits 0.
     if (failed > 0) process.exitCode = 1;
   } finally {
     await sql.end();

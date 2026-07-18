@@ -4,6 +4,7 @@ type CreateContactPayload = {
   audienceId: string;
   email: string;
   firstName?: string;
+  lastName?: string;
 };
 
 type CreateContactResponse = {
@@ -16,9 +17,13 @@ type CreateContactResponse = {
 // implementations are (re)established in beforeEach because jest.config
 // sets resetMocks: true.
 const mockContactsCreate =
-  jest.fn<(payload: CreateContactPayload) => Promise<CreateContactResponse>>();
+  jest.fn<
+    (
+      payload: CreateContactPayload,
+      options?: unknown,
+    ) => Promise<CreateContactResponse>
+  >();
 const mockResend = jest.fn();
-const mockIsServiceAvailable = jest.fn<(service: string) => boolean>();
 const mockEnv: { RESEND_API_KEY?: string; RESEND_AUDIENCE_ID?: string } = {};
 const mockLogWarn = jest.fn();
 const mockLogError = jest.fn();
@@ -28,7 +33,6 @@ jest.unstable_mockModule("resend", () => ({ Resend: mockResend }));
 
 jest.unstable_mockModule("@/lib/env", () => ({
   env: mockEnv,
-  isServiceAvailable: mockIsServiceAvailable,
 }));
 
 jest.unstable_mockModule("@/lib/logger", () => ({
@@ -45,13 +49,12 @@ describe("syncUserToResendAudience", () => {
     mockResend.mockImplementation(() => ({
       contacts: { create: mockContactsCreate },
     }));
-    mockIsServiceAvailable.mockReturnValue(true);
     mockEnv.RESEND_API_KEY = "re_test_key";
     mockEnv.RESEND_AUDIENCE_ID = "aud_123";
   });
 
   it("warns and returns false without calling Resend when the API key is not configured", async () => {
-    mockIsServiceAvailable.mockReturnValue(false);
+    mockEnv.RESEND_API_KEY = undefined;
 
     const result = await syncUserToResendAudience({
       email: "prof@university.edu",
@@ -63,7 +66,7 @@ describe("syncUserToResendAudience", () => {
     expect(mockLogWarn).toHaveBeenCalled();
   });
 
-  it("warns and returns false without calling Resend when RESEND_AUDIENCE_ID is not configured", async () => {
+  it("logs an error (not a silent warn) and returns false when the API key is set but RESEND_AUDIENCE_ID is missing", async () => {
     mockEnv.RESEND_AUDIENCE_ID = undefined;
 
     const result = await syncUserToResendAudience({
@@ -73,7 +76,14 @@ describe("syncUserToResendAudience", () => {
 
     expect(result).toBe(false);
     expect(mockContactsCreate).not.toHaveBeenCalled();
-    expect(mockLogWarn).toHaveBeenCalled();
+    // logError always writes, so a misconfigured prod is not silent
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("RESEND_AUDIENCE_ID"),
+      }),
+      expect.stringContaining("RESEND_AUDIENCE_ID is missing"),
+      { email: "prof@university.edu" },
+    );
   });
 
   it("adds the contact to the configured audience and returns true", async () => {
@@ -89,14 +99,38 @@ describe("syncUserToResendAudience", () => {
 
     expect(result).toBe(true);
     expect(mockResend).toHaveBeenCalledWith("re_test_key");
-    expect(mockContactsCreate).toHaveBeenCalledWith({
-      audienceId: "aud_123",
-      email: "prof@university.edu",
-      firstName: "Prof Joubin",
-    });
+    expect(mockContactsCreate).toHaveBeenCalledWith(
+      {
+        audienceId: "aud_123",
+        email: "prof@university.edu",
+        firstName: "Prof",
+        lastName: "Joubin",
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
-  it("omits firstName when the user has no name", async () => {
+  it("splits a multi-part name: first token is firstName, the rest is lastName", async () => {
+    mockContactsCreate.mockResolvedValue({
+      data: { object: "contact", id: "contact_1" },
+      error: null,
+    });
+
+    await syncUserToResendAudience({
+      email: "prof@university.edu",
+      name: "Alexa Alice Joubin",
+    });
+
+    expect(mockContactsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firstName: "Alexa",
+        lastName: "Alice Joubin",
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("omits both name fields when the user has no name", async () => {
     mockContactsCreate.mockResolvedValue({
       data: { object: "contact", id: "contact_1" },
       error: null,
@@ -107,11 +141,15 @@ describe("syncUserToResendAudience", () => {
       name: null,
     });
 
-    expect(mockContactsCreate).toHaveBeenCalledWith({
-      audienceId: "aud_123",
-      email: "prof@university.edu",
-      firstName: undefined,
-    });
+    expect(mockContactsCreate).toHaveBeenCalledWith(
+      {
+        audienceId: "aud_123",
+        email: "prof@university.edu",
+        firstName: undefined,
+        lastName: undefined,
+      },
+      expect.anything(),
+    );
   });
 
   it("returns false and logs the Resend error when Resend responds with an error", async () => {
@@ -148,6 +186,7 @@ describe("syncUserToResendAudience", () => {
   it("returns false and logs when the request exceeds the timeout", async () => {
     jest.useFakeTimers();
     try {
+      // Never resolves — forces the timeout branch of the race to win
       mockContactsCreate.mockReturnValue(
         new Promise<CreateContactResponse>(() => {}),
       );
@@ -156,7 +195,7 @@ describe("syncUserToResendAudience", () => {
         email: "prof@university.edu",
         name: "Prof Joubin",
       });
-      await jest.advanceTimersByTimeAsync(10_000);
+      await jest.advanceTimersByTimeAsync(5_000);
 
       await expect(promise).resolves.toBe(false);
       expect(mockLogError).toHaveBeenCalledWith(
