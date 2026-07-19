@@ -10,6 +10,7 @@ import {
   sendRejectionEmail,
   sendPasswordResetEmail,
 } from "./email";
+import { syncUserToResendSegment } from "./resend-segment";
 import { passwordResetRateLimit, checkRateLimit } from "./rate-limit";
 import { eq } from "drizzle-orm";
 import * as bcrypt from "bcryptjs";
@@ -342,6 +343,12 @@ export async function approveUser(userId: string): Promise<void> {
         userId: user.id,
       });
     }
+
+    // Add to Resend segment (never throws; failures logged inside)
+    await syncUserToResendSegment({
+      email: user.email,
+      name: user.name,
+    });
   }
 }
 
