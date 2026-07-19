@@ -46,6 +46,62 @@ export function isRenderableQuiz(quiz: Quiz): boolean {
 }
 
 /**
+ * Extract the first balanced top-level `{...}` object from free text, unwrapping
+ * a leading ```json fence if present. Returns the JSON substring or null. Brace
+ * counting skips braces inside strings so a `}` in a question/option can't end
+ * the object early.
+ */
+function extractJsonObject(raw: string): string | null {
+  let text = raw;
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence?.[1]) text = fence[1];
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+/**
+ * Recover a renderable quiz that a model emitted as a text JSON blob instead of
+ * a native `showQuiz` tool call. Some (otherwise tool-capable) models serialize
+ * the tool call into the assistant text channel; the AI SDK then forms no
+ * `tool-showQuiz` part and the raw JSON renders as prose. This parses that text
+ * back into a quiz so the server can reconstruct the tool part. Returns null for
+ * anything that isn't a structurally valid, renderable quiz -- so ordinary prose
+ * (or a non-quiz JSON code block) is left untouched.
+ */
+export function parseQuizFromText(text: string): Quiz | null {
+  const candidate = extractJsonObject(text);
+  if (!candidate) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+  const result = quizSchema.safeParse(parsed);
+  if (!result.success) return null;
+  return isRenderableQuiz(result.data) ? result.data : null;
+}
+
+/**
  * A student's completed quiz attempt as stored in `study_tool_responses.response`.
  * `answers[i]` is the 0-based option index the student picked for question `i`,
  * in question order. `score`/`total` are derived server-side from the quiz
@@ -57,6 +113,50 @@ export const quizResponseSchema = z.object({
   total: z.number().int().min(0),
 });
 export type QuizResponse = z.infer<typeof quizResponseSchema>;
+
+/**
+ * The interactive quiz widget's per-attempt local state: which question is
+ * showing, the option index chosen per question (null until picked), and
+ * whether the attempt is finished.
+ */
+export interface QuizWidgetState {
+  currentIndex: number;
+  selected: (number | null)[];
+  finished: boolean;
+}
+
+/**
+ * Seed the interactive widget's local state on mount. When the student has
+ * already completed at least one attempt (persisted server-side and rehydrated
+ * into the `attempts` prop by the parent), restore the finished/score view from
+ * the most recent attempt. This makes the widget resilient to a remount that
+ * keeps the surrounding chat mounted -- most notably the embed widget, which
+ * unmounts its chat subtree (`return null`) when hidden on a tab switch and
+ * remounts on reopen. Without this the local `useState` reseeds to question 1,
+ * throwing away a finished quiz. With no valid prior attempt, start fresh.
+ */
+export function initialQuizWidgetState(
+  total: number,
+  attempts: QuizResponse[] | undefined,
+): QuizWidgetState {
+  const last =
+    attempts && attempts.length > 0 ? attempts[attempts.length - 1] : undefined;
+  // Only restore when the stored answers line up with this quiz (they always
+  // should -- same quiz, same toolCallId -- but a mismatch would mis-score the
+  // finished view, so fall back to a fresh start instead).
+  if (last && last.answers.length === total) {
+    return {
+      currentIndex: Math.max(0, total - 1),
+      selected: [...last.answers],
+      finished: true,
+    };
+  }
+  return {
+    currentIndex: 0,
+    selected: Array(total).fill(null),
+    finished: false,
+  };
+}
 
 /**
  * True if `answers` is a well-formed set of selections for `quiz`: one entry per
