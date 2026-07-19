@@ -1,36 +1,34 @@
+import { Resend, type CreateContactRequestOptions } from "resend";
 import { env } from "./env";
 import { logInfo, logWarn, logError } from "./logger";
-
-const CONTACTS_ENDPOINT = "https://api.resend.com/contacts";
 
 // A human waits on the approval mutation, so bound the request tightly.
 // AbortSignal.timeout both bounds the latency and aborts the request.
 const CREATE_TIMEOUT_MS = 5_000;
 
 /**
- * Split a single display name into Resend's first_name/last_name fields. The
+ * Split a single display name into Resend's firstName/lastName fields. The
  * user schema only stores one `name`, so this is a best-effort split on
  * whitespace: the first token is the first name, everything after is the last.
  */
 function splitName(name?: string | null): {
-  first_name?: string;
-  last_name?: string;
+  firstName?: string;
+  lastName?: string;
 } {
   const trimmed = name?.trim();
   if (!trimmed) return {};
   const [first, ...rest] = trimmed.split(/\s+/);
   return {
-    first_name: first,
-    last_name: rest.length ? rest.join(" ") : undefined,
+    firstName: first,
+    lastName: rest.length ? rest.join(" ") : undefined,
   };
 }
 
 /**
  * Add a user to the Resend segment configured via RESEND_SEGMENT_ID.
  *
- * Uses the current global Contacts API (`POST /contacts`) with a `segments`
- * array — the Audiences API this originally targeted is deprecated in favour
- * of Segments (https://resend.com/docs/api-reference/contacts/create-contact).
+ * Uses the current Contacts API (global contact + `segments`) — the Audiences
+ * API this originally targeted is deprecated in favour of Segments.
  *
  * Never throws and never rolls back approval: every failure path returns a
  * logged `false`, and the caller commits the approval before calling this.
@@ -71,45 +69,44 @@ export async function syncUserToResendSegment(params: {
     return false;
   }
 
-  try {
-    const res = await fetch(CONTACTS_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: params.email,
-        ...splitName(params.name),
-        segments: [segmentId],
-      }),
-      signal: AbortSignal.timeout(CREATE_TIMEOUT_MS),
-    });
-
-    // Always consume the body so undici can reuse the connection.
-    const body = await res.text();
-
-    if (res.ok) {
-      logInfo("Contact added to Resend segment", { email: params.email });
-      return true;
-    }
-
-    // Contact already exists — treat as success, the user is a contact.
-    if (res.status === 409 || /already/i.test(body)) {
-      logInfo("Contact already present in Resend", { email: params.email });
-      return true;
-    }
-
-    logError(
-      new Error(`Resend contacts.create failed: ${res.status} ${body}`),
-      "Failed to add contact to Resend segment",
-      { email: params.email },
-    );
-    return false;
-  } catch (error) {
+  const logFailure = (error: unknown) => {
     logError(error, "Failed to add contact to Resend segment", {
       email: params.email,
     });
     return false;
+  };
+
+  try {
+    const resend = new Resend(apiKey);
+    const { firstName, lastName } = splitName(params.name);
+
+    const { error } = await resend.contacts.create(
+      {
+        email: params.email,
+        firstName,
+        lastName,
+        segments: [{ id: segmentId }],
+      },
+      // The SDK forwards request options to fetch, so AbortSignal.timeout both
+      // bounds and aborts the request. `signal` isn't in the option type, hence
+      // the cast.
+      {
+        signal: AbortSignal.timeout(CREATE_TIMEOUT_MS),
+      } as CreateContactRequestOptions,
+    );
+
+    if (error) {
+      // Contact already exists — treat as success, the user is a contact.
+      if (error.statusCode === 409 || /already/i.test(error.message)) {
+        logInfo("Contact already present in Resend", { email: params.email });
+        return true;
+      }
+      return logFailure(error);
+    }
+
+    logInfo("Contact added to Resend segment", { email: params.email });
+    return true;
+  } catch (error) {
+    return logFailure(error);
   }
 }

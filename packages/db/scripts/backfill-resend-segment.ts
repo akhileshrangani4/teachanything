@@ -95,7 +95,8 @@ async function backfill() {
           body: JSON.stringify({
             email: u.email,
             ...splitName(u.name),
-            segments: [segmentId],
+            // The Contacts API takes segments as an array of { id } objects.
+            segments: [{ id: segmentId }],
           }),
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
