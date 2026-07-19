@@ -1,15 +1,18 @@
 /**
- * Resend Audience Backfill Script
+ * Resend Segment Backfill Script
  *
  * One-time backfill: pushes every already-approved user into the Resend
- * audience configured via RESEND_AUDIENCE_ID. Safe to re-run: it never
- * removes contacts and omits `unsubscribed`, so an existing opt-out is
- * never overwritten, and contacts already in the audience (HTTP 409 / an
- * "already" response) are counted separately rather than as failures, so a
- * clean re-run exits 0.
+ * segment configured via RESEND_SEGMENT_ID, using the current global Contacts
+ * API (POST /contacts with a `segments` array). The Audiences API is
+ * deprecated in favour of Segments.
+ *
+ * Safe to re-run: it never removes contacts and omits `unsubscribed`, so an
+ * existing opt-out is never overwritten, and contacts already present (HTTP
+ * 409 / an "already" response) are counted separately rather than as
+ * failures, so a clean re-run exits 0.
  *
  * Usage:
- *   npx tsx packages/db/scripts/backfill-resend-audience.ts
+ *   npx tsx packages/db/scripts/backfill-resend-segment.ts
  */
 
 import postgres from "postgres";
@@ -31,11 +34,11 @@ if (result.error) {
 
 const databaseUrl = process.env.DATABASE_URL;
 const resendApiKey = process.env.RESEND_API_KEY;
-const audienceId = process.env.RESEND_AUDIENCE_ID;
+const segmentId = process.env.RESEND_SEGMENT_ID;
 
-if (!databaseUrl || !resendApiKey || !audienceId) {
+if (!databaseUrl || !resendApiKey || !segmentId) {
   console.error(
-    "DATABASE_URL, RESEND_API_KEY and RESEND_AUDIENCE_ID must be set",
+    "DATABASE_URL, RESEND_API_KEY and RESEND_SEGMENT_ID must be set",
   );
   process.exit(1);
 }
@@ -83,21 +86,19 @@ async function backfill() {
 
     for (const [i, u] of users.entries()) {
       try {
-        const res = await fetch(
-          `https://api.resend.com/audiences/${audienceId}/contacts`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${resendApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              email: u.email,
-              ...splitName(u.name),
-            }),
-            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        const res = await fetch("https://api.resend.com/contacts", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            email: u.email,
+            ...splitName(u.name),
+            segments: [segmentId],
+          }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
 
         // Always consume the body so undici can reuse the connection
         const body = await res.text();
@@ -106,8 +107,8 @@ async function backfill() {
           synced++;
           console.log(`[${i + 1}/${users.length}] synced ${u.email}`);
         } else if (res.status === 409 || /already/i.test(body)) {
-          // Contact already in the audience — expected on a re-run, not a
-          // failure, so it doesn't set a nonzero exit code.
+          // Contact already present — expected on a re-run, not a failure, so
+          // it doesn't set a nonzero exit code.
           alreadyPresent++;
           console.log(`[${i + 1}/${users.length}] already present ${u.email}`);
         } else {
