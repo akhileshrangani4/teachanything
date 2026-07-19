@@ -1,4 +1,9 @@
 import { strToU8, zipSync } from "fflate";
+import {
+  renderStudyToolsHtml,
+  renderStudyToolsText,
+  type ExportStudyTool,
+} from "@/lib/study-tool-export";
 
 /**
  * Turns a chatbot's exported chat records (from
@@ -18,11 +23,16 @@ export interface ExportSource {
   similarity: number;
 }
 
+export type { ExportStudyTool } from "@/lib/study-tool-export";
+
 export interface ExportMessage {
   role: "user" | "assistant";
   content: string;
   createdAt: string | Date;
   sources: ExportSource[];
+  // Study-tool widgets shown in this (assistant) turn, with student attempts.
+  // Optional so older payloads without study tools stay valid.
+  studyTools?: ExportStudyTool[];
 }
 
 export interface ExportConversation {
@@ -133,7 +143,14 @@ export function buildText(data: ConversationsExport): string {
 
     conversation.messages.forEach((message, messageIndex) => {
       lines.push(`[${messageIndex + 1}] ${roleLabel(message.role)}:`);
-      lines.push(message.content);
+      // Quiz-only turns have empty text content; skip the blank line.
+      if (message.content.trim()) {
+        lines.push(message.content);
+      }
+      const studyText = renderStudyToolsText(message.studyTools ?? []);
+      if (studyText) {
+        studyText.split("\n").forEach((line) => lines.push(line));
+      }
       if (message.role === "assistant" && message.sources.length > 0) {
         lines.push("  Sources:");
         message.sources.forEach((source, sourceIndex) => {
@@ -167,6 +184,7 @@ export function buildCsv(data: ConversationsExport): string {
     "timestamp",
     "message",
     "sources",
+    "study_tools",
   ];
 
   // CRLF + a UTF-8 BOM so Excel opens accented / non-ASCII content correctly.
@@ -189,6 +207,7 @@ export function buildCsv(data: ConversationsExport): string {
           formatDateTime(message.createdAt),
           message.content,
           sources,
+          renderStudyToolsText(message.studyTools ?? []),
         ]
           .map(csvCell)
           .join(","),
@@ -205,7 +224,14 @@ export function buildCsv(data: ConversationsExport): string {
 
 function renderMessageHtml(message: ExportMessage, turn: number): string {
   const side = message.role === "user" ? "student" : "assistant";
-  const body = escapeHtml(message.content).replace(/\n/g, "<br>");
+  // Quiz-only turns have no prose; render just the study-tool block, no bubble.
+  const bubble = message.content.trim()
+    ? `<div class="bubble">${escapeHtml(message.content).replace(/\n/g, "<br>")}</div>`
+    : "";
+  const studyHtml =
+    message.role === "assistant"
+      ? renderStudyToolsHtml(message.studyTools ?? [])
+      : "";
   const sources =
     message.role === "assistant" && message.sources.length > 0
       ? `<div class="sources">Sources: ${message.sources
@@ -217,7 +243,8 @@ function renderMessageHtml(message: ExportMessage, turn: number): string {
       : "";
   return `<div class="msg ${side}">
       <div class="meta">${turn}. ${roleLabel(message.role)} · ${escapeHtml(formatDateTime(message.createdAt))}</div>
-      <div class="bubble">${body}</div>
+      ${bubble}
+      ${studyHtml}
       ${sources}
     </div>`;
 }
@@ -285,12 +312,33 @@ export function buildHtml(data: ConversationsExport): string {
   .msg.student .bubble { background: #2563eb; color: #fff; border-bottom-right-radius: .2rem; }
   .msg.assistant .bubble { background: #f1f3f5; color: #1a1a1a; border-bottom-left-radius: .2rem; }
   .sources { font-size: .72rem; color: #9ca3af; margin-top: .25rem; max-width: 85%; }
+  .study-tool { width: 100%; box-sizing: border-box; background: #fbfbfd; border: 1px solid #e5e7eb; border-radius: .6rem; padding: .75rem .9rem; margin-top: .4rem; font-size: .9rem; }
+  .study-tool .tool-label { font-weight: 600; margin-bottom: .35rem; }
+  .study-tool .quiz-questions { margin: 0; padding-left: 1.2rem; }
+  .study-tool .q { font-weight: 500; margin-top: .5rem; }
+  .study-tool .opts { list-style: none; padding: 0; margin: .25rem 0; }
+  .study-tool .opt { padding: .1rem 0; }
+  .study-tool .opt.correct { font-weight: 600; }
+  .study-tool .explanation { color: #6b7280; font-size: .8rem; margin-top: .2rem; }
+  .study-tool .tag { font-size: .7rem; padding: .05rem .35rem; border-radius: .3rem; white-space: nowrap; }
+  .study-tool .tag.ok { background: #dcfce7; color: #166534; }
+  .study-tool .tag.bad { background: #fee2e2; color: #991b1b; }
+  .study-tool .attempt { margin-top: .6rem; border-top: 1px dashed #e5e7eb; padding-top: .45rem; }
+  .study-tool .attempt-head { font-weight: 500; }
+  .study-tool .attempt ul { margin: .2rem 0; padding-left: 1.2rem; }
+  .study-tool .tool-raw { white-space: pre-wrap; word-break: break-word; background: #f1f3f5; padding: .4rem; border-radius: .3rem; font-size: .75rem; }
   @media (prefers-color-scheme: dark) {
     body { background: #0f1115; color: #e5e7eb; }
     .conversation { background: #171a21; border-color: #262b36; }
     .conversation > header { border-color: #262b36; }
     .msg.assistant .bubble { background: #262b36; color: #e5e7eb; }
     .dim, .summary { color: #9ca3af; }
+    .study-tool { background: #12151b; border-color: #262b36; }
+    .study-tool .attempt { border-color: #262b36; }
+    .study-tool .tool-raw { background: #0f1115; }
+    .study-tool .explanation { color: #9ca3af; }
+    .study-tool .tag.ok { background: #14532d; color: #bbf7d0; }
+    .study-tool .tag.bad { background: #7f1d1d; color: #fecaca; }
   }
 </style>
 </head>
@@ -375,6 +423,15 @@ export function buildInstructions(
     );
     lines.push("  conversation, each turn labeled Student / Assistant.");
   }
+
+  lines.push("");
+  lines.push(
+    "Interactive study tools a student used (e.g. quizzes) appear inline in",
+  );
+  lines.push(
+    "each format: the questions, the correct answers, and the student's own",
+  );
+  lines.push("responses and score for each attempt.");
 
   lines.push("");
   lines.push("-".repeat(40));

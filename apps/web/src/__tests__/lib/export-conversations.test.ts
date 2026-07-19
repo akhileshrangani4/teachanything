@@ -168,6 +168,76 @@ describe("buildInstructions", () => {
   });
 });
 
+describe("study tools surface in every format", () => {
+  function withQuiz(): ConversationsExport {
+    return makeExport({
+      conversations: [
+        {
+          id: "c1",
+          sessionId: "s1",
+          createdAt: "2026-07-10T10:00:00.000Z",
+          messages: [
+            {
+              role: "user",
+              content: "quiz me on cells",
+              createdAt: "2026-07-10T10:00:01.000Z",
+              sources: [],
+            },
+            {
+              // Quiz-only assistant turn: empty prose, quiz in studyTools.
+              role: "assistant",
+              content: "",
+              createdAt: "2026-07-10T10:00:05.000Z",
+              sources: [],
+              studyTools: [
+                {
+                  toolName: "showQuiz",
+                  input: {
+                    quiz_title: "Cell Biology",
+                    questions: [
+                      {
+                        question: "Powerhouse of the cell?",
+                        options: ["Nucleus", "Mitochondria"],
+                        correct_index: 1,
+                        explanation: "Mitochondria make ATP.",
+                      },
+                    ],
+                  },
+                  responses: [
+                    {
+                      attempt: 1,
+                      response: { answers: [1], score: 1, total: 1 },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  it("includes the quiz in the text export", () => {
+    const text = buildText(withQuiz());
+    expect(text).toContain("Quiz: Cell Biology");
+    expect(text).toContain("Mitochondria  [correct]");
+    expect(text).toContain("Attempt 1 — score 1/1");
+  });
+
+  it("includes the quiz in the CSV study_tools column", () => {
+    const csv = buildCsv(withQuiz());
+    expect(csv.replace("\uFEFF", "").split("\r\n")[0]).toContain("study_tools");
+    expect(csv).toContain("Quiz: Cell Biology");
+  });
+
+  it("renders the quiz block in the HTML export", () => {
+    const html = buildHtml(withQuiz());
+    expect(html).toContain("Quiz: Cell Biology");
+    expect(html).toContain('class="opt correct"');
+  });
+});
+
 describe("buildExportFiles", () => {
   it("always includes a README plus a file per chosen format", () => {
     const files = buildExportFiles(makeExport(), ["html", "csv"]);
@@ -191,7 +261,12 @@ describe("buildExportFiles", () => {
     const files = buildExportFiles(makeExport(), ["html", "csv", "text"]);
     const zipInput: Record<string, Uint8Array> = {};
     for (const [name, contents] of Object.entries(files)) {
-      zipInput[name] = strToU8(contents);
+      // Re-wrap through the test realm's Uint8Array. jest.setup polyfills
+      // TextEncoder from node:util, so fflate's strToU8 returns a cross-realm
+      // array that zipSync's `instanceof Uint8Array` check would treat as a
+      // folder. A real browser has a single realm, so downloadConversationsExport
+      // needs no such wrapping.
+      zipInput[name] = Uint8Array.from(strToU8(contents));
     }
     const unzipped = unzipSync(zipSync(zipInput));
 
