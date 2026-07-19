@@ -4,6 +4,7 @@ import {
   renderStudyToolsText,
   type ExportStudyTool,
 } from "@/lib/study-tool-export";
+import { TEACH_ANYTHING_LOGO_DATA_URI } from "@/lib/export-logo";
 
 /**
  * Turns a chatbot's exported chat records (from
@@ -222,58 +223,65 @@ export function buildCsv(data: ConversationsExport): string {
 // HTML (visual transcript)
 // ---------------------------------------------------------------------------
 
-// A turn in the transcript, laid out like a printed interview: the speaker
-// sits in a left rail (small-caps) and their words run in the reading column,
-// rather than as chat bubbles.
+// Icon glyphs (lucide), inlined so the page needs no icon font/library.
+const ICON = {
+  message:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  clock:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  search:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+};
+
+// A chat turn styled like the app's ChatMessage: student turns are a
+// right-aligned tinted bubble; assistant turns show the Teach Anything avatar
+// beside a bubble, with sources as badges below.
 function renderMessageHtml(message: ExportMessage): string {
-  const side = message.role === "user" ? "student" : "tutor";
-  const say = message.content.trim()
-    ? `<p class="say">${escapeHtml(message.content).replace(/\n/g, "<br>")}</p>`
+  if (message.role === "user") {
+    const body = escapeHtml(message.content).replace(/\n/g, "<br>");
+    return `<div class="row user">
+      <div class="bubble bubble-user">${body}</div>
+    </div>`;
+  }
+
+  const body = message.content.trim()
+    ? `<div class="bubble bubble-assistant">${escapeHtml(message.content).replace(/\n/g, "<br>")}</div>`
     : "";
-  const studyHtml =
-    message.role === "assistant"
-      ? renderStudyToolsHtml(message.studyTools ?? [])
-      : "";
+  const studyHtml = renderStudyToolsHtml(message.studyTools ?? []);
   const sources =
-    message.role === "assistant" && message.sources.length > 0
-      ? `<p class="sources">Sources — ${message.sources
+    message.sources.length > 0
+      ? `<div class="sources"><span class="sources-label">${ICON.file}Sources:</span>${message.sources
           .map(
             (s) =>
-              `${escapeHtml(s.fileName)} (${formatSimilarity(s.similarity)})`,
+              `<span class="badge" title="Relevance ${formatSimilarity(s.similarity)}">${escapeHtml(s.fileName)}</span>`,
           )
-          .join("; ")}</p>`
+          .join("")}</div>`
       : "";
-  return `<div class="turn turn-${side}">
-      <div class="rail">
-        <span class="speaker">${roleLabel(message.role)}</span>
-        <span class="turn-time">${escapeHtml(formatDateTime(message.createdAt))}</span>
-      </div>
-      <div class="turn-body">
-        ${say}
+  return `<div class="row assistant">
+      <div class="avatar" role="img" aria-label="Teach Anything"></div>
+      <div class="asst-col">
+        ${body}
         ${studyHtml}
         ${sources}
       </div>
     </div>`;
 }
 
-/** The transcript body for one conversation (header + turns), for the detail pane. */
-function renderConversationDetail(
-  conversation: ExportConversation,
-  index: number,
-  total: number,
-): string {
+/** The transcript for one conversation, headed like the dashboard's chat viewer. */
+function renderConversationDetail(conversation: ExportConversation): string {
   const messages = conversation.messages
     .map((message) => renderMessageHtml(message))
     .join("\n");
-  const headline = conversationPreview(conversation);
-  return `<article class="conv">
-    <header class="conv-head">
-      <div class="kicker">Conversation ${index + 1} of ${total}</div>
-      <h2 class="conv-headline">${escapeHtml(headline)}</h2>
-      <div class="conv-sub">Session ${escapeHtml(conversation.sessionId)} · ${escapeHtml(formatDateTime(conversation.createdAt))} · ${plural(conversation.messages.length, "message")}</div>
-    </header>
-    ${messages || '<p class="muted">No messages in this conversation.</p>'}
-  </article>`;
+  const session = conversation.sessionId.slice(0, 8);
+  return `<div class="chat-head">
+      <div class="chat-title">Student Chat</div>
+      <div class="chat-sub">Started ${escapeHtml(formatDateTime(conversation.createdAt))} · Session ${escapeHtml(session)}… · ${plural(conversation.messages.length, "message")}</div>
+    </div>
+    <div class="thread">
+      ${messages || '<p class="muted">No messages in this conversation.</p>'}
+    </div>`;
 }
 
 /** Short list-item preview: the first student question, else a sensible label. */
@@ -304,6 +312,7 @@ function conversationSearchText(conversation: ExportConversation): string {
 // filters it on search, and swaps the detail pane on selection. No template
 // literals / `${}` here so it survives the outer TS template literal verbatim.
 const EXPORT_APP_JS = `(function(){
+  var MSG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
   var DATA = JSON.parse(document.getElementById('export-data').textContent);
   var listEl = document.getElementById('list');
   var detailEl = document.getElementById('detail');
@@ -322,28 +331,28 @@ const EXPORT_APP_JS = `(function(){
       item.className = 'conv-item' + (i === current ? ' active' : '');
       item.onclick = function(){ select(i); };
       item.style.setProperty('--i', shown);
-      var num = document.createElement('span');
-      num.className = 'conv-num';
-      num.textContent = (i + 1 < 10 ? '0' : '') + (i + 1);
-      var body = document.createElement('span');
-      body.className = 'conv-item-body';
-      var p = document.createElement('span');
+      var p = document.createElement('div');
       p.className = 'conv-preview';
       p.textContent = c.preview;
-      var m = document.createElement('span');
+      var m = document.createElement('div');
       m.className = 'conv-meta';
-      m.textContent = c.date + ' \\u00b7 ' + c.messages + (c.messages === 1 ? ' message' : ' messages');
-      body.appendChild(p);
-      body.appendChild(m);
-      item.appendChild(num);
-      item.appendChild(body);
+      var count = document.createElement('span');
+      count.className = 'mi';
+      count.innerHTML = MSG;
+      count.appendChild(document.createTextNode(c.messages + (c.messages === 1 ? ' message' : ' messages')));
+      var date = document.createElement('span');
+      date.textContent = c.date;
+      m.appendChild(count);
+      m.appendChild(date);
+      item.appendChild(p);
+      item.appendChild(m);
       listEl.appendChild(item);
       shown++;
     });
     countEl.textContent = q ? (shown + ' of ' + DATA.length + ' chats') : (DATA.length + (DATA.length === 1 ? ' chat' : ' chats'));
     if (shown === 0){
       var e = document.createElement('div');
-      e.className = 'list-empty dim';
+      e.className = 'list-empty';
       e.textContent = 'No matching chats.';
       listEl.appendChild(e);
     }
@@ -367,12 +376,12 @@ export function buildHtml(data: ConversationsExport): string {
   const title = `Chat Records — ${escapeHtml(data.chatbotName)}`;
   const total = data.conversations.length;
 
-  const convData = data.conversations.map((conversation, index) => ({
+  const convData = data.conversations.map((conversation) => ({
     preview: conversationPreview(conversation),
     date: formatDateTime(conversation.createdAt),
     messages: conversation.messages.length,
     search: conversationSearchText(conversation),
-    html: renderConversationDetail(conversation, index, total),
+    html: renderConversationDetail(conversation),
   }));
   // Escape `<` so the JSON can't break out of the <script> element.
   const json = JSON.stringify(convData).replace(/</g, "\\u003c");
@@ -387,13 +396,16 @@ export function buildHtml(data: ConversationsExport): string {
       : `<div class="layout">
       <aside class="index">
         <div class="index-head">
-          <input id="search" class="search" type="search" placeholder="Search conversations…" autocomplete="off" spellcheck="false">
+          <div class="search-wrap">
+            ${ICON.search}
+            <input id="search" class="search" type="search" placeholder="Search student chats…" autocomplete="off" spellcheck="false">
+          </div>
+          <div id="count" class="count"></div>
         </div>
-        <div id="count" class="count"></div>
         <div id="list" class="list"></div>
       </aside>
       <main class="reader">
-        <button id="back" type="button" class="back">← All conversations</button>
+        <button id="back" type="button" class="back">${ICON.back}All chats</button>
         <div id="detail" class="detail"></div>
       </main>
     </div>
@@ -414,15 +426,22 @@ export function buildHtml(data: ConversationsExport): string {
     color-scheme: light dark;
     --display: "Instrument Serif", Georgia, Cambria, "Times New Roman", serif;
     --sans: Inter, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --logo: url("${TEACH_ANYTHING_LOGO_DATA_URI}");
     /* Teach Anything design tokens (oklch), light theme. */
     --paper: oklch(0.986 0.0019 84.56);
-    --panel: oklch(0.9718 0.0056 157.15);
+    --card: oklch(1 0 0);
+    --panel: var(--card);
+    --secondary: oklch(0.9843 0.0017 247.84);
+    --sidebar-bg: oklch(0.9718 0.0056 157.15);
+    --sidebar-fg: oklch(0.2458 0.0254 263.94);
     --ink: oklch(0.2158 0.0206 264);
     --muted: oklch(0.4411 0.0266 264.25);
+    --muted-bg: oklch(0.9641 0.0037 84.56);
     --rule: oklch(0.9115 0.0059 84.57);
     --rule-strong: oklch(0.84 0.006 84.57);
     --accent: oklch(0.5248 0.1373 149.83);
-    --accent-soft: color-mix(in oklch, var(--accent) 9%, var(--panel));
+    --accent-fg: oklch(1 0 0);
+    --accent-soft: color-mix(in oklch, var(--accent) 9%, var(--card));
     --ok: oklch(0.5248 0.1373 149.83);
     --ok-soft: color-mix(in oklch, var(--accent) 14%, var(--paper));
     --bad: oklch(0.5216 0.1927 25.33);
@@ -471,56 +490,58 @@ export function buildHtml(data: ConversationsExport): string {
 
   /* Layout */
   .layout { flex: 1; min-height: 0; display: flex; }
-  .index { width: clamp(280px, 30vw, 380px); flex-shrink: 0; border-right: 1px solid var(--rule-strong); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
-  .index-head { padding: 1rem 1.15rem .5rem; }
-  .search { width: 100%; font-family: var(--sans); font-size: .9rem; color: var(--ink); background: transparent; border: none; border-bottom: 1.5px solid var(--rule-strong); padding: .35rem .1rem; outline: none; transition: border-color .18s ease; }
-  .search::placeholder { color: var(--muted); }
-  .search:focus { border-color: var(--accent); }
-  .count { font-family: var(--sans); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: .7rem 1.2rem .3rem; }
 
-  /* Index list */
-  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 .55rem .8rem; }
+  /* Sidebar (Student Chats list) */
+  .index { width: clamp(300px, 32vw, 400px); flex-shrink: 0; border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; background: var(--sidebar-bg); color: var(--sidebar-fg); }
+  .index-head { padding: 1rem 1rem .5rem; }
+  .search-wrap { position: relative; display: flex; align-items: center; }
+  .search-wrap > svg { position: absolute; left: .7rem; width: 1rem; height: 1rem; color: var(--muted); pointer-events: none; }
+  .search { width: 100%; height: 2.5rem; font-family: var(--sans); font-size: .9rem; color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 0 .8rem 0 2.1rem; outline: none; transition: border-color .15s ease, box-shadow .15s ease; }
+  .search::placeholder { color: var(--muted); }
+  .search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 25%, transparent); }
+  .count { font-family: var(--sans); font-size: .72rem; color: var(--muted); padding: .7rem .55rem .35rem; }
+
+  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 .5rem .8rem; }
   .conv-item {
-    display: grid; grid-template-columns: 1.9rem 1fr; gap: .7rem; align-items: baseline;
-    width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
-    color: inherit; font: inherit; padding: .7rem .6rem; border-radius: .4rem;
-    border-bottom: 1px solid var(--rule);
-    transition: background .15s ease;
-    animation: rise .4s cubic-bezier(.2,.7,.2,1) both;
-    animation-delay: calc(var(--i, 0) * 22ms);
+    display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+    color: inherit; font: inherit; padding: .6rem .7rem; border-radius: var(--radius);
+    transition: background .12s ease;
+    animation: rise .35s cubic-bezier(.2,.7,.2,1) both;
+    animation-delay: calc(var(--i, 0) * 18ms);
   }
-  .conv-item:last-child { border-bottom: 0; }
-  .conv-item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-  .conv-item.active { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
-  .conv-num { font-family: var(--sans); font-size: .72rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: .15rem; }
-  .conv-item.active .conv-num { color: var(--accent); }
-  .conv-item-body { min-width: 0; }
-  .conv-preview { display: block; font-family: var(--sans); font-size: .9rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .conv-meta { display: block; font-family: var(--sans); font-size: .72rem; color: var(--muted); margin-top: .25rem; }
-  .list-empty { padding: 1.5rem 1.2rem; font-family: var(--sans); font-size: .85rem; color: var(--muted); }
+  .conv-item:hover { background: color-mix(in oklch, var(--muted-bg) 60%, transparent); }
+  .conv-item.active { background: var(--accent-soft); }
+  .conv-preview { font-family: var(--sans); font-size: .875rem; font-weight: 500; line-height: 1.4; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-item.active .conv-preview { color: var(--accent); }
+  .conv-meta { display: flex; align-items: center; gap: .8rem; margin-top: .3rem; font-family: var(--sans); font-size: .72rem; color: var(--muted); }
+  .conv-meta .mi { display: inline-flex; align-items: center; gap: .3rem; }
+  .conv-meta .mi svg { width: .82rem; height: .82rem; }
+  .list-empty { padding: 1.5rem 1rem; font-family: var(--sans); font-size: .85rem; color: var(--muted); }
 
   /* Reading pane */
-  .reader { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-  .back { display: none; margin: .9rem 0 0 clamp(1rem, 4vw, 2.5rem); align-self: flex-start; background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: .1rem 0; cursor: pointer; color: var(--muted); font-family: var(--sans); font-size: .78rem; letter-spacing: .04em; }
-  .detail { flex: 1; min-height: 0; overflow-y: auto; padding: clamp(1.3rem, 4vw, 3rem) clamp(1.1rem, 4vw, 2.5rem) 4rem; }
-  .conv { max-width: 46rem; }
-  .conv-head { margin-bottom: 1.75rem; }
-  .conv-head .kicker { margin-bottom: .5rem; }
-  .conv-headline { font-family: var(--display); font-weight: 400; font-size: clamp(1.55rem, 3.4vw, 2rem); line-height: 1.12; margin: 0; }
-  .conv-sub { font-family: var(--sans); font-size: .76rem; color: var(--muted); margin-top: .5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
+  .reader { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--paper); }
+  .back { display: none; align-items: center; gap: .25rem; margin: .8rem 0 0 clamp(.9rem, 4vw, 1.5rem); align-self: flex-start; background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: .35rem .7rem .35rem .5rem; cursor: pointer; color: var(--ink); font-family: var(--sans); font-size: .82rem; font-weight: 500; }
+  .back svg { width: 1rem; height: 1rem; }
+  .detail { flex: 1; min-height: 0; overflow-y: auto; padding: 0 clamp(1rem, 4vw, 2.25rem) 3rem; }
+  .chat-head { position: sticky; top: 0; z-index: 1; background: color-mix(in oklch, var(--paper) 88%, transparent); backdrop-filter: blur(6px); padding: 1.25rem 0 .9rem; margin-bottom: 1rem; border-bottom: 1px solid var(--rule); }
+  .chat-title { font-family: var(--sans); font-weight: 600; font-size: 1.125rem; color: var(--ink); }
+  .chat-sub { font-family: var(--sans); font-size: .8rem; color: var(--muted); margin-top: .15rem; }
+  .thread { max-width: 48rem; }
 
-  /* Transcript turns (interview layout) */
-  .turn { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1.4rem; padding: 1rem 0; border-bottom: 1px solid var(--rule); }
-  .turn:last-child { border-bottom: 0; }
-  .rail { display: flex; flex-direction: column; gap: .15rem; padding-top: .1rem; }
-  .speaker { font-family: var(--sans); font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-  .turn-student .speaker { color: var(--accent); }
-  .turn-tutor .speaker { color: var(--muted); }
-  .turn-time { font-family: var(--sans); font-size: .66rem; color: var(--muted); }
-  .turn-body { min-width: 0; }
-  .say { margin: 0; font-size: 1.02rem; line-height: 1.65; overflow-wrap: anywhere; }
-  .say + .study-tool, .say + .sources { margin-top: .7rem; }
-  .sources { margin: .6rem 0 0; font-family: var(--sans); font-size: .74rem; color: var(--muted); font-style: normal; }
+  /* Chat bubbles (mirrors the app's ChatMessage) */
+  .row { display: flex; margin-bottom: 1.1rem; }
+  .row.user { justify-content: flex-end; }
+  .row.assistant { gap: .75rem; align-items: flex-start; }
+  .bubble { border-radius: var(--radius); padding: .7rem 1rem; font-size: .95rem; line-height: 1.6; box-shadow: var(--shadow); overflow-wrap: anywhere; }
+  .bubble-user { max-width: 80%; background: color-mix(in oklch, var(--accent) 10%, transparent); border: 1px solid color-mix(in oklch, var(--accent) 22%, transparent); color: var(--ink); white-space: pre-wrap; }
+  .bubble-assistant { background: var(--secondary); border: 1px solid color-mix(in oklch, var(--rule) 55%, transparent); color: var(--ink); }
+  .avatar { flex-shrink: 0; width: 2.25rem; height: 2.25rem; border-radius: 999px; background-color: var(--card); background-image: var(--logo); background-size: 78%; background-position: center; background-repeat: no-repeat; box-shadow: 0 0 0 2px var(--paper), var(--shadow); filter: grayscale(1); }
+  .asst-col { flex: 1; min-width: 0; }
+  .asst-col > * + * { margin-top: .55rem; }
+  .sources { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
+  .sources-label { display: inline-flex; align-items: center; gap: .35rem; font-family: var(--sans); font-size: .74rem; font-weight: 500; color: var(--muted); }
+  .sources-label svg { width: .9rem; height: .9rem; }
+  .badge { font-family: var(--sans); font-size: .72rem; color: var(--muted); border: 1px solid var(--rule); border-radius: .4rem; padding: .1rem .45rem; }
 
   /* Study tools — a graded-insert treatment */
   .study-tool { border: 1px solid var(--rule-strong); border-radius: .5rem; padding: 1rem 1.1rem; margin-top: .7rem; background: color-mix(in srgb, var(--accent) 3%, var(--panel)); box-shadow: var(--shadow); }
@@ -550,22 +571,26 @@ export function buildHtml(data: ConversationsExport): string {
   @media (max-width: 760px) {
     .index { width: 100%; border-right: 0; }
     .reader { display: none; }
-    .back { display: block; }
-    .turn { grid-template-columns: 1fr; gap: .3rem; }
-    .rail { flex-direction: row; align-items: baseline; gap: .6rem; }
+    .back { display: inline-flex; }
+    .bubble-user { max-width: 88%; }
     body.viewing-detail .index { display: none; }
     body.viewing-detail .reader { display: flex; }
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --paper: oklch(0.2158 0.0206 264);
-      --panel: oklch(0.2103 0.0059 285.88);
+      --card: oklch(0.2486 0.0195 264.13);
+      --secondary: oklch(0.2879 0.0241 264.09);
+      --sidebar-bg: oklch(0.2103 0.0059 285.88);
+      --sidebar-fg: oklch(0.9676 0.0013 286.38);
       --ink: oklch(0.9843 0.0017 247.84);
       --muted: oklch(0.7106 0.0242 264.41);
+      --muted-bg: oklch(0.2879 0.0241 264.09);
       --rule: oklch(0.2879 0.0241 264.09);
       --rule-strong: oklch(0.36 0.02 264);
       --accent: oklch(0.7233 0.1939 149.39);
-      --accent-soft: color-mix(in oklch, var(--accent) 16%, var(--panel));
+      --accent-fg: oklch(0.2158 0.0206 264);
+      --accent-soft: color-mix(in oklch, var(--accent) 16%, var(--card));
       --ok: oklch(0.7233 0.1939 149.39);
       --ok-soft: color-mix(in oklch, var(--accent) 20%, var(--paper));
       --bad: oklch(0.72 0.14 25.33);
