@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.3](https://github.com/akhileshrangani4/teachanything/compare/v1.33.2...v1.33.3) (2026-07-19)
+
+
+### Bug Fixes
+
+* **quiz:** restore finished quiz on remount and recover text-leaked quizzes ([#400](https://github.com/akhileshrangani4/teachanything/issues/400)) ([7dfe633](https://github.com/akhileshrangani4/teachanything/commit/7dfe633a24685c1719cee13cc2a312ecbf251ac5))
+
 ## [1.33.2](https://github.com/akhileshrangani4/teachanything/compare/v1.33.1...v1.33.2) (2026-07-19)
 
 
