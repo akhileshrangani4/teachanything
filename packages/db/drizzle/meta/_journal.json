@@ -120,6 +120,20 @@
       "when": 1781144642063,
       "tag": "0016_dry_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784412697396,
+      "tag": "0017_clear_black_crow",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784421113463,
+      "tag": "0018_black_silvermane",
+      "breakpoints": true
     }
   ]
 }

@@ -1,10 +1,5 @@
 import { createTRPCReact, type CreateTRPCReact } from "@trpc/react-query";
-import {
-  httpBatchLink,
-  loggerLink,
-  splitLink,
-  httpSubscriptionLink,
-} from "@trpc/client";
+import { httpBatchLink, loggerLink } from "@trpc/client";
 import type { AppRouter } from "@/server/routers/_app";
 import type { inferRouterOutputs } from "@trpc/server";
 import superjson from "superjson";
@@ -26,16 +21,9 @@ export function getTRPCClientConfig() {
           env.NODE_ENV === "development" ||
           (opts.direction === "down" && opts.result instanceof Error),
       }),
-      splitLink({
-        condition: (op) => op.type === "subscription",
-        true: httpSubscriptionLink({
-          url: `${getBaseUrl()}/api/trpc`,
-          transformer: superjson,
-        }),
-        false: httpBatchLink({
-          url: `${getBaseUrl()}/api/trpc`,
-          transformer: superjson,
-        }),
+      httpBatchLink({
+        url: `${getBaseUrl()}/api/trpc`,
+        transformer: superjson,
       }),
     ],
   };

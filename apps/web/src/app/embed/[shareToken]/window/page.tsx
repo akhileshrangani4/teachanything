@@ -23,16 +23,15 @@ export default function EmbedWindowPage() {
     currentMessage,
     setCurrentMessage,
     isStreaming,
-    isThinking,
-    statusLabel,
-    streamingContent,
     messagesEndRef,
     chatbot,
     chatbotLoading,
     handleSendMessage,
     resetChat,
-    stopStreaming,
+    stop,
     error,
+    onStudyAttempt,
+    studyAttempts,
   } = useChat(shareToken);
 
   if (!isMounted || chatbotLoading) {
@@ -65,6 +64,7 @@ export default function EmbedWindowPage() {
           onReset={resetChat}
           onClose={close}
           messages={messages}
+          studyAttempts={studyAttempts}
         />
       )}
 
@@ -73,16 +73,13 @@ export default function EmbedWindowPage() {
           <ChatInterface
             messages={messages}
             isStreaming={isStreaming}
-            isThinking={isThinking}
-            statusLabel={statusLabel}
-            streamingContent={streamingContent}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
             resetChat={resetChat}
-            stopStreaming={stopStreaming}
+            stop={stop}
             height="h-full"
             hideHeader={withExitX}
             embedMode={true}
@@ -98,6 +95,8 @@ export default function EmbedWindowPage() {
             // pasted embeds have neither and stay text-only rather than
             // showing a mic that can never get permission.
             voiceInputEnabled={voiceInputEnabled}
+            onStudyAttempt={onStudyAttempt}
+            studyAttempts={studyAttempts}
           />
         </ErrorBoundary>
       </div>
