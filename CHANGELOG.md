@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.1](https://github.com/akhileshrangani4/teachanything/compare/v1.33.0...v1.33.1) (2026-07-19)
+
+
+### Documentation
+
+* **students:** add quiz feature guide ([#393](https://github.com/akhileshrangani4/teachanything/issues/393)) ([29927ac](https://github.com/akhileshrangani4/teachanything/commit/29927ac2c459a8fa85be3dea05f9b11fe39c20e7))
+
 ## [1.33.0](https://github.com/akhileshrangani4/teachanything/compare/v1.32.1...v1.33.0) (2026-07-19)
 
 
