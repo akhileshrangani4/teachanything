@@ -407,28 +407,33 @@ export function buildHtml(data: ConversationsExport): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <style>
+  /* Brand fonts (Teach Anything): Inter + Instrument Serif. Loaded from Google
+     Fonts so the export matches the site online; falls back gracefully offline. */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
   :root {
     color-scheme: light dark;
-    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, Cambria, serif;
-    --sans: "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Helvetica, sans-serif;
-    --paper: #f7f3ea;
-    --panel: #fbf8f1;
-    --ink: #26221b;
-    --muted: #6f6656;
-    --rule: #e4dcca;
-    --rule-strong: #d3c8b0;
-    --accent: #3c4f7a;
-    --accent-soft: color-mix(in srgb, var(--accent) 10%, var(--panel));
-    --ok: #4a6a44;
-    --ok-soft: #e6ede0;
-    --bad: #8a3d3a;
-    --bad-soft: #f1e2df;
-    --shadow: 0 1px 2px rgba(40, 34, 22, .05);
+    --display: "Instrument Serif", Georgia, Cambria, "Times New Roman", serif;
+    --sans: Inter, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    /* Teach Anything design tokens (oklch), light theme. */
+    --paper: oklch(0.986 0.0019 84.56);
+    --panel: oklch(0.9718 0.0056 157.15);
+    --ink: oklch(0.2158 0.0206 264);
+    --muted: oklch(0.4411 0.0266 264.25);
+    --rule: oklch(0.9115 0.0059 84.57);
+    --rule-strong: oklch(0.84 0.006 84.57);
+    --accent: oklch(0.5248 0.1373 149.83);
+    --accent-soft: color-mix(in oklch, var(--accent) 9%, var(--panel));
+    --ok: oklch(0.5248 0.1373 149.83);
+    --ok-soft: color-mix(in oklch, var(--accent) 14%, var(--paper));
+    --bad: oklch(0.5216 0.1927 25.33);
+    --bad-soft: color-mix(in oklch, oklch(0.6368 0.2078 25.33) 13%, var(--paper));
+    --radius: 0.75rem;
+    --shadow: 0 1px 2px oklch(0.2158 0.0206 264 / 0.06);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
-    font-family: var(--serif);
+    font-family: var(--sans);
     line-height: 1.6;
     margin: 0;
     background: var(--paper);
@@ -449,14 +454,14 @@ export function buildHtml(data: ConversationsExport): string {
   .muted { color: var(--muted); font-family: var(--sans); font-size: .85rem; }
 
   /* Masthead */
-  .masthead { padding: clamp(1.1rem, 3vw, 2rem) clamp(1.1rem, 4vw, 2.75rem) 1rem; border-bottom: 2px solid var(--ink); }
+  .masthead { padding: clamp(1.1rem, 3vw, 2rem) clamp(1.1rem, 4vw, 2.75rem) 1rem; border-bottom: 1px solid var(--rule-strong); }
   .masthead .kicker { margin-bottom: .5rem; }
   .masthead h1 {
-    font-family: var(--serif);
-    font-weight: 600;
-    font-size: clamp(1.6rem, 4.5vw, 2.5rem);
-    line-height: 1.08;
-    letter-spacing: -.01em;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(2rem, 5.5vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: .005em;
     margin: 0;
   }
   .masthead-meta { font-family: var(--sans); font-size: .82rem; color: var(--muted); margin-top: .5rem; }
@@ -490,7 +495,7 @@ export function buildHtml(data: ConversationsExport): string {
   .conv-num { font-family: var(--sans); font-size: .72rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: .15rem; }
   .conv-item.active .conv-num { color: var(--accent); }
   .conv-item-body { min-width: 0; }
-  .conv-preview { display: block; font-family: var(--serif); font-size: .96rem; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .conv-preview { display: block; font-family: var(--sans); font-size: .9rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .conv-meta { display: block; font-family: var(--sans); font-size: .72rem; color: var(--muted); margin-top: .25rem; }
   .list-empty { padding: 1.5rem 1.2rem; font-family: var(--sans); font-size: .85rem; color: var(--muted); }
 
@@ -501,7 +506,7 @@ export function buildHtml(data: ConversationsExport): string {
   .conv { max-width: 46rem; }
   .conv-head { margin-bottom: 1.75rem; }
   .conv-head .kicker { margin-bottom: .5rem; }
-  .conv-headline { font-family: var(--serif); font-weight: 600; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.15; margin: 0; letter-spacing: -.005em; }
+  .conv-headline { font-family: var(--display); font-weight: 400; font-size: clamp(1.55rem, 3.4vw, 2rem); line-height: 1.12; margin: 0; }
   .conv-sub { font-family: var(--sans); font-size: .76rem; color: var(--muted); margin-top: .5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
 
   /* Transcript turns (interview layout) */
@@ -523,7 +528,7 @@ export function buildHtml(data: ConversationsExport): string {
   .study-tool .quiz-questions { margin: 0; padding: 0; list-style: none; counter-reset: q; }
   .study-tool .quiz-questions > li { counter-increment: q; margin-top: .9rem; }
   .study-tool .quiz-questions > li:first-child { margin-top: 0; }
-  .study-tool .q { font-family: var(--serif); font-weight: 600; font-size: .98rem; }
+  .study-tool .q { font-family: var(--sans); font-weight: 600; font-size: .95rem; }
   .study-tool .opts { list-style: none; padding: 0; margin: .4rem 0 .2rem; }
   .study-tool .opt { font-size: .92rem; padding: .18rem 0 .18rem 1.3rem; position: relative; color: var(--muted); }
   .study-tool .opt::before { content: "○"; position: absolute; left: 0; color: var(--rule-strong); }
@@ -553,9 +558,19 @@ export function buildHtml(data: ConversationsExport): string {
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #16130d; --panel: #1d1912; --ink: #ece5d6; --muted: #a99e88;
-      --rule: #2e281d; --rule-strong: #3d3627; --accent: #a9b8dc; --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--panel));
-      --ok: #9ab98a; --ok-soft: #23301d; --bad: #d19b98; --bad-soft: #33211f; --shadow: none;
+      --paper: oklch(0.2158 0.0206 264);
+      --panel: oklch(0.2103 0.0059 285.88);
+      --ink: oklch(0.9843 0.0017 247.84);
+      --muted: oklch(0.7106 0.0242 264.41);
+      --rule: oklch(0.2879 0.0241 264.09);
+      --rule-strong: oklch(0.36 0.02 264);
+      --accent: oklch(0.7233 0.1939 149.39);
+      --accent-soft: color-mix(in oklch, var(--accent) 16%, var(--panel));
+      --ok: oklch(0.7233 0.1939 149.39);
+      --ok-soft: color-mix(in oklch, var(--accent) 20%, var(--paper));
+      --bad: oklch(0.72 0.14 25.33);
+      --bad-soft: color-mix(in oklch, oklch(0.6368 0.2078 25.33) 22%, var(--paper));
+      --shadow: none;
     }
   }
 </style>
