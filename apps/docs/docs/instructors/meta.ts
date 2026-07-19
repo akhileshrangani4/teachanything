@@ -13,6 +13,7 @@ export default defineMeta({
     "customize",
     "share-and-embed",
     "review-conversations",
+    "export-chat-records",
     "account-and-privacy",
   ],
 });

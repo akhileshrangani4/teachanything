@@ -5,11 +5,7 @@ import { user, account } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import * as bcrypt from "bcryptjs";
-import {
-  checkRateLimit,
-  requireRateLimit,
-  passwordUpdateRateLimit,
-} from "@/lib/rate-limit";
+import { requireRateLimit, passwordUpdateRateLimit } from "@/lib/rate-limit";
 import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { isPasswordDifferent } from "@/lib/password/password-validation";
 import { logInfo, logError } from "@/lib/logger";
@@ -179,8 +175,12 @@ export const authRouter = router({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Rate limiting: 5 attempts per hour per user
-      const { success, reset } = await checkRateLimit(
+      // Rate limiting: 5 attempts per hour per user. Use requireRateLimit so a
+      // Redis outage fails CLOSED -- this endpoint verifies the current
+      // password, so a fail-open limiter would restore unbounded brute-force of
+      // the existing password whenever Redis is unavailable. Mirrors
+      // deleteOwnAccount (the other current-password-guarded mutation).
+      const { success, reset } = await requireRateLimit(
         passwordUpdateRateLimit,
         userId,
         {

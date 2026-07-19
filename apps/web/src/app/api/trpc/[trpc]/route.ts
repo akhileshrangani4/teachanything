@@ -6,10 +6,6 @@ import { env } from "@/lib/env";
 // Disable static optimization for API routes
 export const dynamic = "force-dynamic";
 
-// Chat subscriptions stream long agentic turns (multiple LLM round trips plus
-// retrieval) through this route. Without an explicit maxDuration Vercel applies
-// the project default, which can kill the function mid-stream -- the client's
-// EventSource then reconnects and replays the whole message.
 export const maxDuration = 300;
 
 const handler = (req: Request) =>

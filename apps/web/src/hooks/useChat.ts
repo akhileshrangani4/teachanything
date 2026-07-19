@@ -1,79 +1,115 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import { useChat as useAIChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { nanoid } from "nanoid";
+import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { useChatState } from "./useChatState";
+import { describeChatError } from "@/lib/chat-error-message";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
+import {
+  postStudyResponse,
+  type StudyResponsePayload,
+} from "@/lib/submit-study-response";
 
 /**
- * Hook for managing chat interactions with a shared/public chatbot.
+ * Chat with a shared/public chatbot (share-token pages + embed widget), backed
+ * by the AI SDK chat transport hitting POST /api/chat/shared.
  *
- * Used when accessing a chatbot via a share token (public link):
- * - Public shared chatbot pages (/chat/[shareToken])
- * - Embedded chatbot widgets
+ * A fresh sessionId is generated per page load (matches the prior behavior --
+ * no cross-reload history rehydration in this phase).
  */
 export function useChat(shareToken: string) {
-  const state = useChatState();
-
-  const [messageToSend, setMessageToSend] = useState<{
-    shareToken: string;
-    message: string;
-    sessionId?: string;
-  } | null>(null);
+  const [sessionId, setSessionId] = useState(() => nanoid());
+  const [currentMessage, setCurrentMessage] = useState("");
+  // The student's own finished study-tool responses this session, by tool
+  // toolCallId, for the chat export. Persistence to the server runs in parallel.
+  const [studyAttempts, setStudyAttempts] = useState<
+    Record<string, StudyResponsePayload[]>
+  >({});
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
     data: chatbot,
     isLoading: chatbotLoading,
-    error: chatbotError,
+    error,
   } = trpc.chatbot.getByShareToken.useQuery(
     { shareToken },
     { retry: false, refetchOnWindowFocus: false },
   );
 
-  trpc.chat.sendSharedMessageStream.useSubscription(
-    messageToSend ?? { shareToken: "", message: "", sessionId: undefined },
-    {
-      enabled: !!messageToSend,
-      // Events arrive as tracked envelopes ({ id, data }) so the server can
-      // tell a reconnect replay from a fresh message; unwrap the payload.
-      onData: (envelope) => state.handleStreamData(envelope.data),
-      onError: state.handleStreamError,
+  const chat = useAIChat<StudyUIMessage>({
+    id: sessionId,
+    transport: new DefaultChatTransport({
+      api: "/api/chat/shared",
+      prepareSendMessagesRequest({ messages }) {
+        return {
+          body: {
+            message: messages[messages.length - 1],
+            sessionId,
+            shareToken,
+          },
+        };
+      },
+    }),
+    onError: (error) => toast.error(describeChatError(error)),
+    experimental_throttle: 50,
+  });
+
+  const isStreaming =
+    chat.status === "submitted" || chat.status === "streaming";
+
+  const sendMessage = useCallback(
+    (text: string): boolean => {
+      if (!text.trim() || isStreaming) return false;
+      void chat.sendMessage({ text });
+      return true;
     },
+    [chat, isStreaming],
   );
 
   const handleSendMessage = (e: React.FormEvent) => {
-    const message = state.prepareSendMessage(e);
-    if (!message) return;
-    state.startStreaming();
-    setMessageToSend({
-      shareToken,
-      message,
-      sessionId: state.sessionId || undefined,
-    });
+    e.preventDefault();
+    if (sendMessage(currentMessage)) setCurrentMessage("");
   };
+
+  const onStudyAttempt = useCallback(
+    (toolCallId: string, response: StudyResponsePayload) => {
+      setStudyAttempts((prev) => ({
+        ...prev,
+        [toolCallId]: [...(prev[toolCallId] ?? []), response],
+      }));
+      void postStudyResponse({ shareToken, sessionId, toolCallId, response });
+    },
+    [shareToken, sessionId],
+  );
 
   const resetChat = () => {
-    state.resetChat();
-    setMessageToSend(null);
-  };
-
-  const stopStreaming = () => {
-    state.clearStreamingTimeout();
-    setMessageToSend(null);
-    state.stopStreaming();
+    // Abort any in-flight stream first: re-keying useChat below discards the old
+    // Chat without cancelling its request, so without this the server keeps
+    // generating (burning tokens) until the timeout.
+    void chat.stop();
+    chat.setMessages([]);
+    setCurrentMessage("");
+    setStudyAttempts({});
+    // Start a fresh server-side conversation (matches the prior behavior). The
+    // new id also re-keys useChat, so the transport no longer reloads the
+    // old conversation's history on the next send.
+    setSessionId(nanoid());
   };
 
   return {
-    messages: state.messages,
-    currentMessage: state.currentMessage,
-    setCurrentMessage: state.setCurrentMessage,
-    isStreaming: state.isStreaming,
-    isThinking: state.isThinking,
-    statusLabel: state.statusLabel,
-    streamingContent: state.streamingContent,
-    messagesEndRef: state.messagesEndRef,
+    messages: chat.messages,
+    currentMessage,
+    setCurrentMessage,
+    isStreaming,
+    handleSendMessage,
+    stop: chat.stop,
+    resetChat,
+    messagesEndRef,
     chatbot,
     chatbotLoading,
-    handleSendMessage,
-    resetChat,
-    stopStreaming,
-    error: chatbotError,
+    error,
+    onStudyAttempt,
+    studyAttempts,
   };
 }

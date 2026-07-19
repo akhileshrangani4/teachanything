@@ -337,6 +337,14 @@ export const messages = pgTable(
         responseTime?: number;
         model?: string;
         ragUsed?: boolean;
+        // Structured study-tool payloads: the assistant UIMessage `parts`
+        // (incl. tool-call parts). Typed `unknown[]` here because this package
+        // must not import app code or the `ai` package; the app casts to
+        // UIMessagePart[] when rehydrating.
+        parts?: unknown[];
+        partsVersion?: number;
+        truncated?: boolean;
+        interrupted?: boolean;
       }>()
       .default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -352,6 +360,45 @@ export const messages = pgTable(
     index("messages_content_trgm_idx").using(
       "gin",
       sql`${table.content} gin_trgm_ops`,
+    ),
+  ],
+);
+
+// Student study-tool responses (quiz answers now; flashcards / test / mindmap
+// later). One append-only row per completed attempt. General across study-tool
+// types: `toolName` discriminates and `response` is a per-tool JSONB payload
+// (the app owns the typed shape; the db package stays generic). Keyed by
+// `toolCallId` (identical in the live stream and persisted `messages.metadata.
+// parts`) so an attempt links to the exact tool part shown, sidestepping the
+// live-UIMessage-id vs persisted-row-id mismatch.
+export const studyToolResponses = pgTable(
+  "study_tool_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    toolCallId: text("tool_call_id").notNull(),
+    toolName: text("tool_name").notNull(),
+    // 1-based, incremented per retake. Derived via count+1 at insert time; the
+    // unique index below makes it trustworthy -- concurrent submissions that
+    // read the same count conflict on insert, and the writer re-reads and
+    // retries (see recordStudyResponse).
+    attempt: integer("attempt").notNull(),
+    response: jsonb("response").$type<unknown>().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("study_tool_responses_conversation_tool_call_idx").on(
+      table.conversationId,
+      table.toolCallId,
+    ),
+    // Guarantees attempt numbers are unique per tool instance so the column is
+    // safe to build on (analytics, ordering).
+    uniqueIndex("study_tool_responses_attempt_unique_idx").on(
+      table.conversationId,
+      table.toolCallId,
+      table.attempt,
     ),
   ],
 );
@@ -596,6 +643,7 @@ export const conversationsRelations = relations(
       references: [chatbots.id],
     }),
     messages: many(messages),
+    studyToolResponses: many(studyToolResponses),
   }),
 );
 
@@ -605,6 +653,16 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [conversations.id],
   }),
 }));
+
+export const studyToolResponsesRelations = relations(
+  studyToolResponses,
+  ({ one }) => ({
+    conversation: one(conversations, {
+      fields: [studyToolResponses.conversationId],
+      references: [conversations.id],
+    }),
+  }),
+);
 
 export const analyticsRelations = relations(analytics, ({ one }) => ({
   chatbot: one(chatbots, {

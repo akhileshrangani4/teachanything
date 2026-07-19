@@ -1,6 +1,6 @@
 {
   "name": "teachanything",
-  "version": "1.32.1",
+  "version": "1.33.0",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -37,7 +37,7 @@
   },
   "packageManager": "npm@11.4.2",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.3"
   },
   "workspaces": [
     "apps/*",
