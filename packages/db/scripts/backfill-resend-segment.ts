@@ -13,6 +13,11 @@
  *
  * Usage:
  *   npx tsx packages/db/scripts/backfill-resend-segment.ts
+ *   npx tsx packages/db/scripts/backfill-resend-segment.ts --dry-run
+ *
+ * With --dry-run it reads the approved users and prints exactly what it would
+ * POST to Resend, without making any requests. Only DATABASE_URL is required
+ * in that mode (RESEND_API_KEY / RESEND_SEGMENT_ID are not needed).
  */
 
 import postgres from "postgres";
@@ -32,16 +37,25 @@ if (result.error) {
   process.exit(1);
 }
 
+const isDryRun = process.argv.includes("--dry-run");
+
 const databaseUrl = process.env.DATABASE_URL;
 const resendApiKey = process.env.RESEND_API_KEY;
 const segmentId = process.env.RESEND_SEGMENT_ID;
 
-if (!databaseUrl || !resendApiKey || !segmentId) {
+// A dry run only needs the DB to read the user list; it never calls Resend.
+if (!databaseUrl || (!isDryRun && (!resendApiKey || !segmentId))) {
   console.error(
-    "DATABASE_URL, RESEND_API_KEY and RESEND_SEGMENT_ID must be set",
+    isDryRun
+      ? "DATABASE_URL must be set"
+      : "DATABASE_URL, RESEND_API_KEY and RESEND_SEGMENT_ID must be set",
   );
   process.exit(1);
 }
+
+// In a dry run RESEND_SEGMENT_ID may be unset; show a placeholder so the
+// printed payload is still readable.
+const segmentIdForPayload = segmentId ?? "<RESEND_SEGMENT_ID>";
 
 // Resend's documented default rate limit is 10 requests/second per team --
 // stay well under it to leave room for concurrent app traffic
@@ -78,13 +92,30 @@ async function backfill() {
       SELECT email, name FROM "user" WHERE status = 'approved'
     `;
 
-    console.log(`Found ${users.length} approved users to sync`);
+    console.log(
+      `Found ${users.length} approved users to sync${isDryRun ? " (dry run — no requests will be made)" : ""}`,
+    );
 
     let synced = 0;
     let alreadyPresent = 0;
     let failed = 0;
 
     for (const [i, u] of users.entries()) {
+      // Payload sent to POST /contacts (segments takes an array of { id }).
+      const payload = {
+        email: u.email,
+        ...splitName(u.name),
+        segments: [{ id: segmentIdForPayload }],
+      };
+
+      if (isDryRun) {
+        synced++;
+        console.log(
+          `[${i + 1}/${users.length}] would create ${JSON.stringify(payload)}`,
+        );
+        continue;
+      }
+
       try {
         const res = await fetch("https://api.resend.com/contacts", {
           method: "POST",
@@ -92,12 +123,7 @@ async function backfill() {
             Authorization: `Bearer ${resendApiKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            email: u.email,
-            ...splitName(u.name),
-            // The Contacts API takes segments as an array of { id } objects.
-            segments: [{ id: segmentId }],
-          }),
+          body: JSON.stringify(payload),
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
 
@@ -124,6 +150,11 @@ async function backfill() {
       }
 
       if (i < users.length - 1) await sleep(REQUEST_DELAY_MS);
+    }
+
+    if (isDryRun) {
+      console.log(`Dry run: would sync ${synced} contacts. No requests made.`);
+      return;
     }
 
     console.log(
