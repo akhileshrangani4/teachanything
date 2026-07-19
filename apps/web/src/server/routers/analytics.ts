@@ -12,6 +12,11 @@ import type { SQL } from "drizzle-orm";
 import { eq, and, sql, gte, lte, desc, asc, inArray, ilike } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern, formatPreview } from "@/server/utils";
+import {
+  collectStudyTools,
+  groupStudyResponses,
+  type CollectedStudyTool,
+} from "@/server/study/collect-export";
 import type { Context } from "@/server/trpc";
 import {
   checkRateLimit,
@@ -60,66 +65,6 @@ function startOfUtcWeek(date: Date): Date {
 
 function roundToOne(value: number): number {
   return Math.round(value * 10) / 10;
-}
-
-// One student attempt at a study tool. `response` is the per-tool payload
-// (e.g. a graded quiz) left raw here; the client renderer interprets it.
-type ExportStudyToolResponse = {
-  attempt: number;
-  response: unknown;
-};
-
-// A study-tool widget shown in an assistant turn, plus the student's attempts.
-// Generic across tool types (quiz now; flashcards / test / mindmap later):
-// `toolName` selects a client renderer, `input` is the raw widget payload, and
-// attempts are matched to the tool via `toolCallId`. Keeping this untyped on
-// the server means new study tools export with no server change.
-type ExportStudyTool = {
-  toolName: string;
-  input: unknown;
-  responses: ExportStudyToolResponse[];
-};
-
-/**
- * Pull study-tool widgets out of a persisted assistant message's
- * `metadata.parts`, attaching the student's attempts (keyed by `toolCallId`).
- * `parts` is typed `unknown[]` in the db package, so everything is validated
- * defensively. Any `tool-*` part that actually rendered for the student
- * (`input-available` / `output-available`) is included; interrupted or errored
- * calls are skipped.
- */
-function extractStudyToolsFromParts(
-  parts: unknown,
-  conversationId: string,
-  responsesByKey: Map<string, ExportStudyToolResponse[]>,
-): ExportStudyTool[] {
-  if (!Array.isArray(parts)) return [];
-  const tools: ExportStudyTool[] = [];
-  for (const part of parts) {
-    if (!part || typeof part !== "object") continue;
-    const p = part as {
-      type?: unknown;
-      toolCallId?: unknown;
-      state?: unknown;
-      input?: unknown;
-    };
-    if (typeof p.type !== "string" || !p.type.startsWith("tool-")) continue;
-    if (p.state !== "input-available" && p.state !== "output-available") {
-      continue;
-    }
-    const toolName = p.type.slice("tool-".length);
-    const toolCallId =
-      typeof p.toolCallId === "string" ? p.toolCallId : undefined;
-    const responses = toolCallId
-      ? (responsesByKey.get(`${conversationId}::${toolCallId}`) ?? [])
-      : [];
-    tools.push({
-      toolName,
-      input: p.input ?? null,
-      responses,
-    });
-  }
-  return tools;
 }
 
 async function assertOwnedChatbot(
@@ -1056,13 +1001,7 @@ export const analyticsRouter = router({
 
       // Group attempts by (conversation, toolCallId); `response` stays raw so
       // the client renderer for each tool interprets its own payload shape.
-      const responsesByKey = new Map<string, ExportStudyToolResponse[]>();
-      for (const row of responseRows) {
-        const key = `${row.conversationId}::${row.toolCallId}`;
-        const list = responsesByKey.get(key) ?? [];
-        list.push({ attempt: row.attempt, response: row.response });
-        responsesByKey.set(key, list);
-      }
+      const responsesByKey = groupStudyResponses(responseRows);
 
       const messagesByConversation = new Map<
         string,
@@ -1071,7 +1010,7 @@ export const analyticsRouter = router({
           content: string;
           createdAt: Date;
           sources: Array<{ fileName: string; similarity: number }>;
-          studyTools: ExportStudyTool[];
+          studyTools: CollectedStudyTool[];
         }>
       >();
 
@@ -1087,7 +1026,7 @@ export const analyticsRouter = router({
           })),
           studyTools:
             row.role === "assistant"
-              ? extractStudyToolsFromParts(
+              ? collectStudyTools(
                   row.metadata?.parts,
                   row.conversationId,
                   responsesByKey,

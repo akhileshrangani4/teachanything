@@ -137,7 +137,9 @@ describe("buildHtml", () => {
         ],
       }),
     );
-    expect(html).not.toContain("<script>");
+    // The page has its own <script> tags; what must never appear is the raw,
+    // unescaped injected payload.
+    expect(html).not.toContain("Theory <script>");
     expect(html).not.toContain("<img src=x");
     expect(html).toContain("&lt;img src=x");
     expect(html).toContain("Theory &lt;script&gt;");
@@ -233,8 +235,11 @@ describe("study tools surface in every format", () => {
 
   it("renders the quiz block in the HTML export", () => {
     const html = buildHtml(withQuiz());
+    // The transcript is embedded as JSON in the page, so quotes are escaped;
+    // assert on quote-free fragments.
     expect(html).toContain("Quiz: Cell Biology");
-    expect(html).toContain('class="opt correct"');
+    expect(html).toContain("opt correct");
+    expect(html).toContain("Attempt 1 — score 1/1");
   });
 });
 

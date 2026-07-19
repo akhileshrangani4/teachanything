@@ -1,9 +1,4 @@
-import {
-  isRenderableQuiz,
-  quizResponseSchema,
-  type Quiz,
-  type QuizResponse,
-} from "@/lib/quiz";
+import { isRenderableQuiz, type Quiz, type QuizResponse } from "@/lib/quiz";
 import { formatQuizForExport } from "@/lib/export-chat";
 
 /**
@@ -61,12 +56,30 @@ function safeJson(value: unknown): string {
 
 // --- Quiz (showQuiz) ------------------------------------------------------
 
-/** Student attempts for a quiz tool, validated and ordered by attempt number. */
+/**
+ * Student attempts for a quiz tool, ordered by attempt number. Every recorded
+ * attempt is surfaced: `response` is read defensively (like the dashboard's
+ * read-only quiz view) rather than validated against a strict schema, so a
+ * real attempt is never dropped from the export over a minor shape difference.
+ */
 function quizAttempts(tool: ExportStudyTool): QuizResponse[] {
   return [...tool.responses]
     .sort((a, b) => a.attempt - b.attempt)
-    .map((r) => quizResponseSchema.safeParse(r.response))
-    .flatMap((parsed) => (parsed.success ? [parsed.data] : []));
+    .map((r) => {
+      const resp = (r.response ?? {}) as {
+        answers?: unknown;
+        score?: unknown;
+        total?: unknown;
+      };
+      const answers = Array.isArray(resp.answers)
+        ? resp.answers.map((n) => (typeof n === "number" ? n : -1))
+        : [];
+      return {
+        answers,
+        score: typeof resp.score === "number" ? resp.score : 0,
+        total: typeof resp.total === "number" ? resp.total : answers.length,
+      };
+    });
 }
 
 const quizRenderer: StudyToolRenderer = {

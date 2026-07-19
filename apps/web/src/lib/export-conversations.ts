@@ -249,7 +249,8 @@ function renderMessageHtml(message: ExportMessage, turn: number): string {
     </div>`;
 }
 
-function renderConversationHtml(
+/** The transcript body for one conversation (header + turns), for the detail pane. */
+function renderConversationDetail(
   conversation: ExportConversation,
   index: number,
   total: number,
@@ -259,33 +260,128 @@ function renderConversationHtml(
       renderMessageHtml(message, messageIndex + 1),
     )
     .join("\n");
-  return `<section class="conversation">
-    <header>
+  return `<div class="conv-detail-header">
       <h2>Conversation ${index + 1} <span class="dim">of ${total}</span></h2>
       <div class="dim">Session ${escapeHtml(conversation.sessionId)} · Started ${escapeHtml(formatDateTime(conversation.createdAt))} · ${plural(conversation.messages.length, "message")}</div>
-    </header>
-    ${messages || '<p class="dim">No messages in this conversation.</p>'}
-  </section>`;
+    </div>
+    ${messages || '<p class="dim">No messages in this conversation.</p>'}`;
 }
+
+/** Short list-item preview: the first student question, else a sensible label. */
+function conversationPreview(conversation: ExportConversation): string {
+  const firstUser = conversation.messages.find(
+    (m) => m.role === "user" && m.content.trim(),
+  );
+  const fallback = conversation.messages.find((m) => m.content.trim());
+  const text = (firstUser ?? fallback)?.content.trim() ?? "";
+  if (!text) {
+    const hasStudyTool = conversation.messages.some(
+      (m) => (m.studyTools?.length ?? 0) > 0,
+    );
+    return hasStudyTool ? "Study activity" : "No messages";
+  }
+  return text.length > 100 ? `${text.slice(0, 100).trimEnd()}…` : text;
+}
+
+/** Lowercased searchable text for a conversation (messages + study tools). */
+function conversationSearchText(conversation: ExportConversation): string {
+  return conversation.messages
+    .map((m) => `${m.content} ${renderStudyToolsText(m.studyTools ?? [])}`)
+    .join(" ")
+    .toLowerCase();
+}
+
+// Vanilla client script for the exported page: renders the conversation list,
+// filters it on search, and swaps the detail pane on selection. No template
+// literals / `${}` here so it survives the outer TS template literal verbatim.
+const EXPORT_APP_JS = `(function(){
+  var DATA = JSON.parse(document.getElementById('export-data').textContent);
+  var listEl = document.getElementById('list');
+  var detailEl = document.getElementById('detail');
+  var searchEl = document.getElementById('search');
+  var countEl = document.getElementById('count');
+  var backEl = document.getElementById('back');
+  var current = -1;
+  function renderList(){
+    var q = (searchEl.value || '').trim().toLowerCase();
+    listEl.innerHTML = '';
+    var shown = 0;
+    DATA.forEach(function(c, i){
+      if (q && c.search.indexOf(q) === -1) return;
+      shown++;
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'conv-item' + (i === current ? ' active' : '');
+      item.onclick = function(){ select(i); };
+      var p = document.createElement('div');
+      p.className = 'conv-preview';
+      p.textContent = c.preview;
+      var m = document.createElement('div');
+      m.className = 'conv-meta dim';
+      m.textContent = c.date + ' \\u00b7 ' + c.messages + (c.messages === 1 ? ' message' : ' messages');
+      item.appendChild(p);
+      item.appendChild(m);
+      listEl.appendChild(item);
+    });
+    countEl.textContent = q ? (shown + ' of ' + DATA.length + ' chats') : (DATA.length + ' chats');
+    if (shown === 0){
+      var e = document.createElement('div');
+      e.className = 'list-empty dim';
+      e.textContent = 'No matching chats.';
+      listEl.appendChild(e);
+    }
+  }
+  function select(i){
+    current = i;
+    detailEl.innerHTML = DATA[i].html;
+    detailEl.scrollTop = 0;
+    document.body.classList.add('viewing-detail');
+    renderList();
+  }
+  searchEl.addEventListener('input', renderList);
+  if (backEl) backEl.addEventListener('click', function(){
+    document.body.classList.remove('viewing-detail');
+  });
+  renderList();
+  if (DATA.length) select(0);
+})();`;
 
 export function buildHtml(data: ConversationsExport): string {
   const title = `Chat Records — ${escapeHtml(data.chatbotName)}`;
-  const body =
-    data.conversations.length === 0
-      ? '<p class="dim">No chat records to export.</p>'
-      : data.conversations
-          .map((conversation, index) =>
-            renderConversationHtml(
-              conversation,
-              index,
-              data.conversations.length,
-            ),
-          )
-          .join("\n");
+  const total = data.conversations.length;
+
+  const convData = data.conversations.map((conversation, index) => ({
+    preview: conversationPreview(conversation),
+    date: formatDateTime(conversation.createdAt),
+    messages: conversation.messages.length,
+    search: conversationSearchText(conversation),
+    html: renderConversationDetail(conversation, index, total),
+  }));
+  // Escape `<` so the JSON can't break out of the <script> element.
+  const json = JSON.stringify(convData).replace(/</g, "\\u003c");
 
   const truncatedNote = data.truncated
-    ? `<p class="notice">Showing the first ${data.maxConversations} conversations. This chatbot has more; export in smaller selections to capture the rest.</p>`
+    ? `<div class="notice">Showing the first ${data.maxConversations} conversations. This chatbot has more; export in smaller selections to capture the rest.</div>`
     : "";
+
+  const emptyState =
+    total === 0
+      ? '<div class="empty-all dim">No chat records to export.</div>'
+      : `<div class="layout">
+      <aside class="sidebar">
+        <div class="search-wrap">
+          <input id="search" type="search" placeholder="Search chats…" autocomplete="off" spellcheck="false">
+        </div>
+        <div id="count" class="count dim"></div>
+        <div id="list" class="list"></div>
+      </aside>
+      <main class="detail-pane">
+        <button id="back" type="button" class="back">← All chats</button>
+        <div id="detail" class="detail"></div>
+      </main>
+    </div>
+    <script id="export-data" type="application/json">${json}</script>
+    <script>${EXPORT_APP_JS}</script>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -294,61 +390,79 @@ export function buildHtml(data: ConversationsExport): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; margin: 0; background: #f6f7f9; color: #1a1a1a; }
-  .wrap { max-width: 820px; margin: 0 auto; padding: 2rem 1rem 4rem; }
-  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
-  h2 { font-size: 1.1rem; margin: 0; }
-  .dim { color: #6b7280; font-weight: 400; font-size: .85rem; }
-  .summary { color: #374151; margin: 0 0 2rem; }
-  .notice { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: .75rem 1rem; border-radius: .5rem; font-size: .9rem; }
-  .conversation { background: #fff; border: 1px solid #e5e7eb; border-radius: .75rem; padding: 1.25rem; margin-bottom: 1.5rem; }
-  .conversation > header { margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid #eef0f2; }
+  :root { color-scheme: light dark; --bg:#f6f7f9; --panel:#fff; --border:#e5e7eb; --text:#1a1a1a; --dim:#6b7280; --accent:#2563eb; --hover:#f1f3f5; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; margin: 0; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+  h1 { font-size: 1.15rem; margin: 0; }
+  h2 { font-size: 1.05rem; margin: 0; }
+  .dim { color: var(--dim); font-weight: 400; font-size: .85rem; }
+  .app-header { padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .notice { margin-top: .6rem; background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: .5rem .75rem; border-radius: .5rem; font-size: .85rem; }
+  .empty-all { padding: 3rem 1.25rem; text-align: center; }
+  .layout { flex: 1; min-height: 0; display: flex; }
+  .sidebar { width: 340px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .search-wrap { padding: .75rem; border-bottom: 1px solid var(--border); }
+  #search { width: 100%; padding: .5rem .7rem; border: 1px solid var(--border); border-radius: .5rem; font-size: .9rem; background: var(--bg); color: var(--text); }
+  .count { padding: .5rem .9rem 0; }
+  .list { flex: 1; min-height: 0; overflow-y: auto; padding: .4rem; }
+  .conv-item { display: block; width: 100%; text-align: left; border: none; background: none; padding: .6rem .7rem; border-radius: .5rem; cursor: pointer; color: inherit; font: inherit; }
+  .conv-item:hover { background: var(--hover); }
+  .conv-item.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .conv-preview { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-meta { margin-top: .15rem; }
+  .list-empty { padding: 1rem .9rem; }
+  .detail-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  .back { display: none; margin: .6rem .6rem 0; align-self: flex-start; background: none; border: 1px solid var(--border); border-radius: .5rem; padding: .3rem .6rem; cursor: pointer; color: inherit; font: inherit; font-size: .85rem; }
+  .detail { flex: 1; min-height: 0; overflow-y: auto; padding: 1.25rem 1.5rem 3rem; max-width: 900px; }
+  .conv-detail-header { margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--border); }
   .msg { margin: .75rem 0; display: flex; flex-direction: column; }
   .msg.student { align-items: flex-end; }
   .msg.assistant { align-items: flex-start; }
   .msg .meta { font-size: .75rem; color: #9ca3af; margin-bottom: .2rem; }
   .bubble { max-width: 85%; padding: .6rem .85rem; border-radius: .9rem; white-space: normal; word-wrap: break-word; }
-  .msg.student .bubble { background: #2563eb; color: #fff; border-bottom-right-radius: .2rem; }
-  .msg.assistant .bubble { background: #f1f3f5; color: #1a1a1a; border-bottom-left-radius: .2rem; }
+  .msg.student .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: .2rem; }
+  .msg.assistant .bubble { background: var(--hover); color: var(--text); border-bottom-left-radius: .2rem; }
   .sources { font-size: .72rem; color: #9ca3af; margin-top: .25rem; max-width: 85%; }
-  .study-tool { width: 100%; box-sizing: border-box; background: #fbfbfd; border: 1px solid #e5e7eb; border-radius: .6rem; padding: .75rem .9rem; margin-top: .4rem; font-size: .9rem; }
+  .study-tool { width: 100%; box-sizing: border-box; background: #fbfbfd; border: 1px solid var(--border); border-radius: .6rem; padding: .75rem .9rem; margin-top: .4rem; font-size: .9rem; }
   .study-tool .tool-label { font-weight: 600; margin-bottom: .35rem; }
   .study-tool .quiz-questions { margin: 0; padding-left: 1.2rem; }
   .study-tool .q { font-weight: 500; margin-top: .5rem; }
   .study-tool .opts { list-style: none; padding: 0; margin: .25rem 0; }
   .study-tool .opt { padding: .1rem 0; }
   .study-tool .opt.correct { font-weight: 600; }
-  .study-tool .explanation { color: #6b7280; font-size: .8rem; margin-top: .2rem; }
+  .study-tool .explanation { color: var(--dim); font-size: .8rem; margin-top: .2rem; }
   .study-tool .tag { font-size: .7rem; padding: .05rem .35rem; border-radius: .3rem; white-space: nowrap; }
   .study-tool .tag.ok { background: #dcfce7; color: #166534; }
   .study-tool .tag.bad { background: #fee2e2; color: #991b1b; }
-  .study-tool .attempt { margin-top: .6rem; border-top: 1px dashed #e5e7eb; padding-top: .45rem; }
+  .study-tool .attempt { margin-top: .6rem; border-top: 1px dashed var(--border); padding-top: .45rem; }
   .study-tool .attempt-head { font-weight: 500; }
   .study-tool .attempt ul { margin: .2rem 0; padding-left: 1.2rem; }
-  .study-tool .tool-raw { white-space: pre-wrap; word-break: break-word; background: #f1f3f5; padding: .4rem; border-radius: .3rem; font-size: .75rem; }
+  .study-tool .tool-raw { white-space: pre-wrap; word-break: break-word; background: var(--hover); padding: .4rem; border-radius: .3rem; font-size: .75rem; }
+  @media (max-width: 720px) {
+    .sidebar { width: 100%; }
+    .detail-pane { display: none; }
+    .back { display: block; }
+    body.viewing-detail .sidebar { display: none; }
+    body.viewing-detail .detail-pane { display: flex; }
+  }
   @media (prefers-color-scheme: dark) {
-    body { background: #0f1115; color: #e5e7eb; }
-    .conversation { background: #171a21; border-color: #262b36; }
-    .conversation > header { border-color: #262b36; }
-    .msg.assistant .bubble { background: #262b36; color: #e5e7eb; }
-    .dim, .summary { color: #9ca3af; }
-    .study-tool { background: #12151b; border-color: #262b36; }
-    .study-tool .attempt { border-color: #262b36; }
+    :root { --bg:#0f1115; --panel:#171a21; --border:#262b36; --text:#e5e7eb; --dim:#9ca3af; --hover:#262b36; }
+    .study-tool { background: #12151b; }
     .study-tool .tool-raw { background: #0f1115; }
-    .study-tool .explanation { color: #9ca3af; }
     .study-tool .tag.ok { background: #14532d; color: #bbf7d0; }
     .study-tool .tag.bad { background: #7f1d1d; color: #fecaca; }
+    .notice { background: #3b2f0b; border-color: #665417; color: #fde68a; }
   }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Chat Records — ${escapeHtml(data.chatbotName)}</h1>
-    <p class="summary">Exported ${escapeHtml(formatDateTime(data.exportedAt))} · ${plural(data.conversations.length, "conversation")}</p>
+  <header class="app-header">
+    <h1>${escapeHtml(data.chatbotName)}</h1>
+    <div class="dim">Chat records · Exported ${escapeHtml(formatDateTime(data.exportedAt))} · ${plural(total, "conversation")}</div>
     ${truncatedNote}
-    ${body}
-  </div>
+  </header>
+  ${emptyState}
 </body>
 </html>`;
 }
