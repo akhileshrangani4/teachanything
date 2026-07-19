@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.33.0](https://github.com/akhileshrangani4/teachanything/compare/v1.32.1...v1.33.0) (2026-07-19)
+
+
+### Features
+
+* **auth:** auto-sync approved users to Resend audience ([#378](https://github.com/akhileshrangani4/teachanything/issues/378)) ([7991594](https://github.com/akhileshrangani4/teachanything/commit/7991594167f41897f7de78b090adf1ce8eed7dbb))
+* **chat:** migrate chat to AI SDK transport with quiz study tool (Phase 1) ([#380](https://github.com/akhileshrangani4/teachanything/issues/380)) ([fd31463](https://github.com/akhileshrangani4/teachanything/commit/fd3146387defa4d27584f7ac8cc3e2a531bc5cff))
+* **conversations:** export student chat records from the dashboard ([#386](https://github.com/akhileshrangani4/teachanything/issues/386)) ([be22761](https://github.com/akhileshrangani4/teachanything/commit/be227618651b2b4376c94aa37dd067a43c92b56b))
+* **db:** add --dry-run flag to Resend segment backfill ([#391](https://github.com/akhileshrangani4/teachanything/issues/391)) ([4b4704e](https://github.com/akhileshrangani4/teachanything/commit/4b4704eaedcf0d1c948723616278410e40e594e6))
+
+
+### Bug Fixes
+
+* **auth:** fail closed on rate-limit outage for updatePassword ([#389](https://github.com/akhileshrangani4/teachanything/issues/389)) ([6cf2271](https://github.com/akhileshrangani4/teachanything/commit/6cf2271d5555d25a740973b43e3e5fc10be69e88))
+* **auth:** never reset unsubscribed when syncing to Resend segment ([#392](https://github.com/akhileshrangani4/teachanything/issues/392)) ([9ffb02b](https://github.com/akhileshrangani4/teachanything/commit/9ffb02b42746660c9e123f109f121de2e772a86a))
+
 ## [1.32.1](https://github.com/akhileshrangani4/teachanything/compare/v1.32.0...v1.32.1) (2026-07-18)
 
 
