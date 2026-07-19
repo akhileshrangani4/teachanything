@@ -423,7 +423,7 @@ export function buildHtml(data: ConversationsExport): string {
      matches the site online; falls back to the system UI font offline. */
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
     --sans: Inter, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     --logo: url("${TEACH_ANYTHING_LOGO_DATA_URI}");
     /* Teach Anything design tokens (oklch), light theme. */
@@ -574,28 +574,6 @@ export function buildHtml(data: ConversationsExport): string {
     .bubble-user { max-width: 88%; }
     body.viewing-detail .index { display: none; }
     body.viewing-detail .reader { display: flex; }
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --paper: oklch(0.2158 0.0206 264);
-      --card: oklch(0.2486 0.0195 264.13);
-      --secondary: oklch(0.2879 0.0241 264.09);
-      --sidebar-bg: oklch(0.2103 0.0059 285.88);
-      --sidebar-fg: oklch(0.9676 0.0013 286.38);
-      --ink: oklch(0.9843 0.0017 247.84);
-      --muted: oklch(0.7106 0.0242 264.41);
-      --muted-bg: oklch(0.2879 0.0241 264.09);
-      --rule: oklch(0.2879 0.0241 264.09);
-      --rule-strong: oklch(0.36 0.02 264);
-      --accent: oklch(0.7233 0.1939 149.39);
-      --accent-fg: oklch(0.2158 0.0206 264);
-      --accent-soft: color-mix(in oklch, var(--accent) 16%, var(--card));
-      --ok: oklch(0.7233 0.1939 149.39);
-      --ok-soft: color-mix(in oklch, var(--accent) 20%, var(--paper));
-      --bad: oklch(0.72 0.14 25.33);
-      --bad-soft: color-mix(in oklch, oklch(0.6368 0.2078 25.33) 22%, var(--paper));
-      --shadow: none;
-    }
   }
 </style>
 </head>
