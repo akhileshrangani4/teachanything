@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { Quiz, QuizResponse } from "@/lib/quiz";
+import {
+  initialQuizWidgetState,
+  type Quiz,
+  type QuizResponse,
+} from "@/lib/quiz";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -80,14 +84,18 @@ export function QuizMessage({
 }: QuizMessageProps) {
   const total = quiz.questions.length;
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Seed once from any completed attempt so a remount (e.g. the embed widget
+  // hiding on a tab switch, then reopening) restores the finished quiz instead
+  // of resetting to question 1. Snapshotted in a lazy initializer so later
+  // `attempts` changes don't clobber an in-progress attempt.
+  const [initial] = useState(() => initialQuizWidgetState(total, attempts));
+
+  const [currentIndex, setCurrentIndex] = useState(initial.currentIndex);
   // One selected option INDEX per question; null until the student picks. We
   // track the index (not the option text) so duplicate option strings can't
   // collide and so scoring compares directly against `correct_index`.
-  const [selected, setSelected] = useState<(number | null)[]>(() =>
-    Array(total).fill(null),
-  );
-  const [finished, setFinished] = useState(false);
+  const [selected, setSelected] = useState<(number | null)[]>(initial.selected);
+  const [finished, setFinished] = useState(initial.finished);
 
   const question = quiz.questions[currentIndex];
   const chosen = selected[currentIndex] ?? null;

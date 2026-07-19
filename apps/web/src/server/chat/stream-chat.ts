@@ -47,6 +47,7 @@ import {
   PARTS_VERSION,
 } from "./ui-messages";
 import { stripRetrievalOutputs } from "./stream-filter";
+import { recoverLeakedQuiz } from "./recover-quiz";
 import { ChatRequestError } from "./request";
 import { buildStudyResultsNote } from "@/server/study/model-note";
 
@@ -384,14 +385,21 @@ export async function streamChat(params: {
         abortSignal,
       });
 
+      const primaryUiStream = primary
+        .toUIMessageStream<StudyUIMessage>({
+          sendReasoning: false,
+          sendFinish: false,
+          onError: onStreamError,
+        })
+        .pipeThrough(stripRetrievalOutputs());
+      // Study-tool-capable turns: reconstruct a quiz the model leaked as a text
+      // JSON blob (instead of a native showQuiz call) into a real tool part, so
+      // it renders as the widget rather than raw JSON. Only quiz-shaped text is
+      // buffered; ordinary answers still stream live. See recoverLeakedQuiz.
       writer.merge(
-        primary
-          .toUIMessageStream<StudyUIMessage>({
-            sendReasoning: false,
-            sendFinish: false,
-            onError: onStreamError,
-          })
-          .pipeThrough(stripRetrievalOutputs()),
+        modelCanUseTools
+          ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
+          : primaryUiStream,
       );
 
       let primaryText: string;

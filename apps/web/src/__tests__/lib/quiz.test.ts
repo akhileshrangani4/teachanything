@@ -5,7 +5,10 @@ import {
   isRenderableQuiz,
   isValidQuizAnswers,
   gradeQuiz,
+  initialQuizWidgetState,
+  parseQuizFromText,
   type Quiz,
+  type QuizResponse,
 } from "@/lib/quiz";
 
 describe("quizSchema", () => {
@@ -205,5 +208,125 @@ describe("gradeQuiz", () => {
       score: 0,
       total: 2,
     });
+  });
+});
+
+describe("initialQuizWidgetState", () => {
+  const attempt = (answers: number[]): QuizResponse => ({
+    answers,
+    score: 0,
+    total: answers.length,
+  });
+
+  it("starts fresh when there are no attempts", () => {
+    expect(initialQuizWidgetState(3, undefined)).toEqual({
+      currentIndex: 0,
+      selected: [null, null, null],
+      finished: false,
+    });
+    expect(initialQuizWidgetState(3, [])).toEqual({
+      currentIndex: 0,
+      selected: [null, null, null],
+      finished: false,
+    });
+  });
+
+  it("restores the finished view from the most recent attempt", () => {
+    const state = initialQuizWidgetState(3, [
+      attempt([0, 1, 2]),
+      attempt([2, 0, 1]),
+    ]);
+    expect(state).toEqual({
+      currentIndex: 2,
+      selected: [2, 0, 1],
+      finished: true,
+    });
+  });
+
+  it("copies the stored answers rather than aliasing them", () => {
+    const stored = attempt([1, 0]);
+    const state = initialQuizWidgetState(2, [stored]);
+    state.selected[0] = 9;
+    expect(stored.answers).toEqual([1, 0]);
+  });
+
+  it("falls back to a fresh start when stored answers don't match the quiz length", () => {
+    // A length mismatch would mis-score the finished view, so ignore it.
+    expect(initialQuizWidgetState(3, [attempt([0, 1])])).toEqual({
+      currentIndex: 0,
+      selected: [null, null, null],
+      finished: false,
+    });
+  });
+});
+
+describe("parseQuizFromText", () => {
+  const validQuiz = {
+    quiz_title: "Photosynthesis",
+    questions: [
+      {
+        question: "What gas do plants absorb?",
+        options: ["CO2", "O2"],
+        correct_index: 0,
+        explanation: "Plants take in carbon dioxide.",
+      },
+    ],
+  };
+
+  it("recovers a quiz from a bare JSON blob", () => {
+    expect(parseQuizFromText(JSON.stringify(validQuiz))).toEqual(validQuiz);
+  });
+
+  it("recovers a quiz wrapped in a ```json code fence", () => {
+    const fenced = "```json\n" + JSON.stringify(validQuiz) + "\n```";
+    expect(parseQuizFromText(fenced)).toEqual(validQuiz);
+  });
+
+  it("recovers a quiz with leading/trailing prose around the JSON", () => {
+    const text = `Sure! Here you go:\n${JSON.stringify(validQuiz)}\nGood luck!`;
+    expect(parseQuizFromText(text)).toEqual(validQuiz);
+  });
+
+  it("handles braces inside question/option strings", () => {
+    const quiz = {
+      quiz_title: "Sets",
+      questions: [
+        {
+          question: "Which is the empty set {}?",
+          options: ["{}", "{1}"],
+          correct_index: 0,
+          explanation: "The empty set {} has no elements.",
+        },
+      ],
+    };
+    expect(parseQuizFromText(JSON.stringify(quiz))).toEqual(quiz);
+  });
+
+  it("returns null for ordinary prose", () => {
+    expect(parseQuizFromText("Here is a summary of the topic.")).toBeNull();
+  });
+
+  it("returns null for non-quiz JSON", () => {
+    expect(parseQuizFromText('{"foo":"bar"}')).toBeNull();
+  });
+
+  it("returns null for malformed JSON", () => {
+    expect(parseQuizFromText('{"quiz_title": "x", questions:')).toBeNull();
+  });
+
+  it("returns null for a structurally valid but unrenderable quiz", () => {
+    // correct_index points past the options -> not renderable.
+    const bad = {
+      quiz_title: "Bad",
+      questions: [
+        {
+          question: "Q?",
+          options: ["A", "B"],
+          correct_index: 5,
+          explanation: "x",
+        },
+      ],
+    };
+    expect(parseQuizFromText(JSON.stringify(bad))).toBeNull();
   });
 });
