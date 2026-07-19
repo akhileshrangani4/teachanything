@@ -1,23 +1,30 @@
 /**
  * Resend Segment Backfill Script
  *
- * One-time backfill: pushes every already-approved user into the Resend
- * segment configured via RESEND_SEGMENT_ID, using the current global Contacts
- * API (POST /contacts with a `segments` array). The Audiences API is
- * deprecated in favour of Segments.
+ * One-time backfill: puts every already-approved user into the Resend segment
+ * configured via RESEND_SEGMENT_ID.
  *
- * Safe to re-run: it never removes contacts and omits `unsubscribed`, so an
- * existing opt-out is never overwritten, and contacts already present (HTTP
- * 409 / an "already" response) are counted separately rather than as
- * failures, so a clean re-run exits 0.
+ * IMPORTANT — this must never overwrite an existing contact's `unsubscribed`
+ * flag. `POST /contacts` is an UPSERT: for an existing contact it resets
+ * omitted fields to their defaults, so it would silently re-subscribe anyone
+ * who had opted out. Instead, for each user we:
+ *   1. POST /contacts/{email}/segments/{segmentId}  (add-to-segment) — this
+ *      adds an existing contact to the segment and does NOT touch
+ *      `unsubscribed`.
+ *   2. Only if that returns 404 (contact does not exist yet) do we
+ *      POST /contacts to create a brand-new contact (subscribed by default,
+ *      which is correct for someone who was never a contact).
+ *
+ * Safe to re-run: it never removes contacts and never resets `unsubscribed`;
+ * a contact already in the segment is counted, not failed.
  *
  * Usage:
  *   npx tsx packages/db/scripts/backfill-resend-segment.ts
  *   npx tsx packages/db/scripts/backfill-resend-segment.ts --dry-run
  *
- * With --dry-run it reads the approved users and prints exactly what it would
- * POST to Resend, without making any requests. Only DATABASE_URL is required
- * in that mode (RESEND_API_KEY / RESEND_SEGMENT_ID are not needed).
+ * With --dry-run it reads the approved users and prints what it would send,
+ * without making any requests. Only DATABASE_URL is required in that mode
+ * (RESEND_API_KEY / RESEND_SEGMENT_ID are not needed).
  */
 
 import postgres from "postgres";
@@ -54,8 +61,8 @@ if (!databaseUrl || (!isDryRun && (!resendApiKey || !segmentId))) {
 }
 
 // In a dry run RESEND_SEGMENT_ID may be unset; show a placeholder so the
-// printed payload is still readable.
-const segmentIdForPayload = segmentId ?? "<RESEND_SEGMENT_ID>";
+// printed payload is still readable. In a real run this is always the real id.
+const seg = segmentId ?? "<RESEND_SEGMENT_ID>";
 
 // Resend's documented default rate limit is 10 requests/second per team --
 // stay well under it to leave room for concurrent app traffic
@@ -64,6 +71,11 @@ const REQUEST_DELAY_MS = 250;
 // Node's fetch has no overall deadline; bound each request so one hung
 // connection can't stall the serial loop
 const REQUEST_TIMEOUT_MS = 15_000;
+
+const authHeaders = {
+  Authorization: `Bearer ${resendApiKey}`,
+  "Content-Type": "application/json",
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -84,6 +96,56 @@ function splitName(name: string | null): {
   };
 }
 
+type SyncResult = "added" | "created" | "failed";
+
+// Add an existing contact to the segment (preserving unsubscribed), or create
+// it if it does not exist yet. Never sends `unsubscribed`.
+async function syncOne(u: { email: string; name: string | null }): Promise<{
+  result: SyncResult;
+  detail?: string;
+}> {
+  const enc = encodeURIComponent(u.email);
+
+  // 1. Add existing contact to the segment. This does NOT touch unsubscribed.
+  const addRes = await fetch(
+    `https://api.resend.com/contacts/${enc}/segments/${seg}`,
+    {
+      method: "POST",
+      headers: authHeaders,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    },
+  );
+  const addBody = await addRes.text();
+
+  if (addRes.ok || addRes.status === 409 || /already/i.test(addBody)) {
+    return { result: "added" };
+  }
+
+  // 2. Contact does not exist yet -> create it. A brand-new contact defaults to
+  // subscribed, which is correct for someone who was never a contact.
+  if (addRes.status === 404) {
+    const createRes = await fetch("https://api.resend.com/contacts", {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({
+        email: u.email,
+        ...splitName(u.name),
+        segments: [{ id: seg }],
+      }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    const createBody = await createRes.text();
+    if (createRes.ok) return { result: "created" };
+    // Raced: created between our add and create -> it's in the segment now.
+    if (createRes.status === 409 || /already/i.test(createBody)) {
+      return { result: "added" };
+    }
+    return { result: "failed", detail: `${createRes.status} ${createBody}` };
+  }
+
+  return { result: "failed", detail: `${addRes.status} ${addBody}` };
+}
+
 async function backfill() {
   const sql = postgres(databaseUrl!);
 
@@ -96,72 +158,51 @@ async function backfill() {
       `Found ${users.length} approved users to sync${isDryRun ? " (dry run — no requests will be made)" : ""}`,
     );
 
-    let synced = 0;
-    let alreadyPresent = 0;
+    let added = 0;
+    let created = 0;
     let failed = 0;
 
     for (const [i, u] of users.entries()) {
-      // Payload sent to POST /contacts (segments takes an array of { id }).
-      const payload = {
-        email: u.email,
-        ...splitName(u.name),
-        segments: [{ id: segmentIdForPayload }],
-      };
+      const tag = `[${i + 1}/${users.length}]`;
 
       if (isDryRun) {
-        synced++;
+        added++;
         console.log(
-          `[${i + 1}/${users.length}] would create ${JSON.stringify(payload)}`,
+          `${tag} would add ${u.email} to segment ${seg} (create if new)`,
         );
         continue;
       }
 
       try {
-        const res = await fetch("https://api.resend.com/contacts", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        });
-
-        // Always consume the body so undici can reuse the connection
-        const body = await res.text();
-
-        if (res.ok) {
-          synced++;
-          console.log(`[${i + 1}/${users.length}] synced ${u.email}`);
-        } else if (res.status === 409 || /already/i.test(body)) {
-          // Contact already present — expected on a re-run, not a failure, so
-          // it doesn't set a nonzero exit code.
-          alreadyPresent++;
-          console.log(`[${i + 1}/${users.length}] already present ${u.email}`);
+        const { result, detail } = await syncOne(u);
+        if (result === "added") {
+          added++;
+          console.log(`${tag} added to segment ${u.email}`);
+        } else if (result === "created") {
+          created++;
+          console.log(`${tag} created ${u.email}`);
         } else {
           failed++;
-          console.error(
-            `[${i + 1}/${users.length}] FAILED ${u.email}: ${res.status} ${body}`,
-          );
+          console.error(`${tag} FAILED ${u.email}: ${detail}`);
         }
       } catch (error) {
         failed++;
-        console.error(`[${i + 1}/${users.length}] FAILED ${u.email}:`, error);
+        console.error(`${tag} FAILED ${u.email}:`, error);
       }
 
       if (i < users.length - 1) await sleep(REQUEST_DELAY_MS);
     }
 
     if (isDryRun) {
-      console.log(`Dry run: would sync ${synced} contacts. No requests made.`);
+      console.log(`Dry run: would sync ${added} contacts. No requests made.`);
       return;
     }
 
     console.log(
-      `Done: ${synced} synced, ${alreadyPresent} already present, ${failed} failed`,
+      `Done: ${created} created, ${added} added to segment, ${failed} failed`,
     );
     // exitCode (not process.exit) so the finally block still runs. Only real
-    // failures fail the run — a clean re-run (all already present) exits 0.
+    // failures fail the run — a clean re-run (all already in segment) exits 0.
     if (failed > 0) process.exitCode = 1;
   } finally {
     await sql.end();
