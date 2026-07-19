@@ -130,24 +130,42 @@ export async function recordStudyResponse(params: {
   // StudyRequestError on invalid input.
   const stored = handler.buildResponse(part.input, response);
 
-  const [existing] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(studyToolResponses)
-    .where(
-      and(
-        eq(studyToolResponses.conversationId, conversation.id),
-        eq(studyToolResponses.toolCallId, toolCallId),
-      ),
-    );
-  const attempt = (existing?.count ?? 0) + 1;
+  // Derive attempt = count+1, then insert. The unique index on (conversation,
+  // toolCallId, attempt) makes the number trustworthy: two concurrent
+  // submissions can read the same count, in which case the second insert hits
+  // a unique violation -- re-read the count and retry.
+  const MAX_INSERT_TRIES = 3;
+  for (let tries = 1; ; tries++) {
+    const [existing] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(studyToolResponses)
+      .where(
+        and(
+          eq(studyToolResponses.conversationId, conversation.id),
+          eq(studyToolResponses.toolCallId, toolCallId),
+        ),
+      );
+    const attempt = (existing?.count ?? 0) + 1;
 
-  await db.insert(studyToolResponses).values({
-    conversationId: conversation.id,
-    toolCallId,
-    toolName: part.toolName,
-    attempt,
-    response: stored,
-  });
+    try {
+      await db.insert(studyToolResponses).values({
+        conversationId: conversation.id,
+        toolCallId,
+        toolName: part.toolName,
+        attempt,
+        response: stored,
+      });
+      return { attempt, toolName: part.toolName };
+    } catch (err) {
+      if (!isUniqueViolation(err) || tries >= MAX_INSERT_TRIES) throw err;
+    }
+  }
+}
 
-  return { attempt, toolName: part.toolName };
+/** True for Postgres unique_violation (23505), possibly wrapped by the driver. */
+function isUniqueViolation(err: unknown): boolean {
+  const code =
+    (err as { code?: unknown } | null)?.code ??
+    (err as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return code === "23505";
 }

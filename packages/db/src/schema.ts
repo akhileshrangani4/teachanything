@@ -380,11 +380,10 @@ export const studyToolResponses = pgTable(
       .notNull(),
     toolCallId: text("tool_call_id").notNull(),
     toolName: text("tool_name").notNull(),
-    // 1-based, incremented per retake. INFORMATIONAL ONLY: it is derived via
-    // count+1 without a transaction, so concurrent submissions can duplicate a
-    // number. Every consumer (dashboard, model note, export) numbers attempts
-    // by createdAt order at read time instead -- do not build logic on this
-    // column without first adding a unique constraint + conflict retry.
+    // 1-based, incremented per retake. Derived via count+1 at insert time; the
+    // unique index below makes it trustworthy -- concurrent submissions that
+    // read the same count conflict on insert, and the writer re-reads and
+    // retries (see recordStudyResponse).
     attempt: integer("attempt").notNull(),
     response: jsonb("response").$type<unknown>().notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -393,6 +392,13 @@ export const studyToolResponses = pgTable(
     index("study_tool_responses_conversation_tool_call_idx").on(
       table.conversationId,
       table.toolCallId,
+    ),
+    // Guarantees attempt numbers are unique per tool instance so the column is
+    // safe to build on (analytics, ordering).
+    uniqueIndex("study_tool_responses_attempt_unique_idx").on(
+      table.conversationId,
+      table.toolCallId,
+      table.attempt,
     ),
   ],
 );
