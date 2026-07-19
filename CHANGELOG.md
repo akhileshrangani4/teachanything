@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.2](https://github.com/akhileshrangani4/teachanything/compare/v1.33.1...v1.33.2) (2026-07-19)
+
+
+### Documentation
+
+* surface and document the quiz feature ([#395](https://github.com/akhileshrangani4/teachanything/issues/395)) ([ac539c2](https://github.com/akhileshrangani4/teachanything/commit/ac539c2f6065e3623d9d38a511f9d3ff165f2e98))
+
 ## [1.33.1](https://github.com/akhileshrangani4/teachanything/compare/v1.33.0...v1.33.1) (2026-07-19)
 
 
