@@ -222,11 +222,13 @@ export function buildCsv(data: ConversationsExport): string {
 // HTML (visual transcript)
 // ---------------------------------------------------------------------------
 
-function renderMessageHtml(message: ExportMessage, turn: number): string {
-  const side = message.role === "user" ? "student" : "assistant";
-  // Quiz-only turns have no prose; render just the study-tool block, no bubble.
-  const bubble = message.content.trim()
-    ? `<div class="bubble">${escapeHtml(message.content).replace(/\n/g, "<br>")}</div>`
+// A turn in the transcript, laid out like a printed interview: the speaker
+// sits in a left rail (small-caps) and their words run in the reading column,
+// rather than as chat bubbles.
+function renderMessageHtml(message: ExportMessage): string {
+  const side = message.role === "user" ? "student" : "tutor";
+  const say = message.content.trim()
+    ? `<p class="say">${escapeHtml(message.content).replace(/\n/g, "<br>")}</p>`
     : "";
   const studyHtml =
     message.role === "assistant"
@@ -234,18 +236,23 @@ function renderMessageHtml(message: ExportMessage, turn: number): string {
       : "";
   const sources =
     message.role === "assistant" && message.sources.length > 0
-      ? `<div class="sources">Sources: ${message.sources
+      ? `<p class="sources">Sources — ${message.sources
           .map(
             (s) =>
               `${escapeHtml(s.fileName)} (${formatSimilarity(s.similarity)})`,
           )
-          .join(", ")}</div>`
+          .join("; ")}</p>`
       : "";
-  return `<div class="msg ${side}">
-      <div class="meta">${turn}. ${roleLabel(message.role)} · ${escapeHtml(formatDateTime(message.createdAt))}</div>
-      ${bubble}
-      ${studyHtml}
-      ${sources}
+  return `<div class="turn turn-${side}">
+      <div class="rail">
+        <span class="speaker">${roleLabel(message.role)}</span>
+        <span class="turn-time">${escapeHtml(formatDateTime(message.createdAt))}</span>
+      </div>
+      <div class="turn-body">
+        ${say}
+        ${studyHtml}
+        ${sources}
+      </div>
     </div>`;
 }
 
@@ -256,15 +263,17 @@ function renderConversationDetail(
   total: number,
 ): string {
   const messages = conversation.messages
-    .map((message, messageIndex) =>
-      renderMessageHtml(message, messageIndex + 1),
-    )
+    .map((message) => renderMessageHtml(message))
     .join("\n");
-  return `<div class="conv-detail-header">
-      <h2>Conversation ${index + 1} <span class="dim">of ${total}</span></h2>
-      <div class="dim">Session ${escapeHtml(conversation.sessionId)} · Started ${escapeHtml(formatDateTime(conversation.createdAt))} · ${plural(conversation.messages.length, "message")}</div>
-    </div>
-    ${messages || '<p class="dim">No messages in this conversation.</p>'}`;
+  const headline = conversationPreview(conversation);
+  return `<article class="conv">
+    <header class="conv-head">
+      <div class="kicker">Conversation ${index + 1} of ${total}</div>
+      <h2 class="conv-headline">${escapeHtml(headline)}</h2>
+      <div class="conv-sub">Session ${escapeHtml(conversation.sessionId)} · ${escapeHtml(formatDateTime(conversation.createdAt))} · ${plural(conversation.messages.length, "message")}</div>
+    </header>
+    ${messages || '<p class="muted">No messages in this conversation.</p>'}
+  </article>`;
 }
 
 /** Short list-item preview: the first student question, else a sensible label. */
@@ -308,22 +317,30 @@ const EXPORT_APP_JS = `(function(){
     var shown = 0;
     DATA.forEach(function(c, i){
       if (q && c.search.indexOf(q) === -1) return;
-      shown++;
       var item = document.createElement('button');
       item.type = 'button';
       item.className = 'conv-item' + (i === current ? ' active' : '');
       item.onclick = function(){ select(i); };
-      var p = document.createElement('div');
+      item.style.setProperty('--i', shown);
+      var num = document.createElement('span');
+      num.className = 'conv-num';
+      num.textContent = (i + 1 < 10 ? '0' : '') + (i + 1);
+      var body = document.createElement('span');
+      body.className = 'conv-item-body';
+      var p = document.createElement('span');
       p.className = 'conv-preview';
       p.textContent = c.preview;
-      var m = document.createElement('div');
-      m.className = 'conv-meta dim';
+      var m = document.createElement('span');
+      m.className = 'conv-meta';
       m.textContent = c.date + ' \\u00b7 ' + c.messages + (c.messages === 1 ? ' message' : ' messages');
-      item.appendChild(p);
-      item.appendChild(m);
+      body.appendChild(p);
+      body.appendChild(m);
+      item.appendChild(num);
+      item.appendChild(body);
       listEl.appendChild(item);
+      shown++;
     });
-    countEl.textContent = q ? (shown + ' of ' + DATA.length + ' chats') : (DATA.length + ' chats');
+    countEl.textContent = q ? (shown + ' of ' + DATA.length + ' chats') : (DATA.length + (DATA.length === 1 ? ' chat' : ' chats'));
     if (shown === 0){
       var e = document.createElement('div');
       e.className = 'list-empty dim';
@@ -366,17 +383,17 @@ export function buildHtml(data: ConversationsExport): string {
 
   const emptyState =
     total === 0
-      ? '<div class="empty-all dim">No chat records to export.</div>'
+      ? '<div class="empty-all">No chat records to export.</div>'
       : `<div class="layout">
-      <aside class="sidebar">
-        <div class="search-wrap">
-          <input id="search" type="search" placeholder="Search chats…" autocomplete="off" spellcheck="false">
+      <aside class="index">
+        <div class="index-head">
+          <input id="search" class="search" type="search" placeholder="Search conversations…" autocomplete="off" spellcheck="false">
         </div>
-        <div id="count" class="count dim"></div>
+        <div id="count" class="count"></div>
         <div id="list" class="list"></div>
       </aside>
-      <main class="detail-pane">
-        <button id="back" type="button" class="back">← All chats</button>
+      <main class="reader">
+        <button id="back" type="button" class="back">← All conversations</button>
         <div id="detail" class="detail"></div>
       </main>
     </div>
@@ -390,76 +407,164 @@ export function buildHtml(data: ConversationsExport): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <style>
-  :root { color-scheme: light dark; --bg:#f6f7f9; --panel:#fff; --border:#e5e7eb; --text:#1a1a1a; --dim:#6b7280; --accent:#2563eb; --hover:#f1f3f5; }
+  :root {
+    color-scheme: light dark;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, Cambria, serif;
+    --sans: "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Helvetica, sans-serif;
+    --paper: #f7f3ea;
+    --panel: #fbf8f1;
+    --ink: #26221b;
+    --muted: #6f6656;
+    --rule: #e4dcca;
+    --rule-strong: #d3c8b0;
+    --accent: #3c4f7a;
+    --accent-soft: color-mix(in srgb, var(--accent) 10%, var(--panel));
+    --ok: #4a6a44;
+    --ok-soft: #e6ede0;
+    --bad: #8a3d3a;
+    --bad-soft: #f1e2df;
+    --shadow: 0 1px 2px rgba(40, 34, 22, .05);
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; margin: 0; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
-  h1 { font-size: 1.15rem; margin: 0; }
-  h2 { font-size: 1.05rem; margin: 0; }
-  .dim { color: var(--dim); font-weight: 400; font-size: .85rem; }
-  .app-header { padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); background: var(--panel); }
-  .notice { margin-top: .6rem; background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: .5rem .75rem; border-radius: .5rem; font-size: .85rem; }
-  .empty-all { padding: 3rem 1.25rem; text-align: center; }
+  body {
+    font-family: var(--serif);
+    line-height: 1.6;
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .kicker {
+    font-family: var(--sans);
+    font-size: .68rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .muted { color: var(--muted); font-family: var(--sans); font-size: .85rem; }
+
+  /* Masthead */
+  .masthead { padding: clamp(1.1rem, 3vw, 2rem) clamp(1.1rem, 4vw, 2.75rem) 1rem; border-bottom: 2px solid var(--ink); }
+  .masthead .kicker { margin-bottom: .5rem; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(1.6rem, 4.5vw, 2.5rem);
+    line-height: 1.08;
+    letter-spacing: -.01em;
+    margin: 0;
+  }
+  .masthead-meta { font-family: var(--sans); font-size: .82rem; color: var(--muted); margin-top: .5rem; }
+  .masthead-meta b { color: var(--ink); font-weight: 600; }
+  .notice { font-family: var(--sans); margin-top: .85rem; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border-left: 3px solid var(--accent); color: var(--ink); padding: .55rem .8rem; font-size: .82rem; border-radius: 0 .3rem .3rem 0; }
+  .empty-all { padding: 4rem 1.5rem; text-align: center; font-family: var(--sans); color: var(--muted); }
+
+  /* Layout */
   .layout { flex: 1; min-height: 0; display: flex; }
-  .sidebar { width: 340px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
-  .search-wrap { padding: .75rem; border-bottom: 1px solid var(--border); }
-  #search { width: 100%; padding: .5rem .7rem; border: 1px solid var(--border); border-radius: .5rem; font-size: .9rem; background: var(--bg); color: var(--text); }
-  .count { padding: .5rem .9rem 0; }
-  .list { flex: 1; min-height: 0; overflow-y: auto; padding: .4rem; }
-  .conv-item { display: block; width: 100%; text-align: left; border: none; background: none; padding: .6rem .7rem; border-radius: .5rem; cursor: pointer; color: inherit; font: inherit; }
-  .conv-item:hover { background: var(--hover); }
-  .conv-item.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-  .conv-preview { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .conv-meta { margin-top: .15rem; }
-  .list-empty { padding: 1rem .9rem; }
-  .detail-pane { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-  .back { display: none; margin: .6rem .6rem 0; align-self: flex-start; background: none; border: 1px solid var(--border); border-radius: .5rem; padding: .3rem .6rem; cursor: pointer; color: inherit; font: inherit; font-size: .85rem; }
-  .detail { flex: 1; min-height: 0; overflow-y: auto; padding: 1.25rem 1.5rem 3rem; max-width: 900px; }
-  .conv-detail-header { margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--border); }
-  .msg { margin: .75rem 0; display: flex; flex-direction: column; }
-  .msg.student { align-items: flex-end; }
-  .msg.assistant { align-items: flex-start; }
-  .msg .meta { font-size: .75rem; color: #9ca3af; margin-bottom: .2rem; }
-  .bubble { max-width: 85%; padding: .6rem .85rem; border-radius: .9rem; white-space: normal; word-wrap: break-word; }
-  .msg.student .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: .2rem; }
-  .msg.assistant .bubble { background: var(--hover); color: var(--text); border-bottom-left-radius: .2rem; }
-  .sources { font-size: .72rem; color: #9ca3af; margin-top: .25rem; max-width: 85%; }
-  .study-tool { width: 100%; box-sizing: border-box; background: #fbfbfd; border: 1px solid var(--border); border-radius: .6rem; padding: .75rem .9rem; margin-top: .4rem; font-size: .9rem; }
-  .study-tool .tool-label { font-weight: 600; margin-bottom: .35rem; }
-  .study-tool .quiz-questions { margin: 0; padding-left: 1.2rem; }
-  .study-tool .q { font-weight: 500; margin-top: .5rem; }
-  .study-tool .opts { list-style: none; padding: 0; margin: .25rem 0; }
-  .study-tool .opt { padding: .1rem 0; }
-  .study-tool .opt.correct { font-weight: 600; }
-  .study-tool .explanation { color: var(--dim); font-size: .8rem; margin-top: .2rem; }
-  .study-tool .tag { font-size: .7rem; padding: .05rem .35rem; border-radius: .3rem; white-space: nowrap; }
-  .study-tool .tag.ok { background: #dcfce7; color: #166534; }
-  .study-tool .tag.bad { background: #fee2e2; color: #991b1b; }
-  .study-tool .attempt { margin-top: .6rem; border-top: 1px dashed var(--border); padding-top: .45rem; }
-  .study-tool .attempt-head { font-weight: 500; }
-  .study-tool .attempt ul { margin: .2rem 0; padding-left: 1.2rem; }
-  .study-tool .tool-raw { white-space: pre-wrap; word-break: break-word; background: var(--hover); padding: .4rem; border-radius: .3rem; font-size: .75rem; }
-  @media (max-width: 720px) {
-    .sidebar { width: 100%; }
-    .detail-pane { display: none; }
+  .index { width: clamp(280px, 30vw, 380px); flex-shrink: 0; border-right: 1px solid var(--rule-strong); display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  .index-head { padding: 1rem 1.15rem .5rem; }
+  .search { width: 100%; font-family: var(--sans); font-size: .9rem; color: var(--ink); background: transparent; border: none; border-bottom: 1.5px solid var(--rule-strong); padding: .35rem .1rem; outline: none; transition: border-color .18s ease; }
+  .search::placeholder { color: var(--muted); }
+  .search:focus { border-color: var(--accent); }
+  .count { font-family: var(--sans); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: .7rem 1.2rem .3rem; }
+
+  /* Index list */
+  .list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 .55rem .8rem; }
+  .conv-item {
+    display: grid; grid-template-columns: 1.9rem 1fr; gap: .7rem; align-items: baseline;
+    width: 100%; text-align: left; border: 0; background: none; cursor: pointer;
+    color: inherit; font: inherit; padding: .7rem .6rem; border-radius: .4rem;
+    border-bottom: 1px solid var(--rule);
+    transition: background .15s ease;
+    animation: rise .4s cubic-bezier(.2,.7,.2,1) both;
+    animation-delay: calc(var(--i, 0) * 22ms);
+  }
+  .conv-item:last-child { border-bottom: 0; }
+  .conv-item:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .conv-item.active { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+  .conv-num { font-family: var(--sans); font-size: .72rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: .15rem; }
+  .conv-item.active .conv-num { color: var(--accent); }
+  .conv-item-body { min-width: 0; }
+  .conv-preview { display: block; font-family: var(--serif); font-size: .96rem; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .conv-meta { display: block; font-family: var(--sans); font-size: .72rem; color: var(--muted); margin-top: .25rem; }
+  .list-empty { padding: 1.5rem 1.2rem; font-family: var(--sans); font-size: .85rem; color: var(--muted); }
+
+  /* Reading pane */
+  .reader { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  .back { display: none; margin: .9rem 0 0 clamp(1rem, 4vw, 2.5rem); align-self: flex-start; background: none; border: 0; border-bottom: 1px solid var(--rule-strong); padding: .1rem 0; cursor: pointer; color: var(--muted); font-family: var(--sans); font-size: .78rem; letter-spacing: .04em; }
+  .detail { flex: 1; min-height: 0; overflow-y: auto; padding: clamp(1.3rem, 4vw, 3rem) clamp(1.1rem, 4vw, 2.5rem) 4rem; }
+  .conv { max-width: 46rem; }
+  .conv-head { margin-bottom: 1.75rem; }
+  .conv-head .kicker { margin-bottom: .5rem; }
+  .conv-headline { font-family: var(--serif); font-weight: 600; font-size: clamp(1.3rem, 3vw, 1.7rem); line-height: 1.15; margin: 0; letter-spacing: -.005em; }
+  .conv-sub { font-family: var(--sans); font-size: .76rem; color: var(--muted); margin-top: .5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
+
+  /* Transcript turns (interview layout) */
+  .turn { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1.4rem; padding: 1rem 0; border-bottom: 1px solid var(--rule); }
+  .turn:last-child { border-bottom: 0; }
+  .rail { display: flex; flex-direction: column; gap: .15rem; padding-top: .1rem; }
+  .speaker { font-family: var(--sans); font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .turn-student .speaker { color: var(--accent); }
+  .turn-tutor .speaker { color: var(--muted); }
+  .turn-time { font-family: var(--sans); font-size: .66rem; color: var(--muted); }
+  .turn-body { min-width: 0; }
+  .say { margin: 0; font-size: 1.02rem; line-height: 1.65; overflow-wrap: anywhere; }
+  .say + .study-tool, .say + .sources { margin-top: .7rem; }
+  .sources { margin: .6rem 0 0; font-family: var(--sans); font-size: .74rem; color: var(--muted); font-style: normal; }
+
+  /* Study tools — a graded-insert treatment */
+  .study-tool { border: 1px solid var(--rule-strong); border-radius: .5rem; padding: 1rem 1.1rem; margin-top: .7rem; background: color-mix(in srgb, var(--accent) 3%, var(--panel)); box-shadow: var(--shadow); }
+  .study-tool .tool-label { font-family: var(--sans); font-weight: 700; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: .7rem; padding-bottom: .5rem; border-bottom: 1px solid var(--rule); }
+  .study-tool .quiz-questions { margin: 0; padding: 0; list-style: none; counter-reset: q; }
+  .study-tool .quiz-questions > li { counter-increment: q; margin-top: .9rem; }
+  .study-tool .quiz-questions > li:first-child { margin-top: 0; }
+  .study-tool .q { font-family: var(--serif); font-weight: 600; font-size: .98rem; }
+  .study-tool .opts { list-style: none; padding: 0; margin: .4rem 0 .2rem; }
+  .study-tool .opt { font-size: .92rem; padding: .18rem 0 .18rem 1.3rem; position: relative; color: var(--muted); }
+  .study-tool .opt::before { content: "○"; position: absolute; left: 0; color: var(--rule-strong); }
+  .study-tool .opt.correct { color: var(--ink); font-weight: 600; }
+  .study-tool .opt.correct::before { content: "●"; color: var(--ok); }
+  .study-tool .explanation { font-family: var(--sans); color: var(--muted); font-size: .78rem; margin-top: .3rem; }
+  .study-tool .tag { font-family: var(--sans); font-size: .64rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: .1rem .4rem; border-radius: .25rem; white-space: nowrap; }
+  .study-tool .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .study-tool .tag.bad { background: var(--bad-soft); color: var(--bad); }
+  .study-tool .attempt { margin-top: .9rem; padding-top: .7rem; border-top: 1px solid var(--rule); }
+  .study-tool .attempt-head { font-family: var(--sans); font-weight: 700; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+  .study-tool .attempt ul { list-style: none; margin: .4rem 0 0; padding: 0; }
+  .study-tool .attempt li { font-size: .9rem; padding: .12rem 0; display: flex; gap: .5rem; align-items: baseline; justify-content: space-between; }
+  .study-tool .tool-raw { font-family: var(--sans); white-space: pre-wrap; word-break: break-word; background: color-mix(in srgb, var(--ink) 5%, var(--panel)); padding: .5rem .6rem; border-radius: .35rem; font-size: .76rem; margin: .4rem 0 0; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .conv-item { animation: none; } }
+
+  @media (max-width: 760px) {
+    .index { width: 100%; border-right: 0; }
+    .reader { display: none; }
     .back { display: block; }
-    body.viewing-detail .sidebar { display: none; }
-    body.viewing-detail .detail-pane { display: flex; }
+    .turn { grid-template-columns: 1fr; gap: .3rem; }
+    .rail { flex-direction: row; align-items: baseline; gap: .6rem; }
+    body.viewing-detail .index { display: none; }
+    body.viewing-detail .reader { display: flex; }
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#0f1115; --panel:#171a21; --border:#262b36; --text:#e5e7eb; --dim:#9ca3af; --hover:#262b36; }
-    .study-tool { background: #12151b; }
-    .study-tool .tool-raw { background: #0f1115; }
-    .study-tool .tag.ok { background: #14532d; color: #bbf7d0; }
-    .study-tool .tag.bad { background: #7f1d1d; color: #fecaca; }
-    .notice { background: #3b2f0b; border-color: #665417; color: #fde68a; }
+    :root {
+      --paper: #16130d; --panel: #1d1912; --ink: #ece5d6; --muted: #a99e88;
+      --rule: #2e281d; --rule-strong: #3d3627; --accent: #a9b8dc; --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--panel));
+      --ok: #9ab98a; --ok-soft: #23301d; --bad: #d19b98; --bad-soft: #33211f; --shadow: none;
+    }
   }
 </style>
 </head>
 <body>
-  <header class="app-header">
+  <header class="masthead">
+    <div class="kicker">Teach Anything · Chat Records</div>
     <h1>${escapeHtml(data.chatbotName)}</h1>
-    <div class="dim">Chat records · Exported ${escapeHtml(formatDateTime(data.exportedAt))} · ${plural(total, "conversation")}</div>
+    <div class="masthead-meta">Exported <b>${escapeHtml(formatDateTime(data.exportedAt))}</b> · <b>${plural(total, "conversation")}</b></div>
     ${truncatedNote}
   </header>
   ${emptyState}
