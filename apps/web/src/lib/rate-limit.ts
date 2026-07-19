@@ -34,6 +34,17 @@ export const publicChatRateLimit = createLimiter({
   prefix: "@ratelimit/public-chat",
 });
 
+// Global per-shareToken cap for public chat, keyed on the shareToken alone (no
+// IP). The per-(IP, shareToken) limiter above can be defeated by a distributed
+// caller rotating source IPs; this bounds total LLM spend attributable to a
+// single shared link regardless of source IP. Set well above the per-IP limit
+// so a legitimate multi-student classroom isn't throttled, but low enough that
+// one token can't run up an unbounded bill.
+export const publicChatGlobalRateLimit = createLimiter({
+  window: [300, "1 m"],
+  prefix: "@ratelimit/public-chat-global",
+});
+
 // Rate limiter for file uploads
 // 20 uploads per minute per user
 export const fileUploadRateLimit = createLimiter({
@@ -74,6 +85,22 @@ export const registrationRateLimit = createLimiter({
 export const authenticatedChatRateLimit = createLimiter({
   window: [30, "1 m"],
   prefix: "@ratelimit/authenticated-chat",
+});
+
+// Rate limiter for authenticated study-tool responses (quiz attempts, etc.)
+// 60 per minute per user. Cheaper than chat (a DB write, no LLM), so a higher
+// cap; a student answering/retaking several quizzes shouldn't be throttled.
+export const studyResponseRateLimit = createLimiter({
+  window: [60, "1 m"],
+  prefix: "@ratelimit/study-response",
+});
+
+// Rate limiter for study-tool responses on public/shared links
+// 30 per minute per (IP, shareToken). No LLM cost, so no global per-token cap
+// is needed; this bounds write spam per source.
+export const publicStudyResponseRateLimit = createLimiter({
+  window: [30, "1 m"],
+  prefix: "@ratelimit/study-response-public",
 });
 
 // Rate limiter for password reset requests
@@ -153,14 +180,27 @@ export const conversationSearchRateLimit = createLimiter({
   prefix: "@ratelimit/conversation-search",
 });
 
+/** Deny result used when a rate limiter is unavailable and we fail closed. */
+function failClosedResult() {
+  return { success: false, limit: 0, remaining: 0, reset: Date.now() + 60000 };
+}
+
 /**
  * Check rate limit and log if exceeded.
- * When limiter is null (Redis not configured), returns success as a noop.
+ *
+ * When the limiter is null (Redis not configured) or throws at runtime
+ * (partition/timeout), behavior depends on `failOpen`:
+ * - `failOpen: true` (default): allow the request through (best-effort limiting
+ *   for public/non-critical endpoints).
+ * - `failOpen: false`: deny the request. `requireRateLimit` passes this so a
+ *   security-critical endpoint never becomes a free proxy during a Redis
+ *   outage -- an error must NOT fall through to the allow path.
  */
 export async function checkRateLimit(
   ratelimiter: Ratelimit | null,
   identifier: string,
   context?: Record<string, unknown>,
+  failOpen: boolean = true,
 ): Promise<{
   success: boolean;
   limit: number;
@@ -168,11 +208,30 @@ export async function checkRateLimit(
   reset: number;
 }> {
   if (!ratelimiter) {
-    return { success: true, limit: 0, remaining: 0, reset: 0 };
+    return failOpen
+      ? { success: true, limit: 0, remaining: 0, reset: 0 }
+      : failClosedResult();
   }
 
-  const { success, limit, remaining, reset } =
-    await ratelimiter.limit(identifier);
+  let result: Awaited<ReturnType<Ratelimit["limit"]>>;
+  try {
+    result = await ratelimiter.limit(identifier);
+  } catch (err) {
+    logWarn(
+      failOpen
+        ? "Rate limiter check failed; allowing request"
+        : "Rate limiter check failed; denying request (fail closed)",
+      {
+        ...context,
+        identifier,
+        error: err instanceof Error ? err.message : String(err),
+      },
+    );
+    return failOpen
+      ? { success: true, limit: 0, remaining: 0, reset: 0 }
+      : failClosedResult();
+  }
+  const { success, limit, remaining, reset } = result;
 
   if (!success) {
     logWarn("Rate limit exceeded", {
@@ -206,13 +265,10 @@ export async function requireRateLimit(
       "Rate limiter unavailable for security-critical operation",
       context,
     );
-    return {
-      success: false,
-      limit: 0,
-      remaining: 0,
-      reset: Date.now() + 60000,
-    };
+    return failClosedResult();
   }
 
-  return checkRateLimit(ratelimiter, identifier, context);
+  // Fail closed: a configured limiter that errors at runtime must deny, not
+  // inherit checkRateLimit's best-effort allow-on-error.
+  return checkRateLimit(ratelimiter, identifier, context, /* failOpen */ false);
 }

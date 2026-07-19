@@ -82,6 +82,14 @@ export function DashboardHeader() {
         >
           Support
         </Link>
+        <a
+          href="/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium hidden md:inline-block"
+        >
+          Docs
+        </a>
       </div>
 
       <div className="flex items-center gap-4">

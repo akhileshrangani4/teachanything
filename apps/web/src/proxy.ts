@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 // Note: Better Auth session check happens in tRPC context
 // Middleware focuses on rate limiting and subdomain routing
 import { publicChatRateLimit, checkRateLimit } from "./lib/rate-limit";
+import { getTrustedClientIp } from "./lib/get-client-ip";
 import { logWarn } from "./lib/logger";
 
 export async function proxy(request: NextRequest) {
@@ -19,14 +20,8 @@ export async function proxy(request: NextRequest) {
   }
 
   // Rate limiting for public chat endpoints
-  if (
-    pathname.startsWith("/chat/") ||
-    pathname.includes("/api/trpc/chat.sendSharedMessage")
-  ) {
-    const ip =
-      request.headers.get("x-forwarded-for") ??
-      request.headers.get("x-real-ip") ??
-      "unknown";
+  if (pathname.startsWith("/chat/") || pathname === "/api/chat/shared") {
+    const ip = getTrustedClientIp(request.headers);
     const { success, limit, remaining, reset } = await checkRateLimit(
       publicChatRateLimit,
       ip,

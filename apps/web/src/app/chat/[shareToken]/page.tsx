@@ -25,16 +25,15 @@ export default function SharedChatPage() {
     currentMessage,
     setCurrentMessage,
     isStreaming,
-    isThinking,
-    statusLabel,
-    streamingContent,
     messagesEndRef,
     chatbot,
     chatbotLoading,
     handleSendMessage,
     resetChat,
-    stopStreaming,
+    stop,
     error,
+    onStudyAttempt,
+    studyAttempts,
   } = useChat(shareToken);
 
   // Error state - show immediately if there's an error
@@ -83,21 +82,20 @@ export default function SharedChatPage() {
           <ChatInterface
             messages={messages}
             isStreaming={isStreaming}
-            isThinking={isThinking}
-            statusLabel={statusLabel}
-            streamingContent={streamingContent}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
             resetChat={resetChat}
-            stopStreaming={stopStreaming}
+            stop={stop}
             height="flex-1 min-h-0"
             showFrame={false}
             showSources={chatbot.showSources ?? false}
             shareToken={shareToken}
             voiceInputEnabled
+            onStudyAttempt={onStudyAttempt}
+            studyAttempts={studyAttempts}
             brandingText={
               <span className="inline-flex items-center gap-1.5">
                 <span>Powered by</span>
