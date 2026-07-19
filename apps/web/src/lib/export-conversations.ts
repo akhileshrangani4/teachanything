@@ -419,12 +419,11 @@ export function buildHtml(data: ConversationsExport): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 <style>
-  /* Brand fonts (Teach Anything): Inter + Instrument Serif. Loaded from Google
-     Fonts so the export matches the site online; falls back gracefully offline. */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+  /* Brand font (Teach Anything): Inter. Loaded from Google Fonts so the export
+     matches the site online; falls back to the system UI font offline. */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
   :root {
     color-scheme: light dark;
-    --display: "Instrument Serif", Georgia, Cambria, "Times New Roman", serif;
     --sans: Inter, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     --logo: url("${TEACH_ANYTHING_LOGO_DATA_URI}");
     /* Teach Anything design tokens (oklch), light theme. */
@@ -476,11 +475,11 @@ export function buildHtml(data: ConversationsExport): string {
   .masthead { padding: clamp(1.1rem, 3vw, 2rem) clamp(1.1rem, 4vw, 2.75rem) 1rem; border-bottom: 1px solid var(--rule-strong); }
   .masthead .kicker { margin-bottom: .5rem; }
   .masthead h1 {
-    font-family: var(--display);
-    font-weight: 400;
-    font-size: clamp(2rem, 5.5vw, 3rem);
-    line-height: 1.05;
-    letter-spacing: .005em;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: clamp(1.4rem, 3vw, 1.9rem);
+    line-height: 1.15;
+    letter-spacing: -.01em;
     margin: 0;
   }
   .masthead-meta { font-family: var(--sans); font-size: .82rem; color: var(--muted); margin-top: .5rem; }
