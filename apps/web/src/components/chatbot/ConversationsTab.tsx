@@ -23,7 +23,14 @@ import {
 } from "@/components/ui/select";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { keepPreviousData } from "@tanstack/react-query";
-import { MessageSquare, Search, ArrowLeft, Clock, Trash2 } from "lucide-react";
+import {
+  MessageSquare,
+  Search,
+  ArrowLeft,
+  Clock,
+  Trash2,
+  Download,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -35,8 +42,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { logError } from "@/lib/logger";
 import { formatDuration, formatTimestamp } from "@/lib/conversation-format";
+import {
+  downloadConversationsExport,
+  type ExportFormat,
+} from "@/lib/export-conversations";
 
 type ConversationRow =
   RouterOutputs["analytics"]["getConversationsList"]["conversations"][number];
@@ -63,6 +82,34 @@ const PANEL_CONTENT = "flex flex-1 min-h-0 flex-col gap-4";
 const ROW_HEIGHT_PX = 68;
 const MIN_LIMIT = 5;
 const MAX_LIMIT = 50;
+
+// Export format order is fixed here so the README/bundle always lists files
+// consistently regardless of the order the professor toggles the checkboxes.
+const EXPORT_FORMAT_OPTIONS: Array<{
+  value: ExportFormat;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "html",
+    label: "Visual transcript (HTML)",
+    description: "Open in a browser — chat-style, easy to read.",
+  },
+  {
+    value: "csv",
+    label: "Spreadsheet (CSV)",
+    description: "Open in Excel / Google Sheets for analysis.",
+  },
+  {
+    value: "text",
+    label: "Plain text (TXT)",
+    description: "Portable transcript for any text editor.",
+  },
+];
+
+const ALL_EXPORT_FORMATS: ExportFormat[] = EXPORT_FORMAT_OPTIONS.map(
+  (o) => o.value,
+);
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -353,6 +400,57 @@ function ConversationListView({
       return new Set([...prev, ...conversations.map((c) => c.id)]);
     });
 
+  // Export: `null` = dialog closed; "all" exports every conversation for the
+  // chatbot, "selected" exports only the checked ids. Formats default to all.
+  const [exportMode, setExportMode] = useState<"all" | "selected" | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportFormats, setExportFormats] = useState<Set<ExportFormat>>(
+    () => new Set(ALL_EXPORT_FORMATS),
+  );
+
+  const toggleFormat = (format: ExportFormat) =>
+    setExportFormats((prev) => {
+      const next = new Set(prev);
+      if (next.has(format)) next.delete(format);
+      else next.add(format);
+      return next;
+    });
+
+  const runExport = async () => {
+    if (exportMode === null || exportFormats.size === 0) return;
+    setIsExporting(true);
+    try {
+      const conversationIds =
+        exportMode === "selected" ? [...selected] : undefined;
+      const data = await utils.analytics.exportConversations.fetch({
+        chatbotId,
+        conversationIds,
+      });
+      if (data.conversations.length === 0) {
+        toast.error("No chat records to export.");
+        return;
+      }
+      downloadConversationsExport(
+        data,
+        ALL_EXPORT_FORMATS.filter((f) => exportFormats.has(f)),
+      );
+      const count = data.conversations.length;
+      if (data.truncated) {
+        toast.warning(
+          `Exported the first ${data.maxConversations} chats. Export smaller selections to capture the rest.`,
+        );
+      } else {
+        toast.success(`Exported ${count} chat${count !== 1 ? "s" : ""}.`);
+      }
+      setExportMode(null);
+    } catch (err) {
+      logError(err, "[conversations] export failed", { chatbotId });
+      toast.error("Export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-1 min-h-0 flex-col gap-2">
       <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border">
@@ -369,17 +467,39 @@ function ConversationListView({
             />
             {selected.size > 0 ? `${selected.size} selected` : "Select all"}
           </label>
-          {selected.size > 0 && (
+          <div className="flex items-center gap-1">
+            {selected.size > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7"
+                onClick={() => setExportMode("selected")}
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                Export selected
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-destructive hover:text-destructive"
-              onClick={() => setPendingIds([...selected])}
+              className="h-7"
+              onClick={() => setExportMode("all")}
             >
-              <Trash2 className="h-3.5 w-3.5 mr-1" />
-              Delete selected
+              <Download className="h-3.5 w-3.5 mr-1" />
+              Export all
             </Button>
-          )}
+            {selected.size > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-destructive hover:text-destructive"
+                onClick={() => setPendingIds([...selected])}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Delete selected
+              </Button>
+            )}
+          </div>
         </div>
         <div className="divide-y">
           {conversations.map((conversation) => (
@@ -474,6 +594,64 @@ function ConversationListView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={exportMode !== null}
+        onOpenChange={(open) => {
+          if (!open && !isExporting) setExportMode(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Export{" "}
+              {exportMode === "selected"
+                ? `${selected.size} selected chat${selected.size !== 1 ? "s" : ""}`
+                : "all chats"}
+            </DialogTitle>
+            <DialogDescription>
+              Choose the formats to include. A README explaining each file is
+              added automatically, and everything downloads as a single .zip.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            {EXPORT_FORMAT_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className="flex items-start gap-3 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 mt-0.5 shrink-0 cursor-pointer accent-primary"
+                  checked={exportFormats.has(option.value)}
+                  onChange={() => toggleFormat(option.value)}
+                />
+                <span className="min-w-0">
+                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {option.description}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setExportMode(null)}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={runExport}
+              disabled={isExporting || exportFormats.size === 0}
+            >
+              {isExporting ? "Exporting..." : "Export"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {totalCount > limit && (
         <div className="flex items-center justify-between px-1 shrink-0">
