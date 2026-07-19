@@ -63,6 +63,13 @@ export type MessageContentProps = {
 } & React.ComponentProps<typeof Markdown> &
   React.HTMLProps<HTMLDivElement>;
 
+const baseContentStyle: React.CSSProperties = {
+  wordBreak: "break-word",
+  overflowWrap: "anywhere" as React.CSSProperties["overflowWrap"],
+  userSelect: "text",
+  WebkitUserSelect: "text",
+};
+
 const MessageContent = ({
   children,
   markdown = false,
@@ -76,13 +83,9 @@ const MessageContent = ({
     className,
   );
 
-  const combinedStyle: React.CSSProperties = {
-    wordBreak: "break-word",
-    overflowWrap: "anywhere" as React.CSSProperties["overflowWrap"],
-    userSelect: "text",
-    WebkitUserSelect: "text",
-    ...style,
-  };
+  const combinedStyle: React.CSSProperties = style
+    ? { ...baseContentStyle, ...style }
+    : baseContentStyle;
 
   return markdown ? (
     <Markdown

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "@/components/chat/messages/ChatMessage";
-import type { ChatMessage as ChatMessageType } from "@/types/database";
+import { rowToUIMessage } from "@/server/chat/ui-messages";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 import {
   Select,
   SelectContent,
@@ -533,12 +534,29 @@ function ConversationDetail({
     }
   }, [error, chatbotId, conversationId]);
 
+  // Group the student's persisted study-tool attempts by toolCallId (already
+  // oldest-first) so each read-only tool can show its own attempts. Keyed by
+  // toolCallId, so each entry belongs to exactly one tool; the rendering
+  // component casts to its own response type. Tool-agnostic.
+  const studyAttempts = useMemo(() => {
+    const map: Record<string, StudyResponsePayload[]> = {};
+    for (const r of data?.studyResponses ?? []) {
+      (map[r.toolCallId] ??= []).push(r.response as StudyResponsePayload);
+    }
+    return map;
+  }, [data?.studyResponses]);
+
   return (
     <Card className={PANEL_SHELL} style={PANEL_STYLE}>
       <CardHeader className="shrink-0">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            aria-label="Back to student chats"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           </Button>
           <div>
             <CardTitle className="text-lg">Student Chat</CardTitle>
@@ -596,20 +614,15 @@ function ConversationDetail({
                   (m): m is typeof m & { role: "user" | "assistant" } =>
                     m.role === "user" || m.role === "assistant",
                 )
-                .map((msg) => {
-                  const chatMessage: ChatMessageType = {
-                    role: msg.role,
-                    content: msg.content,
-                    sources: msg.metadata?.sources,
-                  };
-                  return (
-                    <ChatMessage
-                      key={msg.id}
-                      message={chatMessage}
-                      showSources
-                    />
-                  );
-                })}
+                .map((msg) => (
+                  <ChatMessage
+                    key={msg.id}
+                    message={rowToUIMessage(msg)}
+                    showSources
+                    readOnly
+                    studyAttempts={studyAttempts}
+                  />
+                ))}
             </div>
             {data.totalCount > limit && (
               <div className="flex items-center justify-between pt-3 border-t shrink-0">

@@ -2,7 +2,8 @@ import { X, RotateCcw, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportChatAsText } from "@/lib/export-chat";
 import { toast } from "sonner";
-import type { ChatMessage } from "@/types/database";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 
 interface EmbedHeaderProps {
   chatbotName: string;
@@ -10,7 +11,9 @@ interface EmbedHeaderProps {
   isStreaming: boolean;
   onReset: () => void;
   onClose: () => void;
-  messages: ChatMessage[];
+  messages: StudyUIMessage[];
+  /** Student's own study-tool attempts by toolCallId, included in the export. */
+  studyAttempts?: Record<string, StudyResponsePayload[]>;
 }
 
 export function EmbedHeader({
@@ -20,6 +23,7 @@ export function EmbedHeader({
   onReset,
   onClose,
   messages,
+  studyAttempts,
 }: EmbedHeaderProps) {
   const handleExportChat = () => {
     if (messages.length === 0) {
@@ -28,7 +32,7 @@ export function EmbedHeader({
     }
 
     try {
-      exportChatAsText(messages, chatbotName);
+      exportChatAsText(messages, chatbotName, { studyAttempts });
       toast.success("Chat exported successfully");
     } catch (error) {
       toast.error("Failed to export chat", {
@@ -50,9 +54,10 @@ export function EmbedHeader({
               size="sm"
               onClick={handleExportChat}
               disabled={isStreaming}
+              aria-label="Export chat"
               className="h-7 md:h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
             >
-              <Download className="h-3.5 w-3.5 md:mr-1.5" />
+              <Download className="h-3.5 w-3.5 md:mr-1.5" aria-hidden="true" />
               <span className="hidden md:inline">Export Chat</span>
             </Button>
             <Button
@@ -60,9 +65,10 @@ export function EmbedHeader({
               size="sm"
               onClick={onReset}
               disabled={isStreaming}
+              aria-label="New chat"
               className="h-7 md:h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
             >
-              <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" />
+              <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" aria-hidden="true" />
               <span className="hidden md:inline">New Chat</span>
             </Button>
           </>

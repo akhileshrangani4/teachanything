@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "study_tool_responses_attempt_unique_idx" ON "study_tool_responses" USING btree ("conversation_id","tool_call_id","attempt");

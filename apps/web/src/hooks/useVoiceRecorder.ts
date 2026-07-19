@@ -125,6 +125,12 @@ export function useVoiceRecorder({
 
   // Stop tracks if the component using this hook unmounts mid-recording.
   useEffect(() => {
+    // Reset on (re)mount. React StrictMode (dev) runs mount -> cleanup ->
+    // re-mount; without this reset the cleanup's `unmountedRef = true` would
+    // stick for the whole session, so the post-getUserMedia guard in `start`
+    // would trip after the user grants the mic and leave the button spinning
+    // on `requesting_permission` forever (dev-only, but that's localhost).
+    unmountedRef.current = false;
     return () => {
       unmountedRef.current = true;
       cleanup();

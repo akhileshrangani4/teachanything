@@ -1,6 +1,6 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText, embed, streamText } from "ai";
+import { generateText, embed, streamText, type LanguageModel } from "ai";
 import { logInfo } from "@teachanything/logger";
 import { EMBEDDING_MODEL, type SupportedModel } from "./models";
 import { isTransientError } from "./error-utils";
@@ -31,6 +31,15 @@ export class OpenRouterClient {
         apiKey: openaiApiKey,
       });
     }
+  }
+
+  /**
+   * Return the provider model instance for direct use with the AI SDK's
+   * `streamText` (e.g. when registering tools and returning a UI message
+   * stream). Provider configuration stays centralized here.
+   */
+  getModel(model: SupportedModel): LanguageModel {
+    return this.client(model);
   }
 
   /**
