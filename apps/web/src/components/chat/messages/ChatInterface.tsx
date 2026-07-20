@@ -14,28 +14,9 @@ import { MessageAvatar } from "@/components/ui/message";
 import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
-import { RETRIEVAL_PART_TYPES } from "@/lib/retrieval-tool-names";
-import { describeToolActivity } from "@/server/chat-helpers";
+import { deriveStatusLine } from "@/server/chat-helpers";
+import type { ChatStatus } from "ai";
 import { toast } from "sonner";
-
-/** Derive the live status line client-side (reasoning is never streamed). */
-function deriveStatusLine(
-  last: StudyUIMessage | undefined,
-  isStreaming: boolean,
-): string {
-  if (!isStreaming) return "Thinking…";
-  const parts = last?.role === "assistant" ? last.parts : [];
-  const lastPart = parts[parts.length - 1];
-  if (lastPart && RETRIEVAL_PART_TYPES.has(lastPart.type)) {
-    // Retrieval tool *inputs* stream to the client (only results are filtered
-    // server-side), so the label can name the query/page being fetched.
-    return describeToolActivity(
-      lastPart.type.slice("tool-".length),
-      "input" in lastPart ? lastPart.input : undefined,
-    );
-  }
-  return "Thinking…";
-}
 
 function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
   if (!message || message.role !== "assistant") return false;
@@ -44,7 +25,7 @@ function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
 
 interface ChatInterfaceProps {
   messages: StudyUIMessage[];
-  isStreaming: boolean;
+  status: ChatStatus;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
   handleSendMessage: (e: React.FormEvent) => void;
@@ -69,7 +50,7 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({
   messages,
-  isStreaming,
+  status,
   currentMessage,
   setCurrentMessage,
   handleSendMessage,
@@ -89,11 +70,12 @@ export function ChatInterface({
   onStudyAttempt,
   studyAttempts,
 }: ChatInterfaceProps) {
+  const isStreaming = status === "submitted" || status === "streaming";
   const lastMessage = messages[messages.length - 1];
   // Show the typing/status indicator while streaming until the assistant
   // message has visible content of its own (text or a rendered study tool).
   const showIndicator = isStreaming && !hasVisibleContent(lastMessage);
-  const statusLine = deriveStatusLine(lastMessage, isStreaming);
+  const statusLine = deriveStatusLine(lastMessage, status);
 
   return (
     <div
@@ -196,10 +178,10 @@ export function ChatInterface({
                       alt="Teach Anything™"
                       imageClassName="grayscale"
                     />
-                    <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-xs border border-border/50">
+                    <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit min-w-0 max-w-full shadow-xs border border-border/50">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
                         <TypingLoader size="sm" className="opacity-60" />
-                        <span>{statusLine}</span>
+                        <span className="min-w-0 truncate">{statusLine}</span>
                       </div>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, type ChatStatus } from "ai";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
@@ -57,6 +57,9 @@ export function useChat(shareToken: string) {
 
   const isStreaming =
     chat.status === "submitted" || chat.status === "streaming";
+  // Annotate against the top-level `ai` package so the hook's inferred return
+  // type doesn't reference @ai-sdk/react's nested copy (TS2742, not portable).
+  const status: ChatStatus = chat.status;
 
   const sendMessage = useCallback(
     (text: string): boolean => {
@@ -102,6 +105,7 @@ export function useChat(shareToken: string) {
     currentMessage,
     setCurrentMessage,
     isStreaming,
+    status,
     handleSendMessage,
     stop: chat.stop,
     resetChat,
