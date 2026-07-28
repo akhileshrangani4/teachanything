@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.4](https://github.com/akhileshrangani4/teachanything/compare/v1.33.3...v1.33.4) (2026-07-28)
+
+
+### Documentation
+
+* **landing:** update non-profit language with 501(c)(3) and tax-deductible notice ([#412](https://github.com/akhileshrangani4/teachanything/issues/412)) ([dd1aefa](https://github.com/akhileshrangani4/teachanything/commit/dd1aefaa2a52c72d8b59d1aa75b192642cff5fdd))
+
 ## [1.33.3](https://github.com/akhileshrangani4/teachanything/compare/v1.33.2...v1.33.3) (2026-07-19)
 
 
