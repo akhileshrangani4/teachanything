@@ -190,10 +190,14 @@ export default function SupportUsSection() {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            Teach Anything, Inc. is a registered non-profit organization
-            incorporated in the District of Columbia. Our certificate of
-            incorporation is on file in the Washington, D.C. Department of
-            Licensing and Consumer Protection.
+            Teach Anything is a registered 501(c)(3) non-profit organization
+            with the Internal Revenue Service (IRS).{" "}
+            <strong className="font-semibold">
+              Donations are tax-deductible.
+            </strong>{" "}
+            Our organization is incorporated in Washington, D.C., in the U.S.A.
+            Our certificate of incorporation is on file in the Washington, D.C.
+            Department of Licensing and Consumer Protection.
           </motion.p>
 
           {/* Featured In Section */}
