@@ -38,7 +38,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
@@ -49,7 +49,7 @@ jobs:
       # no-op on releases that don't touch packages/db. Requires the
       # DATABASE_URL repo secret (prod connection).
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
