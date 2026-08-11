@@ -1,16 +1,16 @@
 import { z } from "zod";
 import { mcQuestionSchema, type MCQuestion } from "@/lib/questions";
 
-/**
- * A multiple-choice quiz rendered as an interactive widget. Used as the
- * `inputSchema` of the `showQuiz` tool, so the model fills this in directly.
- */
 /** Most questions a quiz may carry. Also the ceiling `repairQuiz` trims to. */
 export const MAX_QUIZ_QUESTIONS = 5;
 
 /** Longest quiz title. See the note on `quizSchema.quiz_title`. */
 export const MAX_QUIZ_TITLE_LENGTH = 200;
 
+/**
+ * A multiple-choice quiz rendered as an interactive widget. Used as the
+ * `inputSchema` of the `showQuiz` tool, so the model fills this in directly.
+ */
 export const quizSchema = z.object({
   // Bounded: the title is echoed into the professor dashboard, exports, and
   // (sanitized) the model results note, so an unbounded student-steerable

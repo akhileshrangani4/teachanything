@@ -4,30 +4,6 @@ import type { StudyUIMessage } from "./study-tools";
 
 type Chunk = InferUIMessageChunk<StudyUIMessage>;
 
-/**
- * Salvage a `showQuiz` tool call the AI SDK rejected, or accepted in a shape the
- * widget can't render, on its way to the browser.
- *
- * A chatbot's `maxTokens` caps the whole turn, so a low setting cuts the quiz off
- * mid-write: the input then fails validation and arrives as `tool-input-error` +
- * `tool-output-error`, which the client renders as "Couldn't build the quiz" even
- * though the questions that finished are fine. The same notice appears when the
- * model writes more questions than the schema allows or botches one question.
- *
- * `repairQuiz` keeps what can render, so those turns become a shorter quiz
- * instead of an error. Two shapes are rewritten:
- *
- * - `tool-input-error` (validation rejected the input) becomes a normal
- *   `tool-input-available` carrying the repaired quiz, and the paired
- *   `tool-output-error` is dropped so the client doesn't flip the part back to
- *   an error state.
- * - `tool-input-available` whose input is structurally valid but unrenderable
- *   (an out-of-range `correct_index`) keeps its chunk, with the repaired input.
- *
- * Input that can't be salvaged passes through untouched and still shows the
- * error notice, and `producedRenderableQuiz` reaches the same verdict from the
- * same `repairQuiz` call, so the server still runs the prose fallback for it.
- */
 /** A chunk that closes out a `showQuiz` input the model never finished. */
 export type ClosingQuizChunk =
   | {
@@ -75,6 +51,30 @@ export function closeTruncatedQuizInputs(
   return closing;
 }
 
+/**
+ * Salvage a `showQuiz` tool call the AI SDK rejected, or accepted in a shape the
+ * widget can't render, on its way to the browser.
+ *
+ * A chatbot's `maxTokens` caps the whole turn, so a low setting cuts the quiz off
+ * mid-write: the input then fails validation and arrives as `tool-input-error` +
+ * `tool-output-error`, which the client renders as "Couldn't build the quiz" even
+ * though the questions that finished are fine. The same notice appears when the
+ * model writes more questions than the schema allows or botches one question.
+ *
+ * `repairQuiz` keeps what can render, so those turns become a shorter quiz
+ * instead of an error. Two shapes are rewritten:
+ *
+ * - `tool-input-error` (validation rejected the input) becomes a normal
+ *   `tool-input-available` carrying the repaired quiz, and the paired
+ *   `tool-output-error` is dropped so the client doesn't flip the part back to
+ *   an error state.
+ * - `tool-input-available` whose input is structurally valid but unrenderable
+ *   (an out-of-range `correct_index`) keeps its chunk, with the repaired input.
+ *
+ * Input that can't be salvaged passes through untouched and still shows the
+ * error notice, and `producedRenderableQuiz` reaches the same verdict from the
+ * same `repairQuiz` call, so the server still runs the prose fallback for it.
+ */
 export function repairQuizToolParts(): TransformStream<Chunk, Chunk> {
   /** Tool call ids whose input error was replaced with a repaired quiz. */
   const repaired = new Set<string>();
