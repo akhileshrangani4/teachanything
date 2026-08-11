@@ -87,6 +87,11 @@ function stillPlausible(held: string): boolean {
  * Ordinary prose keeps streaming token by token: text is only withheld from a
  * marker onward, and `stillPlausible` releases it again as soon as the shape
  * rules a quiz out.
+ *
+ * Accepted limitation: when a block holds a non-quiz JSON blob (or fence) AND a
+ * real leak after it, recovery drops everything from the first marker on, so the
+ * intervening content is lost with the leak. A quiz turn that also contains an
+ * unrelated JSON blob isn't a shape worth the extra state.
  */
 export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
   /** null between blocks; otherwise the id of the block being processed. */

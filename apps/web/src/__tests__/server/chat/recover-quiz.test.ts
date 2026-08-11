@@ -200,5 +200,33 @@ describe("recoverLeakedQuiz", () => {
       expect(out.some((c) => c.type === "tool-input-available")).toBe(false);
       expect(textOf(out)).toBe(textOf(input));
     });
+
+    // The verbatim turn reported from production on 2026-08-07 (spacing and all),
+    // as the strongest guard against regressing the case that was actually broken.
+    it("recovers the reported production leak", async () => {
+      const reported = `Here are some quiz questions to assess your understanding of the topics you've mentioned.
+
+[showQuiz(quiz_title="Epistemologies of Gender Quiz", questions=[ { "question": "According to Professor Joubin's 'Five things about gender', what is the primary way gender shapes our society?", "options": [ "Gender is a fixed identity category.", "Gender is a set of evolving social practices.", "Gender is determined solely by biology.", "Gender is irrelevant to societal structures." ], "correct_index": 1, "explanation": "Professor Joubin emphasizes that gender is not an immutable identity category but rather a set of social practices that evolve over time." }, { "question": "Judith Butler argues that gender precedes sex assignment. What does this imply?", "options": [ "Gender is a direct result of biological sex.", "Sex assignment is independent of cultural frameworks.", "Gender influences how sex is assigned and categorized.", "Biological sex determines gender identity." ], "correct_index": 2, "explanation": "Butler suggests that gender is already operative as the scheme of power within which sex assignment takes place." }, { "question": "What is one of the main critiques of traditional understandings of gender epistemology?", "options": [ "That gender is too complex to be studied.", "That knowledge about gender is often biased.", "That gender should be determined solely by biological factors.", "That gender is not relevant to societal structures." ], "correct_index": 1, "explanation": "Systemic discourses about gender often foreclose the possibilities of marginalized narratives." } ])]`;
+      // Split the way it really streams: many small deltas.
+      const deltas: string[] = [];
+      for (let i = 0; i < reported.length; i += 17) {
+        deltas.push(reported.slice(i, i + 17));
+      }
+      const out = await pump(textBlock("t1", deltas));
+
+      const toolPart = out.at(-1) as {
+        type: string;
+        toolName: string;
+        input: { quiz_title: string; questions: unknown[] };
+      };
+      expect(toolPart.type).toBe("tool-input-available");
+      expect(toolPart.toolName).toBe("showQuiz");
+      expect(toolPart.input.quiz_title).toBe("Epistemologies of Gender Quiz");
+      expect(toolPart.input.questions).toHaveLength(3);
+      // The preamble is kept; the pseudo-call never reaches the client.
+      expect(textOf(out)).toBe(
+        "Here are some quiz questions to assess your understanding of the topics you've mentioned.\n\n",
+      );
+    });
   });
 });
