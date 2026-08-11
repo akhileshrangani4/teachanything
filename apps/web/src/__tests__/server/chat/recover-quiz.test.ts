@@ -128,4 +128,77 @@ describe("recoverLeakedQuiz", () => {
     const input = textBlock("t1", ["   Hello there"]);
     expect(await pump(input)).toEqual(input);
   });
+
+  /**
+   * A leak does not have to start the text block. Models routinely write a
+   * sentence of preamble ("Here are some quiz questions...") and then emit the
+   * call, all inside one text block -- the shape reported in production
+   * 2026-08-07. The preamble is a real answer and must still stream; only the
+   * leaked call is replaced by the widget.
+   */
+  describe("leak after a prose preamble", () => {
+    const preamble = "Here are some quiz questions for you.\n\n";
+
+    const textOf = (chunks: Chunk[]) =>
+      chunks
+        .filter((c) => c.type === "text-delta")
+        .map((c) => c.delta)
+        .join("");
+
+    it("recovers a JSON quiz that follows prose in the same block", async () => {
+      const out = await pump(textBlock("t1", [preamble, JSON.stringify(quiz)]));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        toolName: "showQuiz",
+        input: quiz,
+      });
+      // The preamble survives; the JSON does not.
+      expect(textOf(out)).toBe(preamble);
+    });
+
+    it("recovers a pseudo-call that follows prose in the same block", async () => {
+      const call = `[showQuiz(quiz_title="${quiz.quiz_title}", questions=${JSON.stringify(quiz.questions)})]`;
+      const out = await pump(textBlock("t1", [preamble, call]));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        toolName: "showQuiz",
+        input: quiz,
+      });
+      expect(textOf(out)).toBe(preamble);
+    });
+
+    it("recovers a leak split across deltas mid-marker", async () => {
+      const call = `[showQuiz(quiz_title="${quiz.quiz_title}", questions=${JSON.stringify(quiz.questions)})]`;
+      // Marker split so no single delta contains "showQuiz(" whole.
+      const deltas = [
+        preamble + "[show",
+        "Quiz(quiz_",
+        call.slice("[showQuiz(quiz_".length),
+      ];
+      const out = await pump(textBlock("t1", deltas));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        input: quiz,
+      });
+      expect(textOf(out)).toBe(preamble);
+    });
+
+    it("keeps prose containing braces streaming as text", async () => {
+      // A brace in ordinary prose must not swallow the rest of the answer.
+      const input = textBlock("t1", [
+        "The empty set is written {a, b} ",
+        "in most textbooks, and \\frac{1}{2} is a half.",
+      ]);
+      const out = await pump(input);
+      expect(out.some((c) => c.type === "tool-input-available")).toBe(false);
+      expect(textOf(out)).toBe(textOf(input));
+    });
+
+    it("leaves a non-quiz JSON blob after prose as text", async () => {
+      const input = textBlock("t1", [preamble, '{"foo":"bar"}']);
+      const out = await pump(input);
+      expect(out.some((c) => c.type === "tool-input-available")).toBe(false);
+      expect(textOf(out)).toBe(textOf(input));
+    });
+  });
 });

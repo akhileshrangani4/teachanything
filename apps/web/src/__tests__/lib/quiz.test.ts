@@ -329,4 +329,67 @@ describe("parseQuizFromText", () => {
     };
     expect(parseQuizFromText(JSON.stringify(bad))).toBeNull();
   });
+
+  // Some models serialize the call in their native pseudo-call syntax --
+  // `[showQuiz(quiz_title="...", questions=[...])]` -- rather than as a JSON
+  // object. Observed in production 2026-08-07 (a Llama-family bot).
+  describe("pseudo tool-call syntax", () => {
+    const pseudoCall = (title: string, questions: unknown) =>
+      `[showQuiz(quiz_title="${title}", questions=${JSON.stringify(questions)})]`;
+
+    it("recovers a quiz from bracketed pseudo-call syntax", () => {
+      expect(
+        parseQuizFromText(pseudoCall("Photosynthesis", validQuiz.questions)),
+      ).toEqual(validQuiz);
+    });
+
+    it("recovers a pseudo-call without the wrapping brackets", () => {
+      const call = `showQuiz(quiz_title="Photosynthesis", questions=${JSON.stringify(validQuiz.questions)})`;
+      expect(parseQuizFromText(call)).toEqual(validQuiz);
+    });
+
+    it("recovers a pseudo-call after a prose preamble", () => {
+      const text = `Here are some quiz questions.\n\n${pseudoCall("Photosynthesis", validQuiz.questions)}`;
+      expect(parseQuizFromText(text)).toEqual(validQuiz);
+    });
+
+    it("handles keyword args in either order", () => {
+      const call = `showQuiz(questions=${JSON.stringify(validQuiz.questions)}, quiz_title="Photosynthesis")`;
+      expect(parseQuizFromText(call)).toEqual(validQuiz);
+    });
+
+    it("handles nested brackets inside question text", () => {
+      const questions = [
+        {
+          question: "Which list is empty: [] or [0]?",
+          options: ["[]", "[0]"],
+          correct_index: 0,
+          explanation: "[] has no elements.",
+        },
+      ];
+      expect(parseQuizFromText(pseudoCall("Lists", questions))).toEqual({
+        quiz_title: "Lists",
+        questions,
+      });
+    });
+
+    it("returns null when the questions payload is not valid JSON", () => {
+      const call = `showQuiz(quiz_title="X", questions=[{question: 'unquoted', options: []}])`;
+      expect(parseQuizFromText(call)).toBeNull();
+    });
+
+    it("returns null for a pseudo-call naming a different tool", () => {
+      expect(
+        parseQuizFromText(
+          `[showFlashcards(quiz_title="X", questions=${JSON.stringify(validQuiz.questions)})]`,
+        ),
+      ).toBeNull();
+    });
+
+    it("returns null for prose that merely mentions showQuiz", () => {
+      expect(
+        parseQuizFromText("I would call showQuiz() but there is no material."),
+      ).toBeNull();
+    });
+  });
 });
