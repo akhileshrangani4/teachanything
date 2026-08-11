@@ -61,7 +61,7 @@ export default function Navbar() {
               >
                 <Image
                   src="/logo.svg"
-                  alt="Teach Anything™"
+                  alt="Teach Anything®"
                   width={32}
                   height={32}
                   className="h-8 w-8"

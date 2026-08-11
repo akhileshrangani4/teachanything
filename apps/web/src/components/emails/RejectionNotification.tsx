@@ -29,7 +29,7 @@ export function RejectionNotification({
               <p style={text}>Hi {userName},</p>
 
               <p style={text}>
-                Thank you for your interest in Teach Anything™. Unfortunately,
+                Thank you for your interest in Teach Anything®. Unfortunately,
                 we are unable to approve your account registration at this time.
               </p>
 
@@ -57,7 +57,7 @@ export function RejectionNotification({
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach Anything™ Team
+                Teach Anything® Team
               </p>
 
               <p style={footer}>

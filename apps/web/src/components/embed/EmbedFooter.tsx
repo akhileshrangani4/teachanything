@@ -20,7 +20,7 @@ export function EmbedFooter() {
         <span>Powered by</span>
         <Image
           src="/logo.svg"
-          alt="Teach Anything™"
+          alt="Teach Anything®"
           width={14}
           height={14}
           className="h-3.5 w-3.5"

@@ -9,7 +9,7 @@ interface BrandNameProps {
   serifAnything?: boolean;
 }
 
-export const BRAND_NAME_WITH_MARK = "Teach Anything™";
+export const BRAND_NAME_WITH_MARK = "Teach Anything®";
 
 export function BrandName({
   className,
@@ -37,11 +37,11 @@ export function BrandName({
       </span>
       <sup
         className={cn(
-          "ml-1.5 align-super text-[0.42em] font-semibold not-italic leading-none tracking-normal",
+          "ml-1.5 align-super text-[0.5em] font-semibold not-italic leading-none tracking-normal",
           markClassName,
         )}
       >
-        TM
+        ®
       </sup>
     </span>
   );

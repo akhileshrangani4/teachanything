@@ -120,7 +120,7 @@ function ChatMessageImpl({
       <Message className="items-start gap-2 md:gap-3">
         <MessageAvatar
           src="/logo.svg"
-          alt="Teach Anything™"
+          alt="Teach Anything®"
           imageClassName="grayscale"
         />
         <div className="flex-1 min-w-0 space-y-2">
