@@ -5,6 +5,7 @@ import {
   hasToolCall,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  type InferUIMessageChunk,
 } from "ai";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -96,6 +97,36 @@ export function newSessionId(): string {
  * internal timeout fires before Vercel kills the function, giving `onFinish`
  * time to persist the partial turn. */
 const STREAM_TIMEOUT_MS = 290_000;
+
+/**
+ * Forward every chunk of `source` to the response, in order, and resolve once it
+ * is drained. Chunks still stream live -- each is written the moment it arrives.
+ *
+ * This is deliberately not `writer.merge`. Merging returns immediately and lets
+ * the pump forward chunks concurrently with the rest of `execute`, so a write
+ * made after `await primary.text` can overtake chunks still in flight. That is
+ * not hypothetical: with a quiz cut off at the token limit, the tail of the
+ * stream IS that quiz's `tool-input-delta` chunks, and the closing
+ * `tool-input-available` written afterwards was observed landing *before* them,
+ * which re-opens the very "Building your quiz..." skeleton it exists to resolve.
+ * The same inversion applies to the trailing `finish` chunk that carries sources
+ * and the truncation notice. Draining here makes those writes strictly last.
+ */
+async function forward(
+  writer: { write: (chunk: InferUIMessageChunk<StudyUIMessage>) => void },
+  source: ReadableStream<InferUIMessageChunk<StudyUIMessage>>,
+): Promise<void> {
+  const reader = source.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      writer.write(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 export async function streamChat(params: {
   chatbot: typeof chatbots.$inferSelect;
@@ -425,7 +456,8 @@ export async function streamChat(params: {
       // JSON blob (instead of a native showQuiz call) into a real tool part, so
       // it renders as the widget rather than raw JSON. Only quiz-shaped text is
       // buffered; ordinary answers still stream live. See recoverLeakedQuiz.
-      writer.merge(
+      await forward(
+        writer,
         modelCanUseTools
           ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
           : primaryUiStream,
@@ -508,15 +540,18 @@ export async function streamChat(params: {
           maxOutputTokens,
           abortSignal,
         });
-        writer.merge(
-          fallback.toUIMessageStream<StudyUIMessage>({
-            sendReasoning: false,
-            sendStart: false,
-            sendFinish: false,
-            onError: onStreamError,
-          }),
-        );
         try {
+          // Drained rather than merged, so the trailing `finish` chunk (sources,
+          // truncation notice) cannot overtake the answer's last tokens.
+          await forward(
+            writer,
+            fallback.toUIMessageStream<StudyUIMessage>({
+              sendReasoning: false,
+              sendStart: false,
+              sendFinish: false,
+              onError: onStreamError,
+            }),
+          );
           await fallback.text;
           finishReason = await fallback.finishReason;
         } catch {
