@@ -194,6 +194,28 @@ describe("recoverLeakedQuiz", () => {
       expect(textOf(out)).toBe(textOf(input));
     });
 
+    it("keeps prose that merely mentions showQuiz() streaming as text", async () => {
+      // The marker is broad on purpose, so an answer that talks about the tool
+      // must be released as soon as its parens close without a quiz arg --
+      // otherwise the rest of the answer stops streaming token by token.
+      const input = textBlock("t1", [
+        "I would call showQuiz() but there is no material ",
+        "in this course to build a quiz from, sorry.",
+      ]);
+      const out = await pump(input);
+      expect(out).toEqual(input);
+    });
+
+    it("still holds a pretty-printed pseudo-call whose args start on the next line", async () => {
+      const call = `[showQuiz(\n  quiz_title="${quiz.quiz_title}",\n  questions=${JSON.stringify(quiz.questions)}\n)]`;
+      const out = await pump(textBlock("t1", [preamble, call]));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        input: quiz,
+      });
+      expect(textOf(out)).toBe(preamble);
+    });
+
     it("leaves a non-quiz JSON blob after prose as text", async () => {
       const input = textBlock("t1", [preamble, '{"foo":"bar"}']);
       const out = await pump(input);

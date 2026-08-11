@@ -27,6 +27,13 @@ const MARKER_LOOKBACK = "[showQuiz(".length - 1;
  */
 const MAX_HELD_CHARS = 8_000;
 
+/**
+ * How far past `showQuiz(` to wait for `quiz_title` / `questions` before
+ * concluding the text isn't a real call. Generous enough for a pretty-printed
+ * call that puts its first arg on the next line.
+ */
+const PSEUDO_ARG_WINDOW = 48;
+
 /** Index where the earliest leak marker starts in `text`, or -1. */
 function findMarker(text: string): number {
   let earliest = -1;
@@ -61,8 +68,13 @@ function stillPlausible(held: string): boolean {
     const info = text.slice(0, newline).replace(/`/g, "").trim().toLowerCase();
     return info === "" || info === "json";
   }
-  // `[` / `showQuiz(` -- specific enough to hold to the end of the block.
-  return true;
+  // Pseudo-call: rule it out as soon as the arg list proves it isn't a quiz, so
+  // prose that merely mentions `showQuiz()` doesn't buffer the rest of the
+  // block. A real call names one of its two args up front; anything that closes
+  // its parens, or runs past the window, without naming either is not a call.
+  const args = text.slice(text.indexOf("(") + 1);
+  if (args.length < PSEUDO_ARG_WINDOW && !args.includes(")")) return true;
+  return /quiz_title|questions/.test(args);
 }
 
 /**
