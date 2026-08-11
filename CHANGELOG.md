@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.33.5](https://github.com/akhileshrangani4/teachanything/compare/v1.33.4...v1.33.5) (2026-08-11)
+
+
+### Miscellaneous Chores
+
+* **brand:** switch trademark symbol from TM to registered mark ([#430](https://github.com/akhileshrangani4/teachanything/issues/430)) ([86defb0](https://github.com/akhileshrangani4/teachanything/commit/86defb06c3e6dd8bcd7f0a7030f410964ce4037a))
+
 ## [1.33.4](https://github.com/akhileshrangani4/teachanything/compare/v1.33.3...v1.33.4) (2026-07-28)
 
 
