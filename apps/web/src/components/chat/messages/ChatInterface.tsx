@@ -193,7 +193,7 @@ export function ChatInterface({
                   <div className="flex gap-2 md:gap-3 items-start">
                     <MessageAvatar
                       src="/logo.svg"
-                      alt="Teach Anything™"
+                      alt="Teach Anything®"
                       imageClassName="grayscale"
                     />
                     <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit shadow-xs border border-border/50">

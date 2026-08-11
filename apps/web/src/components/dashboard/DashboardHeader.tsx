@@ -66,7 +66,7 @@ export function DashboardHeader() {
         >
           <Image
             src="/logo.svg"
-            alt="Teach Anything™"
+            alt="Teach Anything®"
             width={28}
             height={28}
             className="h-7 w-7"

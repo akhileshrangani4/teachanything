@@ -71,7 +71,7 @@ export function PasswordReset({
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach Anything™ Team
+                Teach Anything® Team
               </p>
 
               <p style={footer}>
