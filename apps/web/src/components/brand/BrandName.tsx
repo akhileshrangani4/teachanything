@@ -37,7 +37,7 @@ export function BrandName({
       </span>
       <sup
         className={cn(
-          "ml-1.5 align-super text-[0.5em] font-semibold not-italic leading-none tracking-normal",
+          "ml-[0.15em] align-super text-[0.5em] font-semibold not-italic leading-none tracking-normal",
           markClassName,
         )}
       >

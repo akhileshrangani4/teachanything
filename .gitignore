@@ -58,3 +58,4 @@ uploads/
 
 # Generated: Blume docs site embedded into the web app at build time
 apps/web/public/docs/
+.gstack/
