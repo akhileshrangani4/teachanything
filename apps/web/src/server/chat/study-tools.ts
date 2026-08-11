@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import type { UIMessage, InferUITools, UIDataTypes } from "ai";
-import { quizSchema, isRenderableQuiz, type Quiz } from "@/lib/quiz";
+import { quizSchema, repairQuiz, MAX_QUIZ_QUESTIONS } from "@/lib/quiz";
 
 /**
  * Render-only study tools. Each tool's `inputSchema` IS the widget payload;
@@ -20,21 +20,47 @@ export const studyTools = {
   }),
 } as const;
 
-/** Appended to the chatbot's system prompt so the model knows the tools exist. */
-export const STUDY_TOOLS_SYSTEM_ADDENDUM = `
+/** Rough output cost of one generated question: 4 options plus an explanation. */
+const TOKENS_PER_QUESTION = 150;
 
-You can render interactive study tools. When the student asks to be quizzed on a topic, call the \`showQuiz\` tool and fill it with well-formed questions based on the course material above - do not write the quiz out as prose. If the student is only asking a question, answer normally without calling a tool.`;
+/** Output tokens to leave for the quiz title and JSON scaffolding. */
+const QUIZ_OVERHEAD_TOKENS = 120;
 
 /**
- * True if the model produced a *renderable* quiz: a `showQuiz` tool call whose
- * input passed schema validation AND whose `correct_index` values are all in
- * range. When input validation fails, the AI SDK still returns the call in
- * `steps`, but flagged `invalid: true`; an out-of-range `correct_index` is
- * structurally valid (so not flagged) but still unrenderable (see
- * `isRenderableQuiz`). In both cases the client shows an error notice, not a
- * quiz, so the call must NOT count as a visible answer -- otherwise the
- * empty-response fallback is suppressed and the student is left with the error
- * and no prose answer / retry.
+ * How many questions actually fit in a turn's output budget.
+ *
+ * A chatbot's `maxTokens` caps the whole reply, tool input included, so a
+ * professor who set a small limit gets a quiz that stops mid-question: the input
+ * then fails validation and the student sees an error. The model can't know the
+ * limit, so tell it. `repairQuiz` still salvages a quiz that overruns anyway --
+ * this just stops most of them from overrunning in the first place.
+ */
+export function maxQuestionsForBudget(maxOutputTokens: number): number {
+  const affordable = Math.floor(
+    (maxOutputTokens - QUIZ_OVERHEAD_TOKENS) / TOKENS_PER_QUESTION,
+  );
+  return Math.min(MAX_QUIZ_QUESTIONS, Math.max(1, affordable));
+}
+
+/** Appended to the chatbot's system prompt so the model knows the tools exist. */
+export function buildStudyToolsAddendum(maxOutputTokens: number): string {
+  const maxQuestions = maxQuestionsForBudget(maxOutputTokens);
+  return `
+
+You can render interactive study tools. When the student asks to be quizzed on a topic, call the \`showQuiz\` tool and fill it with well-formed questions based on the course material above - do not write the quiz out as prose. Keep the quiz to at most ${maxQuestions} ${maxQuestions === 1 ? "question" : "questions"}, each with up to 4 options and a one- or two-sentence explanation, so the whole quiz fits within this chatbot's reply limit. If the student is only asking a question, answer normally without calling a tool.`;
+}
+
+/**
+ * True if a `showQuiz` call in `toolCalls` will actually render for the student,
+ * either as the model wrote it or after `repairQuiz` drops the unusable parts
+ * (too many questions, a malformed question, input cut off by the token limit).
+ *
+ * This gates the empty-response fallback, so it has to agree with what the
+ * client ends up showing: `repairQuizToolParts` runs the same pure `repairQuiz`
+ * over the same input on its way to the browser, so the two decisions cannot
+ * disagree. A call that survives neither path renders as an error notice and
+ * must NOT count as a visible answer, or the fallback is suppressed and the
+ * student is left with the error and no answer at all.
  */
 export function producedRenderableQuiz(
   toolCalls: ReadonlyArray<{
@@ -44,10 +70,7 @@ export function producedRenderableQuiz(
   }>,
 ): boolean {
   return toolCalls.some(
-    (tc) =>
-      tc.toolName === "showQuiz" &&
-      !tc.invalid &&
-      isRenderableQuiz(tc.input as Quiz),
+    (tc) => tc.toolName === "showQuiz" && repairQuiz(tc.input) !== null,
   );
 }
 

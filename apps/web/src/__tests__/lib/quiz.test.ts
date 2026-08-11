@@ -7,6 +7,7 @@ import {
   gradeQuiz,
   initialQuizWidgetState,
   parseQuizFromText,
+  repairQuiz,
   type Quiz,
   type QuizResponse,
 } from "@/lib/quiz";
@@ -256,6 +257,129 @@ describe("initialQuizWidgetState", () => {
       currentIndex: 0,
       selected: [null, null, null],
       finished: false,
+    });
+  });
+});
+
+describe("repairQuiz", () => {
+  const question = (i: number, over = false) => ({
+    question: `Q${i}?`,
+    options: ["A", "B", "C", "D"],
+    correct_index: over ? 9 : i % 4,
+    explanation: `because ${i}`,
+  });
+
+  it("passes an already-valid quiz through unchanged", () => {
+    const quiz = { quiz_title: "T", questions: [question(1)] };
+    expect(repairQuiz(quiz)).toEqual(quiz);
+  });
+
+  it("trims a quiz with more questions than the schema allows", () => {
+    const repaired = repairQuiz({
+      quiz_title: "T",
+      questions: [1, 2, 3, 4, 5, 6, 7].map((i) => question(i)),
+    });
+    expect(repaired?.questions).toHaveLength(5);
+    expect(repaired?.questions[0]?.question).toBe("Q1?");
+  });
+
+  it("drops a question missing its explanation and keeps the rest", () => {
+    const repaired = repairQuiz({
+      quiz_title: "T",
+      questions: [
+        question(1),
+        { question: "Q2?", options: ["A", "B"], correct_index: 0 },
+        question(3),
+      ],
+    });
+    expect(repaired?.questions.map((q) => q.question)).toEqual(["Q1?", "Q3?"]);
+  });
+
+  it("drops a question whose correct_index is out of range", () => {
+    const repaired = repairQuiz({
+      quiz_title: "T",
+      questions: [question(1, true), question(2)],
+    });
+    expect(repaired?.questions.map((q) => q.question)).toEqual(["Q2?"]);
+  });
+
+  it("drops a question with too many options", () => {
+    const repaired = repairQuiz({
+      quiz_title: "T",
+      questions: [
+        { ...question(1), options: ["A", "B", "C", "D", "E"] },
+        question(2),
+      ],
+    });
+    expect(repaired?.questions.map((q) => q.question)).toEqual(["Q2?"]);
+  });
+
+  it("returns null when no question survives", () => {
+    expect(
+      repairQuiz({ quiz_title: "T", questions: [question(1, true)] }),
+    ).toBeNull();
+    expect(repairQuiz({ quiz_title: "T", questions: [] })).toBeNull();
+  });
+
+  it("returns null for input that isn't a quiz at all", () => {
+    expect(repairQuiz(undefined)).toBeNull();
+    expect(repairQuiz(null)).toBeNull();
+    expect(repairQuiz(42)).toBeNull();
+    expect(repairQuiz("not json")).toBeNull();
+    expect(repairQuiz({ quiz_title: "T" })).toBeNull();
+    expect(repairQuiz({ questions: [question(1)] })).toBeNull();
+  });
+
+  it("truncates an over-long title rather than rejecting the quiz", () => {
+    const repaired = repairQuiz({
+      quiz_title: "x".repeat(500),
+      questions: [question(1)],
+    });
+    expect(repaired?.quiz_title).toHaveLength(200);
+  });
+
+  describe("input cut off by the token limit", () => {
+    const full = JSON.stringify({
+      quiz_title: "Shakespeare",
+      questions: [question(1), question(2), question(3)],
+    });
+
+    it("keeps the questions that finished writing", () => {
+      // Cut in the middle of the third question.
+      const cut = full.slice(0, full.indexOf("Q3?") + 1);
+      const repaired = repairQuiz(cut);
+      expect(repaired?.quiz_title).toBe("Shakespeare");
+      expect(repaired?.questions.map((q) => q.question)).toEqual([
+        "Q1?",
+        "Q2?",
+      ]);
+    });
+
+    it("keeps a single completed question", () => {
+      const cut = full.slice(0, full.indexOf("Q2?"));
+      expect(repairQuiz(cut)?.questions).toHaveLength(1);
+    });
+
+    it("returns null when not even one question finished", () => {
+      const cut = full.slice(0, full.indexOf("questions") + 20);
+      expect(repairQuiz(cut)).toBeNull();
+    });
+
+    it("returns null when the title never arrived", () => {
+      const titleLast = JSON.stringify({
+        questions: [question(1)],
+        quiz_title: "Shakespeare",
+      });
+      const cut = titleLast.slice(0, titleLast.indexOf("quiz_title"));
+      expect(repairQuiz(cut)).toBeNull();
+    });
+
+    it("still repairs a complete-but-oversized JSON string", () => {
+      const oversized = JSON.stringify({
+        quiz_title: "T",
+        questions: [1, 2, 3, 4, 5, 6].map((i) => question(i)),
+      });
+      expect(repairQuiz(oversized)?.questions).toHaveLength(5);
     });
   });
 });
