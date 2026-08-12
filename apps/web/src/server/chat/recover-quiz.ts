@@ -5,131 +5,242 @@ import type { StudyUIMessage } from "./study-tools";
 
 type Chunk = InferUIMessageChunk<StudyUIMessage>;
 
-type BlockClass = "prose" | "quiz-candidate" | "pending";
+/**
+ * Openers that can begin a leaked `showQuiz` call inside assistant text:
+ * a bare JSON object, a code fence, or the pseudo-call syntax
+ * (`showQuiz(quiz_title=...)`) that Llama-family models emit.
+ */
+const MARKERS = ["{", "```", "showQuiz("] as const;
 
 /**
- * Classify a (possibly partial) text block by its opening characters, to decide
- * whether to hold it as a possible leaked quiz or let it stream through live:
- *
- * - starts with `{`                     -> quiz-candidate (bare JSON tool-call leak)
- * - opens a ```json or bare ``` fence   -> quiz-candidate
- * - opens a ```<lang> fence (js, py...) -> prose (real code -- must stream live)
- * - any other non-whitespace char       -> prose
- * - only whitespace, or a fence whose info-line hasn't arrived -> pending
- *
- * Fence classification waits for the info-line (up to the first newline) rather
- * than matching the first character, so a fence streamed as "```" then "json"
- * isn't misread as prose before its language tag arrives -- and, conversely, a
- * ```js block is only buffered until its newline, then released to stream live.
+ * How much streamed text stays buffered while watching for a marker. A marker
+ * can be split across deltas ("[show" + "Quiz("), so the tail that could be an
+ * incomplete marker -- one char less than the longest one, counting the `[` a
+ * pseudo-call is usually wrapped in -- must not be released yet.
  */
-function classifyBlock(text: string): BlockClass {
-  const trimmed = text.replace(/^\s+/, "");
-  if (trimmed.length === 0) return "pending";
-  if (trimmed[0] === "{") return "quiz-candidate";
-  if (trimmed[0] !== "`") return "prose";
-  const newline = trimmed.indexOf("\n");
-  if (newline === -1) return "pending"; // fence info-line not complete yet
-  const info = trimmed.slice(0, newline).replace(/`/g, "").trim().toLowerCase();
-  return info === "" || info === "json" ? "quiz-candidate" : "prose";
+const MARKER_LOOKBACK = "[showQuiz(".length - 1;
+
+/**
+ * Hard cap on held text. A 5-question quiz serializes to ~2KB, so anything past
+ * this is not the leak we're looking for; bail out rather than withhold an
+ * unbounded stretch of a real answer.
+ */
+const MAX_HELD_CHARS = 8_000;
+
+/**
+ * How far past `showQuiz(` to wait for `quiz_title` / `questions` before
+ * concluding the text isn't a real call. Generous enough for a pretty-printed
+ * call that puts its first arg on the next line.
+ */
+const PSEUDO_ARG_WINDOW = 48;
+
+/** Index where the earliest leak marker starts in `text`, or -1. */
+function findMarker(text: string): number {
+  let earliest = -1;
+  for (const marker of MARKERS) {
+    const at = text.indexOf(marker);
+    if (at !== -1 && (earliest === -1 || at < earliest)) earliest = at;
+  }
+  // A pseudo-call usually arrives bracketed -- `[showQuiz(...)]` -- so include
+  // the bracket in the held text instead of stranding it in the prose.
+  if (earliest > 0 && text[earliest - 1] === "[") return earliest - 1;
+  return earliest;
 }
 
 /**
- * Recover a quiz a model emitted as a text JSON blob instead of a native
- * `showQuiz` tool call.
+ * Whether held text can still turn out to be a leaked quiz. The markers are
+ * deliberately broad, so this bails out of the inevitable false positives as
+ * soon as the text rules a quiz out -- a `{` in prose or LaTeX, a ```js code
+ * block -- and the rest of that answer goes back to streaming live.
+ */
+function stillPlausible(held: string): boolean {
+  const text = held.replace(/^\s+/, "");
+  if (text.length === 0) return true;
+  if (text[0] === "{") {
+    // A JSON object opens with a quoted key (or closes immediately). Prose like
+    // "the set {a, b}" or "\frac{1}{2}" is ruled out at the very next char.
+    return /^\{\s*(?:"|\}|$)/.test(text);
+  }
+  if (text[0] === "`") {
+    const newline = text.indexOf("\n");
+    // Fence info-line still arriving: keep holding, but not indefinitely.
+    if (newline === -1) return text.length <= 20;
+    const info = text.slice(0, newline).replace(/`/g, "").trim().toLowerCase();
+    return info === "" || info === "json";
+  }
+  // Pseudo-call: rule it out as soon as the arg list proves it isn't a quiz, so
+  // prose that merely mentions `showQuiz()` doesn't buffer the rest of the
+  // block. A real call names one of its two args up front; anything that closes
+  // its parens, or runs past the window, without naming either is not a call.
+  const args = text.slice(text.indexOf("(") + 1);
+  if (args.length < PSEUDO_ARG_WINDOW && !args.includes(")")) return true;
+  return /quiz_title|questions/.test(args);
+}
+
+/**
+ * Recover a quiz a model emitted as text instead of a native `showQuiz` tool
+ * call.
  *
  * Some otherwise tool-capable models (varies by model/provider) serialize the
  * tool call into the assistant *text* channel, so the AI SDK forms no
- * `tool-showQuiz` part and the raw `{"quiz_title":...}` JSON renders as prose.
- * This transform holds a text block ONLY while it looks like it could be that
- * JSON (see `classifyBlock`: a leading `{`, or a ```json / bare ``` fence). If
- * the held block parses to a renderable quiz it is dropped and replaced with a
- * synthetic `tool-input-available` chunk -- identical to a native call, so it
- * renders as the interactive widget and persists like one. Otherwise the held
- * chunks are flushed unchanged.
+ * `tool-showQuiz` part and the raw call renders as prose. The leak can be the
+ * whole text block or -- as seen in production -- follow a sentence of preamble
+ * ("Here are some quiz questions...") inside the same block, and it can be
+ * either JSON or pseudo-call syntax (see `parseQuizFromText`).
  *
- * Ordinary prose -- and code blocks in other languages (```js, ```python) --
- * stream through live; only quiz-shaped output is buffered, so normal answers
- * keep their token-by-token streaming.
+ * So this watches each text block for a leak marker, holding back only the few
+ * characters that could be an incomplete marker. Once a marker appears, the
+ * text from that point is held; if it parses to a renderable quiz the held text
+ * is dropped and replaced with a synthetic `tool-input-available` chunk --
+ * identical to a native call, so it renders as the interactive widget and
+ * persists like one. Any preamble before the marker is kept as text; a held
+ * block that turns out not to be a quiz is emitted unchanged.
+ *
+ * Ordinary prose keeps streaming token by token: text is only withheld from a
+ * marker onward, and `stillPlausible` releases it again as soon as the shape
+ * rules a quiz out.
+ *
+ * Accepted limitation: when a block holds a non-quiz JSON blob (or fence) AND a
+ * real leak after it, recovery drops everything from the first marker on, so the
+ * intervening content is lost with the leak. A quiz turn that also contains an
+ * unrelated JSON blob isn't a shape worth the extra state.
  */
 export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
-  let holding = false;
-  // Whether the held block has been classified yet (prose vs quiz-candidate).
-  let classified = false;
-  let heldChunks: Chunk[] = [];
-  let heldText = "";
-  let heldId: string | null = null;
+  /** null between blocks; otherwise the id of the block being processed. */
+  let blockId: string | null = null;
+  let startChunk: Chunk | null = null;
+  let startEmitted = false;
+  /** Chunks of the current block not yet emitted, oldest first. */
+  let pending: Chunk[] = [];
+  let pendingText = "";
+  /** Index in `pendingText` where a leak starts, or -1 while still watching. */
+  let markerAt = -1;
 
   const reset = () => {
-    holding = false;
-    classified = false;
-    heldChunks = [];
-    heldText = "";
-    heldId = null;
+    blockId = null;
+    startChunk = null;
+    startEmitted = false;
+    pending = [];
+    pendingText = "";
+    markerAt = -1;
   };
 
-  const flush = (controller: TransformStreamDefaultController<Chunk>) => {
-    for (const c of heldChunks) controller.enqueue(c);
-    reset();
+  const deltaOf = (chunk: Chunk): string =>
+    (chunk as { delta?: string }).delta ?? "";
+
+  const emitStart = (controller: TransformStreamDefaultController<Chunk>) => {
+    if (startEmitted || !startChunk) return;
+    controller.enqueue(startChunk);
+    startEmitted = true;
+  };
+
+  /** Emit every unemitted chunk of the block exactly as it arrived. */
+  const flushPending = (
+    controller: TransformStreamDefaultController<Chunk>,
+  ) => {
+    if (pending.length > 0 || !startEmitted) emitStart(controller);
+    for (const chunk of pending) controller.enqueue(chunk);
+    pending = [];
+    pendingText = "";
+    markerAt = -1;
   };
 
   return new TransformStream<Chunk, Chunk>({
     transform(chunk, controller) {
       if (chunk.type === "text-start") {
-        // A new text block starts; flush any still-held block first (defensive --
-        // a well-formed stream closes a block before opening the next).
-        if (holding) flush(controller);
-        holding = true;
-        classified = false;
-        heldChunks = [chunk];
-        heldText = "";
-        heldId = chunk.id;
+        // Defensive: a well-formed stream closes a block before opening another.
+        if (blockId !== null) flushPending(controller);
+        reset();
+        blockId = chunk.id;
+        startChunk = chunk;
         return;
       }
 
-      if (holding && chunk.type === "text-delta" && chunk.id === heldId) {
-        heldChunks.push(chunk);
-        heldText += chunk.delta;
-        if (!classified) {
-          const decision = classifyBlock(heldText);
-          if (decision === "prose") {
-            // Release the held chunks and stop holding so the rest of the block
-            // streams through live.
-            classified = true;
-            flush(controller);
-          } else if (decision === "quiz-candidate") {
-            // Keep holding until text-end, then try to recover a quiz.
-            classified = true;
+      const isBlockDelta =
+        blockId !== null && chunk.type === "text-delta" && chunk.id === blockId;
+
+      if (isBlockDelta) {
+        pending.push(chunk);
+        pendingText += deltaOf(chunk);
+
+        if (markerAt === -1) {
+          markerAt = findMarker(pendingText);
+          if (markerAt === -1) {
+            // Release everything except the tail that could still be the start
+            // of a marker, so prose streams live.
+            while (pending.length > 0) {
+              const head = pending[0]!;
+              const headLength = deltaOf(head).length;
+              if (pendingText.length - headLength < MARKER_LOOKBACK) break;
+              emitStart(controller);
+              controller.enqueue(head);
+              pending.shift();
+              pendingText = pendingText.slice(headLength);
+            }
+            return;
           }
-          // "pending": not enough text to decide yet -- keep buffering.
+        }
+
+        // Holding: give up as soon as the held text can't be a quiz (or grows
+        // past the cap) and go back to watching the rest of the block.
+        const held = pendingText.slice(markerAt);
+        if (held.length > MAX_HELD_CHARS || !stillPlausible(held)) {
+          flushPending(controller);
         }
         return;
       }
 
-      if (holding && chunk.type === "text-end" && chunk.id === heldId) {
-        heldChunks.push(chunk);
-        const quiz = parseQuizFromText(heldText);
-        if (quiz) {
-          // Drop the JSON text; emit a native-looking tool call in its place.
+      if (
+        blockId !== null &&
+        chunk.type === "text-end" &&
+        chunk.id === blockId
+      ) {
+        const quiz =
+          markerAt === -1
+            ? null
+            : parseQuizFromText(pendingText.slice(markerAt));
+        if (!quiz) {
+          flushPending(controller);
+          controller.enqueue(chunk);
           reset();
-          controller.enqueue({
-            type: "tool-input-available",
-            toolCallId: nanoid(),
-            toolName: "showQuiz",
-            input: quiz,
-          } as Chunk);
-        } else {
-          flush(controller);
+          return;
         }
+        // Drop the leaked call. Keep any preamble before it as text -- it is a
+        // real part of the answer -- and close the block only if text was
+        // emitted, so a leak-only block leaves no empty bubble behind.
+        const preamble = pendingText.slice(0, markerAt);
+        if (startEmitted || preamble.trim().length > 0) {
+          emitStart(controller);
+          if (preamble.length > 0) {
+            controller.enqueue({
+              type: "text-delta",
+              id: blockId,
+              delta: preamble,
+            } as Chunk);
+          }
+          controller.enqueue(chunk);
+        }
+        controller.enqueue({
+          type: "tool-input-available",
+          toolCallId: nanoid(),
+          toolName: "showQuiz",
+          input: quiz,
+        } as Chunk);
+        reset();
         return;
       }
 
-      // Any other chunk (tool parts, a delta for a different id, etc.). If a
-      // block is still held, flush it first to preserve ordering.
-      if (holding) flush(controller);
+      // Any other chunk (tool parts, a delta for a different id, etc.). Flush an
+      // open block first to preserve ordering.
+      if (blockId !== null) {
+        flushPending(controller);
+        reset();
+      }
       controller.enqueue(chunk);
     },
     flush(controller) {
-      if (holding) flush(controller);
+      if (blockId !== null) flushPending(controller);
+      reset();
     },
   });
 }
