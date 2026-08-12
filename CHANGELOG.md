@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.33.6](https://github.com/akhileshrangani4/teachanything/compare/v1.33.5...v1.33.6) (2026-08-12)
+
+
+### Bug Fixes
+
+* **quiz:** recover leaked quiz calls after prose and in pseudo-call syntax ([#432](https://github.com/akhileshrangani4/teachanything/issues/432)) ([6f3c046](https://github.com/akhileshrangani4/teachanything/commit/6f3c046787b21fefe5f9619256fa42b05cd52f27))
+* **quiz:** salvage a quiz the token limit cut off instead of failing ([#433](https://github.com/akhileshrangani4/teachanything/issues/433)) ([285120b](https://github.com/akhileshrangani4/teachanything/commit/285120b0b16adaf1e21d8f09461ddc7ec9c77382))
+
 ## [1.33.5](https://github.com/akhileshrangani4/teachanything/compare/v1.33.4...v1.33.5) (2026-08-11)
 
 

@@ -128,4 +128,127 @@ describe("recoverLeakedQuiz", () => {
     const input = textBlock("t1", ["   Hello there"]);
     expect(await pump(input)).toEqual(input);
   });
+
+  /**
+   * A leak does not have to start the text block. Models routinely write a
+   * sentence of preamble ("Here are some quiz questions...") and then emit the
+   * call, all inside one text block -- the shape reported in production
+   * 2026-08-07. The preamble is a real answer and must still stream; only the
+   * leaked call is replaced by the widget.
+   */
+  describe("leak after a prose preamble", () => {
+    const preamble = "Here are some quiz questions for you.\n\n";
+
+    const textOf = (chunks: Chunk[]) =>
+      chunks
+        .filter((c) => c.type === "text-delta")
+        .map((c) => c.delta)
+        .join("");
+
+    it("recovers a JSON quiz that follows prose in the same block", async () => {
+      const out = await pump(textBlock("t1", [preamble, JSON.stringify(quiz)]));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        toolName: "showQuiz",
+        input: quiz,
+      });
+      // The preamble survives; the JSON does not.
+      expect(textOf(out)).toBe(preamble);
+    });
+
+    it("recovers a pseudo-call that follows prose in the same block", async () => {
+      const call = `[showQuiz(quiz_title="${quiz.quiz_title}", questions=${JSON.stringify(quiz.questions)})]`;
+      const out = await pump(textBlock("t1", [preamble, call]));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        toolName: "showQuiz",
+        input: quiz,
+      });
+      expect(textOf(out)).toBe(preamble);
+    });
+
+    it("recovers a leak split across deltas mid-marker", async () => {
+      const call = `[showQuiz(quiz_title="${quiz.quiz_title}", questions=${JSON.stringify(quiz.questions)})]`;
+      // Marker split so no single delta contains "showQuiz(" whole.
+      const deltas = [
+        preamble + "[show",
+        "Quiz(quiz_",
+        call.slice("[showQuiz(quiz_".length),
+      ];
+      const out = await pump(textBlock("t1", deltas));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        input: quiz,
+      });
+      expect(textOf(out)).toBe(preamble);
+    });
+
+    it("keeps prose containing braces streaming as text", async () => {
+      // A brace in ordinary prose must not swallow the rest of the answer.
+      const input = textBlock("t1", [
+        "The empty set is written {a, b} ",
+        "in most textbooks, and \\frac{1}{2} is a half.",
+      ]);
+      const out = await pump(input);
+      expect(out.some((c) => c.type === "tool-input-available")).toBe(false);
+      expect(textOf(out)).toBe(textOf(input));
+    });
+
+    it("keeps prose that merely mentions showQuiz() streaming as text", async () => {
+      // The marker is broad on purpose, so an answer that talks about the tool
+      // must be released as soon as its parens close without a quiz arg --
+      // otherwise the rest of the answer stops streaming token by token.
+      const input = textBlock("t1", [
+        "I would call showQuiz() but there is no material ",
+        "in this course to build a quiz from, sorry.",
+      ]);
+      const out = await pump(input);
+      expect(out).toEqual(input);
+    });
+
+    it("still holds a pretty-printed pseudo-call whose args start on the next line", async () => {
+      const call = `[showQuiz(\n  quiz_title="${quiz.quiz_title}",\n  questions=${JSON.stringify(quiz.questions)}\n)]`;
+      const out = await pump(textBlock("t1", [preamble, call]));
+      expect(out.at(-1)).toMatchObject({
+        type: "tool-input-available",
+        input: quiz,
+      });
+      expect(textOf(out)).toBe(preamble);
+    });
+
+    it("leaves a non-quiz JSON blob after prose as text", async () => {
+      const input = textBlock("t1", [preamble, '{"foo":"bar"}']);
+      const out = await pump(input);
+      expect(out.some((c) => c.type === "tool-input-available")).toBe(false);
+      expect(textOf(out)).toBe(textOf(input));
+    });
+
+    // The verbatim turn reported from production on 2026-08-07 (spacing and all),
+    // as the strongest guard against regressing the case that was actually broken.
+    it("recovers the reported production leak", async () => {
+      const reported = `Here are some quiz questions to assess your understanding of the topics you've mentioned.
+
+[showQuiz(quiz_title="Epistemologies of Gender Quiz", questions=[ { "question": "According to Professor Joubin's 'Five things about gender', what is the primary way gender shapes our society?", "options": [ "Gender is a fixed identity category.", "Gender is a set of evolving social practices.", "Gender is determined solely by biology.", "Gender is irrelevant to societal structures." ], "correct_index": 1, "explanation": "Professor Joubin emphasizes that gender is not an immutable identity category but rather a set of social practices that evolve over time." }, { "question": "Judith Butler argues that gender precedes sex assignment. What does this imply?", "options": [ "Gender is a direct result of biological sex.", "Sex assignment is independent of cultural frameworks.", "Gender influences how sex is assigned and categorized.", "Biological sex determines gender identity." ], "correct_index": 2, "explanation": "Butler suggests that gender is already operative as the scheme of power within which sex assignment takes place." }, { "question": "What is one of the main critiques of traditional understandings of gender epistemology?", "options": [ "That gender is too complex to be studied.", "That knowledge about gender is often biased.", "That gender should be determined solely by biological factors.", "That gender is not relevant to societal structures." ], "correct_index": 1, "explanation": "Systemic discourses about gender often foreclose the possibilities of marginalized narratives." } ])]`;
+      // Split the way it really streams: many small deltas.
+      const deltas: string[] = [];
+      for (let i = 0; i < reported.length; i += 17) {
+        deltas.push(reported.slice(i, i + 17));
+      }
+      const out = await pump(textBlock("t1", deltas));
+
+      const toolPart = out.at(-1) as {
+        type: string;
+        toolName: string;
+        input: { quiz_title: string; questions: unknown[] };
+      };
+      expect(toolPart.type).toBe("tool-input-available");
+      expect(toolPart.toolName).toBe("showQuiz");
+      expect(toolPart.input.quiz_title).toBe("Epistemologies of Gender Quiz");
+      expect(toolPart.input.questions).toHaveLength(3);
+      // The preamble is kept; the pseudo-call never reaches the client.
+      expect(textOf(out)).toBe(
+        "Here are some quiz questions to assess your understanding of the topics you've mentioned.\n\n",
+      );
+    });
+  });
 });

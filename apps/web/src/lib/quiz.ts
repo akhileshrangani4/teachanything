@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { mcQuestionSchema, type MCQuestion } from "@/lib/questions";
 
+/** Most questions a quiz may carry. Also the ceiling `repairQuiz` trims to. */
+export const MAX_QUIZ_QUESTIONS = 5;
+
+/** Longest quiz title. See the note on `quizSchema.quiz_title`. */
+export const MAX_QUIZ_TITLE_LENGTH = 200;
+
 /**
  * A multiple-choice quiz rendered as an interactive widget. Used as the
  * `inputSchema` of the `showQuiz` tool, so the model fills this in directly.
@@ -9,8 +15,8 @@ export const quizSchema = z.object({
   // Bounded: the title is echoed into the professor dashboard, exports, and
   // (sanitized) the model results note, so an unbounded student-steerable
   // string is both a UI and prompt-size hazard.
-  quiz_title: z.string().min(1).max(200),
-  questions: z.array(mcQuestionSchema).min(1).max(5),
+  quiz_title: z.string().min(1).max(MAX_QUIZ_TITLE_LENGTH),
+  questions: z.array(mcQuestionSchema).min(1).max(MAX_QUIZ_QUESTIONS),
 });
 
 export type QuizQuestion = MCQuestion;
@@ -46,17 +52,15 @@ export function isRenderableQuiz(quiz: Quiz): boolean {
 }
 
 /**
- * Extract the first balanced top-level `{...}` object from free text, unwrapping
- * a leading ```json fence if present. Returns the JSON substring or null. Brace
- * counting skips braces inside strings so a `}` in a question/option can't end
- * the object early.
+ * Extract the balanced span that starts at `start` (which must hold the opening
+ * `{` or `[`). Returns the substring or null when the span never closes. Depth
+ * counting skips brackets inside strings so a `}` or `]` in a question/option
+ * can't end the span early.
  */
-function extractJsonObject(raw: string): string | null {
-  let text = raw;
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence?.[1]) text = fence[1];
-  const start = text.indexOf("{");
-  if (start === -1) return null;
+function extractBalanced(text: string, start: number): string | null {
+  const open = text[start];
+  if (open !== "{" && open !== "[") return null;
+  const close = open === "{" ? "}" : "]";
   let depth = 0;
   let inString = false;
   let escaped = false;
@@ -69,8 +73,8 @@ function extractJsonObject(raw: string): string | null {
       continue;
     }
     if (ch === '"') inString = true;
-    else if (ch === "{") depth++;
-    else if (ch === "}") {
+    else if (ch === open) depth++;
+    else if (ch === close) {
       depth--;
       if (depth === 0) return text.slice(start, i + 1);
     }
@@ -79,26 +83,169 @@ function extractJsonObject(raw: string): string | null {
 }
 
 /**
- * Recover a renderable quiz that a model emitted as a text JSON blob instead of
- * a native `showQuiz` tool call. Some (otherwise tool-capable) models serialize
- * the tool call into the assistant text channel; the AI SDK then forms no
- * `tool-showQuiz` part and the raw JSON renders as prose. This parses that text
- * back into a quiz so the server can reconstruct the tool part. Returns null for
- * anything that isn't a structurally valid, renderable quiz -- so ordinary prose
- * (or a non-quiz JSON code block) is left untouched.
+ * Extract the first balanced top-level `{...}` object from free text, unwrapping
+ * a leading ```json fence if present. Returns the JSON substring or null.
  */
-export function parseQuizFromText(text: string): Quiz | null {
-  const candidate = extractJsonObject(text);
-  if (!candidate) return null;
-  let parsed: unknown;
+function extractJsonObject(raw: string): string | null {
+  let text = raw;
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence?.[1]) text = fence[1];
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+  return extractBalanced(text, start);
+}
+
+/**
+ * Parse a `showQuiz` call the model wrote in its native pseudo-call syntax
+ * instead of as a JSON object:
+ *
+ *   [showQuiz(quiz_title="Gender Quiz", questions=[ { "question": ... } ])]
+ *
+ * Llama-family models emit this shape when their tool-call channel isn't used,
+ * so the whole call lands in the assistant text. Only the two keyword args are
+ * read, in either order; the `questions` payload must be valid JSON (it is, in
+ * practice -- these models serialize the array itself as JSON). Anything looser
+ * is rejected rather than repaired, so ordinary prose can't be misread as a
+ * quiz. Returns a candidate object for schema validation, or null.
+ */
+function extractPseudoCall(raw: string): unknown | null {
+  const call = raw.match(/showQuiz\s*\(/);
+  if (call?.index === undefined) return null;
+  const body = raw.slice(call.index + call[0].length);
+
+  const title = body.match(/quiz_title\s*[=:]\s*("(?:[^"\\]|\\.)*")/);
+  const questionsKey = body.match(/questions\s*[=:]\s*\[/);
+  if (!title?.[1] || questionsKey?.index === undefined) return null;
+
+  const arrayStart = questionsKey.index + questionsKey[0].length - 1;
+  const questions = extractBalanced(body, arrayStart);
+  if (!questions) return null;
+
   try {
-    parsed = JSON.parse(candidate);
+    return {
+      quiz_title: JSON.parse(title[1]) as string,
+      questions: JSON.parse(questions) as unknown,
+    };
   } catch {
     return null;
   }
-  const result = quizSchema.safeParse(parsed);
-  if (!result.success) return null;
-  return isRenderableQuiz(result.data) ? result.data : null;
+}
+
+/**
+ * Recover a renderable quiz that a model emitted as text instead of a native
+ * `showQuiz` tool call. Some (otherwise tool-capable) models serialize the tool
+ * call into the assistant text channel; the AI SDK then forms no
+ * `tool-showQuiz` part and the raw call renders as prose. Two shapes are
+ * recovered: a JSON object (optionally in a ```json fence) and a pseudo-call
+ * (`showQuiz(quiz_title=..., questions=[...])`). The JSON shape is tried first
+ * -- it's the cheaper parse and the more common leak. Returns null for anything
+ * that isn't a structurally valid, renderable quiz, so ordinary prose (or a
+ * non-quiz JSON code block) is left untouched.
+ */
+export function parseQuizFromText(text: string): Quiz | null {
+  for (const candidate of [jsonCandidate(text), extractPseudoCall(text)]) {
+    if (candidate === null) continue;
+    const result = quizSchema.safeParse(candidate);
+    if (result.success && isRenderableQuiz(result.data)) return result.data;
+  }
+  return null;
+}
+
+/**
+ * Salvage a quiz from tool input the model never finished writing. A low
+ * `maxTokens` on the chatbot cuts generation off mid-JSON, which leaves either
+ * an unparseable input string or (when the args were streamed) no tool call at
+ * all -- both of which the student sees as a failure even though the questions
+ * that did arrive are perfectly good.
+ *
+ * So take the title and every question object that closed, and drop the one that
+ * was still being written. Requires the title to have arrived: it is normally
+ * the first key, and inventing one would put words in the professor's mouth.
+ */
+function salvageTruncatedQuiz(text: string): unknown | null {
+  const title = text.match(/"quiz_title"\s*:\s*("(?:[^"\\]|\\.)*")/);
+  const questionsKey = text.search(/"questions"\s*:\s*\[/);
+  if (!title?.[1] || questionsKey === -1) return null;
+
+  const questions: unknown[] = [];
+  let cursor = text.indexOf("[", questionsKey) + 1;
+  for (;;) {
+    const objectStart = text.indexOf("{", cursor);
+    if (objectStart === -1) break;
+    const object = extractBalanced(text, objectStart);
+    if (!object) break; // the question that was cut off mid-write
+    try {
+      questions.push(JSON.parse(object));
+    } catch {
+      break;
+    }
+    cursor = objectStart + object.length;
+  }
+  if (questions.length === 0) return null;
+
+  try {
+    return { quiz_title: JSON.parse(title[1]) as string, questions };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Coerce whatever the model produced into a renderable quiz, dropping the parts
+ * that can't render, or null when nothing usable is left.
+ *
+ * Tool input reaches us in three broken shapes, and all three currently show the
+ * student "Couldn't build the quiz" even when most of the quiz is fine:
+ *
+ * - more questions than the schema allows (trimmed to `MAX_QUIZ_QUESTIONS`)
+ * - individual malformed questions: missing explanation, too many options, a
+ *   `correct_index` past the last option (dropped, the rest kept)
+ * - input cut off mid-write by the token limit (see `salvageTruncatedQuiz`),
+ *   arriving either as an unparseable string or as accumulated partial text
+ *
+ * A quiz that is already valid passes through unchanged, so callers can use this
+ * as the single "can the client render this?" predicate.
+ */
+export function repairQuiz(input: unknown): Quiz | null {
+  const candidate =
+    typeof input === "string"
+      ? (jsonCandidate(input) ?? salvageTruncatedQuiz(input))
+      : input;
+  if (typeof candidate !== "object" || candidate === null) return null;
+
+  const { quiz_title: title, questions } = candidate as {
+    quiz_title?: unknown;
+    questions?: unknown;
+  };
+  if (typeof title !== "string" || title.trim().length === 0) return null;
+  if (!Array.isArray(questions)) return null;
+
+  const usable = questions
+    .filter((question) => {
+      const parsed = mcQuestionSchema.safeParse(question);
+      return (
+        parsed.success && parsed.data.correct_index < parsed.data.options.length
+      );
+    })
+    .slice(0, MAX_QUIZ_QUESTIONS);
+  if (usable.length === 0) return null;
+
+  const result = quizSchema.safeParse({
+    quiz_title: title.slice(0, MAX_QUIZ_TITLE_LENGTH),
+    questions: usable,
+  });
+  return result.success && isRenderableQuiz(result.data) ? result.data : null;
+}
+
+/** The first balanced `{...}` in `text`, JSON-parsed, or null. */
+function jsonCandidate(text: string): unknown | null {
+  const candidate = extractJsonObject(text);
+  if (!candidate) return null;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
 }
 
 /**
