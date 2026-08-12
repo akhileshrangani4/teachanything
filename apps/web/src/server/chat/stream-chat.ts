@@ -5,6 +5,7 @@ import {
   hasToolCall,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  type InferUIMessageChunk,
 } from "ai";
 import { eq, and, desc } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -34,7 +35,7 @@ import { logInfo, logError, logWarn } from "@/lib/logger";
 import {
   studyTools,
   producedRenderableQuiz,
-  STUDY_TOOLS_SYSTEM_ADDENDUM,
+  buildStudyToolsAddendum,
   type StudyUIMessage,
   type StudyMessageMetadata,
 } from "./study-tools";
@@ -48,6 +49,10 @@ import {
 } from "./ui-messages";
 import { stripRetrievalOutputs } from "./stream-filter";
 import { recoverLeakedQuiz } from "./recover-quiz";
+import {
+  repairQuizToolParts,
+  closeTruncatedQuizInputs,
+} from "./repair-quiz-parts";
 import { ChatRequestError } from "./request";
 import { buildStudyResultsNote } from "@/server/study/model-note";
 
@@ -92,6 +97,36 @@ export function newSessionId(): string {
  * internal timeout fires before Vercel kills the function, giving `onFinish`
  * time to persist the partial turn. */
 const STREAM_TIMEOUT_MS = 290_000;
+
+/**
+ * Forward every chunk of `source` to the response, in order, and resolve once it
+ * is drained. Chunks still stream live -- each is written the moment it arrives.
+ *
+ * This is deliberately not `writer.merge`. Merging returns immediately and lets
+ * the pump forward chunks concurrently with the rest of `execute`, so a write
+ * made after `await primary.text` can overtake chunks still in flight. That is
+ * not hypothetical: with a quiz cut off at the token limit, the tail of the
+ * stream IS that quiz's `tool-input-delta` chunks, and the closing
+ * `tool-input-available` written afterwards was observed landing *before* them,
+ * which re-opens the very "Building your quiz..." skeleton it exists to resolve.
+ * The same inversion applies to the trailing `finish` chunk that carries sources
+ * and the truncation notice. Draining here makes those writes strictly last.
+ */
+async function forward(
+  writer: { write: (chunk: InferUIMessageChunk<StudyUIMessage>) => void },
+  source: ReadableStream<InferUIMessageChunk<StudyUIMessage>>,
+): Promise<void> {
+  const reader = source.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      writer.write(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 export async function streamChat(params: {
   chatbot: typeof chatbots.$inferSelect;
@@ -296,7 +331,9 @@ export async function streamChat(params: {
     studyResponsesByToolCallId,
   );
 
-  const studyAddendum = modelCanUseTools ? STUDY_TOOLS_SYSTEM_ADDENDUM : "";
+  const studyAddendum = modelCanUseTools
+    ? buildStudyToolsAddendum(maxOutputTokens)
+    : "";
   const primarySystemPrompt =
     (useRetrievalTools
       ? chatbot.systemPrompt +
@@ -370,6 +407,12 @@ export async function streamChat(params: {
     originalMessages: uiMessages,
     onError: onStreamError,
     execute: async ({ writer }) => {
+      // Partial `showQuiz` input, accumulated per tool call id. `maxTokens` caps
+      // the whole turn, so a low setting can cut the model off mid-input; when
+      // the args were streamed the SDK then forms no tool call at all, leaving
+      // `steps` empty, so this is the only record of what the model wrote.
+      const partialQuizInput = new Map<string, string>();
+
       // Primary turn: retrieval + study tools (or study-only / none).
       const primary = streamText({
         model: aiClient.getModel(modelId),
@@ -383,6 +426,19 @@ export async function streamChat(params: {
         temperature,
         maxOutputTokens,
         abortSignal,
+        onChunk({ chunk }) {
+          if (
+            chunk.type === "tool-input-start" &&
+            chunk.toolName === "showQuiz"
+          ) {
+            partialQuizInput.set(chunk.id, "");
+          } else if (chunk.type === "tool-input-delta") {
+            const written = partialQuizInput.get(chunk.id);
+            if (written !== undefined) {
+              partialQuizInput.set(chunk.id, written + chunk.delta);
+            }
+          }
+        },
       });
 
       const primaryUiStream = primary
@@ -391,12 +447,17 @@ export async function streamChat(params: {
           sendFinish: false,
           onError: onStreamError,
         })
-        .pipeThrough(stripRetrievalOutputs());
+        .pipeThrough(stripRetrievalOutputs())
+        // Salvage a quiz the SDK rejected (input cut off at maxTokens, too many
+        // questions, one botched question) into the questions that do render,
+        // instead of showing the student an error. See repairQuizToolParts.
+        .pipeThrough(repairQuizToolParts());
       // Study-tool-capable turns: reconstruct a quiz the model leaked as a text
       // JSON blob (instead of a native showQuiz call) into a real tool part, so
       // it renders as the widget rather than raw JSON. Only quiz-shaped text is
       // buffered; ordinary answers still stream live. See recoverLeakedQuiz.
-      writer.merge(
+      await forward(
+        writer,
         modelCanUseTools
           ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
           : primaryUiStream,
@@ -418,10 +479,29 @@ export async function streamChat(params: {
       const doneInput = doneCall?.input as { answer?: unknown } | undefined;
       const doneAnswer =
         typeof doneInput?.answer === "string" ? doneInput.answer : undefined;
-      // Only a schema-valid showQuiz call counts as a visible answer; an
-      // `invalid: true` call renders as an error, so it must not suppress the
+      // Only a quiz the client can render (as written, or after repair) counts
+      // as a visible answer; one that renders as an error must not suppress the
       // fallback below.
       const producedQuiz = producedRenderableQuiz(allToolCalls);
+
+      // A quiz input the token limit cut off mid-write leaves the client with a
+      // "Building your quiz..." skeleton and nothing in `steps`. Resolve every
+      // such part to the questions that finished, or to an error when none did.
+      const closing = closeTruncatedQuizInputs(
+        partialQuizInput,
+        allToolCalls.map((tc) => tc.toolCallId),
+      );
+      let salvagedTruncatedQuiz = false;
+      for (const chunk of closing) {
+        writer.write(chunk);
+        salvagedTruncatedQuiz ||= chunk.type === "tool-input-available";
+        logWarn(
+          chunk.type === "tool-input-available"
+            ? "Quiz input truncated; salvaged the completed questions"
+            : "Quiz input truncated with nothing to salvage",
+          { chatbotId: chatbot.id, modelId, maxOutputTokens },
+        );
+      }
 
       // If the model answered only through the `done` tool (no free text),
       // surface that answer as a text part so it renders and persists as text.
@@ -435,7 +515,8 @@ export async function streamChat(params: {
       const hasVisibleAnswer =
         Boolean(primaryText.trim()) ||
         Boolean(doneAnswer?.trim()) ||
-        producedQuiz;
+        producedQuiz ||
+        salvagedTruncatedQuiz;
 
       let finishReason = await primary.finishReason;
 
@@ -459,15 +540,18 @@ export async function streamChat(params: {
           maxOutputTokens,
           abortSignal,
         });
-        writer.merge(
-          fallback.toUIMessageStream<StudyUIMessage>({
-            sendReasoning: false,
-            sendStart: false,
-            sendFinish: false,
-            onError: onStreamError,
-          }),
-        );
         try {
+          // Drained rather than merged, so the trailing `finish` chunk (sources,
+          // truncation notice) cannot overtake the answer's last tokens.
+          await forward(
+            writer,
+            fallback.toUIMessageStream<StudyUIMessage>({
+              sendReasoning: false,
+              sendStart: false,
+              sendFinish: false,
+              onError: onStreamError,
+            }),
+          );
           await fallback.text;
           finishReason = await fallback.finishReason;
         } catch {
