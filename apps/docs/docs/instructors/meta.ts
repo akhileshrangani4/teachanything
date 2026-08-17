@@ -10,6 +10,7 @@ export default defineMeta({
     "upload-materials",
     "add-website-content",
     "attach-materials",
+    "choose-a-model",
     "customize",
     "share-and-embed",
     "review-conversations",
