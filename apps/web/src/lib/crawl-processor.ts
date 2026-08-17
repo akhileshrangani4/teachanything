@@ -7,7 +7,7 @@ import {
   chatbotFileAssociations,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   discoverPages,
   fetchAndExtractPage,
@@ -52,6 +52,18 @@ export async function dispatchCrawlJob(opts: {
   }
 }
 
+/**
+ * Signals that the source stopped being ours to advance -- stopped by the user
+ * or timed out by the stale sweep -- so the caller unwinds without writing a
+ * failure over the status that already settled it.
+ */
+class CrawlNoLongerRunningError extends Error {
+  constructor() {
+    super("Crawl is no longer running");
+    this.name = "CrawlNoLongerRunningError";
+  }
+}
+
 function getFriendlyErrorMessage(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
   if (msg.includes("Incorrect API key") || msg.includes("API key"))
@@ -90,10 +102,27 @@ export async function processCrawlDiscovery(params: {
       return;
     }
 
-    await db
+    // Only claim a source that is still waiting to be crawled. `discovering`
+    // stays claimable so a QStash redelivery can resume after a worker died
+    // mid-run, but a source the user stopped is left alone.
+    const claimed = await db
       .update(crawlSources)
       .set({ status: "discovering", updatedAt: new Date() })
-      .where(eq(crawlSources.id, crawlSourceId));
+      .where(
+        and(
+          eq(crawlSources.id, crawlSourceId),
+          inArray(crawlSources.status, ["pending", "discovering"]),
+        ),
+      )
+      .returning({ id: crawlSources.id });
+
+    if (claimed.length === 0) {
+      logInfo("Crawl no longer running, skipping discovery", {
+        crawlSourceId,
+        status: source.status,
+      });
+      return;
+    }
 
     const robotsText = await fetchRobotsText(source.rootUrl);
 
@@ -214,7 +243,7 @@ export async function processCrawlDiscovery(params: {
         ...insertedPages,
       ];
 
-      await tx
+      const started = await tx
         .update(crawlSources)
         .set({
           status: "crawling",
@@ -226,7 +255,17 @@ export async function processCrawlDiscovery(params: {
           }),
           updatedAt: new Date(),
         })
-        .where(eq(crawlSources.id, crawlSourceId));
+        .where(
+          and(
+            eq(crawlSources.id, crawlSourceId),
+            eq(crawlSources.status, "discovering"),
+          ),
+        )
+        .returning({ id: crawlSources.id });
+
+      // Stopped while discovery was running. Throwing rolls back the page
+      // upserts above so no work is queued against a source the user ended.
+      if (started.length === 0) throw new CrawlNoLongerRunningError();
 
       return records;
     });
@@ -259,6 +298,13 @@ export async function processCrawlDiscovery(params: {
       }
     }
   } catch (error) {
+    if (error instanceof CrawlNoLongerRunningError) {
+      logInfo("Crawl stopped during discovery, discarding results", {
+        crawlSourceId,
+      });
+      return;
+    }
+
     logError(error, "Crawl discovery failed", { crawlSourceId });
     await db
       .update(crawlSources)
@@ -269,7 +315,14 @@ export async function processCrawlDiscovery(params: {
         }),
         updatedAt: new Date(),
       })
-      .where(eq(crawlSources.id, crawlSourceId));
+      // A source that already settled keeps its status -- a discovery error
+      // must not resurrect it as a fresh failure.
+      .where(
+        and(
+          eq(crawlSources.id, crawlSourceId),
+          inArray(crawlSources.status, ["pending", "discovering", "crawling"]),
+        ),
+      );
   }
 }
 
