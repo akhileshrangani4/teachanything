@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.0](https://github.com/akhileshrangani4/teachanything/compare/v1.33.6...v1.34.0) (2026-08-12)
+
+
+### Features
+
+* **chat:** surface pipeline working steps in the thinking indicator ([#404](https://github.com/akhileshrangani4/teachanything/issues/404)) ([6cca00f](https://github.com/akhileshrangani4/teachanything/commit/6cca00fdb2ff08de5d9da4e3c98328ac3273bc65))
+
 ## [1.33.6](https://github.com/akhileshrangani4/teachanything/compare/v1.33.5...v1.33.6) (2026-08-12)
 
 

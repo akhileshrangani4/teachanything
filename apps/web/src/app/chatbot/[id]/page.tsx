@@ -69,7 +69,7 @@ export default function ChatbotDetailPage() {
     messages,
     currentMessage,
     setCurrentMessage,
-    isStreaming,
+    status,
     messagesEndRef,
     chatbot,
     chatbotLoading,
@@ -213,7 +213,7 @@ export default function ChatbotDetailPage() {
             <ErrorBoundary>
               <ChatInterface
                 messages={messages}
-                isStreaming={isStreaming}
+                status={status}
                 currentMessage={currentMessage}
                 setCurrentMessage={setCurrentMessage}
                 handleSendMessage={handleSendMessage}

@@ -23,6 +23,7 @@ export default function EmbedWindowPage() {
     currentMessage,
     setCurrentMessage,
     isStreaming,
+    status,
     messagesEndRef,
     chatbot,
     chatbotLoading,
@@ -72,7 +73,7 @@ export default function EmbedWindowPage() {
         <ErrorBoundary>
           <ChatInterface
             messages={messages}
-            isStreaming={isStreaming}
+            status={status}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
