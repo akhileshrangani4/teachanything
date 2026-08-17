@@ -49,10 +49,18 @@ export function buildStudyResultsNote(
         const shown = responses.slice(-MAX_ATTEMPTS_PER_TOOL);
         const offset = responses.length - shown.length;
         const attempts = shown
-          .map(
-            (r, i) =>
-              `attempt ${offset + i + 1} ${handler.summarizeResponseForModel(r.response)}`,
-          )
+          .map((r, i) => {
+            // Spell out what was missed for the latest attempt only: that's the
+            // one a student asks about, and detailing every attempt would grow
+            // the system prompt on each retake.
+            const isLatest = i === shown.length - 1;
+            const summary = handler.summarizeResponseForModel(
+              r.response,
+              input,
+              isLatest,
+            );
+            return `attempt ${offset + i + 1} ${summary}`;
+          })
           .join("; ");
         const omitted =
           offset > 0 ? ` (${offset} earlier attempts omitted)` : "";
