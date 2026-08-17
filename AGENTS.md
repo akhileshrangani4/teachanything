@@ -34,7 +34,7 @@ teachanything/
 │   │       ├── openrouter-client.ts  # LLM client with streaming
 │   │       ├── rag-service.ts        # RAG pipeline (chunking, embeddings)
 │   │       ├── crawler.ts            # Web crawler (cheerio + Readability)
-│   │       ├── models.ts             # MODEL_REGISTRY (7 models) + EMBEDDING_MODEL
+│   │       ├── models.ts             # MODEL_REGISTRY (6 models) + EMBEDDING_MODEL
 │   │       ├── token-budget.ts       # Priority-based token allocator
 │   │       └── error-utils.ts        # Shared error helpers
 │   └── logger/                    # Shared structured logger (@teachanything/logger)
@@ -376,7 +376,7 @@ Checklist that the hook does NOT enforce — still your responsibility:
 | `packages/db/src/schema.ts`            | Complete database schema                                              |
 | `packages/ai/src/openrouter-client.ts` | LLM client with streaming                                             |
 | `packages/ai/src/rag-service.ts`       | Text extraction, chunking, embeddings                                 |
-| `packages/ai/src/models.ts`            | Centralized MODEL_REGISTRY (7 supported models + embedding config)    |
+| `packages/ai/src/models.ts`            | Centralized MODEL_REGISTRY (6 supported models + embedding config)    |
 | `packages/ai/src/crawler.ts`           | Web crawler (cheerio + Mozilla Readability + robots.txt)              |
 | `packages/ai/src/token-budget.ts`      | Priority-based token allocator                                        |
 | `packages/logger/src/index.ts`         | Shared structured logger                                              |
