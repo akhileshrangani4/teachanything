@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.1](https://github.com/akhileshrangani4/teachanything/compare/v1.34.0...v1.34.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **ci:** stop building docs during tests and cache its webfonts ([#436](https://github.com/akhileshrangani4/teachanything/issues/436)) ([b3f0f04](https://github.com/akhileshrangani4/teachanything/commit/b3f0f04f1b5ee0d65c2c94aee0bd7d49774d1c71))
+
 ## [1.34.0](https://github.com/akhileshrangani4/teachanything/compare/v1.33.6...v1.34.0) (2026-08-12)
 
 
