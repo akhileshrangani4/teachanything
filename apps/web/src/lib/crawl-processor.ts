@@ -7,7 +7,7 @@ import {
   chatbotFileAssociations,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   discoverPages,
   fetchAndExtractPage,
@@ -52,6 +52,30 @@ export async function dispatchCrawlJob(opts: {
   }
 }
 
+/**
+ * Signals that the source stopped being ours to advance -- stopped by the user
+ * or timed out by the stale sweep -- so the caller unwinds without writing a
+ * failure over the status that already settled it.
+ */
+class CrawlNoLongerRunningError extends Error {
+  constructor() {
+    super("Crawl is no longer running");
+    this.name = "CrawlNoLongerRunningError";
+  }
+}
+
+/**
+ * Signals that the page vanished under us because the user deleted its source.
+ * That is a normal outcome now that deletion is allowed mid-crawl, so it
+ * unwinds the transaction without taking the failure path.
+ */
+class CrawledPageDeletedError extends Error {
+  constructor() {
+    super("Crawled page was deleted while it was being processed");
+    this.name = "CrawledPageDeletedError";
+  }
+}
+
 function getFriendlyErrorMessage(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
   if (msg.includes("Incorrect API key") || msg.includes("API key"))
@@ -90,14 +114,35 @@ export async function processCrawlDiscovery(params: {
       return;
     }
 
-    await db
+    // Only claim a source that is still waiting to be crawled. `discovering`
+    // stays claimable so a QStash redelivery can resume after a worker died
+    // mid-run, but a source the user stopped is left alone.
+    const claimed = await db
       .update(crawlSources)
       .set({ status: "discovering", updatedAt: new Date() })
-      .where(eq(crawlSources.id, crawlSourceId));
+      .where(
+        and(
+          eq(crawlSources.id, crawlSourceId),
+          inArray(crawlSources.status, ["pending", "discovering"]),
+        ),
+      )
+      .returning({ id: crawlSources.id });
+
+    if (claimed.length === 0) {
+      logInfo("Crawl no longer running, skipping discovery", {
+        crawlSourceId,
+        status: source.status,
+      });
+      return;
+    }
 
     const robotsText = await fetchRobotsText(source.rootUrl);
 
-    const DISCOVERY_TIMEOUT_MS = 5 * 60 * 1000;
+    // Must stay comfortably under the route's maxDuration (300s) -- if the
+    // platform kills the function first, the abort handler never runs and the
+    // source is left stuck in `discovering` forever. The remaining headroom
+    // covers publishing the page jobs below.
+    const DISCOVERY_TIMEOUT_MS = 3 * 60 * 1000;
     const abortController = new AbortController();
     const timeoutId = setTimeout(
       () => abortController.abort(),
@@ -136,7 +181,18 @@ export async function processCrawlDiscovery(params: {
           }),
           updatedAt: new Date(),
         })
-        .where(eq(crawlSources.id, crawlSourceId));
+        // Same guard as the catch below: a source stopped mid-discovery keeps
+        // the status the stop gave it.
+        .where(
+          and(
+            eq(crawlSources.id, crawlSourceId),
+            inArray(crawlSources.status, [
+              "pending",
+              "discovering",
+              "crawling",
+            ]),
+          ),
+        );
       return;
     }
 
@@ -210,7 +266,7 @@ export async function processCrawlDiscovery(params: {
         ...insertedPages,
       ];
 
-      await tx
+      const started = await tx
         .update(crawlSources)
         .set({
           status: "crawling",
@@ -222,7 +278,17 @@ export async function processCrawlDiscovery(params: {
           }),
           updatedAt: new Date(),
         })
-        .where(eq(crawlSources.id, crawlSourceId));
+        .where(
+          and(
+            eq(crawlSources.id, crawlSourceId),
+            eq(crawlSources.status, "discovering"),
+          ),
+        )
+        .returning({ id: crawlSources.id });
+
+      // Stopped while discovery was running. Throwing rolls back the page
+      // upserts above so no work is queued against a source the user ended.
+      if (started.length === 0) throw new CrawlNoLongerRunningError();
 
       return records;
     });
@@ -255,6 +321,13 @@ export async function processCrawlDiscovery(params: {
       }
     }
   } catch (error) {
+    if (error instanceof CrawlNoLongerRunningError) {
+      logInfo("Crawl stopped during discovery, discarding results", {
+        crawlSourceId,
+      });
+      return;
+    }
+
     logError(error, "Crawl discovery failed", { crawlSourceId });
     await db
       .update(crawlSources)
@@ -265,7 +338,14 @@ export async function processCrawlDiscovery(params: {
         }),
         updatedAt: new Date(),
       })
-      .where(eq(crawlSources.id, crawlSourceId));
+      // A source that already settled keeps its status -- a discovery error
+      // must not resurrect it as a fresh failure.
+      .where(
+        and(
+          eq(crawlSources.id, crawlSourceId),
+          inArray(crawlSources.status, ["pending", "discovering", "crawling"]),
+        ),
+      );
   }
 }
 
@@ -294,6 +374,16 @@ export async function processCrawlPage(params: {
 
     if (!source) {
       logInfo("Crawl source not found, skipping", { crawledPageId });
+      return;
+    }
+
+    // The source settled (stopped by the user, or timed out by the stale sweep)
+    // while this job sat in the queue. Drain without reviving it.
+    if (source.status !== "crawling" && source.status !== "discovering") {
+      logInfo("Crawl no longer running, skipping page", {
+        crawledPageId,
+        status: source.status,
+      });
       return;
     }
 
@@ -370,6 +460,15 @@ export async function processCrawlPage(params: {
     );
 
     await db.transaction(async (tx) => {
+      // Hold the source in share mode for the life of this transaction. A
+      // delete takes the exclusive lock, so it cannot slip between the checks
+      // below and the commit and strand the userFile we are about to create.
+      await tx
+        .select({ id: crawlSources.id })
+        .from(crawlSources)
+        .where(eq(crawlSources.id, source.id))
+        .for("share");
+
       const [currentPage] = await tx
         .select({
           metadata: crawledPages.metadata,
@@ -377,6 +476,13 @@ export async function processCrawlPage(params: {
         .from(crawledPages)
         .where(eq(crawledPages.id, crawledPageId))
         .limit(1);
+
+      // The source was deleted mid-flight and the cascade took this page with
+      // it. Abort before creating the userFile -- otherwise the file and its
+      // chunks are orphaned, unreachable from the crawledPages row that the
+      // source-deletion cleanup walks.
+      if (!currentPage) throw new CrawledPageDeletedError();
+
       const customTitle = currentPage?.metadata?.customTitle?.trim();
       const displayTitle = customTitle || pageContent.title || page.url;
       let userFileId = page.userFileId;
@@ -492,6 +598,13 @@ export async function processCrawlPage(params: {
       chunkCount: chunks.length,
     });
   } catch (error) {
+    if (error instanceof CrawledPageDeletedError) {
+      logInfo("Crawl source deleted during page processing, discarding", {
+        crawledPageId,
+      });
+      return;
+    }
+
     logError(error, "Crawl page processing failed", { crawledPageId });
 
     const [failedPage] = await db

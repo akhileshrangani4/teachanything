@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.34.4](https://github.com/akhileshrangani4/teachanything/compare/v1.34.3...v1.34.4) (2026-08-17)
+
+
+### Bug Fixes
+
+* **crawler:** recover stuck crawls, add a stop button, unblock deletion ([#445](https://github.com/akhileshrangani4/teachanything/issues/445)) ([7b68788](https://github.com/akhileshrangani4/teachanything/commit/7b687884535ccf01a6da5307e2a551840a73ecda))
+* **quiz:** accept the answer field models actually emit ([#446](https://github.com/akhileshrangani4/teachanything/issues/446)) ([c23823d](https://github.com/akhileshrangani4/teachanything/commit/c23823dea1159b30c77207405e110105ddeff9e8))
+
+
+### Documentation
+
+* **instructors:** add Choose an open-source LLM page ([#443](https://github.com/akhileshrangani4/teachanything/issues/443)) ([3967a74](https://github.com/akhileshrangani4/teachanything/commit/3967a74e0eb7bb61983aab3405002b4b031ea409))
+
 ## [1.34.3](https://github.com/akhileshrangani4/teachanything/compare/v1.34.2...v1.34.3) (2026-08-17)
 
 

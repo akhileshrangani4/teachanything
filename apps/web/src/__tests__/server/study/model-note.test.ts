@@ -94,3 +94,57 @@ describe("buildStudyResultsNote", () => {
     expect(note).toContain("attempt 13 scored 12/13"); // latest kept
   });
 });
+
+describe("buildStudyResultsNote attempt detail", () => {
+  const quiz = {
+    quiz_title: "Tempest",
+    questions: [
+      {
+        question: "First question?",
+        options: ["right", "wrong"],
+        correct_index: 0,
+        explanation: "x",
+      },
+    ],
+  };
+  const history = [
+    {
+      id: "m1",
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "tool-showQuiz",
+          toolCallId: "c1",
+          state: "output-available",
+          output: "rendered",
+          input: quiz,
+        },
+      ],
+    },
+  ] as never;
+
+  it("details only the latest attempt, keeping earlier ones score-only", () => {
+    const note = buildStudyResultsNote(
+      history,
+      new Map([
+        [
+          "c1",
+          [
+            {
+              toolName: "showQuiz",
+              response: { score: 0, total: 1, answers: [1] },
+            },
+            {
+              toolName: "showQuiz",
+              response: { score: 0, total: 1, answers: [1] },
+            },
+          ],
+        ],
+      ]),
+    );
+    // Two attempts, but only one spelled-out miss: the most recent.
+    expect(note).toContain("attempt 1 scored 0/1;");
+    expect(note.match(/they chose/g)).toHaveLength(1);
+    expect(note).toContain("attempt 2 scored 0/1; missed");
+  });
+});

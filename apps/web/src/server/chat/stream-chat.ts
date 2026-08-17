@@ -55,6 +55,7 @@ import {
 } from "./repair-quiz-parts";
 import { ChatRequestError } from "./request";
 import { buildStudyResultsNote } from "@/server/study/model-note";
+import { repairQuiz } from "@/lib/quiz";
 
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 
@@ -426,6 +427,20 @@ export async function streamChat(params: {
         temperature,
         maxOutputTokens,
         abortSignal,
+        // Fix a `showQuiz` call the model got structurally wrong BEFORE the SDK
+        // rejects it. Repairing later (in the stream) is too late in two ways:
+        // the student briefly sees the error notice, and the model is handed a
+        // tool error, so it retries and the turn renders a second quiz.
+        experimental_repairToolCall: async ({ toolCall }) => {
+          if (toolCall.toolName !== "showQuiz") return null;
+          const quiz = repairQuiz(toolCall.input);
+          if (!quiz) return null;
+          logWarn("Repaired a malformed showQuiz call", {
+            chatbotId: chatbot.id,
+            modelId,
+          });
+          return { ...toolCall, input: JSON.stringify(quiz) };
+        },
         onChunk({ chunk }) {
           if (
             chunk.type === "tool-input-start" &&

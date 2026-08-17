@@ -111,6 +111,14 @@ export default function WebSourcesPage() {
     onError: (e) =>
       toast.error("Failed to rename source", { description: e.message }),
   });
+  const cancelCrawlSource = trpc.crawler.cancelCrawlSource.useMutation({
+    onSuccess: () => {
+      refreshSources();
+      toast.success("Crawl stopped");
+    },
+    onError: (e) =>
+      toast.error("Failed to stop crawl", { description: e.message }),
+  });
   const removeCrawlSource = trpc.crawler.removeCrawlSource.useMutation({
     onSuccess: () => {
       refreshSources();
@@ -310,6 +318,9 @@ export default function WebSourcesPage() {
                   onDelete={(crawlSourceId) =>
                     removeCrawlSource.mutate({ crawlSourceId })
                   }
+                  onStop={(crawlSourceId) =>
+                    cancelCrawlSource.mutate({ crawlSourceId })
+                  }
                   onToggleEnabled={(crawlSourceId, enabled) =>
                     toggleCrawlSource.mutate({ crawlSourceId, enabled })
                   }
@@ -318,6 +329,7 @@ export default function WebSourcesPage() {
                   }
                   isRecrawling={recrawl.isPending}
                   isDeleting={removeCrawlSource.isPending}
+                  isStopping={cancelCrawlSource.isPending}
                   isTogglingEnabled={toggleCrawlSource.isPending}
                   isRenaming={renameCrawlSource.isPending}
                   sortBy={state.sortBy}

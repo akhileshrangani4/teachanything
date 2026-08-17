@@ -8,10 +8,15 @@ import {
   crawledPages,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
+import { sweepStaleCrawls } from "@/lib/crawl-stale";
 
 export const getCrawlSourcesProcedure = protectedProcedure
   .input(z.object({ chatbotId: z.string().uuid() }))
   .query(async ({ ctx, input }) => {
+    // Settle abandoned crawls before reading so a dead worker can't leave a
+    // source spinning (and undeletable) indefinitely.
+    await sweepStaleCrawls({ db: ctx.db, userId: ctx.session.user.id });
+
     const [chatbot] = await ctx.db
       .select()
       .from(chatbots)
