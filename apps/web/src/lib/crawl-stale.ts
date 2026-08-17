@@ -95,11 +95,6 @@ export async function sweepStaleCrawls(params: {
         id: crawlSources.id,
         status: crawlSources.status,
         updatedAt: crawlSources.updatedAt,
-        lastPageActivityAt: sql<Date | null>`(
-          SELECT MAX(${crawledPages.updatedAt})
-          FROM ${crawledPages}
-          WHERE ${crawledPages.crawlSourceId} = ${crawlSources.id}
-        )`,
       })
       .from(crawlSources)
       .where(
@@ -128,12 +123,40 @@ export async function sweepStaleCrawls(params: {
       }),
     );
 
-    const staleCrawling = candidates.filter((source) =>
+    // Page activity for the crawling candidates only. A grouped query rather
+    // than a correlated subquery: `crawled_pages` has its own `id`, so a
+    // hand-written `WHERE crawl_source_id = id` silently compares two columns
+    // of the same table and yields NULL for every row -- which would read as
+    // "no activity" and reap crawls that are working fine.
+    const crawlingCandidates = candidates.filter(
+      (source) => source.status === "crawling",
+    );
+
+    const activity = new Map<string, Date>();
+    if (crawlingCandidates.length > 0) {
+      const rows = await db
+        .select({
+          crawlSourceId: crawledPages.crawlSourceId,
+          lastActivityAt: sql<Date>`max(${crawledPages.updatedAt})`,
+        })
+        .from(crawledPages)
+        .where(
+          inArray(
+            crawledPages.crawlSourceId,
+            crawlingCandidates.map((source) => source.id),
+          ),
+        )
+        .groupBy(crawledPages.crawlSourceId);
+
+      for (const row of rows) {
+        activity.set(row.crawlSourceId, new Date(row.lastActivityAt));
+      }
+    }
+
+    const staleCrawling = crawlingCandidates.filter((source) =>
       isStaleCrawl({
         status: source.status,
-        lastPageActivityAt: source.lastPageActivityAt
-          ? new Date(source.lastPageActivityAt)
-          : null,
+        lastPageActivityAt: activity.get(source.id) ?? null,
         updatedAt: source.updatedAt,
         now,
       }),

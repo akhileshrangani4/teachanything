@@ -154,6 +154,49 @@ describe("staleness thresholds", () => {
   });
 });
 
+/**
+ * Minimal chainable stand-in for the drizzle query builder. Each `select()`
+ * starts a new query that resolves to the next scripted response, whatever
+ * combination of .from/.where/.groupBy it is awaited through.
+ */
+function fakeDb(responses: unknown[][]) {
+  const updatedTables: unknown[] = [];
+  let queryIndex = 0;
+
+  const makeSelect = () => {
+    const index = queryIndex++;
+    const query: Record<string, unknown> = {};
+    const self = () => query;
+    query.from = self;
+    query.where = self;
+    query.groupBy = self;
+    query.for = self;
+    query.then = (onOk: (v: unknown) => unknown, onErr?: () => unknown) =>
+      Promise.resolve(responses[index] ?? []).then(onOk, onErr);
+    return query;
+  };
+
+  const makeUpdate = (table: unknown) => {
+    updatedTables.push(table);
+    const query: Record<string, unknown> = {};
+    const self = () => query;
+    query.set = self;
+    query.where = self;
+    query.returning = self;
+    query.then = (onOk: (v: unknown) => unknown, onErr?: () => unknown) =>
+      Promise.resolve([{ id: "s1" }]).then(onOk, onErr);
+    return query;
+  };
+
+  return {
+    db: {
+      select: makeSelect,
+      update: makeUpdate,
+    } as unknown as Parameters<typeof sweepStaleCrawls>[0]["db"],
+    updatedTables,
+  };
+}
+
 describe("sweepStaleCrawls", () => {
   it("swallows a database failure so the list read it fronts still succeeds", async () => {
     const db = {
@@ -169,17 +212,38 @@ describe("sweepStaleCrawls", () => {
   });
 
   it("does no writes when nothing looks stale", async () => {
-    const update = jest.fn();
-    const db = {
-      select: () => ({
-        from: () => ({ where: () => Promise.resolve([]) }),
-      }),
-      update,
-    } as unknown as Parameters<typeof sweepStaleCrawls>[0]["db"];
+    const { db, updatedTables } = fakeDb([[]]);
 
     await sweepStaleCrawls({ db, userId: "user-1", now: NOW });
 
-    expect(update).not.toHaveBeenCalled();
+    expect(updatedTables).toHaveLength(0);
     expect(logError).not.toHaveBeenCalled();
+  });
+
+  it("spares a crawling source whose pages are still being touched", async () => {
+    // The source transitioned to `crawling` hours ago, so it clears the SQL
+    // candidate filter, but its pages moved a minute ago. Reaping it would kill
+    // a working crawl. This is the case a broken page-activity lookup breaks:
+    // if the query returns nothing, the fallback condemns the source.
+    const { db, updatedTables } = fakeDb([
+      [{ id: "s1", status: "crawling", updatedAt: minutesAgo(240) }],
+      [{ crawlSourceId: "s1", lastActivityAt: minutesAgo(1) }],
+    ]);
+
+    await sweepStaleCrawls({ db, userId: "user-1", now: NOW });
+
+    expect(updatedTables).toHaveLength(0);
+  });
+
+  it("reaps a crawling source whose pages went quiet", async () => {
+    const { db, updatedTables } = fakeDb([
+      [{ id: "s1", status: "crawling", updatedAt: minutesAgo(240) }],
+      [{ crawlSourceId: "s1", lastActivityAt: minutesAgo(45) }],
+    ]);
+
+    await sweepStaleCrawls({ db, userId: "user-1", now: NOW });
+
+    // Settles the source and fails its in-flight pages.
+    expect(updatedTables.length).toBeGreaterThan(0);
   });
 });
