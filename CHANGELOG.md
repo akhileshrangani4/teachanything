@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.3](https://github.com/akhileshrangani4/teachanything/compare/v1.34.2...v1.34.3) (2026-08-17)
+
+
+### Bug Fixes
+
+* **build:** declare RESEND_SEGMENT_ID in turbo.json env ([#441](https://github.com/akhileshrangani4/teachanything/issues/441)) ([1021996](https://github.com/akhileshrangani4/teachanything/commit/10219961aaaad7eb78424dad8aa445d17b2cf975))
+
 ## [1.34.2](https://github.com/akhileshrangani4/teachanything/compare/v1.34.1...v1.34.2) (2026-08-17)
 
 
