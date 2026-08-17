@@ -64,6 +64,18 @@ class CrawlNoLongerRunningError extends Error {
   }
 }
 
+/**
+ * Signals that the page vanished under us because the user deleted its source.
+ * That is a normal outcome now that deletion is allowed mid-crawl, so it
+ * unwinds the transaction without taking the failure path.
+ */
+class CrawledPageDeletedError extends Error {
+  constructor() {
+    super("Crawled page was deleted while it was being processed");
+    this.name = "CrawledPageDeletedError";
+  }
+}
+
 function getFriendlyErrorMessage(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
   if (msg.includes("Incorrect API key") || msg.includes("API key"))
@@ -169,7 +181,18 @@ export async function processCrawlDiscovery(params: {
           }),
           updatedAt: new Date(),
         })
-        .where(eq(crawlSources.id, crawlSourceId));
+        // Same guard as the catch below: a source stopped mid-discovery keeps
+        // the status the stop gave it.
+        .where(
+          and(
+            eq(crawlSources.id, crawlSourceId),
+            inArray(crawlSources.status, [
+              "pending",
+              "discovering",
+              "crawling",
+            ]),
+          ),
+        );
       return;
     }
 
@@ -437,6 +460,15 @@ export async function processCrawlPage(params: {
     );
 
     await db.transaction(async (tx) => {
+      // Hold the source in share mode for the life of this transaction. A
+      // delete takes the exclusive lock, so it cannot slip between the checks
+      // below and the commit and strand the userFile we are about to create.
+      await tx
+        .select({ id: crawlSources.id })
+        .from(crawlSources)
+        .where(eq(crawlSources.id, source.id))
+        .for("share");
+
       const [currentPage] = await tx
         .select({
           metadata: crawledPages.metadata,
@@ -449,11 +481,7 @@ export async function processCrawlPage(params: {
       // it. Abort before creating the userFile -- otherwise the file and its
       // chunks are orphaned, unreachable from the crawledPages row that the
       // source-deletion cleanup walks.
-      if (!currentPage) {
-        throw new Error(
-          "Crawled page was deleted while it was being processed",
-        );
-      }
+      if (!currentPage) throw new CrawledPageDeletedError();
 
       const customTitle = currentPage?.metadata?.customTitle?.trim();
       const displayTitle = customTitle || pageContent.title || page.url;
@@ -570,6 +598,13 @@ export async function processCrawlPage(params: {
       chunkCount: chunks.length,
     });
   } catch (error) {
+    if (error instanceof CrawledPageDeletedError) {
+      logInfo("Crawl source deleted during page processing, discarding", {
+        crawledPageId,
+      });
+      return;
+    }
+
     logError(error, "Crawl page processing failed", { crawledPageId });
 
     const [failedPage] = await db

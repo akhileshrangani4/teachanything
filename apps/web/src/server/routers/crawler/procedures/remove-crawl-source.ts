@@ -17,6 +17,16 @@ export const removeCrawlSourceProcedure = protectedProcedure
     // source is gone, so nothing is written against dropped rows.
     try {
       await ctx.db.transaction(async (tx) => {
+        // Take the source exclusively before reading its pages. Page workers
+        // hold it in share mode for the length of their transaction, so this
+        // waits for any in-flight page to commit its userFileId -- otherwise
+        // the snapshot below misses that file and leaves it orphaned.
+        await tx
+          .select({ id: crawlSources.id })
+          .from(crawlSources)
+          .where(eq(crawlSources.id, input.crawlSourceId))
+          .for("update");
+
         const pagesWithFiles = await tx
           .select({ userFileId: crawledPages.userFileId })
           .from(crawledPages)

@@ -1,6 +1,6 @@
-import { db as database } from "@teachanything/db";
+import type { db as database } from "@teachanything/db";
 import { crawlSources, crawledPages } from "@teachanything/db/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { logInfo, logError } from "./logger";
 import {
   mergeCrawledPageMetadata,
@@ -80,8 +80,17 @@ export async function sweepStaleCrawls(params: {
 }): Promise<void> {
   const { db, userId, now = new Date() } = params;
 
+  const preCrawlCutoff = new Date(now.getTime() - STALE_PRE_CRAWL_MS);
+  const crawlCutoff = new Date(now.getTime() - STALE_CRAWL_MS);
+
   try {
-    const inFlight = await db
+    // Narrow to plausible candidates in SQL. These reads sit behind a 3s poll
+    // while a crawl is running, so the usual answer must be "no rows" without
+    // running the page-activity subquery. Filtering `crawling` on the source's
+    // own timestamp is sound in that direction: pages are inserted as the
+    // source flips to `crawling`, so page activity is never older than the
+    // transition, and a recent transition cannot hide a stale crawl.
+    const candidates = await db
       .select({
         id: crawlSources.id,
         status: crawlSources.status,
@@ -96,13 +105,22 @@ export async function sweepStaleCrawls(params: {
       .where(
         and(
           eq(crawlSources.userId, userId),
-          inArray(crawlSources.status, [...IN_PROGRESS_STATUSES]),
+          or(
+            and(
+              inArray(crawlSources.status, ["pending", "discovering"]),
+              lt(crawlSources.updatedAt, preCrawlCutoff),
+            ),
+            and(
+              eq(crawlSources.status, "crawling"),
+              lt(crawlSources.updatedAt, crawlCutoff),
+            ),
+          ),
         ),
       );
 
-    if (inFlight.length === 0) return;
+    if (candidates.length === 0) return;
 
-    const stalePreCrawl = inFlight.filter((source) =>
+    const stalePreCrawl = candidates.filter((source) =>
       isStalePreCrawl({
         status: source.status,
         updatedAt: source.updatedAt,
@@ -110,7 +128,7 @@ export async function sweepStaleCrawls(params: {
       }),
     );
 
-    const staleCrawling = inFlight.filter((source) =>
+    const staleCrawling = candidates.filter((source) =>
       isStaleCrawl({
         status: source.status,
         lastPageActivityAt: source.lastPageActivityAt
@@ -133,9 +151,13 @@ export async function sweepStaleCrawls(params: {
           updatedAt: now,
         })
         .where(
-          inArray(
-            crawlSources.id,
-            stalePreCrawl.map((source) => source.id),
+          and(
+            inArray(
+              crawlSources.id,
+              stalePreCrawl.map((source) => source.id),
+            ),
+            inArray(crawlSources.status, ["pending", "discovering"]),
+            lt(crawlSources.updatedAt, preCrawlCutoff),
           ),
         );
     }
@@ -158,11 +180,11 @@ export async function sweepStaleCrawls(params: {
 }
 
 /**
- * Close out a single stuck crawl: fail every page still in flight, then settle
- * the source. Lands on `completed` when some pages did make it through and
+ * Close out a single stuck crawl: settle the source, then fail every page still
+ * in flight. Lands on `completed` when some pages did make it through and
  * `failed` when none did, so the badge reflects what the user actually got.
  *
- * Shared by the stale sweep and the user-initiated cancel.
+ * Shared by the stale sweep and the user-initiated stop.
  */
 export async function timeOutStuckCrawl(params: {
   db: typeof database;
@@ -179,20 +201,6 @@ export async function timeOutStuckCrawl(params: {
     sourceError = STALE_CRAWL_ERROR,
   } = params;
 
-  await db
-    .update(crawledPages)
-    .set({
-      status: "failed",
-      metadata: mergeCrawledPageMetadata({ error: pageError }),
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(crawledPages.crawlSourceId, crawlSourceId),
-        inArray(crawledPages.status, ["pending", "processing"]),
-      ),
-    );
-
   const statusCounts = await db
     .select({
       status: crawledPages.status,
@@ -206,13 +214,22 @@ export async function timeOutStuckCrawl(params: {
     statusCounts.map((row) => [row.status, Number(row.count)]),
   );
   const completedCount = (counts["completed"] ?? 0) + (counts["skipped"] ?? 0);
-  const failedCount = (counts["failed"] ?? 0) + (counts["blocked"] ?? 0);
+  // Pages still in flight are about to be failed, so they are errors already.
+  const failedCount =
+    (counts["failed"] ?? 0) +
+    (counts["blocked"] ?? 0) +
+    (counts["pending"] ?? 0) +
+    (counts["processing"] ?? 0);
+  const hasContent = completedCount > 0;
 
-  await db
+  // Settle the source first, and only if it is still ours to settle. A crawl
+  // that finished on its own, or a re-crawl the user started in the meantime,
+  // must keep the status it earned rather than take this one.
+  const settled = await db
     .update(crawlSources)
     .set({
-      status: completedCount > 0 ? "completed" : "failed",
-      lastCrawledAt: completedCount > 0 ? now : undefined,
+      status: hasContent ? "completed" : "failed",
+      ...(hasContent ? { lastCrawledAt: now } : {}),
       metadata: mergeCrawlSourceMetadata({
         pageCount: completedCount,
         errorCount: failedCount,
@@ -220,5 +237,30 @@ export async function timeOutStuckCrawl(params: {
       }),
       updatedAt: now,
     })
-    .where(eq(crawlSources.id, crawlSourceId));
+    .where(
+      and(
+        eq(crawlSources.id, crawlSourceId),
+        inArray(crawlSources.status, [...IN_PROGRESS_STATUSES]),
+      ),
+    )
+    .returning({ id: crawlSources.id });
+
+  if (settled.length === 0) return;
+
+  // Failing the pages second means a discovery transaction that committed while
+  // we waited on the source row is covered too, rather than leaving its freshly
+  // inserted pages pending under a source nothing will revisit.
+  await db
+    .update(crawledPages)
+    .set({
+      status: "failed",
+      metadata: mergeCrawledPageMetadata({ error: pageError }),
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(crawledPages.crawlSourceId, crawlSourceId),
+        inArray(crawledPages.status, ["pending", "processing"]),
+      ),
+    );
 }

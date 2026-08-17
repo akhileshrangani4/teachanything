@@ -1,15 +1,23 @@
 import { jest, describe, it, expect } from "@jest/globals";
 
-// crawl-stale imports the db client and logger at module scope; mock both so
-// the pure staleness predicates can be exercised without a database.
-jest.mock("@teachanything/db", () => ({ db: {} }));
-jest.mock("@/lib/logger", () => ({
+// Under ESM, `jest.mock` factories are silently ignored -- only
+// `unstable_mockModule` actually replaces a module, and it requires the module
+// under test to be imported dynamically afterwards. crawl-stale takes its db
+// handle as a parameter and imports the type only, so the logger is the sole
+// module that needs replacing here.
+jest.unstable_mockModule("@/lib/logger", () => ({
   logInfo: jest.fn(),
   logError: jest.fn(),
 }));
 
-const { isStalePreCrawl, isStaleCrawl, STALE_PRE_CRAWL_MS, STALE_CRAWL_MS } =
-  await import("@/lib/crawl-stale");
+const { logError } = await import("@/lib/logger");
+const {
+  isStalePreCrawl,
+  isStaleCrawl,
+  sweepStaleCrawls,
+  STALE_PRE_CRAWL_MS,
+  STALE_CRAWL_MS,
+} = await import("@/lib/crawl-stale");
 
 const NOW = new Date("2026-08-16T12:00:00.000Z");
 
@@ -143,5 +151,35 @@ describe("staleness thresholds", () => {
 
   it("is more patient with an in-flight crawl than with a stalled start", () => {
     expect(STALE_CRAWL_MS).toBeGreaterThan(STALE_PRE_CRAWL_MS);
+  });
+});
+
+describe("sweepStaleCrawls", () => {
+  it("swallows a database failure so the list read it fronts still succeeds", async () => {
+    const db = {
+      select: () => {
+        throw new Error("connection terminated");
+      },
+    } as unknown as Parameters<typeof sweepStaleCrawls>[0]["db"];
+
+    await expect(
+      sweepStaleCrawls({ db, userId: "user-1", now: NOW }),
+    ).resolves.toBeUndefined();
+    expect(logError).toHaveBeenCalledTimes(1);
+  });
+
+  it("does no writes when nothing looks stale", async () => {
+    const update = jest.fn();
+    const db = {
+      select: () => ({
+        from: () => ({ where: () => Promise.resolve([]) }),
+      }),
+      update,
+    } as unknown as Parameters<typeof sweepStaleCrawls>[0]["db"];
+
+    await sweepStaleCrawls({ db, userId: "user-1", now: NOW });
+
+    expect(update).not.toHaveBeenCalled();
+    expect(logError).not.toHaveBeenCalled();
   });
 });
