@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.2](https://github.com/akhileshrangani4/teachanything/compare/v1.34.1...v1.34.2) (2026-08-17)
+
+
+### Miscellaneous Chores
+
+* **ci:** move CI and engines from Node.js 20 to 24 ([#439](https://github.com/akhileshrangani4/teachanything/issues/439)) ([36a7411](https://github.com/akhileshrangani4/teachanything/commit/36a7411d15cbffa3d618201084c63175777bbf72))
+
 ## [1.34.1](https://github.com/akhileshrangani4/teachanything/compare/v1.34.0...v1.34.1) (2026-08-17)
 
 
