@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { mcQuestionSchema, type MCQuestion } from "@/lib/questions";
+import {
+  mcQuestionSchema,
+  coerceCorrectIndex,
+  type MCQuestion,
+} from "@/lib/questions";
 
 /** Most questions a quiz may carry. Also the ceiling `repairQuiz` trims to. */
 export const MAX_QUIZ_QUESTIONS = 5;
@@ -221,12 +225,16 @@ export function repairQuiz(input: unknown): Quiz | null {
   if (!Array.isArray(questions)) return null;
 
   const usable = questions
-    .filter((question) => {
-      const parsed = mcQuestionSchema.safeParse(question);
-      return (
-        parsed.success && parsed.data.correct_index < parsed.data.options.length
-      );
-    })
+    // Models routinely name the answer field something other than
+    // `correct_index`; fill it in before validating (see coerceCorrectIndex).
+    .map(coerceCorrectIndex)
+    .map((question) => mcQuestionSchema.safeParse(question))
+    .filter(
+      (parsed) =>
+        parsed.success &&
+        parsed.data.correct_index < parsed.data.options.length,
+    )
+    .map((parsed) => parsed.data)
     .slice(0, MAX_QUIZ_QUESTIONS);
   if (usable.length === 0) return null;
 

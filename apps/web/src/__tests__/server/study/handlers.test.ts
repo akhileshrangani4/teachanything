@@ -101,3 +101,89 @@ describe("showQuiz handler labels + summaries (model note inputs)", () => {
     );
   });
 });
+
+describe("showQuiz handler.summarizeResponseForModel (detailed)", () => {
+  const handler = STUDY_TOOL_HANDLERS.showQuiz!;
+  const quiz = {
+    quiz_title: "T",
+    questions: [
+      {
+        question: "First question?",
+        options: ["right", "wrong"],
+        correct_index: 0,
+        explanation: "x",
+      },
+      {
+        question: "Second question?",
+        options: ["nope", "yes"],
+        correct_index: 1,
+        explanation: "x",
+      },
+    ],
+  };
+
+  it("names what the student got wrong, so the model can review it", () => {
+    const summary = handler.summarizeResponseForModel(
+      { score: 1, total: 2, answers: [1, 1] },
+      quiz,
+      true,
+    );
+    expect(summary).toContain("scored 1/2");
+    expect(summary).toContain("First question?");
+    expect(summary).toContain('they chose "wrong"');
+    expect(summary).toContain('correct was "right"');
+    // The question they got right is not echoed: it needs no remediation.
+    expect(summary).not.toContain("Second question?");
+  });
+
+  it("stays score-only when nothing was missed", () => {
+    expect(
+      handler.summarizeResponseForModel(
+        { score: 2, total: 2, answers: [0, 1] },
+        quiz,
+        true,
+      ),
+    ).toBe("scored 2/2");
+  });
+
+  it("stays score-only when detail is not requested", () => {
+    expect(
+      handler.summarizeResponseForModel(
+        { score: 0, total: 2, answers: [1, 0] },
+        quiz,
+        false,
+      ),
+    ).toBe("scored 0/2");
+  });
+
+  it("falls back to the score when the shown input isn't a quiz", () => {
+    expect(
+      handler.summarizeResponseForModel(
+        { score: 1, total: 2, answers: [1, 1] },
+        { not: "a quiz" },
+        true,
+      ),
+    ).toBe("scored 1/2");
+  });
+
+  it("clips long question and option text so the prompt stays bounded", () => {
+    const long = {
+      quiz_title: "T",
+      questions: [
+        {
+          question: "Q".repeat(300),
+          options: ["A".repeat(300), "B".repeat(300)],
+          correct_index: 0,
+          explanation: "x",
+        },
+      ],
+    };
+    const summary = handler.summarizeResponseForModel(
+      { score: 0, total: 1, answers: [1] },
+      long,
+      true,
+    );
+    expect(summary.length).toBeLessThan(400);
+    expect(summary).toContain("…");
+  });
+});
