@@ -32,6 +32,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The docs build downloads its webfonts from fonts.gstatic.com to compute
+      # fallback metrics. Astro caches them under node_modules, which `npm ci`
+      # wipes, so every run re-fetched from Google and a rotated font URL took
+      # the whole build down. Restored after `npm ci` for that reason.
+      - name: Restore docs font cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/blume/node_modules/.astro/fonts
+            node_modules/.astro/fonts
+            apps/docs/node_modules/.astro/fonts
+          key: ${{ runner.os }}-astro-fonts-${{ hashFiles('apps/docs/blume.config.ts', 'package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-astro-fonts-
+
       - name: Check formatting
         run: npm run format:check
 
