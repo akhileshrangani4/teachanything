@@ -4,6 +4,7 @@ import { addManualUrlProcedure } from "./procedures/add-manual-url";
 import { getCrawlSourcesProcedure } from "./procedures/get-crawl-sources";
 import { getCrawledPagesProcedure } from "./procedures/get-crawled-pages";
 import { removeCrawlSourceProcedure } from "./procedures/remove-crawl-source";
+import { cancelCrawlSourceProcedure } from "./procedures/cancel-crawl-source";
 import { removeCrawledPageProcedure } from "./procedures/remove-crawled-page";
 import { recrawlProcedure } from "./procedures/recrawl";
 import { exportJsonProcedure } from "./procedures/export-json";
@@ -24,6 +25,7 @@ export const crawlerRouter = router({
   renameCrawlSource: renameCrawlSourceProcedure,
   renameCrawledPage: renameCrawledPageProcedure,
   removeCrawlSource: removeCrawlSourceProcedure,
+  cancelCrawlSource: cancelCrawlSourceProcedure,
   removeCrawledPage: removeCrawledPageProcedure,
   recrawl: recrawlProcedure,
   exportJson: exportJsonProcedure,

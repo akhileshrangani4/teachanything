@@ -97,7 +97,11 @@ export async function processCrawlDiscovery(params: {
 
     const robotsText = await fetchRobotsText(source.rootUrl);
 
-    const DISCOVERY_TIMEOUT_MS = 5 * 60 * 1000;
+    // Must stay comfortably under the route's maxDuration (300s) -- if the
+    // platform kills the function first, the abort handler never runs and the
+    // source is left stuck in `discovering` forever. The remaining headroom
+    // covers publishing the page jobs below.
+    const DISCOVERY_TIMEOUT_MS = 3 * 60 * 1000;
     const abortController = new AbortController();
     const timeoutId = setTimeout(
       () => abortController.abort(),
@@ -297,6 +301,16 @@ export async function processCrawlPage(params: {
       return;
     }
 
+    // The source settled (stopped by the user, or timed out by the stale sweep)
+    // while this job sat in the queue. Drain without reviving it.
+    if (source.status !== "crawling" && source.status !== "discovering") {
+      logInfo("Crawl no longer running, skipping page", {
+        crawledPageId,
+        status: source.status,
+      });
+      return;
+    }
+
     if (!(await isUrlSafeWithDns(page.url))) {
       await db
         .update(crawledPages)
@@ -377,6 +391,17 @@ export async function processCrawlPage(params: {
         .from(crawledPages)
         .where(eq(crawledPages.id, crawledPageId))
         .limit(1);
+
+      // The source was deleted mid-flight and the cascade took this page with
+      // it. Abort before creating the userFile -- otherwise the file and its
+      // chunks are orphaned, unreachable from the crawledPages row that the
+      // source-deletion cleanup walks.
+      if (!currentPage) {
+        throw new Error(
+          "Crawled page was deleted while it was being processed",
+        );
+      }
+
       const customTitle = currentPage?.metadata?.customTitle?.trim();
       const displayTitle = customTitle || pageContent.title || page.url;
       let userFileId = page.userFileId;

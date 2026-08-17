@@ -1,6 +1,13 @@
 "use client";
 
-import { Download, ChevronDown, Globe, RefreshCw, Trash2 } from "lucide-react";
+import {
+  Download,
+  ChevronDown,
+  Globe,
+  RefreshCw,
+  Trash2,
+  CircleStop,
+} from "lucide-react";
 import { toast } from "sonner";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
@@ -55,20 +62,25 @@ function WebSourceRowActions({
   source,
   isRecrawling,
   isRemoving,
+  isStopping,
   onExport,
   onRecrawl,
   onRemove,
+  onStop,
 }: {
   source: CrawlSource;
   isRecrawling: boolean;
   isRemoving: boolean;
+  isStopping: boolean;
   onExport: () => void;
   onRecrawl: () => void;
   onRemove: () => void;
+  onStop: () => void;
 }) {
   const isActive = isActiveSource(source);
   return (
     <>
+      {isActive && <StopCrawlButton onStop={onStop} isStopping={isStopping} />}
       {source.status === "completed" && (
         <>
           <Button
@@ -96,7 +108,7 @@ function WebSourceRowActions({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            disabled={isRemoving || isActive}
+            disabled={isRemoving}
             title="Remove from chatbot"
           >
             <Trash2 className="h-4 w-4 text-destructive" />
@@ -119,6 +131,44 @@ function WebSourceRowActions({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+// Lets the user abandon a crawl that is running long or was started by mistake.
+function StopCrawlButton({
+  onStop,
+  isStopping,
+}: {
+  onStop: () => void;
+  isStopping: boolean;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          disabled={isStopping}
+          title="Stop crawl"
+        >
+          <CircleStop className="h-4 w-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Stop crawl</AlertDialogTitle>
+          <AlertDialogDescription>
+            Stop this crawl now. Pages already crawled are kept; the rest are
+            skipped. You can re-crawl or remove the source afterwards.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep crawling</AlertDialogCancel>
+          <AlertDialogAction onClick={onStop}>Stop crawl</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -155,10 +205,12 @@ interface WebSourceRowProps {
   onToggleExpand?: (sourceId: string) => void;
   onRecrawl: (sourceId: string) => void;
   onRemove: (sourceId: string) => void;
+  onStop: (sourceId: string) => void;
   onToggleEnabled: (sourceId: string, enabled: boolean) => void;
   onRename: (sourceId: string, name: string) => Promise<unknown>;
   isRecrawling?: boolean;
   isRemoving?: boolean;
+  isStopping?: boolean;
   isTogglingEnabled?: boolean;
   isRenaming?: boolean;
 }
@@ -198,10 +250,12 @@ function WebSourceTableRow({
   onToggleExpand,
   onRecrawl,
   onRemove,
+  onStop,
   onToggleEnabled,
   onRename,
   isRecrawling = false,
   isRemoving = false,
+  isStopping = false,
   isTogglingEnabled = false,
   isRenaming = false,
 }: WebSourceRowProps & { colSpan: number }) {
@@ -287,9 +341,11 @@ function WebSourceTableRow({
               source={source}
               isRecrawling={isRecrawling}
               isRemoving={isRemoving}
+              isStopping={isStopping}
               onExport={handleExport}
               onRecrawl={() => onRecrawl(source.id)}
               onRemove={() => onRemove(source.id)}
+              onStop={() => onStop(source.id)}
             />
             {onToggleExpand && (
               <Button
@@ -341,10 +397,12 @@ function WebSourceCardMobile({
   onToggleExpand,
   onRecrawl,
   onRemove,
+  onStop,
   onToggleEnabled,
   onRename,
   isRecrawling = false,
   isRemoving = false,
+  isStopping = false,
   isTogglingEnabled = false,
   isRenaming = false,
 }: WebSourceRowProps) {
@@ -423,9 +481,11 @@ function WebSourceCardMobile({
             source={source}
             isRecrawling={isRecrawling}
             isRemoving={isRemoving}
+            isStopping={isStopping}
             onExport={handleExport}
             onRecrawl={() => onRecrawl(source.id)}
             onRemove={() => onRemove(source.id)}
+            onStop={() => onStop(source.id)}
           />
           {onToggleExpand && (
             <Button
@@ -475,10 +535,12 @@ interface WebSourceTableProps {
   onToggleExpand?: (sourceId: string) => void;
   onRecrawl: (sourceId: string) => void;
   onRemove: (sourceId: string) => void;
+  onStop: (sourceId: string) => void;
   onToggleEnabled: (sourceId: string, enabled: boolean) => void;
   onRename: (sourceId: string, name: string) => Promise<unknown>;
   isRecrawling?: boolean;
   isRemoving?: boolean;
+  isStopping?: boolean;
   isTogglingEnabled?: boolean;
   isRenaming?: boolean;
   emptyMessage?: string;
@@ -498,10 +560,12 @@ export function WebSourceTable({
   onToggleExpand,
   onRecrawl,
   onRemove,
+  onStop,
   onToggleEnabled,
   onRename,
   isRecrawling = false,
   isRemoving = false,
+  isStopping = false,
   isTogglingEnabled = false,
   isRenaming = false,
   emptyMessage = "No web sources found",
@@ -599,10 +663,12 @@ export function WebSourceTable({
                 onToggleExpand={onToggleExpand}
                 onRecrawl={onRecrawl}
                 onRemove={onRemove}
+                onStop={onStop}
                 onToggleEnabled={onToggleEnabled}
                 onRename={onRename}
                 isRecrawling={isRecrawling}
                 isRemoving={isRemoving}
+                isStopping={isStopping}
                 isTogglingEnabled={isTogglingEnabled}
                 isRenaming={isRenaming}
               />
@@ -636,10 +702,12 @@ export function WebSourceTable({
             onToggleExpand={onToggleExpand}
             onRecrawl={onRecrawl}
             onRemove={onRemove}
+            onStop={onStop}
             onToggleEnabled={onToggleEnabled}
             onRename={onRename}
             isRecrawling={isRecrawling}
             isRemoving={isRemoving}
+            isStopping={isStopping}
             isTogglingEnabled={isTogglingEnabled}
             isRenaming={isRenaming}
           />

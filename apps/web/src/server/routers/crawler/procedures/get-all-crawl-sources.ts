@@ -17,11 +17,16 @@ import {
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
+import { sweepStaleCrawls } from "@/lib/crawl-stale";
 import { allCrawlSourcesInput } from "../validation";
 
 export const getAllCrawlSourcesProcedure = protectedProcedure
   .input(allCrawlSourcesInput)
   .query(async ({ ctx, input }) => {
+    // Settle abandoned crawls before reading so a dead worker can't leave a
+    // source spinning (and undeletable) indefinitely.
+    await sweepStaleCrawls({ db: ctx.db, userId: ctx.session.user.id });
+
     // Build the shared WHERE conditions (owner + search + status filter)
     const conditions: SQL[] = [eq(crawlSources.userId, ctx.session.user.id)];
 

@@ -221,6 +221,18 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
     },
   });
 
+  const cancelCrawlSource = trpc.crawler.cancelCrawlSource.useMutation({
+    onSuccess: () => {
+      refetchSources();
+      toast.success("Crawl stopped");
+    },
+    onError: (error) => {
+      toast.error("Failed to stop crawl", {
+        description: getFriendlyError(error),
+      });
+    },
+  });
+
   const toggleCrawlSource = trpc.crawler.toggleCrawlSource.useMutation({
     onSuccess: (_data, variables) => {
       refetchSources();
@@ -428,6 +440,9 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
                   onRemove={(id) =>
                     detach.mutate({ crawlSourceId: id, chatbotId })
                   }
+                  onStop={(id) =>
+                    cancelCrawlSource.mutate({ crawlSourceId: id })
+                  }
                   onToggleEnabled={(id, enabled) =>
                     toggleCrawlSource.mutate({ crawlSourceId: id, enabled })
                   }
@@ -439,6 +454,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
                   }
                   isRecrawling={recrawl.isPending}
                   isRemoving={detach.isPending}
+                  isStopping={cancelCrawlSource.isPending}
                   isTogglingEnabled={toggleCrawlSource.isPending}
                   isRenaming={renameCrawlSource.isPending}
                   sortBy={state.sortBy}
