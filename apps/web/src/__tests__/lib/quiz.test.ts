@@ -516,4 +516,95 @@ describe("parseQuizFromText", () => {
       ).toBeNull();
     });
   });
+
+  /**
+   * A leak must recover exactly when the same quiz would have recovered had the
+   * model used the tool channel -- the native path runs `repairQuiz` twice
+   * (`experimental_repairToolCall`, `repairQuizToolParts`) while this path used
+   * to demand a schema-perfect quiz. Every case below was previously discarded
+   * whole, which flushed the raw call -- answer keys and explanations included --
+   * to the student as text.
+   */
+  describe("repairs a leak the way a tool call is repaired", () => {
+    const question = (i: number) => ({
+      question: `Q${i}: what does Barbie stage about gender?`,
+      options: ["A", "B", "C", "D"],
+      correct_index: 2,
+      explanation: `Because ${i}.`,
+    });
+
+    it("trims a leak that runs past the question ceiling", () => {
+      const quiz = {
+        quiz_title: "Gender Theory and Barbie",
+        questions: [1, 2, 3, 4, 5, 6].map(question),
+      };
+      const recovered = parseQuizFromText(JSON.stringify(quiz));
+      expect(recovered?.questions).toHaveLength(5);
+      expect(recovered?.quiz_title).toBe("Gender Theory and Barbie");
+    });
+
+    it("coerces an aliased answer key in a leaked quiz", () => {
+      const leaked = {
+        quiz_title: "Gender Theory",
+        questions: [
+          {
+            question: "Who wrote Gender Trouble?",
+            options: ["Butler", "Foucault", "Sedgwick", "Ahmed"],
+            answer: "A",
+            explanation: "Judith Butler, 1990.",
+          },
+        ],
+      };
+      expect(parseQuizFromText(JSON.stringify(leaked))?.questions[0]).toEqual(
+        expect.objectContaining({ correct_index: 0 }),
+      );
+    });
+
+    it("drops one botched question and keeps the rest", () => {
+      const leaked = {
+        quiz_title: "Gender Theory",
+        questions: [
+          question(1),
+          { question: "Too many options?", options: ["A", "B", "C", "D", "E"] },
+          question(2),
+        ],
+      };
+      const recovered = parseQuizFromText(JSON.stringify(leaked));
+      expect(recovered?.questions).toHaveLength(2);
+      expect(recovered?.questions.map((q) => q.question)).toEqual([
+        "Q1: what does Barbie stage about gender?",
+        "Q2: what does Barbie stage about gender?",
+      ]);
+    });
+
+    it("salvages a JSON leak the token limit cut off mid-question", () => {
+      const full = JSON.stringify({
+        quiz_title: "Gender Theory",
+        questions: [question(1), question(2), question(3)],
+      });
+      const cutOff = full.slice(0, full.indexOf("Q3:") + 2);
+      const recovered = parseQuizFromText(cutOff);
+      expect(recovered?.questions).toHaveLength(2);
+    });
+
+    it("salvages a pseudo-call whose questions array never closes", () => {
+      // How Llama-family models leak, cut off by `maxTokens` mid-write.
+      const full = `[showQuiz(quiz_title="Gender Theory", questions=${JSON.stringify(
+        [question(1), question(2), question(3)],
+      )})]`;
+      const cutOff = full.slice(0, full.indexOf("Q3:") + 2);
+      const recovered = parseQuizFromText(cutOff);
+      expect(recovered?.quiz_title).toBe("Gender Theory");
+      expect(recovered?.questions).toHaveLength(2);
+    });
+
+    it("still returns null when a truncated leak has no complete question", () => {
+      expect(
+        parseQuizFromText('{"quiz_title":"Gender Theory","questions":[{"que'),
+      ).toBeNull();
+      expect(
+        parseQuizFromText('[showQuiz(quiz_title="Gender Theory", questions=[{'),
+      ).toBeNull();
+    });
+  });
 });

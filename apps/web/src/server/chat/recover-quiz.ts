@@ -145,6 +145,45 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     markerAt = -1;
   };
 
+  /**
+   * Try to end the held block as a recovered quiz. Returns false when the held
+   * text isn't one, leaving the caller to emit the block unchanged.
+   *
+   * `endChunk` is the block's `text-end` when the stream produced one; a stream
+   * that dies first (abort, or an upstream that closes without it) passes
+   * undefined, and the text parts are simply closed by the stream ending.
+   */
+  const closeBlock = (
+    controller: TransformStreamDefaultController<Chunk>,
+    endChunk?: Chunk,
+  ): boolean => {
+    const quiz =
+      markerAt === -1 ? null : parseQuizFromText(pendingText.slice(markerAt));
+    if (!quiz) return false;
+    // Drop the leaked call. Keep any preamble before it as text -- it is a
+    // real part of the answer -- and close the block only if text was
+    // emitted, so a leak-only block leaves no empty bubble behind.
+    const preamble = pendingText.slice(0, markerAt);
+    if (startEmitted || preamble.trim().length > 0) {
+      emitStart(controller);
+      if (preamble.length > 0) {
+        controller.enqueue({
+          type: "text-delta",
+          id: blockId,
+          delta: preamble,
+        } as Chunk);
+      }
+      if (endChunk) controller.enqueue(endChunk);
+    }
+    controller.enqueue({
+      type: "tool-input-available",
+      toolCallId: nanoid(),
+      toolName: "showQuiz",
+      input: quiz,
+    } as Chunk);
+    return true;
+  };
+
   return new TransformStream<Chunk, Chunk>({
     transform(chunk, controller) {
       if (chunk.type === "text-start") {
@@ -195,37 +234,10 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
         chunk.type === "text-end" &&
         chunk.id === blockId
       ) {
-        const quiz =
-          markerAt === -1
-            ? null
-            : parseQuizFromText(pendingText.slice(markerAt));
-        if (!quiz) {
+        if (!closeBlock(controller, chunk)) {
           flushPending(controller);
           controller.enqueue(chunk);
-          reset();
-          return;
         }
-        // Drop the leaked call. Keep any preamble before it as text -- it is a
-        // real part of the answer -- and close the block only if text was
-        // emitted, so a leak-only block leaves no empty bubble behind.
-        const preamble = pendingText.slice(0, markerAt);
-        if (startEmitted || preamble.trim().length > 0) {
-          emitStart(controller);
-          if (preamble.length > 0) {
-            controller.enqueue({
-              type: "text-delta",
-              id: blockId,
-              delta: preamble,
-            } as Chunk);
-          }
-          controller.enqueue(chunk);
-        }
-        controller.enqueue({
-          type: "tool-input-available",
-          toolCallId: nanoid(),
-          toolName: "showQuiz",
-          input: quiz,
-        } as Chunk);
         reset();
         return;
       }
@@ -239,7 +251,11 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
       controller.enqueue(chunk);
     },
     flush(controller) {
-      if (blockId !== null) flushPending(controller);
+      // A stream that ends without the block's `text-end` -- an abort, or an
+      // upstream that just stops -- used to dump the held leak as raw text.
+      // Recover it here too, so the student gets the widget rather than the
+      // model's own answer key.
+      if (blockId !== null && !closeBlock(controller)) flushPending(controller);
       reset();
     },
   });

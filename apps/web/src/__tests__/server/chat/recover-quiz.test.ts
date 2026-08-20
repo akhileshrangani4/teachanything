@@ -252,3 +252,106 @@ describe("recoverLeakedQuiz", () => {
     });
   });
 });
+
+/**
+ * The Critical Theory bot (Llama 4 Maverick) reported 2026-08-19: the leaked
+ * call was well-formed enough to render, but `parseQuizFromText` demanded a
+ * schema-perfect quiz, so the whole leak was flushed as text -- handing the
+ * student a quiz with every answer and explanation already filled in.
+ *
+ * A leak must now recover on exactly the terms a native tool call does.
+ */
+describe("a leak that needs repairing", () => {
+  const textOf = (chunks: Chunk[]) =>
+    chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.delta)
+      .join("");
+
+  const question = (i: number) => ({
+    question: `Q${i}: how does Barbie stage gender as performance?`,
+    options: ["A", "B", "C", "D"],
+    correct_index: 1,
+    explanation: `Because ${i}.`,
+  });
+
+  const pseudoCall = (questions: unknown) =>
+    `[showQuiz(quiz_title="Gender Theory and Barbie", questions=${JSON.stringify(
+      questions,
+    )})]`;
+
+  /** Split the way a leak really streams: many small deltas. */
+  const deltasOf = (text: string, size = 17) => {
+    const deltas: string[] = [];
+    for (let i = 0; i < text.length; i += size)
+      deltas.push(text.slice(i, i + size));
+    return deltas;
+  };
+
+  const quizPartOf = (out: Chunk[]) =>
+    out.find((c) => c.type === "tool-input-available") as
+      | {
+          toolName: string;
+          input: { quiz_title: string; questions: unknown[] };
+        }
+      | undefined;
+
+  it("recovers a six-question leak by trimming to the ceiling", async () => {
+    const leak = pseudoCall([1, 2, 3, 4, 5, 6].map(question));
+    const out = await pump(textBlock("t1", deltasOf(leak)));
+
+    const part = quizPartOf(out);
+    expect(part?.toolName).toBe("showQuiz");
+    expect(part?.input.questions).toHaveLength(5);
+    // The answer key must never reach the student as text.
+    expect(textOf(out)).toBe("");
+    expect(textOf(out)).not.toContain("correct_index");
+  });
+
+  it("recovers a leak whose answer key uses an alias", async () => {
+    const leak = pseudoCall([
+      {
+        question: "Who wrote Gender Trouble?",
+        options: ["Butler", "Foucault", "Sedgwick", "Ahmed"],
+        answer: "A",
+        explanation: "Judith Butler, 1990.",
+      },
+    ]);
+    const out = await pump(textBlock("t1", deltasOf(leak)));
+
+    expect(quizPartOf(out)?.input.questions[0]).toEqual(
+      expect.objectContaining({ correct_index: 0 }),
+    );
+    expect(textOf(out)).toBe("");
+  });
+
+  it("keeps the preamble and recovers a leak cut off by the token limit", async () => {
+    const full = `Here are 5 questions on the gender theory chapter.\n\n${pseudoCall(
+      [1, 2, 3, 4, 5].map(question),
+    )}`;
+    const cutOff = full.slice(0, full.indexOf("Q3:") + 2);
+    const out = await pump(textBlock("t1", deltasOf(cutOff)));
+
+    expect(quizPartOf(out)?.input.questions).toHaveLength(2);
+    expect(textOf(out)).toBe(
+      "Here are 5 questions on the gender theory chapter.\n\n",
+    );
+    expect(textOf(out)).not.toContain("showQuiz(");
+  });
+
+  it("recovers a leak when the stream ends without text-end", async () => {
+    // An aborted turn: `flush` used to dump the held leak as raw text.
+    const leak = pseudoCall([1, 2].map(question));
+    const out = await pump([
+      { type: "text-start", id: "t1" },
+      ...deltasOf(leak).map((delta) => ({
+        type: "text-delta",
+        id: "t1",
+        delta,
+      })),
+    ]);
+
+    expect(quizPartOf(out)?.input.questions).toHaveLength(2);
+    expect(textOf(out)).toBe("");
+  });
+});

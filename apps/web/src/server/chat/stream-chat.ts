@@ -55,7 +55,7 @@ import {
 } from "./repair-quiz-parts";
 import { ChatRequestError } from "./request";
 import { buildStudyResultsNote } from "@/server/study/model-note";
-import { repairQuiz } from "@/lib/quiz";
+import { parseQuizFromText, repairQuiz } from "@/lib/quiz";
 
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 
@@ -333,7 +333,7 @@ export async function streamChat(params: {
   );
 
   const studyAddendum = modelCanUseTools
-    ? buildStudyToolsAddendum(maxOutputTokens)
+    ? buildStudyToolsAddendum(maxOutputTokens, useRetrievalTools)
     : "";
   const primarySystemPrompt =
     (useRetrievalTools
@@ -489,6 +489,17 @@ export async function streamChat(params: {
         executeErrored = true;
         return;
       }
+      // The turn's text, across every step. `primary.text` resolves to the LAST
+      // step's text only, and this turn is deliberately multi-step
+      // (`stopWhen` above), so a model that answers in an earlier step and ends
+      // on a retrieval call -- or on the step cap -- reads as having produced
+      // nothing. That false negative fired the empty-response fallback below,
+      // appending a second, independently generated answer to a turn the
+      // student had already seen answered. Fall back to `primaryText` so a
+      // provider that leaves `step.text` unset can't regress this.
+      const stepsText = primarySteps.map((step) => step.text ?? "").join("");
+      const turnText = stepsText.trim() ? stepsText : primaryText;
+
       const allToolCalls = primarySteps.flatMap((s) => s.toolCalls ?? []);
       const doneCall = allToolCalls.find((tc) => tc.toolName === "done");
       const doneInput = doneCall?.input as { answer?: unknown } | undefined;
@@ -520,7 +531,7 @@ export async function streamChat(params: {
 
       // If the model answered only through the `done` tool (no free text),
       // surface that answer as a text part so it renders and persists as text.
-      if (doneAnswer && doneAnswer.trim() && !primaryText.trim()) {
+      if (doneAnswer && doneAnswer.trim() && !turnText.trim()) {
         const id = nanoid();
         writer.write({ type: "text-start", id });
         writer.write({ type: "text-delta", id, delta: doneAnswer });
@@ -528,7 +539,7 @@ export async function streamChat(params: {
       }
 
       const hasVisibleAnswer =
-        Boolean(primaryText.trim()) ||
+        Boolean(turnText.trim()) ||
         Boolean(doneAnswer?.trim()) ||
         producedQuiz ||
         salvagedTruncatedQuiz;
@@ -537,12 +548,13 @@ export async function streamChat(params: {
 
       if (!hasVisibleAnswer && modelCanUseTools && !abortSignal.aborted) {
         // Empty-response safety net (#357): a tool-capable turn produced no
-        // user-visible content (searched then hit the step cap, `done` with an
-        // empty answer, an invalid-only quiz, or a study-only bot that emitted
-        // neither text nor a valid quiz). Gated on `modelCanUseTools` -- not
-        // `useRetrievalTools` -- so the study-only path (zero files, or RAG
-        // unhealthy) is covered too. Fall back to a static, no-tools turn so the
-        // user always gets an answer instead of a stuck, empty stream.
+        // user-visible content in ANY step (searched then hit the step cap,
+        // `done` with an empty answer, an invalid-only quiz, or a study-only
+        // bot that emitted neither text nor a valid quiz). Gated on
+        // `modelCanUseTools` -- not `useRetrievalTools` -- so the study-only
+        // path (zero files, or RAG unhealthy) is covered too. Fall back to a
+        // static, no-tools turn so the user always gets an answer instead of a
+        // stuck, empty stream.
         logWarn(
           "Agentic path produced no text response; falling back to static RAG",
           { chatbotId: chatbot.id, modelId },
@@ -617,15 +629,22 @@ export async function streamChat(params: {
         parts: persistedParts,
       });
       const hasStudyPart = hasPersistableStudyPart(parts);
+      // A quiz the model leaked into the text channel (see `recoverLeakedQuiz`)
+      // is quiz content too, even though it never became a tool part. Buffering
+      // that leak is exactly what makes the turn look stalled, so it is the turn
+      // a student is most likely to Stop -- and dropping it is what made a quiz
+      // turn vanish from the professor's transcript entirely.
+      const hasQuizContent =
+        hasStudyPart || parseQuizFromText(content) !== null;
 
       // On a client disconnect, don't persist a partial assistant turn (or its
-      // analytics) -- UNLESS it carries a completed study part. The rendered
-      // quiz stays interactive on screen after a Stop, and recording an attempt
-      // requires the persisted part to validate against; skipping the persist
-      // would make every submission for that quiz 404 forever. The user message
-      // was already saved up front either way.
+      // analytics) -- UNLESS it carries quiz content. The rendered quiz stays
+      // interactive on screen after a Stop, and recording an attempt requires
+      // the persisted part to validate against; skipping the persist would make
+      // every submission for that quiz 404 forever. The user message was
+      // already saved up front either way.
       const clientAborted = abortSignal.aborted && !timeoutSignal.aborted;
-      if (clientAborted && !hasStudyPart) return;
+      if (clientAborted && !hasQuizContent) return;
 
       const interrupted =
         timeoutSignal.aborted || executeErrored || clientAborted;
