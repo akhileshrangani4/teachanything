@@ -19,6 +19,7 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
+import { sweepStaleFiles } from "@/lib/file-stale";
 
 // Crawler-sourced userFiles have storagePath set to the page URL.
 // Crawled pages are shown as grouped "Web Sources" rows in the Files tab
@@ -53,6 +54,10 @@ export const listProcedure = protectedProcedure
       .optional(),
   )
   .query(async ({ ctx, input }) => {
+    // Settle abandoned processing runs before reading so a dead worker can't
+    // leave a file spinning at 40% forever (see sweepStaleFiles).
+    await sweepStaleFiles({ db: ctx.db, userId: ctx.session.user.id });
+
     const limit = input?.limit ?? 10;
     const offset = input?.offset ?? 0;
     const currentChatbotId = input?.currentChatbotId;
@@ -193,6 +198,10 @@ export const listForChatbotProcedure = protectedProcedure
     }),
   )
   .query(async ({ ctx, input }) => {
+    // Settle abandoned processing runs before reading so a dead worker can't
+    // leave a file spinning at 40% forever (see sweepStaleFiles).
+    await sweepStaleFiles({ db: ctx.db, userId: ctx.session.user.id });
+
     // Verify chatbot ownership
     const [chatbot] = await ctx.db
       .select()
