@@ -165,10 +165,13 @@ describe("buildStudyToolsAddendum", () => {
     expect(buildStudyToolsAddendum(150, true)).toContain("at most 1 question,");
   });
 
-  it("still tells the model to call the tool rather than write prose", () => {
+  it("still tells the model to call the tool rather than write the quiz out", () => {
+    // Was pinned to the literal "do not write the quiz out as prose". That
+    // wording is gone on purpose: a markdown table is not prose, and a model
+    // delivered one. See the delivery-instruction suite at the end of this file.
     expect(buildStudyToolsAddendum(2000, true)).toContain("showQuiz");
     expect(buildStudyToolsAddendum(2000, true)).toContain(
-      "do not write the quiz out as prose",
+      "Never write the questions into your reply",
     );
   });
 
@@ -195,5 +198,43 @@ describe("buildStudyToolsAddendum", () => {
     expect(buildStudyToolsAddendum(2000, false)).toContain(
       "Scope the quiz to exactly what the student",
     );
+  });
+});
+
+/**
+ * These are string assertions, which is all a prompt can be pinned with. They
+ * exist because the previous wording had a loophole that a real model walked
+ * through: it said "do not write the quiz out as prose", and Mistral Large
+ * answered a quiz request with a markdown table of questions, options and a
+ * "Correct Answer" column. A table is not prose, so the instruction was obeyed
+ * and the feature still failed.
+ */
+describe("buildStudyToolsAddendum quiz-delivery instruction", () => {
+  const addendum = buildStudyToolsAddendum(2000, true);
+
+  it("names the tool as the only acceptable delivery", () => {
+    expect(addendum).toContain("ONLY acceptable way");
+    expect(addendum).toContain("showQuiz");
+  });
+
+  it("forbids each format a model has actually used instead", () => {
+    // Naming the formats is the point; "not as prose" alone was not enough.
+    expect(addendum).toContain("not as prose");
+    expect(addendum).toContain("not as a numbered list");
+    expect(addendum).toContain("not as a table");
+  });
+
+  it("says why writing it out is a failure, not just that it is disallowed", () => {
+    // A reason survives paraphrasing better than a bare prohibition.
+    expect(addendum).toMatch(/hands the student every answer|cannot be scored/);
+  });
+
+  it("covers the phrasings a request actually arrives in", () => {
+    expect(addendum).toContain("give me a quiz");
+    expect(addendum).toContain("test me");
+  });
+
+  it("still tells the model to answer normally when no quiz was asked for", () => {
+    expect(addendum).toContain("without calling a tool");
   });
 });

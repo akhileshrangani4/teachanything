@@ -53,6 +53,15 @@ export function maxQuestionsForBudget(maxOutputTokens: number): number {
  * system prompt, and it pointed the model at whatever the initial RAG query
  * happened to retrieve -- so a student who asked to be quizzed on one named
  * chapter got questions drawn from across the whole corpus instead.
+ *
+ * The prohibition names FORMATS rather than saying "do not write it out as
+ * prose", which is what it used to say. Mistral Large answered "Give me a quiz
+ * about the Global Shakespeare syllabus" with a markdown table of questions,
+ * options and a "Correct Answer & Brief Explanation" column -- obeying the
+ * letter of the old instruction, since a table is not prose. It also lists the
+ * phrasings a request arrives in, because the same model complied with "Can I
+ * have an interactive quiz on this?" moments later; the intent was recognised,
+ * the delivery format was not constrained.
  */
 export function buildStudyToolsAddendum(
   maxOutputTokens: number,
@@ -64,7 +73,7 @@ export function buildStudyToolsAddendum(
     : "";
   return `
 
-You can render interactive study tools. When the student asks to be quizzed on a topic, call the \`showQuiz\` tool and fill it with well-formed questions based on the course material above - do not write the quiz out as prose. Scope the quiz to exactly what the student asked for: when they name a chapter, section, reading, topic, or text, every question must come from that material, and material outside it must be left out no matter how relevant it seems.${scoping} Keep the quiz to at most ${maxQuestions} ${maxQuestions === 1 ? "question" : "questions"}, each with up to 4 options and a one- or two-sentence explanation, so the whole quiz fits within this chatbot's reply limit. If the student is only asking a question, answer normally without calling a tool.`;
+You can render interactive study tools. When the student asks to be quizzed -- however they phrase it, including "give me a quiz", "test me", or asking to check their understanding -- the \`showQuiz\` tool is the ONLY acceptable way to deliver it. Call it and fill it with well-formed questions based on the course material above. Never write the questions into your reply instead, in any form: not as prose, not as a numbered list, and not as a table. Writing them out hands the student every answer and cannot be scored, so it fails the request even when the questions themselves are good. Scope the quiz to exactly what the student asked for: when they name a chapter, section, reading, topic, or text, every question must come from that material, and material outside it must be left out no matter how relevant it seems.${scoping} Keep the quiz to at most ${maxQuestions} ${maxQuestions === 1 ? "question" : "questions"}, each with up to 4 options and a one- or two-sentence explanation, so the whole quiz fits within this chatbot's reply limit. If the student is only asking a question, answer normally without calling a tool.`;
 }
 
 /**
