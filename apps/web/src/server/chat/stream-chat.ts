@@ -531,7 +531,17 @@ export async function streamChat(params: {
 
       // If the model answered only through the `done` tool (no free text),
       // surface that answer as a text part so it renders and persists as text.
-      if (doneAnswer && doneAnswer.trim() && !turnText.trim()) {
+      //
+      // This gate deliberately reads `primaryText` (the LAST step's text), not
+      // `turnText`. `done` is a retrieval tool: its part is stripped from the
+      // stream and from `persistedParts`, so an answer delivered through it is
+      // invisible unless written out here. A model that narrates in an earlier
+      // step ("Let me check the readings.") and then answers via `done` has a
+      // non-empty `turnText` but an empty final step -- gating on `turnText`
+      // there would swallow the answer entirely. `hasVisibleAnswer` below is
+      // the opposite question ("did the turn produce anything at all?") and
+      // correctly spans every step.
+      if (doneAnswer && doneAnswer.trim() && !primaryText.trim()) {
         const id = nanoid();
         writer.write({ type: "text-start", id });
         writer.write({ type: "text-delta", id, delta: doneAnswer });

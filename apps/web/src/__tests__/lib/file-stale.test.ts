@@ -109,13 +109,34 @@ describe("isStaleFile", () => {
     ).toBe(false);
   });
 
-  it("ignores progress metadata for a pending file", () => {
-    // Left over from an earlier attempt; the file is queued, not running.
+  it("spares a re-queued file whose upload is old but whose retry is fresh", () => {
+    // `files.retry` flips an existing file back to `pending` and stamps the
+    // queue time; `createdAt` still points at the original upload. Dating this
+    // from `createdAt` swept every retried file straight back to `failed` --
+    // and the retry mutation refetches `files.list`, which runs the sweep, so
+    // the failure landed before the job could even start.
     expect(
       check({
         status: "pending",
-        metadata: { processingProgress: { lastUpdatedAt: iso(0) } },
-        createdAt: ago(STALE_PENDING_MS + 1),
+        metadata: {
+          processingProgress: { startedAt: iso(0), lastUpdatedAt: iso(0) },
+        },
+        createdAt: ago(7 * 24 * 60 * 60_000),
+      }),
+    ).toBe(false);
+  });
+
+  it("still times out a re-queued file whose job never ran", () => {
+    expect(
+      check({
+        status: "pending",
+        metadata: {
+          processingProgress: {
+            startedAt: iso(STALE_PENDING_MS + 1),
+            lastUpdatedAt: iso(STALE_PENDING_MS + 1),
+          },
+        },
+        createdAt: ago(7 * 24 * 60 * 60_000),
       }),
     ).toBe(true);
   });

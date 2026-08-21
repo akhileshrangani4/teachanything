@@ -6,6 +6,10 @@ import { logInfo, logError } from "./logger";
 /**
  * A file sitting in `pending` this long never had its job picked up -- the
  * QStash publish failed silently, or every delivery attempt was rejected.
+ *
+ * Measured from the last recorded activity, not from `createdAt`: `files.retry`
+ * re-queues an existing file by setting it back to `pending`, and an upload
+ * from last week is not stale just because it is being retried today.
  */
 export const STALE_PENDING_MS = 15 * 60 * 1000;
 
@@ -75,13 +79,10 @@ export function isStaleFile(params: {
   const { status, now } = params;
   if (status !== "pending" && status !== "processing") return false;
   const limit = status === "pending" ? STALE_PENDING_MS : STALE_PROCESSING_MS;
-  const lastActivity =
-    status === "pending"
-      ? params.createdAt
-      : lastFileActivityAt({
-          metadata: params.metadata,
-          createdAt: params.createdAt,
-        });
+  const lastActivity = lastFileActivityAt({
+    metadata: params.metadata,
+    createdAt: params.createdAt,
+  });
   return now.getTime() - lastActivity.getTime() > limit;
 }
 
