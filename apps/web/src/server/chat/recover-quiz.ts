@@ -34,6 +34,34 @@ const MAX_HELD_CHARS = 8_000;
  */
 const PSEUDO_ARG_WINDOW = 48;
 
+/**
+ * How much held text has to accumulate before the "Building your quiz..."
+ * placeholder is shown.
+ *
+ * The point of the threshold is to separate a real leak from a short non-quiz
+ * JSON blob. A five-question quiz with explanations serializes to 2KB or more,
+ * while the quiz-shaped false positives in `leak-false-positives.test.ts` are
+ * all under 200 characters, so nothing in that corpus can reach this.
+ */
+const QUIZ_PLACEHOLDER_MIN_CHARS = 600;
+
+/**
+ * Whether held text is a quiz being written, confidently enough to show the
+ * placeholder for it.
+ *
+ * Stricter than `stillPlausible`, which only asks "could this still be a quiz".
+ * Both keys are required: a blob carrying just one of them (a `questions` array
+ * with no title, a title with no questions) is a shape the parser rejects
+ * anyway.
+ */
+function isQuizInProgress(held: string): boolean {
+  return (
+    held.length >= QUIZ_PLACEHOLDER_MIN_CHARS &&
+    /quiz_title/.test(held) &&
+    /"question"\s*:/.test(held)
+  );
+}
+
 /** Index where the earliest leak marker starts in `text`, or -1. */
 function findMarker(text: string): number {
   let earliest = -1;
@@ -81,6 +109,15 @@ function stillPlausible(held: string): boolean {
  * Recover a quiz a model emitted as text instead of a native `showQuiz` tool
  * call.
  *
+ * Note the placeholder behaviour, which is what the reporting professor actually
+ * experienced: buffering the leak means nothing reaches the screen between the
+ * model's preamble ("Here are 5 multiple-choice questions:") and the finished
+ * widget. On Llama 4 Maverick that gap averaged 59s and peaked at 172s, so the
+ * quiz read as a dead stream and users gave up before it arrived. Once the held
+ * text is unmistakably a quiz being written, a `tool-input-start` is emitted so
+ * the existing `QuizSkeleton` ("Building your quiz...") fills the gap, exactly as
+ * it already does for a native streamed tool call.
+ *
  * Some otherwise tool-capable models (varies by model/provider) serialize the
  * tool call into the assistant *text* channel, so the AI SDK forms no
  * `tool-showQuiz` part and the raw call renders as prose. The leak can be the
@@ -115,6 +152,14 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
   let pendingText = "";
   /** Index in `pendingText` where a leak starts, or -1 while still watching. */
   let markerAt = -1;
+  /**
+   * Set once the placeholder has been emitted, which is also the point of no
+   * return: the held text has been declared a quiz, so it is never released as
+   * prose afterwards. That is deliberate. The alternative is printing the
+   * model's own answer key to the student, which is the failure this whole
+   * transform exists to prevent.
+   */
+  let placeholderCallId: string | null = null;
 
   const reset = () => {
     blockId = null;
@@ -123,6 +168,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     pending = [];
     pendingText = "";
     markerAt = -1;
+    placeholderCallId = null;
   };
 
   const deltaOf = (chunk: Chunk): string =>
@@ -134,15 +180,71 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     startEmitted = true;
   };
 
-  /** Emit every unemitted chunk of the block exactly as it arrived. */
+  /**
+   * Emit every unemitted chunk of the block exactly as it arrived.
+   *
+   * Once the placeholder is up the held text is NOT released: it was already
+   * declared a quiz, and the raw form is the model's answer key. The placeholder
+   * is turned into an error notice instead, so the student sees that the quiz
+   * failed rather than the answers to it.
+   */
   const flushPending = (
     controller: TransformStreamDefaultController<Chunk>,
   ) => {
+    if (placeholderCallId) {
+      controller.enqueue({
+        type: "tool-output-error",
+        toolCallId: placeholderCallId,
+        errorText: "The quiz could not be built. Please ask again.",
+      } as Chunk);
+      placeholderCallId = null;
+      pending = [];
+      pendingText = "";
+      markerAt = -1;
+      return;
+    }
     if (pending.length > 0 || !startEmitted) emitStart(controller);
     for (const chunk of pending) controller.enqueue(chunk);
     pending = [];
     pendingText = "";
     markerAt = -1;
+  };
+
+  /**
+   * Show "Building your quiz..." once the held text is unmistakably a quiz.
+   *
+   * The preamble is released first so the widget lands BELOW the model's
+   * sentence rather than above it, and it is dropped from the buffer at the same
+   * time so `closeBlock` cannot emit it twice.
+   */
+  const startPlaceholder = (
+    controller: TransformStreamDefaultController<Chunk>,
+    held: string,
+  ) => {
+    if (placeholderCallId || markerAt === -1 || !isQuizInProgress(held)) return;
+
+    const preamble = pendingText.slice(0, markerAt);
+    if (preamble.trim().length > 0) {
+      emitStart(controller);
+      controller.enqueue({
+        type: "text-delta",
+        id: blockId,
+        delta: preamble,
+      } as Chunk);
+      controller.enqueue({ type: "text-end", id: blockId } as Chunk);
+    }
+    // The preamble is out, and the rest is the leak. `pending` holds the raw
+    // chunks that would have been replayed as prose; they are no longer needed.
+    pendingText = pendingText.slice(markerAt);
+    markerAt = 0;
+    pending = [];
+
+    placeholderCallId = nanoid();
+    controller.enqueue({
+      type: "tool-input-start",
+      toolCallId: placeholderCallId,
+      toolName: "showQuiz",
+    } as Chunk);
   };
 
   /**
@@ -166,8 +268,10 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     // Drop the leaked call. Keep any preamble before it as text -- it is a
     // real part of the answer -- and close the block only if text was
     // emitted, so a leak-only block leaves no empty bubble behind.
+    // Already released when the placeholder went up, in which case markerAt was
+    // reset to 0 and this is empty.
     const preamble = pendingText.slice(0, markerAt);
-    if (startEmitted || preamble.trim().length > 0) {
+    if (!placeholderCallId && (startEmitted || preamble.trim().length > 0)) {
       emitStart(controller);
       if (preamble.length > 0) {
         controller.enqueue({
@@ -180,12 +284,15 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
         endChunk ?? ({ type: "text-end", id: blockId } as Chunk),
       );
     }
+    // Reuse the placeholder's id so the skeleton becomes the finished quiz
+    // instead of a second widget appearing beneath it.
     controller.enqueue({
       type: "tool-input-available",
-      toolCallId: nanoid(),
+      toolCallId: placeholderCallId ?? nanoid(),
       toolName: "showQuiz",
       input: quiz,
     } as Chunk);
+    placeholderCallId = null;
     return true;
   };
 
@@ -197,8 +304,12 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
    */
   const endBlock = (controller: TransformStreamDefaultController<Chunk>) => {
     const id = blockId;
+    // Read before flushing: a committed placeholder means the text part was
+    // already closed when the preamble was released, so closing it again would
+    // emit a stray `text-end`.
+    const textPartOpen = placeholderCallId === null;
     flushPending(controller);
-    if (id !== null) {
+    if (id !== null && textPartOpen) {
       controller.enqueue({ type: "text-end", id } as Chunk);
     }
   };
@@ -244,7 +355,9 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
         const held = pendingText.slice(markerAt);
         if (held.length > MAX_HELD_CHARS || !stillPlausible(held)) {
           flushPending(controller);
+          return;
         }
+        startPlaceholder(controller, held);
         return;
       }
 
