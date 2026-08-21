@@ -155,18 +155,45 @@ describe("maxQuestionsForBudget", () => {
 
 describe("buildStudyToolsAddendum", () => {
   it("tells the model the question budget", () => {
-    expect(buildStudyToolsAddendum(500)).toContain("at most 2 questions");
-    expect(buildStudyToolsAddendum(2000)).toContain("at most 5 questions");
+    expect(buildStudyToolsAddendum(500, true)).toContain("at most 2 questions");
+    expect(buildStudyToolsAddendum(2000, true)).toContain(
+      "at most 5 questions",
+    );
   });
 
   it("uses the singular for a one-question budget", () => {
-    expect(buildStudyToolsAddendum(150)).toContain("at most 1 question,");
+    expect(buildStudyToolsAddendum(150, true)).toContain("at most 1 question,");
   });
 
   it("still tells the model to call the tool rather than write prose", () => {
-    expect(buildStudyToolsAddendum(2000)).toContain("showQuiz");
-    expect(buildStudyToolsAddendum(2000)).toContain(
+    expect(buildStudyToolsAddendum(2000, true)).toContain("showQuiz");
+    expect(buildStudyToolsAddendum(2000, true)).toContain(
       "do not write the quiz out as prose",
+    );
+  });
+
+  // The addendum is the LAST thing in the system prompt, so "based on the
+  // course material above" was the model's most recent instruction and it
+  // quizzed on whatever the initial RAG query retrieved -- ignoring a student
+  // who named one chapter.
+  it("tells the model to scope the quiz to what the student named", () => {
+    const addendum = buildStudyToolsAddendum(2000, true);
+    expect(addendum).toContain("Scope the quiz to exactly what the student");
+    expect(addendum).toContain("chapter");
+  });
+
+  it("offers a targeted search only when retrieval tools exist", () => {
+    expect(buildStudyToolsAddendum(2000, true)).toContain(
+      "search the documents for it before writing any questions",
+    );
+    // No files (or a degraded RAG pipeline): `search_documents` is not in the
+    // toolset, so promising a search would send the model after a tool it
+    // cannot call.
+    expect(buildStudyToolsAddendum(2000, false)).not.toContain(
+      "search the documents",
+    );
+    expect(buildStudyToolsAddendum(2000, false)).toContain(
+      "Scope the quiz to exactly what the student",
     );
   });
 });

@@ -58,12 +58,27 @@ export const retryProcedure = protectedProcedure
         userId: ctx.session.user.id,
       });
 
-      // Reset file status to pending and clear error metadata
+      // Reset file status to pending and clear error metadata.
+      //
+      // The progress stamp matters: `userFiles` has no `updatedAt`, so the
+      // stale sweep dates a `pending` file from its last recorded activity,
+      // falling back to `createdAt`. Clearing metadata outright would leave a
+      // days-old upload looking like it had been queued days ago, and the
+      // `files.list` refetch this mutation triggers would sweep it straight
+      // back to `failed` before the job ever ran.
+      const queuedAt = new Date().toISOString();
       await ctx.db
         .update(userFiles)
         .set({
           processingStatus: "pending",
-          metadata: {},
+          metadata: {
+            processingProgress: {
+              stage: "downloading",
+              percentage: 0,
+              startedAt: queuedAt,
+              lastUpdatedAt: queuedAt,
+            },
+          },
         })
         .where(eq(userFiles.id, input.fileId));
 

@@ -274,3 +274,77 @@ describe("stripToolPartsForTextModel", () => {
     expect(msg.parts).toEqual(parts);
   });
 });
+
+/**
+ * A turn that ended mid-quiz -- a Stop, a disconnect, or the token limit --
+ * leaves the part in `input-streaming`. Stored as-is that is the "Building your
+ * quiz..." skeleton, which `hasPersistableStudyPart` treats as unrenderable, so
+ * the turn either spins forever in history or is dropped from it entirely.
+ */
+describe("assistantMessageForDb: an unfinished quiz part", () => {
+  const partialInput = {
+    quiz_title: "Gender Theory and Barbie",
+    questions: [
+      {
+        question: "What does Butler argue about sex assignment?",
+        options: ["Gender precedes it", "It precedes gender"],
+        correct_index: 0,
+        explanation: "Gender is the scheme within which sex is assigned.",
+      },
+      // Cut off mid-write: no options, no answer key.
+      { question: "What does Barbie stage" },
+    ],
+  };
+
+  const messageWith = (part: unknown) =>
+    ({ id: "m20", role: "assistant", parts: [part] }) as never;
+
+  it("repairs a repairable input-streaming quiz into a persistable part", () => {
+    const { parts } = assistantMessageForDb(
+      messageWith({
+        type: "tool-showQuiz",
+        toolCallId: "c1",
+        state: "input-streaming",
+        input: partialInput,
+      }),
+    );
+    const part = parts[0] as unknown as {
+      state: string;
+      output: string;
+      input: { questions: unknown[] };
+    };
+    expect(part.state).toBe("output-available");
+    expect(part.output).toBe("rendered");
+    // The question that finished survives; the truncated one is dropped.
+    expect(part.input.questions).toHaveLength(1);
+    expect(hasPersistableStudyPart(parts)).toBe(true);
+  });
+
+  it("leaves an unsalvageable input-streaming quiz non-persistable", () => {
+    const { parts } = assistantMessageForDb(
+      messageWith({
+        type: "tool-showQuiz",
+        toolCallId: "c2",
+        state: "input-streaming",
+        input: { quiz_title: "Gender Theory" },
+      }),
+    );
+    expect((parts[0] as unknown as { state: string }).state).toBe(
+      "input-streaming",
+    );
+    expect(hasPersistableStudyPart(parts)).toBe(false);
+  });
+
+  it("leaves an output-error part alone so history matches what was shown", () => {
+    const part = {
+      type: "tool-showQuiz",
+      toolCallId: "c3",
+      state: "output-error",
+      errorText: "Couldn't build the quiz",
+      input: partialInput,
+    };
+    const { parts } = assistantMessageForDb(messageWith(part));
+    expect(parts[0]).toEqual(part);
+    expect(hasPersistableStudyPart(parts)).toBe(false);
+  });
+});

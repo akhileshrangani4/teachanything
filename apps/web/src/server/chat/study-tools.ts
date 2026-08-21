@@ -42,12 +42,29 @@ export function maxQuestionsForBudget(maxOutputTokens: number): number {
   return Math.min(MAX_QUIZ_QUESTIONS, Math.max(1, affordable));
 }
 
-/** Appended to the chatbot's system prompt so the model knows the tools exist. */
-export function buildStudyToolsAddendum(maxOutputTokens: number): string {
+/**
+ * Appended to the chatbot's system prompt so the model knows the tools exist.
+ *
+ * `canSearch` mirrors the retrieval-tool gate in `streamChat`: only promise the
+ * model a search when `search_documents` is actually in its toolset.
+ *
+ * The scoping sentence matters as much as the tool instruction. Without it this
+ * addendum's "based on the course material above" was the last thing in the
+ * system prompt, and it pointed the model at whatever the initial RAG query
+ * happened to retrieve -- so a student who asked to be quizzed on one named
+ * chapter got questions drawn from across the whole corpus instead.
+ */
+export function buildStudyToolsAddendum(
+  maxOutputTokens: number,
+  canSearch: boolean,
+): string {
   const maxQuestions = maxQuestionsForBudget(maxOutputTokens);
+  const scoping = canSearch
+    ? " If the passages above do not cover what they named, search the documents for it before writing any questions."
+    : "";
   return `
 
-You can render interactive study tools. When the student asks to be quizzed on a topic, call the \`showQuiz\` tool and fill it with well-formed questions based on the course material above - do not write the quiz out as prose. Keep the quiz to at most ${maxQuestions} ${maxQuestions === 1 ? "question" : "questions"}, each with up to 4 options and a one- or two-sentence explanation, so the whole quiz fits within this chatbot's reply limit. If the student is only asking a question, answer normally without calling a tool.`;
+You can render interactive study tools. When the student asks to be quizzed on a topic, call the \`showQuiz\` tool and fill it with well-formed questions based on the course material above - do not write the quiz out as prose. Scope the quiz to exactly what the student asked for: when they name a chapter, section, reading, topic, or text, every question must come from that material, and material outside it must be left out no matter how relevant it seems.${scoping} Keep the quiz to at most ${maxQuestions} ${maxQuestions === 1 ? "question" : "questions"}, each with up to 4 options and a one- or two-sentence explanation, so the whole quiz fits within this chatbot's reply limit. If the student is only asking a question, answer normally without calling a tool.`;
 }
 
 /**

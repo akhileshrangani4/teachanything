@@ -87,6 +87,33 @@ function extractBalanced(text: string, start: number): string | null {
 }
 
 /**
+ * Every complete `{...}` object inside the array that opens at `arrayStart`,
+ * stopping at the first one that was cut off mid-write.
+ *
+ * Shared by both truncation salvages: a quiz the token limit interrupted arrives
+ * either as JSON (`salvageTruncatedQuiz`) or as an unclosed pseudo-call
+ * (`extractPseudoCall`), and in both shapes the questions that finished writing
+ * are perfectly good.
+ */
+function collectClosedObjects(text: string, arrayStart: number): unknown[] {
+  const objects: unknown[] = [];
+  let cursor = arrayStart + 1;
+  for (;;) {
+    const objectStart = text.indexOf("{", cursor);
+    if (objectStart === -1) break;
+    const object = extractBalanced(text, objectStart);
+    if (!object) break; // the question that was cut off mid-write
+    try {
+      objects.push(JSON.parse(object));
+    } catch {
+      break;
+    }
+    cursor = objectStart + object.length;
+  }
+  return objects;
+}
+
+/**
  * Extract the first balanced top-level `{...}` object from free text, unwrapping
  * a leading ```json fence if present. Returns the JSON substring or null.
  */
@@ -110,7 +137,12 @@ function extractJsonObject(raw: string): string | null {
  * read, in either order; the `questions` payload must be valid JSON (it is, in
  * practice -- these models serialize the array itself as JSON). Anything looser
  * is rejected rather than repaired, so ordinary prose can't be misread as a
- * quiz. Returns a candidate object for schema validation, or null.
+ * quiz. Returns a candidate object for validation/repair, or null.
+ *
+ * A call the token limit cut off mid-write never closes its `questions` array.
+ * Rather than discard a quiz that is almost entirely usable, keep the question
+ * objects that finished -- the same salvage `salvageTruncatedQuiz` performs for
+ * a truncated JSON leak.
  */
 function extractPseudoCall(raw: string): unknown | null {
   const call = raw.match(/showQuiz\s*\(/);
@@ -122,14 +154,23 @@ function extractPseudoCall(raw: string): unknown | null {
   if (!title?.[1] || questionsKey?.index === undefined) return null;
 
   const arrayStart = questionsKey.index + questionsKey[0].length - 1;
-  const questions = extractBalanced(body, arrayStart);
-  if (!questions) return null;
+  const array = extractBalanced(body, arrayStart);
+
+  let questions: unknown;
+  if (array) {
+    try {
+      questions = JSON.parse(array) as unknown;
+    } catch {
+      return null;
+    }
+  } else {
+    const salvaged = collectClosedObjects(body, arrayStart);
+    if (salvaged.length === 0) return null;
+    questions = salvaged;
+  }
 
   try {
-    return {
-      quiz_title: JSON.parse(title[1]) as string,
-      questions: JSON.parse(questions) as unknown,
-    };
+    return { quiz_title: JSON.parse(title[1]) as string, questions };
   } catch {
     return null;
   }
@@ -142,15 +183,33 @@ function extractPseudoCall(raw: string): unknown | null {
  * `tool-showQuiz` part and the raw call renders as prose. Two shapes are
  * recovered: a JSON object (optionally in a ```json fence) and a pseudo-call
  * (`showQuiz(quiz_title=..., questions=[...])`). The JSON shape is tried first
- * -- it's the cheaper parse and the more common leak. Returns null for anything
- * that isn't a structurally valid, renderable quiz, so ordinary prose (or a
- * non-quiz JSON code block) is left untouched.
+ * -- it's the cheaper parse and the more common leak -- then the pseudo-call,
+ * then a JSON leak the token limit truncated.
+ *
+ * Each candidate goes through `repairQuiz`, the same coercion the native
+ * tool-call path applies (`experimental_repairToolCall` and
+ * `repairQuizToolParts`). Without it this path was strictly stricter than the
+ * tool-call path: a leak with a sixth question, a five-option question, one
+ * botched question, or an aliased answer key (`answer: "B"`) was discarded
+ * whole and the raw call -- answer keys, explanations and all -- was flushed to
+ * the student as text. A leaked quiz now renders exactly when the same quiz
+ * would have rendered had the model used the tool channel.
+ *
+ * Still returns null for anything that can't yield a renderable quiz, so
+ * ordinary prose (or a non-quiz JSON code block) is left untouched: `repairQuiz`
+ * requires a non-empty string `quiz_title` plus an array of questions, and
+ * drops every question that won't render.
  */
 export function parseQuizFromText(text: string): Quiz | null {
-  for (const candidate of [jsonCandidate(text), extractPseudoCall(text)]) {
+  const candidates = [
+    jsonCandidate(text),
+    extractPseudoCall(text),
+    salvageTruncatedQuiz(text),
+  ];
+  for (const candidate of candidates) {
     if (candidate === null) continue;
-    const result = quizSchema.safeParse(candidate);
-    if (result.success && isRenderableQuiz(result.data)) return result.data;
+    const quiz = repairQuiz(candidate);
+    if (quiz) return quiz;
   }
   return null;
 }
@@ -171,20 +230,7 @@ function salvageTruncatedQuiz(text: string): unknown | null {
   const questionsKey = text.search(/"questions"\s*:\s*\[/);
   if (!title?.[1] || questionsKey === -1) return null;
 
-  const questions: unknown[] = [];
-  let cursor = text.indexOf("[", questionsKey) + 1;
-  for (;;) {
-    const objectStart = text.indexOf("{", cursor);
-    if (objectStart === -1) break;
-    const object = extractBalanced(text, objectStart);
-    if (!object) break; // the question that was cut off mid-write
-    try {
-      questions.push(JSON.parse(object));
-    } catch {
-      break;
-    }
-    cursor = objectStart + object.length;
-  }
+  const questions = collectClosedObjects(text, text.indexOf("[", questionsKey));
   if (questions.length === 0) return null;
 
   try {
