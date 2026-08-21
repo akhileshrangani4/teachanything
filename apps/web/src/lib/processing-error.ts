@@ -33,7 +33,12 @@ export function sanitizeProcessingError(error: unknown): string {
   if (msg.includes("Invalid PDF") || msg.includes("Empty buffer")) {
     return "This file is not a readable PDF -- it may be truncated or corrupt. Try re-exporting or re-downloading it.";
   }
-  if (msg.includes("password") || msg.includes("encrypted")) {
+  // Word-bounded and case-insensitive: the signal here comes from pdf.js's
+  // `PasswordException`, wrapped by `RAGService.extractPDF`, and its wording
+  // varies by cause and by version ("No password given", "Incorrect Password").
+  // A bare `includes("password")` missed the capitalized one outright, and
+  // matched unrelated messages that merely contained the letters.
+  if (/\bpasswords?\b|\bencrypted\b/i.test(msg)) {
     return "This file is password-protected. Remove the protection and upload it again.";
   }
   if (msg.includes("embedding") && msg.includes("dimension"))

@@ -63,6 +63,18 @@ describe("sanitizeProcessingError", () => {
       "The file is encrypted and needs a password",
       "password-protected",
     ],
+    // pdf.js's PasswordException wording, wrapped by RAGService.extractPDF.
+    // "Incorrect Password" is capitalized, which a substring match missed.
+    [
+      "encrypted PDF, no password supplied",
+      "Failed to extract PDF content: No password given",
+      "password-protected",
+    ],
+    [
+      "encrypted PDF, wrong password",
+      "Failed to extract PDF content: Incorrect Password",
+      "password-protected",
+    ],
     [
       "unknown office file",
       "Failed to extract content: something went wrong",
@@ -86,6 +98,14 @@ describe("sanitizeProcessingError", () => {
     expect(sanitizeProcessingError(new Error("ECONNRESET"))).toBe(
       "File processing failed due to an internal error",
     );
+  });
+
+  it("does not read a password hint out of an unrelated word", () => {
+    // The match is word-bounded, so a message that merely contains the letters
+    // is not turned into "remove the protection and upload it again".
+    expect(
+      sanitizeProcessingError(new Error("upstream returned passwordless=true")),
+    ).toBe("File processing failed due to an internal error");
   });
 
   it("never leaks a stack trace or internal path to the user", () => {

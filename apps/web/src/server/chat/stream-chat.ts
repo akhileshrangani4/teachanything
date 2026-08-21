@@ -639,13 +639,6 @@ export async function streamChat(params: {
         parts: persistedParts,
       });
       const hasStudyPart = hasPersistableStudyPart(parts);
-      // A quiz the model leaked into the text channel (see `recoverLeakedQuiz`)
-      // is quiz content too, even though it never became a tool part. Buffering
-      // that leak is exactly what makes the turn look stalled, so it is the turn
-      // a student is most likely to Stop -- and dropping it is what made a quiz
-      // turn vanish from the professor's transcript entirely.
-      const hasQuizContent =
-        hasStudyPart || parseQuizFromText(content) !== null;
 
       // On a client disconnect, don't persist a partial assistant turn (or its
       // analytics) -- UNLESS it carries quiz content. The rendered quiz stays
@@ -653,8 +646,17 @@ export async function streamChat(params: {
       // the persisted part to validate against; skipping the persist would make
       // every submission for that quiz 404 forever. The user message was
       // already saved up front either way.
+      //
+      // A quiz the model leaked into the text channel (see `recoverLeakedQuiz`)
+      // counts as quiz content too, even though it never became a tool part.
+      // Buffering that leak is exactly what makes the turn look stalled, so it
+      // is the turn a student is most likely to Stop -- and dropping it is what
+      // made a quiz turn vanish from the professor's transcript entirely. Only
+      // parsed on the abort path: on every other turn the answer is unused, and
+      // this is a full scan plus a JSON parse of the whole message.
       const clientAborted = abortSignal.aborted && !timeoutSignal.aborted;
-      if (clientAborted && !hasQuizContent) return;
+      if (clientAborted && !hasStudyPart && parseQuizFromText(content) === null)
+        return;
 
       const interrupted =
         timeoutSignal.aborted || executeErrored || clientAborted;
