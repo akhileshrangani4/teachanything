@@ -1,17 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import {
-  eq,
-  and,
-  sql,
-  desc,
-  asc,
-  ilike,
-  like,
-  or,
-  isNull,
-  not,
-} from "drizzle-orm";
+import { eq, and, sql, desc, asc, ilike, or, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -20,14 +9,10 @@ import {
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
 import { sweepStaleFiles } from "@/lib/file-stale";
-
-// Crawler-sourced userFiles have storagePath set to the page URL.
 // Crawled pages are shown as grouped "Web Sources" rows in the Files tab
 // (rendered from crawler.getCrawlSources) rather than cluttering the
 // uploaded-file table as individual rows.
-// Uploaded files always use a lowercase `{userId}/{fileId}` path, so a
-// case-sensitive LIKE is sufficient (and index-friendlier than ILIKE).
-const excludeCrawledPages = not(like(userFiles.storagePath, "http%"));
+import { excludeCrawledPages } from "@/lib/crawled-page-files";
 
 /**
  * List all user files (centralized) with search and sort

@@ -58,6 +58,7 @@ describe("isStaleFile", () => {
   const check = (over: Partial<Parameters<typeof isStaleFile>[0]>) =>
     isStaleFile({
       status: "processing",
+      storagePath: "user-1/file-1",
       metadata: {},
       createdAt: ago(60_000),
       now: NOW,
@@ -124,6 +125,37 @@ describe("isStaleFile", () => {
         createdAt: ago(7 * 24 * 60 * 60_000),
       }),
     ).toBe(false);
+  });
+
+  it("never touches a crawled page, however old its row is", () => {
+    // Crawled pages share `userFiles`, and `crawl-processor` flips one back to
+    // `processing` on a re-crawl WITHOUT writing a progress stamp -- so this
+    // predicate would date a live re-crawl from the day the page was first
+    // crawled and fail it mid-flight. Worse, the message it writes tells the
+    // owner to hit Retry, which queues a process-file job against a URL.
+    for (const status of ["pending", "processing"]) {
+      expect(
+        check({
+          status,
+          storagePath: "https://example.edu/syllabus",
+          createdAt: ago(30 * 24 * 60 * 60_000),
+        }),
+      ).toBe(false);
+    }
+    // http, not just https.
+    expect(
+      check({
+        storagePath: "http://example.edu/syllabus",
+        createdAt: ago(30 * 24 * 60 * 60_000),
+      }),
+    ).toBe(false);
+    // An upload whose name merely starts with those letters is still swept.
+    expect(
+      check({
+        storagePath: "user-1/https-notes.pdf",
+        createdAt: ago(STALE_PROCESSING_MS + 1),
+      }),
+    ).toBe(true);
   });
 
   it("still times out a re-queued file whose job never ran", () => {

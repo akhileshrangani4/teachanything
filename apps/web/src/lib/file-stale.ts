@@ -1,6 +1,7 @@
 import type { db as database } from "@teachanything/db";
 import { userFiles } from "@teachanything/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { excludeCrawledPages, isCrawledPagePath } from "./crawled-page-files";
 import { logInfo, logError } from "./logger";
 
 /**
@@ -72,12 +73,20 @@ export function lastFileActivityAt(params: {
  */
 export function isStaleFile(params: {
   status: string;
+  storagePath: string | null;
   metadata: StaleFileMetadata;
   createdAt: Date;
   now: Date;
 }): boolean {
   const { status, now } = params;
   if (status !== "pending" && status !== "processing") return false;
+  // Crawled pages share this table and are recovered by `sweepStaleCrawls`, not
+  // here. They also never carry a `processingProgress` stamp -- a re-crawl sets
+  // `processing` without touching metadata -- so dating one from `createdAt`
+  // condemns a live re-crawl of a page first crawled weeks ago. The candidate
+  // query already filters them out; this keeps the guarantee in the predicate
+  // so a future caller can't lose it.
+  if (isCrawledPagePath(params.storagePath)) return false;
   const limit = status === "pending" ? STALE_PENDING_MS : STALE_PROCESSING_MS;
   const lastActivity = lastFileActivityAt({
     metadata: params.metadata,
@@ -100,6 +109,10 @@ export function staleFileError(status: string): string {
  * thing that died. Runs opportunistically on the file list reads, so it
  * self-heals the moment the owner next opens the page.
  *
+ * Covers uploaded files only. Crawled pages live in `userFiles` too but are
+ * owned by `sweepStaleCrawls`, which judges them by crawl-page activity rather
+ * than by this table's progress stamps -- see `excludeCrawledPages`.
+ *
  * Never throws; a failed sweep must not break the read that triggered it.
  */
 export async function sweepStaleFiles(params: {
@@ -115,6 +128,7 @@ export async function sweepStaleFiles(params: {
       .select({
         id: userFiles.id,
         processingStatus: userFiles.processingStatus,
+        storagePath: userFiles.storagePath,
         metadata: userFiles.metadata,
         createdAt: userFiles.createdAt,
       })
@@ -123,13 +137,20 @@ export async function sweepStaleFiles(params: {
         and(
           eq(userFiles.userId, userId),
           inArray(userFiles.processingStatus, [...IN_PROGRESS_STATUSES]),
+          excludeCrawledPages,
         ),
       )
+      // Oldest first, so the `MAX_SWEPT_FILES` cap takes the rows most likely
+      // to be stale instead of an arbitrary slice. Without an order, an account
+      // over the cap can hand back the same page of rows forever and never
+      // reach the rest.
+      .orderBy(asc(userFiles.createdAt))
       .limit(MAX_SWEPT_FILES);
 
     const stale = candidates.filter((file) =>
       isStaleFile({
         status: file.processingStatus,
+        storagePath: file.storagePath,
         metadata: file.metadata,
         createdAt: file.createdAt,
         now,
@@ -156,6 +177,7 @@ export async function sweepStaleFiles(params: {
           and(
             inArray(userFiles.id, ids),
             eq(userFiles.processingStatus, status),
+            excludeCrawledPages,
           ),
         );
     }
