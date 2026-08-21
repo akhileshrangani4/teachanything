@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.7](https://github.com/akhileshrangani4/teachanything/compare/v1.34.6...v1.34.7) (2026-08-21)
+
+
+### Bug Fixes
+
+* **quiz:** fill the silence while a leaked quiz is buffering ([#453](https://github.com/akhileshrangani4/teachanything/issues/453)) ([beda43c](https://github.com/akhileshrangani4/teachanything/commit/beda43c0936818b1500e299608c37eb650856380))
+
 ## [1.34.6](https://github.com/akhileshrangani4/teachanything/compare/v1.34.5...v1.34.6) (2026-08-21)
 
 
