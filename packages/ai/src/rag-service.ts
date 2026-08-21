@@ -137,8 +137,28 @@ export class RAGService {
         );
       }
 
-      // Dynamic import to avoid build-time execution
-      const pdfParse = (await import("pdf-parse")).default;
+      // Import the implementation module directly, NOT the package root.
+      //
+      // pdf-parse@1.1.1's index.js runs `let isDebugMode = !module.parent` at
+      // module scope. Under ESM (`"type": "module"` + dynamic import) there is
+      // no `module.parent`, so debug mode switches itself on and the file
+      // synchronously does:
+      //
+      //   Fs.readFileSync('./test/data/05-versions-space.pdf')
+      //
+      // That path is relative to the PROCESS CWD, but the fixture only ever
+      // exists inside the package (node_modules/pdf-parse/test/data/). The
+      // server's CWD is the app root -- `.next/standalone` in this app's
+      // `output: "standalone"` build -- so the read always misses and the
+      // import throws ENOENT before a single byte of the upload is touched.
+      // Every PDF then fails to process, whatever it contains. (pdf-parse is in
+      // `serverExternalPackages`, so it is loaded from node_modules by real
+      // Node at runtime rather than bundled, which is what exposes this.)
+      //
+      // `lib/pdf-parse.js` is the parser that index.js re-exports, so importing
+      // it skips the debug block entirely. Keep this subpath import; there is a
+      // regression test that loads this exact specifier in a bare Node process.
+      const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
 
       // Pass the buffer directly - pdf-parse accepts Buffer instances
       const data = await pdfParse(buffer);

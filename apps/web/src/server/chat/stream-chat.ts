@@ -55,7 +55,7 @@ import {
 } from "./repair-quiz-parts";
 import { ChatRequestError } from "./request";
 import { buildStudyResultsNote } from "@/server/study/model-note";
-import { repairQuiz } from "@/lib/quiz";
+import { parseQuizFromText, repairQuiz } from "@/lib/quiz";
 
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 
@@ -333,7 +333,7 @@ export async function streamChat(params: {
   );
 
   const studyAddendum = modelCanUseTools
-    ? buildStudyToolsAddendum(maxOutputTokens)
+    ? buildStudyToolsAddendum(maxOutputTokens, useRetrievalTools)
     : "";
   const primarySystemPrompt =
     (useRetrievalTools
@@ -489,6 +489,17 @@ export async function streamChat(params: {
         executeErrored = true;
         return;
       }
+      // The turn's text, across every step. `primary.text` resolves to the LAST
+      // step's text only, and this turn is deliberately multi-step
+      // (`stopWhen` above), so a model that answers in an earlier step and ends
+      // on a retrieval call -- or on the step cap -- reads as having produced
+      // nothing. That false negative fired the empty-response fallback below,
+      // appending a second, independently generated answer to a turn the
+      // student had already seen answered. Fall back to `primaryText` so a
+      // provider that leaves `step.text` unset can't regress this.
+      const stepsText = primarySteps.map((step) => step.text ?? "").join("");
+      const turnText = stepsText.trim() ? stepsText : primaryText;
+
       const allToolCalls = primarySteps.flatMap((s) => s.toolCalls ?? []);
       const doneCall = allToolCalls.find((tc) => tc.toolName === "done");
       const doneInput = doneCall?.input as { answer?: unknown } | undefined;
@@ -520,6 +531,16 @@ export async function streamChat(params: {
 
       // If the model answered only through the `done` tool (no free text),
       // surface that answer as a text part so it renders and persists as text.
+      //
+      // This gate deliberately reads `primaryText` (the LAST step's text), not
+      // `turnText`. `done` is a retrieval tool: its part is stripped from the
+      // stream and from `persistedParts`, so an answer delivered through it is
+      // invisible unless written out here. A model that narrates in an earlier
+      // step ("Let me check the readings.") and then answers via `done` has a
+      // non-empty `turnText` but an empty final step -- gating on `turnText`
+      // there would swallow the answer entirely. `hasVisibleAnswer` below is
+      // the opposite question ("did the turn produce anything at all?") and
+      // correctly spans every step.
       if (doneAnswer && doneAnswer.trim() && !primaryText.trim()) {
         const id = nanoid();
         writer.write({ type: "text-start", id });
@@ -528,7 +549,7 @@ export async function streamChat(params: {
       }
 
       const hasVisibleAnswer =
-        Boolean(primaryText.trim()) ||
+        Boolean(turnText.trim()) ||
         Boolean(doneAnswer?.trim()) ||
         producedQuiz ||
         salvagedTruncatedQuiz;
@@ -537,12 +558,13 @@ export async function streamChat(params: {
 
       if (!hasVisibleAnswer && modelCanUseTools && !abortSignal.aborted) {
         // Empty-response safety net (#357): a tool-capable turn produced no
-        // user-visible content (searched then hit the step cap, `done` with an
-        // empty answer, an invalid-only quiz, or a study-only bot that emitted
-        // neither text nor a valid quiz). Gated on `modelCanUseTools` -- not
-        // `useRetrievalTools` -- so the study-only path (zero files, or RAG
-        // unhealthy) is covered too. Fall back to a static, no-tools turn so the
-        // user always gets an answer instead of a stuck, empty stream.
+        // user-visible content in ANY step (searched then hit the step cap,
+        // `done` with an empty answer, an invalid-only quiz, or a study-only
+        // bot that emitted neither text nor a valid quiz). Gated on
+        // `modelCanUseTools` -- not `useRetrievalTools` -- so the study-only
+        // path (zero files, or RAG unhealthy) is covered too. Fall back to a
+        // static, no-tools turn so the user always gets an answer instead of a
+        // stuck, empty stream.
         logWarn(
           "Agentic path produced no text response; falling back to static RAG",
           { chatbotId: chatbot.id, modelId },
@@ -619,13 +641,22 @@ export async function streamChat(params: {
       const hasStudyPart = hasPersistableStudyPart(parts);
 
       // On a client disconnect, don't persist a partial assistant turn (or its
-      // analytics) -- UNLESS it carries a completed study part. The rendered
-      // quiz stays interactive on screen after a Stop, and recording an attempt
-      // requires the persisted part to validate against; skipping the persist
-      // would make every submission for that quiz 404 forever. The user message
-      // was already saved up front either way.
+      // analytics) -- UNLESS it carries quiz content. The rendered quiz stays
+      // interactive on screen after a Stop, and recording an attempt requires
+      // the persisted part to validate against; skipping the persist would make
+      // every submission for that quiz 404 forever. The user message was
+      // already saved up front either way.
+      //
+      // A quiz the model leaked into the text channel (see `recoverLeakedQuiz`)
+      // counts as quiz content too, even though it never became a tool part.
+      // Buffering that leak is exactly what makes the turn look stalled, so it
+      // is the turn a student is most likely to Stop -- and dropping it is what
+      // made a quiz turn vanish from the professor's transcript entirely. Only
+      // parsed on the abort path: on every other turn the answer is unused, and
+      // this is a full scan plus a JSON parse of the whole message.
       const clientAborted = abortSignal.aborted && !timeoutSignal.aborted;
-      if (clientAborted && !hasStudyPart) return;
+      if (clientAborted && !hasStudyPart && parseQuizFromText(content) === null)
+        return;
 
       const interrupted =
         timeoutSignal.aborted || executeErrored || clientAborted;

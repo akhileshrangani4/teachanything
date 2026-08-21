@@ -7,6 +7,10 @@ import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
 import { EMBEDDING_MODEL } from "@teachanything/ai/models";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
+import {
+  sanitizeProcessingError,
+  STORAGE_MISSING_ERROR,
+} from "./processing-error";
 
 const EXTRACTION_TIMEOUT_MS = 60_000;
 
@@ -21,15 +25,29 @@ export const CURRENT_PROCESSING_VERSION = 2;
  * Sanitize error messages before storing in metadata visible to users.
  * Prevents internal details (hostnames, connection strings, API keys) from leaking.
  */
-function sanitizeProcessingError(error: unknown): string {
-  const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes("timed out")) return "File processing timed out";
-  if (msg.includes("Unsupported file type")) return msg;
-  if (msg.includes("no readable text")) return msg;
-  if (msg.includes("Invalid PDF")) return "Invalid PDF format";
-  if (msg.includes("embedding") && msg.includes("dimension"))
-    return "Embedding dimension mismatch";
-  return "File processing failed due to an internal error";
+/**
+ * Mark a file failed and stop. Used by the paths that bail out mid-run without
+ * throwing: the atomic guard has already flipped the row to `processing`, so
+ * returning without a terminal status leaves it claimed forever -- a spinner the
+ * owner cannot clear and that every QStash retry bounces off. The stale sweep
+ * would eventually catch it, but only after 15 minutes and with a misleading
+ * "stopped responding" message, so settle it here with the real reason.
+ */
+async function abandonProcessing(
+  fileId: string,
+  reason: string,
+): Promise<{ success: false; chunkCount: 0 }> {
+  try {
+    await db
+      .update(userFiles)
+      .set({ processingStatus: "failed", metadata: { error: reason } })
+      .where(eq(userFiles.id, fileId));
+  } catch (statusError) {
+    logError(statusError, "Failed to mark abandoned file as failed", {
+      fileId,
+    });
+  }
+  return { success: false, chunkCount: 0 };
 }
 
 function withTimeout<T>(
@@ -178,7 +196,7 @@ export async function processFile(params: {
             "File not found in local storage (likely deleted), skipping processing",
             { fileId, storagePath: file.storagePath },
           );
-          return { success: false, chunkCount: 0 };
+          return abandonProcessing(fileId, STORAGE_MISSING_ERROR);
         }
         throw err;
       }
@@ -197,7 +215,7 @@ export async function processFile(params: {
             "File storage not found (likely deleted), skipping processing",
             { fileId, storagePath: file.storagePath },
           );
-          return { success: false, chunkCount: 0 };
+          return abandonProcessing(fileId, STORAGE_MISSING_ERROR);
         }
         throw new Error(`Failed to download file: ${error?.message}`);
       }

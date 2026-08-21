@@ -1,3 +1,4 @@
+import { repairQuiz } from "@/lib/quiz";
 import type { StudyUIMessage } from "./study-tools";
 
 type MessageRow = {
@@ -59,13 +60,41 @@ export function rowToUIMessage(row: MessageRow): StudyUIMessage {
   };
 }
 
+/**
+ * Finish a study-tool part for storage.
+ *
+ * A completed call (`input-available`) becomes `output-available`, which is what
+ * makes it render on reload.
+ *
+ * A part still in `input-streaming` is a quiz the turn ended in the middle of --
+ * a Stop, a disconnect, or the token limit -- and stored as-is it is the
+ * "Building your quiz..." skeleton, which spins forever in history (see
+ * `hasPersistableStudyPart`). Repair it into the questions that finished, the
+ * same salvage the live stream applies via `closeTruncatedQuizInputs`. When
+ * nothing is salvageable the part is left alone, so it stays non-persistable
+ * rather than becoming a ghost row.
+ *
+ * `output-error` parts are left untouched: the student saw the error notice and
+ * history should show what they saw.
+ */
 function completeStudyToolPart(
   part: StudyUIMessage["parts"][number],
 ): StudyUIMessage["parts"][number] {
-  if (part.type === "tool-showQuiz" && part.state === "input-available") {
+  if (part.type !== "tool-showQuiz") return part;
+  if (part.state === "input-available") {
     return {
       ...part,
       state: "output-available",
+      output: "rendered",
+    } as unknown as StudyUIMessage["parts"][number];
+  }
+  if (part.state === "input-streaming") {
+    const quiz = repairQuiz(part.input);
+    if (!quiz) return part;
+    return {
+      ...part,
+      state: "output-available",
+      input: quiz,
       output: "rendered",
     } as unknown as StudyUIMessage["parts"][number];
   }
