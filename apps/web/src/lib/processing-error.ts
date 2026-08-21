@@ -1,3 +1,8 @@
+import {
+  isPermanentProviderError,
+  isTransientError,
+} from "@teachanything/ai/error-utils";
+
 /**
  * Owner-facing messages for a failed file-processing run.
  *
@@ -60,6 +65,21 @@ export function sanitizeProcessingError(error: unknown): string {
   }
   if (msg.includes("Failed to extract content")) {
     return "This file could not be read. Try re-saving it in its native application and uploading again.";
+  }
+  // Provider failures are classified LAST, after every extraction-specific
+  // branch above. The patterns include bare status numbers, and a parser message
+  // can legitimately contain one ("bad object 500"), so letting these run first
+  // would relabel a corrupt PDF as an outage.
+  //
+  // Both branches exist because the generic catch-all below is actively harmful
+  // here: an exhausted API balance takes out EVERY file at once, and reporting
+  // that as "an internal error" is what made a billing problem look like a
+  // platform bug. It cost hours of diagnosis twice.
+  if (isPermanentProviderError(msg)) {
+    return "The AI service is out of quota or its key was rejected, so this file could not be indexed. This is a platform issue, not a problem with your file.";
+  }
+  if (isTransientError(msg)) {
+    return "The AI service was busy or unavailable and did not recover after retrying. Try again in a few minutes.";
   }
   return "File processing failed due to an internal error";
 }

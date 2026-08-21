@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.34.6](https://github.com/akhileshrangani4/teachanything/compare/v1.34.5...v1.34.6) (2026-08-21)
+
+
+### Bug Fixes
+
+* **ai:** stop retrying an exhausted API quota, and say so when the provider is the problem ([#452](https://github.com/akhileshrangani4/teachanything/issues/452)) ([4a70b2b](https://github.com/akhileshrangani4/teachanything/commit/4a70b2b7b2fa0dcb35cc264d277a8e0bb046aab9))
+* **db:** disable prepared statements on the transaction-mode pooler ([#450](https://github.com/akhileshrangani4/teachanything/issues/450)) ([78bc899](https://github.com/akhileshrangani4/teachanything/commit/78bc8994c7fc4feaaedf95bb25610efc8d95acdd))
+
 ## [1.34.5](https://github.com/akhileshrangani4/teachanything/compare/v1.34.4...v1.34.5) (2026-08-21)
 
 
