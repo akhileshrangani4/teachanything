@@ -608,3 +608,35 @@ describe("parseQuizFromText", () => {
     });
   });
 });
+
+describe("parseQuizFromText salvage edges", () => {
+  const question =
+    '{"question":"Q1?","options":["a","b"],"correct_index":0,"explanation":"e"}';
+
+  it("stops at the first question that is not valid JSON", () => {
+    // `extractBalanced` finds a closed `{...}`, but it is not JSON (unquoted
+    // key), so the salvage keeps what it already has and stops there rather
+    // than throwing or discarding the whole quiz.
+    const leak = `showQuiz(quiz_title="Photosynthesis", questions=[${question}, {question: "Q2?"}`;
+    const quiz = parseQuizFromText(leak);
+    expect(quiz?.questions).toHaveLength(1);
+    expect(quiz?.quiz_title).toBe("Photosynthesis");
+  });
+
+  it("rejects a pseudo-call whose title is not valid JSON", () => {
+    // A bad escape makes JSON.parse of the captured title throw. Better to drop
+    // the candidate than to render a quiz with a mangled title.
+    const leak = `showQuiz(quiz_title="Bad \\q escape", questions=[${question}])`;
+    expect(parseQuizFromText(leak)).toBeNull();
+  });
+
+  it("rejects a truncated JSON leak whose title is not valid JSON", () => {
+    const leak = `{"quiz_title": "Bad \\q escape", "questions": [${question},`;
+    expect(parseQuizFromText(leak)).toBeNull();
+  });
+
+  it("rejects a pseudo-call whose questions array is closed but not JSON", () => {
+    const leak = 'showQuiz(quiz_title="T", questions=[{question: "Q?"}])';
+    expect(parseQuizFromText(leak)).toBeNull();
+  });
+});

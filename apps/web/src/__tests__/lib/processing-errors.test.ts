@@ -89,6 +89,24 @@ describe("sanitizeProcessingError", () => {
     expect(out).not.toBe("File processing failed due to an internal error");
   });
 
+  it("names an embedding dimension mismatch", () => {
+    expect(
+      sanitizeProcessingError(
+        new Error("embedding returned dimension 3072, expected 1536"),
+      ),
+    ).toBe("Embedding dimension mismatch");
+  });
+
+  it("handles a thrown non-Error without losing the message", () => {
+    // Anything can be thrown; the classifier reads whatever String() gives it.
+    expect(sanitizeProcessingError("File extraction timed out")).toBe(
+      "File processing timed out",
+    );
+    expect(sanitizeProcessingError({ code: 500 })).toBe(
+      "File processing failed due to an internal error",
+    );
+  });
+
   it("keeps the unsupported-type message the extractor already wrote", () => {
     const raw = "Unsupported file type: application/zip";
     expect(sanitizeProcessingError(new Error(raw))).toBe(raw);
