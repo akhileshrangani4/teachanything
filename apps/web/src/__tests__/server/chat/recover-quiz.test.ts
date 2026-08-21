@@ -403,3 +403,144 @@ describe("a leak that needs repairing", () => {
     expect(textOf(out)).toBe("");
   });
 });
+
+/**
+ * The gap the reporting professor actually hit: the whole leaked quiz is
+ * buffered, so between the model's preamble and the finished widget nothing
+ * reaches the screen. On Llama 4 Maverick that averaged 59s and peaked at 172s,
+ * so the quiz read as a dead stream and she gave up before it landed.
+ */
+describe("placeholder while a leaked quiz is buffering", () => {
+  /** A quiz-shaped pseudo-call long enough to clear the placeholder threshold. */
+  const bigLeak = (questionCount: number, correctIndex = 0) => {
+    const questions = Array.from({ length: questionCount }, (_, i) =>
+      JSON.stringify({
+        question: `Question number ${i + 1} about gender theory and the film Barbie?`,
+        options: [
+          "First option",
+          "Second option",
+          "Third option",
+          "Fourth option",
+        ],
+        correct_index: correctIndex,
+        explanation:
+          "A deliberately wordy explanation so the serialized payload comfortably exceeds the placeholder threshold.",
+      }),
+    ).join(", ");
+    return `showQuiz(quiz_title="Gender Theory and Barbie", questions=[${questions}])`;
+  };
+
+  const PREAMBLE =
+    "Here are 5 multiple-choice questions to assess your understanding:\n";
+
+  it("shows the quiz skeleton before the quiz is finished", async () => {
+    const leak = bigLeak(5);
+    expect(leak.length).toBeGreaterThan(600);
+
+    // Split mid-leak so the placeholder has to appear on an intermediate delta,
+    // not just at text-end.
+    const out = await pump(
+      textBlock("t1", [PREAMBLE, leak.slice(0, 700), leak.slice(700)]),
+    );
+
+    const types = out.map((c) => c.type);
+    expect(types).toContain("tool-input-start");
+    // Ordering is the whole point: preamble, then the skeleton, then the quiz.
+    expect(types.indexOf("text-delta")).toBeLessThan(
+      types.indexOf("tool-input-start"),
+    );
+    expect(types.indexOf("tool-input-start")).toBeLessThan(
+      types.indexOf("tool-input-available"),
+    );
+  });
+
+  it("upgrades the skeleton in place instead of adding a second widget", async () => {
+    const leak = bigLeak(5);
+    const out = await pump(
+      textBlock("t1", [PREAMBLE, leak.slice(0, 700), leak.slice(700)]),
+    );
+
+    const start = out.find((c) => c.type === "tool-input-start");
+    const available = out.find((c) => c.type === "tool-input-available");
+    expect(start?.toolCallId).toBeDefined();
+    expect(available?.toolCallId).toBe(start?.toolCallId);
+    expect(out.filter((c) => c.type === "tool-input-start")).toHaveLength(1);
+    expect(out.filter((c) => c.type === "tool-input-available")).toHaveLength(
+      1,
+    );
+  });
+
+  it("keeps the preamble as text and closes it exactly once", async () => {
+    const leak = bigLeak(5);
+    const out = await pump(
+      textBlock("t1", [PREAMBLE, leak.slice(0, 700), leak.slice(700)]),
+    );
+
+    const text = out
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.delta as string)
+      .join("");
+    expect(text).toContain("Here are 5 multiple-choice questions");
+    // No part of the leak may reach the screen as prose.
+    expect(text).not.toContain("showQuiz");
+    expect(text).not.toContain("correct_index");
+    expect(out.filter((c) => c.type === "text-end")).toHaveLength(1);
+  });
+
+  it("does not show a skeleton for a short non-quiz JSON block", async () => {
+    const out = await pump(
+      textBlock("t1", ['```json\n{"model": "llama", "temperature": 0.7}\n```']),
+    );
+    expect(out.map((c) => c.type)).not.toContain("tool-input-start");
+  });
+
+  it("does not show a skeleton for ordinary prose that mentions the tool", async () => {
+    const out = await pump(
+      textBlock("t1", [
+        "When you ask to be quizzed I call showQuiz(quiz_title=..., questions=[...]) internally. ".repeat(
+          9,
+        ),
+      ]),
+    );
+    expect(out.map((c) => c.type)).not.toContain("tool-input-start");
+  });
+
+  it("turns the skeleton into an error rather than printing the answer key", async () => {
+    // Every question is unrenderable (correct_index past the options), so the
+    // payload is quiz-shaped, long, and unsalvageable. Committing to the
+    // skeleton means the raw call is dropped: showing the student the model's
+    // own answer key is the failure this transform exists to prevent.
+    const out = await pump(textBlock("t1", [PREAMBLE, bigLeak(5, 99)]));
+
+    const types = out.map((c) => c.type);
+    expect(types).toContain("tool-input-start");
+    expect(types).toContain("tool-output-error");
+    expect(types).not.toContain("tool-input-available");
+
+    const text = out
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.delta as string)
+      .join("");
+    expect(text).toContain("Here are 5 multiple-choice questions");
+    expect(text).not.toContain("correct_index");
+    expect(text).not.toContain("showQuiz");
+  });
+
+  it("still recovers when the stream dies mid-quiz after the skeleton", async () => {
+    // Abort partway: the questions that finished are salvaged, and the skeleton
+    // resolves rather than spinning forever.
+    const leak = bigLeak(5);
+    const out = await pump([
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: PREAMBLE },
+      { type: "text-delta", id: "t1", delta: leak.slice(0, leak.length - 40) },
+    ]);
+
+    const types = out.map((c) => c.type);
+    expect(types).toContain("tool-input-start");
+    expect(types).toContain("tool-input-available");
+    const available = out.find((c) => c.type === "tool-input-available");
+    const input = available?.input as { questions: unknown[] };
+    expect(input.questions.length).toBeGreaterThan(0);
+  });
+});
