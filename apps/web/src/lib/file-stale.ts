@@ -29,6 +29,45 @@ const IN_PROGRESS_STATUSES = ["pending", "processing"] as const;
 /** Bounds one sweep so a pathological account can't stall the list read. */
 const MAX_SWEPT_FILES = 200;
 
+/**
+ * How long one sweep covers a user for.
+ *
+ * The sweep fronts two list procedures, and the Files tab polls them while an
+ * upload processes -- so without this every poll paid for an extra query to
+ * re-derive an answer that cannot have changed. Nothing here is time-critical:
+ * the thresholds are 15 minutes, so re-checking more often than once a minute
+ * buys nothing.
+ */
+const SWEEP_INTERVAL_MS = 60_000;
+
+/**
+ * Last successful sweep per user, for `SWEEP_INTERVAL_MS`.
+ *
+ * Per-instance and best-effort on purpose. A cold instance just sweeps once
+ * more than it strictly had to, which is the cheap direction to be wrong in --
+ * the alternative (a shared lock) would cost more than the query it saves.
+ */
+const lastSweptAt = new Map<string, number>();
+
+/** Keeps the throttle map from growing without bound on a long-lived instance. */
+export const MAX_THROTTLE_ENTRIES = 10_000;
+
+function shouldSweep(userId: string, now: Date): boolean {
+  const previous = lastSweptAt.get(userId);
+  return (
+    previous === undefined || now.getTime() - previous >= SWEEP_INTERVAL_MS
+  );
+}
+
+function recordSweep(userId: string, now: Date): void {
+  // Bounded by clearing rather than by evicting: an entry is worth exactly one
+  // skipped query, so dropping all of them costs at most one extra sweep per
+  // active user. Not expected to fire -- one entry per active user per instance
+  // -- but it keeps a long-lived instance from growing without bound.
+  if (lastSweptAt.size >= MAX_THROTTLE_ENTRIES) lastSweptAt.clear();
+  lastSweptAt.set(userId, now.getTime());
+}
+
 export const STALE_PENDING_ERROR =
   "Processing never started. It may have been interrupted -- use Retry to try again.";
 
@@ -113,7 +152,10 @@ export function staleFileError(status: string): string {
  * owned by `sweepStaleCrawls`, which judges them by crawl-page activity rather
  * than by this table's progress stamps -- see `excludeCrawledPages`.
  *
- * Never throws; a failed sweep must not break the read that triggered it.
+ * Throttled per user (see `SWEEP_INTERVAL_MS`), so a polling list read does not
+ * re-run it on every request. Never throws; a failed sweep must not break the
+ * read that triggered it, and a failure is not recorded, so the next read
+ * retries instead of waiting out the interval.
  */
 export async function sweepStaleFiles(params: {
   db: typeof database;
@@ -122,6 +164,8 @@ export async function sweepStaleFiles(params: {
 }): Promise<void> {
   const { db, userId } = params;
   const now = params.now ?? new Date();
+
+  if (!shouldSweep(userId, now)) return;
 
   try {
     const candidates = await db
@@ -156,7 +200,10 @@ export async function sweepStaleFiles(params: {
         now,
       }),
     );
-    if (stale.length === 0) return;
+    if (stale.length === 0) {
+      recordSweep(userId, now);
+      return;
+    }
 
     // Grouped by the message each status earns, and re-checked against the
     // status in the WHERE clause so a file that started making progress between
@@ -182,6 +229,7 @@ export async function sweepStaleFiles(params: {
         );
     }
 
+    recordSweep(userId, now);
     logInfo("Timed out stale file processing", {
       userId,
       count: stale.length,
