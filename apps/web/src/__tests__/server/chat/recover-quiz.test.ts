@@ -115,13 +115,61 @@ describe("recoverLeakedQuiz", () => {
   });
 
   it("flushes a held quiz-candidate block if the stream ends before text-end", async () => {
-    // Stream cut off mid-JSON (no text-end): the partial text must not be lost.
+    // Stream cut off mid-JSON (no text-end): the partial text must not be lost,
+    // and the block must still be closed -- an unterminated text part stays in
+    // `streaming` state on the client, so the text renders as a message that
+    // never finished arriving.
     const partial = '{"quiz_title":"Photo';
     const input: Chunk[] = [
       { type: "text-start", id: "t1" },
       { type: "text-delta", id: "t1", delta: partial },
     ];
-    expect(await pump(input)).toEqual(input);
+    expect(await pump(input)).toEqual([
+      ...input,
+      { type: "text-end", id: "t1" },
+    ]);
+  });
+
+  it("closes an open block when a non-text chunk interrupts it", async () => {
+    // Ordering is preserved by flushing the block first; closing it is what
+    // stops the flushed text from rendering as still-streaming behind the tool
+    // part that follows.
+    const input: Chunk[] = [
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "Working on it." },
+      {
+        type: "tool-input-available",
+        toolCallId: "c1",
+        toolName: "search_documents",
+        input: { query: "x" },
+      } as unknown as Chunk,
+    ];
+    const out = await pump(input);
+    expect(out.map((c) => c.type)).toEqual([
+      "text-start",
+      "text-delta",
+      "text-end",
+      "tool-input-available",
+    ]);
+  });
+
+  it("closes an open block when the stream opens another without ending it", async () => {
+    const input: Chunk[] = [
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "First." },
+      { type: "text-start", id: "t2" },
+      { type: "text-delta", id: "t2", delta: "Second." },
+      { type: "text-end", id: "t2" },
+    ];
+    const out = await pump(input);
+    expect(out.map((c) => `${c.type}:${(c as { id?: string }).id}`)).toEqual([
+      "text-start:t1",
+      "text-delta:t1",
+      "text-end:t1",
+      "text-start:t2",
+      "text-delta:t2",
+      "text-end:t2",
+    ]);
   });
 
   it("streams prose that has leading whitespace", async () => {
