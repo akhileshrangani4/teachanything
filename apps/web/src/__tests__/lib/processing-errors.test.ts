@@ -134,3 +134,50 @@ describe("sanitizeProcessingError", () => {
     expect(out).not.toContain("ENOENT");
   });
 });
+
+/**
+ * The failure mode that hits every file at once, and the one the generic
+ * catch-all served worst.
+ */
+describe("sanitizeProcessingError on provider failures", () => {
+  it("names an exhausted API balance as a platform problem", () => {
+    // Verified live against the real API while the balance was empty.
+    const out = sanitizeProcessingError(
+      new Error(
+        "You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+      ),
+    );
+    expect(out).toContain("out of quota");
+    expect(out).toContain("not a problem with your file");
+    expect(out).not.toBe("File processing failed due to an internal error");
+  });
+
+  it("names a rejected key without leaking it", () => {
+    // Verified live: OpenAI masks the key itself, but the prefix still appears.
+    const out = sanitizeProcessingError(
+      new Error(
+        "Incorrect API key provided: sk-proj-****************************0000. You can find your API key at https://platform.openai.com/account/api-keys.",
+      ),
+    );
+    expect(out).toContain("key was rejected");
+    expect(out).not.toContain("sk-proj");
+  });
+
+  it("tells the owner to wait when the provider was merely busy", () => {
+    const out = sanitizeProcessingError(
+      new Error("API error: 503 Service Unavailable"),
+    );
+    expect(out).toContain("Try again in a few minutes");
+  });
+
+  it("still classifies a parser error that happens to contain a status number", () => {
+    // Provider checks run last for exactly this reason: pdf.js messages carry
+    // object numbers, and an early status match would relabel a corrupt file as
+    // an outage.
+    const out = sanitizeProcessingError(
+      new Error("Failed to extract PDF content: bad object 500 in XRef"),
+    );
+    expect(out).toContain("could not be read");
+    expect(out).not.toContain("AI service");
+  });
+});
