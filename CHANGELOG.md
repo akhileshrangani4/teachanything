@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.5](https://github.com/akhileshrangani4/teachanything/compare/v1.34.4...v1.34.5) (2026-08-21)
+
+
+### Bug Fixes
+
+* Bug Fixes in file uploads and quiz ([#448](https://github.com/akhileshrangani4/teachanything/issues/448)) ([fd2b673](https://github.com/akhileshrangani4/teachanything/commit/fd2b673a83cb49e79cf110b90c825f3795a83655))
+
 ## [1.34.4](https://github.com/akhileshrangani4/teachanything/compare/v1.34.3...v1.34.4) (2026-08-17)
 
 
