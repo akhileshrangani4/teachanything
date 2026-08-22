@@ -13,8 +13,7 @@ import {
   Trash2,
   CircleStop,
 } from "lucide-react";
-import { toast } from "sonner";
-import { trpc, type RouterOutputs } from "@/lib/trpc";
+import type { RouterOutputs } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { EditableName } from "@/components/ui/editable-name";
 import { Switch } from "@/components/ui/switch";
@@ -35,25 +34,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 import {
   SortableTableHead,
   type WebSourceSortBy,
 } from "@/components/data-table";
 import type { SortDirection } from "@/hooks/useServerTable";
+import { useExportSource } from "@/hooks/use-export-source";
 import { getSourceDisplayName } from "@/lib/crawler-metadata";
 import { CrawlProgress } from "@/components/chatbot/web-sources/CrawlProgress";
 import { CrawledPagesList } from "@/components/chatbot/web-sources/CrawledPagesList";
 import { SourceStatusBadge } from "@/components/chatbot/web-sources/StatusBadges";
+import { ConfirmDialogContent } from "@/components/chatbot/web-sources/ConfirmDialogContent";
+import { ResponsiveTableShell } from "@/components/chatbot/web-sources/ResponsiveTableShell";
+import { isActiveSource } from "@/components/chatbot/web-sources/utils";
 
 type DashboardSource =
   RouterOutputs["crawler"]["getAllCrawlSources"]["sources"][number];
@@ -70,14 +64,6 @@ const ZERO_PAGE_COUNTS = {
   blocked: 0,
   skipped: 0,
 } as const;
-
-function isActiveSource(source: DashboardSource): boolean {
-  return (
-    source.status === "pending" ||
-    source.status === "discovering" ||
-    source.status === "crawling"
-  );
-}
 
 // Sortable subset of WebSourceSortBy supported on this page.
 export type DashboardSortBy = Extract<
@@ -110,29 +96,6 @@ interface DashboardWebSourceTableProps {
   sortBy: DashboardSortBy;
   sortDir: SortDirection;
   onSort: (column: DashboardSortBy) => void;
-}
-
-function useExportSource(source: DashboardSource) {
-  const utils = trpc.useUtils();
-  return async () => {
-    try {
-      const data = await utils.crawler.exportJson.fetch({
-        crawlSourceId: source.id,
-      });
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `crawl-${new URL(source.rootUrl).hostname}-${new Date().toISOString().split("T")[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("JSON exported");
-    } catch {
-      toast.error("Failed to export JSON");
-    }
-  };
 }
 
 // A single button summarising attachment count; opens a checklist of chatbots.
@@ -265,7 +228,7 @@ function SourceActions({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
-  const handleExport = useExportSource(source);
+  const handleExport = useExportSource(source.id, source.rootUrl);
   const isActive = isActiveSource(source);
 
   return (
@@ -340,42 +303,24 @@ function SourceActions({
       </DropdownMenu>
 
       <AlertDialog open={confirmStop} onOpenChange={setConfirmStop}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Stop crawl</AlertDialogTitle>
-            <AlertDialogDescription>
-              Stop this crawl now. Pages already crawled are kept; the rest are
-              skipped. You can re-crawl or delete the source afterwards.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep crawling</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onStop(source.id)}>
-              Stop crawl
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        <ConfirmDialogContent
+          title="Stop crawl"
+          description="Stop this crawl now. Pages already crawled are kept; the rest are skipped. You can re-crawl or delete the source afterwards."
+          cancelLabel="Keep crawling"
+          confirmLabel="Stop crawl"
+          onConfirm={() => onStop(source.id)}
+        />
       </AlertDialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete web source</AlertDialogTitle>
-            <AlertDialogDescription>
-              Permanently delete this web source and all of its crawled pages.
-              It will be detached from every chatbot. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => onDelete(source.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete permanently
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        <ConfirmDialogContent
+          title="Delete web source"
+          description="Permanently delete this web source and all of its crawled pages. It will be detached from every chatbot. This cannot be undone."
+          cancelLabel="Cancel"
+          confirmLabel="Delete permanently"
+          destructive
+          onConfirm={() => onDelete(source.id)}
+        />
       </AlertDialog>
     </div>
   );
@@ -699,9 +644,13 @@ export function DashboardWebSourceTable({
   });
 
   return (
-    <>
-      {/* Desktop table view */}
-      <div className="hidden md:block">
+    <ResponsiveTableShell
+      selectAll={{
+        checked: allSelected,
+        onChange: onSelectAll,
+        ariaLabel: "Select all web sources",
+      }}
+      desktop={
         <Table style={{ tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: "3%" }} />
@@ -768,24 +717,10 @@ export function DashboardWebSourceTable({
             ))}
           </TableBody>
         </Table>
-      </div>
-
-      {/* Mobile card view */}
-      <div className="md:hidden space-y-3">
-        <div className="flex items-center gap-2 px-1">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={onSelectAll}
-            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-            aria-label="Select all web sources"
-          />
-          <span className="text-sm text-muted-foreground">Select all</span>
-        </div>
-        {sources.map((source) => (
-          <DashboardSourceCardMobile key={source.id} {...rowProps(source)} />
-        ))}
-      </div>
-    </>
+      }
+      mobile={sources.map((source) => (
+        <DashboardSourceCardMobile key={source.id} {...rowProps(source)} />
+      ))}
+    />
   );
 }

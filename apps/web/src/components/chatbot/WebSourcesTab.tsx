@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Globe, X } from "lucide-react";
 import { toast } from "sonner";
-import { logError } from "@/lib/logger";
 import { trpc } from "@/lib/trpc";
 import {
   Card,
@@ -16,10 +15,14 @@ import { Button } from "@/components/ui/button";
 import { TableToolbar, type WebSourceSortBy } from "@/components/data-table";
 import { PaginationControls } from "@/components/dashboard/files/PaginationControls";
 import { useServerTable } from "@/hooks/useServerTable";
+import { useAddWebSource } from "@/hooks/use-add-web-source";
+import { useCrawlerMutations } from "@/hooks/use-crawler-mutations";
 import {
   getSourceDisplayName,
   getSourcePageCount,
 } from "@/lib/crawler-metadata";
+import { toggleAllInSet, toggleInSet } from "@/lib/selection";
+import { runSequentially } from "@/lib/sequential-actions";
 import { WebSourceTable } from "./web-sources/WebSourceTable";
 import { AttachExistingSources } from "./web-sources/AttachExistingSources";
 import {
@@ -28,12 +31,7 @@ import {
   SingleWebpageForm,
   WebSourcesSkeleton,
 } from "./web-sources/WebSourceForms";
-import {
-  getFriendlyError,
-  hasActiveCrawl,
-  normalizeUrl,
-  parsePatternList,
-} from "./web-sources/utils";
+import { getFriendlyError, hasActiveCrawl } from "./web-sources/utils";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -43,12 +41,6 @@ interface WebSourcesTabProps {
 
 export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [rootUrl, setRootUrl] = useState("");
-  const [crawlDepth, setCrawlDepth] = useState(3);
-  const [maxPages, setMaxPages] = useState(100);
-  const [includePatterns, setIncludePatterns] = useState("");
-  const [excludePatterns, setExcludePatterns] = useState("");
-  const [manualUrl, setManualUrl] = useState("");
   const [expandedSources, setExpandedSources] = useState<Set<string>>(
     new Set(),
   );
@@ -155,177 +147,78 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
     });
   }, [allSources]);
 
-  const attach = trpc.crawler.attachToChatbot.useMutation({
-    onSuccess: () => {
-      refetchSources();
-      utils.crawler.getAttachableSources.invalidate();
-      toast.success("Web source attached");
+  const {
+    rootUrl,
+    crawlDepth,
+    maxPages,
+    includePatterns,
+    excludePatterns,
+    manualUrl,
+    setRootUrl,
+    setCrawlDepth,
+    setMaxPages,
+    setIncludePatterns,
+    setExcludePatterns,
+    setManualUrl,
+    submitCrawlSource,
+    submitManualUrl,
+    isSubmittingCrawlSource,
+    isSubmittingManualUrl,
+  } = useAddWebSource({
+    chatbotId,
+    onAdded: () => {
+      void refetchSources();
     },
-    onError: (error) => {
-      toast.error("Failed to attach", { description: getFriendlyError(error) });
-    },
+    onCrawlSourceAdded: () => setAddDialogOpen(false),
   });
 
-  const detach = trpc.crawler.detachFromChatbot.useMutation({
-    onSuccess: () => {
-      refetchSources();
-      utils.crawler.getAttachableSources.invalidate();
-      toast.success("Removed from this chatbot");
-    },
-    onError: (error) => {
-      toast.error("Failed to remove", { description: getFriendlyError(error) });
-    },
+  const {
+    attach,
+    detach,
+    recrawl,
+    cancelCrawlSource,
+    toggleCrawlSource,
+    renameCrawlSource,
+  } = useCrawlerMutations({
+    refresh: refetchSources,
+    refreshAttachments: () => utils.crawler.getAttachableSources.invalidate(),
+    attachSuccessMessage: "Web source attached",
+    detachSuccessMessage: "Removed from this chatbot",
+    formatError: getFriendlyError,
+    refreshAfterRename: () =>
+      Promise.all([
+        refetchSources(),
+        utils.crawler.getAllCrawlSources.invalidate(),
+      ]),
   });
 
   const unattached = (attachable ?? []).filter((s) => !s.isAttached);
 
-  const addCrawlSource = trpc.crawler.addCrawlSource.useMutation({
-    onSuccess: () => {
-      refetchSources();
-      setAddDialogOpen(false);
-      setRootUrl("");
-      setCrawlDepth(3);
-      setMaxPages(100);
-      setIncludePatterns("");
-      setExcludePatterns("");
-      toast.success("Crawl started");
-    },
-    onError: (error) => {
-      toast.error("Failed to start crawl", {
-        description: getFriendlyError(error),
-      });
-    },
-  });
-
-  const addManualUrl = trpc.crawler.addManualUrl.useMutation({
-    onSuccess: () => {
-      refetchSources();
-      setManualUrl("");
-      toast.success("URL added");
-    },
-    onError: (error) => {
-      toast.error("Failed to add URL", {
-        description: getFriendlyError(error),
-      });
-    },
-  });
-
-  const recrawl = trpc.crawler.recrawl.useMutation({
-    onSuccess: () => {
-      refetchSources();
-      toast.success("Re-crawl started");
-    },
-    onError: (error) => {
-      toast.error("Failed to start re-crawl", {
-        description: getFriendlyError(error),
-      });
-    },
-  });
-
-  const cancelCrawlSource = trpc.crawler.cancelCrawlSource.useMutation({
-    onSuccess: () => {
-      refetchSources();
-      toast.success("Crawl stopped");
-    },
-    onError: (error) => {
-      toast.error("Failed to stop crawl", {
-        description: getFriendlyError(error),
-      });
-    },
-  });
-
-  const toggleCrawlSource = trpc.crawler.toggleCrawlSource.useMutation({
-    onSuccess: (_data, variables) => {
-      refetchSources();
-      toast.success(variables.enabled ? "Source enabled" : "Source disabled");
-    },
-    onError: (error) => {
-      toast.error("Failed to toggle source", {
-        description: getFriendlyError(error),
-      });
-    },
-  });
-
-  const renameCrawlSource = trpc.crawler.renameCrawlSource.useMutation({
-    onSuccess: async () => {
-      await Promise.all([
-        refetchSources(),
-        utils.crawler.getAllCrawlSources.invalidate(),
-      ]);
-      toast.success("Web source renamed");
-    },
-    onError: (error) => {
-      toast.error("Failed to rename source", {
-        description: getFriendlyError(error),
-      });
-    },
-  });
-
-  const handleAddSource = () => {
-    addCrawlSource.mutate({
-      chatbotId,
-      rootUrl: normalizeUrl(rootUrl),
-      crawlDepth,
-      maxPages,
-      includePatterns: parsePatternList(includePatterns),
-      excludePatterns: parsePatternList(excludePatterns),
-    });
-  };
-
-  const handleAddManualUrl = () => {
-    if (!manualUrl) return;
-    addManualUrl.mutate({ chatbotId, url: normalizeUrl(manualUrl) });
-  };
-
   const toggleExpanded = (sourceId: string) => {
-    setExpandedSources((prev) => {
-      const next = new Set(prev);
-      if (next.has(sourceId)) {
-        next.delete(sourceId);
-      } else {
-        next.add(sourceId);
-      }
-      return next;
-    });
+    setExpandedSources((prev) => toggleInSet(prev, sourceId));
   };
 
   const handleToggleSelect = (sourceId: string) => {
-    setSelectedSources((prev) => {
-      const next = new Set(prev);
-      if (next.has(sourceId)) {
-        next.delete(sourceId);
-      } else {
-        next.add(sourceId);
-      }
-      return next;
-    });
+    setSelectedSources((prev) => toggleInSet(prev, sourceId));
   };
 
   const handleSelectAll = () => {
     if (pagedSources.length === 0) return;
-    const allPagedSelected = pagedSources.every((s) =>
-      selectedSources.has(s.id),
+    setSelectedSources((prev) =>
+      toggleAllInSet(
+        prev,
+        pagedSources.map((s) => s.id),
+      ),
     );
-    setSelectedSources((prev) => {
-      const next = new Set(prev);
-      if (allPagedSelected) {
-        for (const s of pagedSources) next.delete(s.id);
-      } else {
-        for (const s of pagedSources) next.add(s.id);
-      }
-      return next;
-    });
   };
 
   const handleRemoveSelected = async () => {
     const ids = Array.from(selectedSources);
-    for (const crawlSourceId of ids) {
-      try {
-        await detach.mutateAsync({ crawlSourceId, chatbotId });
-      } catch (error) {
-        logError(error, `Failed to remove source ${crawlSourceId}`);
-      }
-    }
+    await runSequentially(
+      ids,
+      (crawlSourceId) => detach.mutateAsync({ crawlSourceId, chatbotId }),
+      (crawlSourceId) => `Failed to remove source ${crawlSourceId}`,
+    );
     setSelectedSources(new Set());
     toast.success(
       `${ids.length} web source${ids.length !== 1 ? "s" : ""} removed from chatbot`,
@@ -366,17 +259,17 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
             onMaxPagesChange={setMaxPages}
             onIncludePatternsChange={setIncludePatterns}
             onExcludePatternsChange={setExcludePatterns}
-            onSubmit={handleAddSource}
-            isSubmitting={addCrawlSource.isPending}
+            onSubmit={submitCrawlSource}
+            isSubmitting={isSubmittingCrawlSource}
           />
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <SingleWebpageForm
           manualUrl={manualUrl}
-          isSubmitting={addManualUrl.isPending}
+          isSubmitting={isSubmittingManualUrl}
           onManualUrlChange={setManualUrl}
-          onSubmit={handleAddManualUrl}
+          onSubmit={submitManualUrl}
         />
 
         <AttachExistingSources

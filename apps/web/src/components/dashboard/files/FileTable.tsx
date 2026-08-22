@@ -26,6 +26,7 @@ import {
   getFileTypeDisplayName,
 } from "./file-constants";
 import { FileStatusBadge } from "./FileStatusBadge";
+import { ResponsiveTableShell } from "@/components/chatbot/web-sources/ResponsiveTableShell";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -525,9 +526,17 @@ export function FileTable<T extends BaseFile>({
   const fileNameWidth = 100 - fixedWidth;
 
   return (
-    <>
-      {/* Desktop table view */}
-      <div className="hidden md:block">
+    <ResponsiveTableShell
+      selectAll={
+        showCheckbox && onSelectAll
+          ? {
+              checked: allSelected,
+              onChange: onSelectAll,
+              ariaLabel: "Select all files",
+            }
+          : undefined
+      }
+      desktop={
         <Table style={{ tableLayout: "fixed" }}>
           <colgroup>
             {hasCheckbox && <col style={{ width: "3%" }} />}
@@ -584,38 +593,22 @@ export function FileTable<T extends BaseFile>({
             ))}
           </TableBody>
         </Table>
-      </div>
-
-      {/* Mobile card view */}
-      <div className="md:hidden space-y-3">
-        {showCheckbox && onSelectAll && (
-          <div className="flex items-center gap-2 px-1">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={onSelectAll}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-              aria-label="Select all files"
-            />
-            <span className="text-sm text-muted-foreground">Select all</span>
-          </div>
-        )}
-        {files.map((file) => (
-          <FileCardMobile
-            key={file.id}
-            file={file}
-            showCheckbox={showCheckbox}
-            isSelected={selectedFiles?.has(file.id)}
-            onToggleSelect={onToggleSelect}
-            actionType={actionType}
-            onAction={onAction}
-            actionDisabled={actionDisabled}
-            onRetry={onRetry}
-            retryDisabled={retryDisabled}
-            showCreatedDate={showCreatedDate}
-          />
-        ))}
-      </div>
-    </>
+      }
+      mobile={files.map((file) => (
+        <FileCardMobile
+          key={file.id}
+          file={file}
+          showCheckbox={showCheckbox}
+          isSelected={selectedFiles?.has(file.id)}
+          onToggleSelect={onToggleSelect}
+          actionType={actionType}
+          onAction={onAction}
+          actionDisabled={actionDisabled}
+          onRetry={onRetry}
+          retryDisabled={retryDisabled}
+          showCreatedDate={showCreatedDate}
+        />
+      ))}
+    />
   );
 }

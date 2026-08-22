@@ -24,6 +24,9 @@ import {
   type DashboardSortBy,
 } from "@/components/dashboard/web-sources/DashboardWebSourceTable";
 import { hasActiveCrawl } from "@/components/chatbot/web-sources/utils";
+import { useCrawlerMutations } from "@/hooks/use-crawler-mutations";
+import { toggleAllInSet, toggleInSet } from "@/lib/selection";
+import { runSequentially } from "@/lib/sequential-actions";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -79,54 +82,15 @@ export default function WebSourcesPage() {
   const utils = trpc.useUtils();
   const refreshSources = () => utils.crawler.getAllCrawlSources.invalidate();
 
-  const attach = trpc.crawler.attachToChatbot.useMutation({
-    onSuccess: () => refreshSources(),
-    onError: (e) => toast.error("Failed to attach", { description: e.message }),
-  });
-  const detach = trpc.crawler.detachFromChatbot.useMutation({
-    onSuccess: () => refreshSources(),
-    onError: (e) => toast.error("Failed to remove", { description: e.message }),
-  });
-  const recrawl = trpc.crawler.recrawl.useMutation({
-    onSuccess: () => {
-      refreshSources();
-      toast.success("Re-crawl started");
-    },
-    onError: (e) =>
-      toast.error("Failed to start re-crawl", { description: e.message }),
-  });
-  const toggleCrawlSource = trpc.crawler.toggleCrawlSource.useMutation({
-    onSuccess: (_data, variables) => {
-      refreshSources();
-      toast.success(variables.enabled ? "Source enabled" : "Source disabled");
-    },
-    onError: (e) =>
-      toast.error("Failed to toggle source", { description: e.message }),
-  });
-  const renameCrawlSource = trpc.crawler.renameCrawlSource.useMutation({
-    onSuccess: () => {
-      refreshSources();
-      toast.success("Web source renamed");
-    },
-    onError: (e) =>
-      toast.error("Failed to rename source", { description: e.message }),
-  });
-  const cancelCrawlSource = trpc.crawler.cancelCrawlSource.useMutation({
-    onSuccess: () => {
-      refreshSources();
-      toast.success("Crawl stopped");
-    },
-    onError: (e) =>
-      toast.error("Failed to stop crawl", { description: e.message }),
-  });
-  const removeCrawlSource = trpc.crawler.removeCrawlSource.useMutation({
-    onSuccess: () => {
-      refreshSources();
-      toast.success("Web source deleted");
-    },
-    onError: (e) =>
-      toast.error("Failed to delete source", { description: e.message }),
-  });
+  const {
+    attach,
+    detach,
+    recrawl,
+    cancelCrawlSource,
+    toggleCrawlSource,
+    renameCrawlSource,
+    removeCrawlSource,
+  } = useCrawlerMutations({ refresh: refreshSources });
 
   const hasChatbots = chatbotCount > 0;
   const hasSources = sources.length > 0;
@@ -143,21 +107,11 @@ export default function WebSourcesPage() {
   };
 
   const toggleSelect = (id: string) => {
-    setSelectedSources((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setSelectedSources((prev) => toggleInSet(prev, id));
   };
 
   const toggleExpand = (id: string) => {
-    setExpandedSources((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setExpandedSources((prev) => toggleInSet(prev, id));
   };
 
   const allPageSelected =
@@ -165,27 +119,21 @@ export default function WebSourcesPage() {
 
   const handleSelectAll = () => {
     if (sources.length === 0) return;
-    setSelectedSources((prev) => {
-      const next = new Set(prev);
-      if (allPageSelected) {
-        for (const s of sources) next.delete(s.id);
-      } else {
-        for (const s of sources) next.add(s.id);
-      }
-      return next;
-    });
+    setSelectedSources((prev) =>
+      toggleAllInSet(
+        prev,
+        sources.map((s) => s.id),
+      ),
+    );
   };
 
   const handleDeleteSelected = async () => {
     const ids = Array.from(selectedSources);
-    let failures = 0;
-    for (const crawlSourceId of ids) {
-      try {
-        await removeCrawlSource.mutateAsync({ crawlSourceId });
-      } catch {
-        failures++;
-      }
-    }
+    const failures = await runSequentially(
+      ids,
+      (crawlSourceId) => removeCrawlSource.mutateAsync({ crawlSourceId }),
+      (crawlSourceId) => `Failed to delete source ${crawlSourceId}`,
+    );
     setSelectedSources(new Set());
     if (failures === 0) {
       toast.success(

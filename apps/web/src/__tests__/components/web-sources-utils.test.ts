@@ -2,6 +2,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
   getFriendlyError,
   hasActiveCrawl,
+  isActiveSource,
   normalizeUrl,
   parsePatternList,
 } from "@/components/chatbot/web-sources/utils";
@@ -35,6 +36,20 @@ describe("web source UI utilities", () => {
 
     it("returns an empty array for blank input", () => {
       expect(parsePatternList("   ")).toEqual([]);
+    });
+  });
+
+  describe("isActiveSource", () => {
+    it("returns true for pending, discovering, or crawling sources", () => {
+      expect(isActiveSource({ status: "pending" })).toBe(true);
+      expect(isActiveSource({ status: "discovering" })).toBe(true);
+      expect(isActiveSource({ status: "crawling" })).toBe(true);
+    });
+
+    it("returns false for terminal or disabled statuses", () => {
+      expect(isActiveSource({ status: "completed" })).toBe(false);
+      expect(isActiveSource({ status: "failed" })).toBe(false);
+      expect(isActiveSource({ status: "cancelled" })).toBe(false);
     });
   });
 

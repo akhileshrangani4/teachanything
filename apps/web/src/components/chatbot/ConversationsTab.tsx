@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { logError } from "@/lib/logger";
 import { formatDuration, formatTimestamp } from "@/lib/conversation-format";
+import { toggleAllInSet, toggleInSet } from "@/lib/selection";
 import {
   downloadConversationsExport,
   type ExportFormat,
@@ -379,26 +380,18 @@ function ConversationListView({
     },
   });
 
-  const toggle = (id: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => setSelected((prev) => toggleInSet(prev, id));
 
   const allVisibleSelected =
     conversations.length > 0 && conversations.every((c) => selected.has(c.id));
 
   const toggleAllVisible = () =>
-    setSelected((prev) => {
-      if (allVisibleSelected) {
-        const next = new Set(prev);
-        conversations.forEach((c) => next.delete(c.id));
-        return next;
-      }
-      return new Set([...prev, ...conversations.map((c) => c.id)]);
-    });
+    setSelected((prev) =>
+      toggleAllInSet(
+        prev,
+        conversations.map((c) => c.id),
+      ),
+    );
 
   // Export: `null` = dialog closed; "all" exports every conversation for the
   // chatbot, "selected" exports only the checked ids. Formats default to all.
@@ -409,12 +402,7 @@ function ConversationListView({
   );
 
   const toggleFormat = (format: ExportFormat) =>
-    setExportFormats((prev) => {
-      const next = new Set(prev);
-      if (next.has(format)) next.delete(format);
-      else next.add(format);
-      return next;
-    });
+    setExportFormats((prev) => toggleInSet(prev, format));
 
   const runExport = async () => {
     if (exportMode === null || exportFormats.size === 0) return;

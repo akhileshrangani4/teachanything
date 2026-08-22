@@ -8,8 +8,7 @@ import {
   Trash2,
   CircleStop,
 } from "lucide-react";
-import { toast } from "sonner";
-import { trpc, type RouterOutputs } from "@/lib/trpc";
+import type { RouterOutputs } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EditableName } from "@/components/ui/editable-name";
@@ -22,17 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   SortableTableHead,
   type WebSourceSortBy,
@@ -43,19 +32,15 @@ import {
   getSourceErrorCount,
   getSourcePageCount,
 } from "@/lib/crawler-metadata";
+import { useExportSource } from "@/hooks/use-export-source";
+import { isActiveSource } from "./utils";
+import { ConfirmDialogContent } from "./ConfirmDialogContent";
+import { ResponsiveTableShell } from "./ResponsiveTableShell";
 import { CrawlProgress } from "./CrawlProgress";
 import { CrawledPagesList } from "./CrawledPagesList";
 import { SourceStatusBadge } from "./StatusBadges";
 
 type CrawlSource = RouterOutputs["crawler"]["getCrawlSources"][number];
-
-function isActiveSource(source: CrawlSource): boolean {
-  return (
-    source.status === "pending" ||
-    source.status === "discovering" ||
-    source.status === "crawling"
-  );
-}
 
 // ── Shared row actions (export / recrawl / remove) ───────────────────
 function WebSourceRowActions({
@@ -114,21 +99,13 @@ function WebSourceRowActions({
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove from chatbot</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remove this web source from this chatbot? Its content stays
-              available to attach again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onRemove}>
-              Remove from chatbot
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        <ConfirmDialogContent
+          title="Remove from chatbot"
+          description="Remove this web source from this chatbot? Its content stays available to attach again."
+          cancelLabel="Cancel"
+          confirmLabel="Remove from chatbot"
+          onConfirm={onRemove}
+        />
       </AlertDialog>
     </>
   );
@@ -155,19 +132,13 @@ function StopCrawlButton({
           <CircleStop className="h-4 w-4" />
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Stop crawl</AlertDialogTitle>
-          <AlertDialogDescription>
-            Stop this crawl now. Pages already crawled are kept; the rest are
-            skipped. You can re-crawl or remove the source afterwards.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep crawling</AlertDialogCancel>
-          <AlertDialogAction onClick={onStop}>Stop crawl</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
+      <ConfirmDialogContent
+        title="Stop crawl"
+        description="Stop this crawl now. Pages already crawled are kept; the rest are skipped. You can re-crawl or remove the source afterwards."
+        cancelLabel="Keep crawling"
+        confirmLabel="Stop crawl"
+        onConfirm={onStop}
+      />
     </AlertDialog>
   );
 }
@@ -215,30 +186,6 @@ interface WebSourceRowProps {
   isRenaming?: boolean;
 }
 
-// Builds the JSON export handler for a single source.
-function useExportSource(source: CrawlSource) {
-  const utils = trpc.useUtils();
-  return async () => {
-    try {
-      const data = await utils.crawler.exportJson.fetch({
-        crawlSourceId: source.id,
-      });
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `crawl-${new URL(source.rootUrl).hostname}-${new Date().toISOString().split("T")[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("JSON exported");
-    } catch {
-      toast.error("Failed to export JSON");
-    }
-  };
-}
-
 // ── Desktop table row (+ optional expanded pages row) ────────────────
 function WebSourceTableRow({
   source,
@@ -259,7 +206,7 @@ function WebSourceTableRow({
   isTogglingEnabled = false,
   isRenaming = false,
 }: WebSourceRowProps & { colSpan: number }) {
-  const handleExport = useExportSource(source);
+  const handleExport = useExportSource(source.id, source.rootUrl);
   const isActive = isActiveSource(source);
   const pageCount = getSourcePageCount(source);
   const errorCount = getSourceErrorCount(source);
@@ -406,7 +353,7 @@ function WebSourceCardMobile({
   isTogglingEnabled = false,
   isRenaming = false,
 }: WebSourceRowProps) {
-  const handleExport = useExportSource(source);
+  const handleExport = useExportSource(source.id, source.rootUrl);
   const isActive = isActiveSource(source);
   const pageCount = getSourcePageCount(source);
   const errorCount = getSourceErrorCount(source);
@@ -612,9 +559,17 @@ export function WebSourceTable({
   const colSpan = (hasCheckbox ? 1 : 0) + 5;
 
   return (
-    <>
-      {/* Desktop table view */}
-      <div className="hidden md:block">
+    <ResponsiveTableShell
+      selectAll={
+        showCheckbox && onSelectAll
+          ? {
+              checked: allSelected,
+              onChange: onSelectAll,
+              ariaLabel: "Select all web sources",
+            }
+          : undefined
+      }
+      desktop={
         <Table style={{ tableLayout: "fixed" }}>
           <colgroup>
             {hasCheckbox && <col style={{ width: "3%" }} />}
@@ -675,44 +630,28 @@ export function WebSourceTable({
             ))}
           </TableBody>
         </Table>
-      </div>
-
-      {/* Mobile card view */}
-      <div className="md:hidden space-y-3">
-        {hasCheckbox && (
-          <div className="flex items-center gap-2 px-1">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={onSelectAll}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-              aria-label="Select all web sources"
-            />
-            <span className="text-sm text-muted-foreground">Select all</span>
-          </div>
-        )}
-        {sources.map((source) => (
-          <WebSourceCardMobile
-            key={source.id}
-            source={source}
-            showCheckbox={showCheckbox}
-            isSelected={selectedSources?.has(source.id)}
-            onToggleSelect={onToggleSelect}
-            isExpanded={expandedSources?.has(source.id)}
-            onToggleExpand={onToggleExpand}
-            onRecrawl={onRecrawl}
-            onRemove={onRemove}
-            onStop={onStop}
-            onToggleEnabled={onToggleEnabled}
-            onRename={onRename}
-            isRecrawling={isRecrawling}
-            isRemoving={isRemoving}
-            isStopping={isStopping}
-            isTogglingEnabled={isTogglingEnabled}
-            isRenaming={isRenaming}
-          />
-        ))}
-      </div>
-    </>
+      }
+      mobile={sources.map((source) => (
+        <WebSourceCardMobile
+          key={source.id}
+          source={source}
+          showCheckbox={showCheckbox}
+          isSelected={selectedSources?.has(source.id)}
+          onToggleSelect={onToggleSelect}
+          isExpanded={expandedSources?.has(source.id)}
+          onToggleExpand={onToggleExpand}
+          onRecrawl={onRecrawl}
+          onRemove={onRemove}
+          onStop={onStop}
+          onToggleEnabled={onToggleEnabled}
+          onRename={onRename}
+          isRecrawling={isRecrawling}
+          isRemoving={isRemoving}
+          isStopping={isStopping}
+          isTogglingEnabled={isTogglingEnabled}
+          isRenaming={isRenaming}
+        />
+      ))}
+    />
   );
 }
