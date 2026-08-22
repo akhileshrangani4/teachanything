@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { keepPreviousData } from "@tanstack/react-query";
 import {
   MessageSquare,
@@ -111,15 +112,6 @@ const EXPORT_FORMAT_OPTIONS: Array<{
 const ALL_EXPORT_FORMATS: ExportFormat[] = EXPORT_FORMAT_OPTIONS.map(
   (o) => o.value,
 );
-
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(t);
-  }, [value, delayMs]);
-  return debounced;
-}
 
 export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
   const [selectedConversationId, setSelectedConversationId] = useState<

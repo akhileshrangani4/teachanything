@@ -3,7 +3,7 @@ import { logWarn } from "@/lib/logger";
 
 /**
  * Cached token counter -- initialized once, reused across requests. Mirrors the
- * lazy tiktoken init in chat.ts (char/4 fallback if the encoder won't load).
+ * lazy tiktoken init (char/4 fallback if the encoder won't load).
  */
 let counterPromise: Promise<(text: string) => number> | null = null;
 

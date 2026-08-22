@@ -260,6 +260,20 @@ export const updateAuthorNameProcedure = adminProcedure
 export const deleteChatbotProcedure = adminProcedure
   .input(z.object({ chatbotId: z.string().uuid() }))
   .mutation(async ({ ctx, input }) => {
+    // Existence check so a bad id 404s instead of reporting success on a
+    // delete that matched nothing.
+    const [existing] = await ctx.db
+      .select({ id: chatbots.id })
+      .from(chatbots)
+      .where(eq(chatbots.id, input.chatbotId))
+      .limit(1);
+    if (!existing) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Chatbot not found",
+      });
+    }
+
     // Admin can delete any chatbot
     await ctx.db.delete(chatbots).where(eq(chatbots.id, input.chatbotId));
 

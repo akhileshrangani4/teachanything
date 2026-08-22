@@ -1,9 +1,6 @@
-import type { InferUIMessageChunk } from "ai";
 import { nanoid } from "nanoid";
 import { parseQuizFromText } from "@/lib/quiz";
-import type { StudyUIMessage } from "./study-tools";
-
-type Chunk = InferUIMessageChunk<StudyUIMessage>;
+import type { Chunk } from "./ui-chunks";
 
 /**
  * Openers that can begin a leaked `showQuiz` call inside assistant text:
@@ -196,7 +193,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
         type: "tool-output-error",
         toolCallId: placeholderCallId,
         errorText: "The quiz could not be built. Please ask again.",
-      } as Chunk);
+      });
       placeholderCallId = null;
       pending = [];
       pendingText = "";
@@ -223,15 +220,20 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
   ) => {
     if (placeholderCallId || markerAt === -1 || !isQuizInProgress(held)) return;
 
+    // markerAt is only ever set while an open text block is being buffered,
+    // so blockId is provably non-null here; the check keeps TS honest.
+    const id = blockId;
+    if (id === null) return;
+
     const preamble = pendingText.slice(0, markerAt);
     if (preamble.trim().length > 0) {
       emitStart(controller);
       controller.enqueue({
         type: "text-delta",
-        id: blockId,
+        id,
         delta: preamble,
-      } as Chunk);
-      controller.enqueue({ type: "text-end", id: blockId } as Chunk);
+      });
+      controller.enqueue({ type: "text-end", id });
     }
     // The preamble is out, and the rest is the leak. `pending` holds the raw
     // chunks that would have been replayed as prose; they are no longer needed.
@@ -244,7 +246,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
       type: "tool-input-start",
       toolCallId: placeholderCallId,
       toolName: "showQuiz",
-    } as Chunk);
+    });
   };
 
   /**
@@ -272,17 +274,20 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     // reset to 0 and this is empty.
     const preamble = pendingText.slice(0, markerAt);
     if (!placeholderCallId && (startEmitted || preamble.trim().length > 0)) {
+      const id = blockId;
       emitStart(controller);
-      if (preamble.length > 0) {
+      if (id !== null && preamble.length > 0) {
         controller.enqueue({
           type: "text-delta",
-          id: blockId,
+          id,
           delta: preamble,
-        } as Chunk);
+        });
       }
-      controller.enqueue(
-        endChunk ?? ({ type: "text-end", id: blockId } as Chunk),
-      );
+      if (endChunk) {
+        controller.enqueue(endChunk);
+      } else if (id !== null) {
+        controller.enqueue({ type: "text-end", id });
+      }
     }
     // Reuse the placeholder's id so the skeleton becomes the finished quiz
     // instead of a second widget appearing beneath it.
@@ -291,7 +296,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
       toolCallId: placeholderCallId ?? nanoid(),
       toolName: "showQuiz",
       input: quiz,
-    } as Chunk);
+    });
     placeholderCallId = null;
     return true;
   };
@@ -310,7 +315,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     const textPartOpen = placeholderCallId === null;
     flushPending(controller);
     if (id !== null && textPartOpen) {
-      controller.enqueue({ type: "text-end", id } as Chunk);
+      controller.enqueue({ type: "text-end", id });
     }
   };
 

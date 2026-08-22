@@ -50,7 +50,7 @@ export function newSessionId(): string {
  * and lazy re-indexing -- but ends in a native `ai@6` UI message stream so the
  * model can render study tools (`showQuiz`) client-side.
  *
- * Behavior preserved from chat.ts:
+ * Behavior preserved from the pre-AI-SDK tRPC implementation:
  * - Agentic retrieval path (#357): retrieval tools + grounding rule + the
  *   `done` tool, with the empty-response fallback to a static (no-tools) turn.
  * - Study tools are always available on tool-capable models, even with zero

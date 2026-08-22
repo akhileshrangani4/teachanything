@@ -122,6 +122,20 @@ export const addDomainProcedure = adminProcedure
 export const removeDomainProcedure = adminProcedure
   .input(z.object({ domainId: z.string().uuid() }))
   .mutation(async ({ ctx, input }) => {
+    // Existence check so a bad id 404s instead of reporting success on a
+    // delete that matched nothing.
+    const [existing] = await ctx.db
+      .select({ id: approvedDomains.id })
+      .from(approvedDomains)
+      .where(eq(approvedDomains.id, input.domainId))
+      .limit(1);
+    if (!existing) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Domain not found",
+      });
+    }
+
     await ctx.db
       .delete(approvedDomains)
       .where(eq(approvedDomains.id, input.domainId));

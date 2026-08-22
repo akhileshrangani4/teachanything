@@ -9,7 +9,7 @@ import { rowToUIMessage, stripToolPartsForTextModel } from "./ui-messages";
 
 type HistoryRow = typeof messages.$inferSelect;
 
-/** Grounding rule ported verbatim from the agentic path in chat.ts. */
+/** Grounding rule shared by the agentic primary path and the fallback. */
 function buildGroundingRule(hasInjectedContext: boolean): string {
   return (
     "\n\nYou can search the attached documents using tools." +

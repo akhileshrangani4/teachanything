@@ -3,7 +3,6 @@ import {
   stepCountIs,
   hasToolCall,
   type FinishReason,
-  type InferUIMessageChunk,
   type ModelMessage,
   type StepResult,
   type ToolSet,
@@ -14,14 +13,13 @@ import { resolveModel, type OpenRouterClient } from "@teachanything/ai";
 import { logError, logWarn } from "@/lib/logger";
 import { repairQuiz } from "@/lib/quiz";
 import type { StudyUIMessage } from "./study-tools";
+import type { Chunk } from "./ui-chunks";
 import { stripRetrievalOutputs } from "./stream-filter";
 import { recoverLeakedQuiz } from "./recover-quiz";
 import {
   repairQuizToolParts,
   closeTruncatedQuizInputs,
 } from "./repair-quiz-parts";
-
-type Chunk = InferUIMessageChunk<StudyUIMessage>;
 
 /**
  * Forward every chunk of `source` to the response, in order, and resolve once it
