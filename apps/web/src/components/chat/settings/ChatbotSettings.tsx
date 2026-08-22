@@ -20,7 +20,7 @@ import { WrappableText } from "@/components/ui/wrappable-text";
 import { CharacterCounter } from "@/components/ui/character-counter";
 import { trpc } from "@/lib/trpc";
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   MODEL_REGISTRY,
   toolCapableModels,
@@ -59,6 +59,30 @@ interface ChatbotSettingsProps {
   };
 }
 
+type SettingsDraft = {
+  name: string;
+  description: string;
+  model: string;
+  systemPrompt: string;
+  temperature: string;
+  maxTokens: string;
+  showSources: boolean;
+};
+
+function settingsFromChatbot(
+  c: ChatbotSettingsProps["chatbot"],
+): SettingsDraft {
+  return {
+    name: c.name,
+    description: c.description ?? "",
+    model: c.model,
+    systemPrompt: c.systemPrompt,
+    temperature: c.temperature?.toString() ?? "70",
+    maxTokens: c.maxTokens?.toString() ?? "2000",
+    showSources: c.showSources ?? false,
+  };
+}
+
 export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   const params = useParams();
   const router = useRouter();
@@ -68,18 +92,20 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   const [disableShareDialog, setDisableShareDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Editable state
-  const [name, setName] = useState(chatbot.name);
-  const [description, setDescription] = useState(chatbot.description ?? "");
-  const [model, setModel] = useState(chatbot.model);
-  const [systemPrompt, setSystemPrompt] = useState(chatbot.systemPrompt);
-  const [temperature, setTemperature] = useState(
-    chatbot.temperature?.toString() ?? "70",
+  // Single draft object for all editable fields, initialized from props.
+  // Server truth is never synced implicitly: callers reset the draft
+  // explicitly on cancel / save / toggle-failure, so there are no
+  // props-into-state effects.
+  const [draft, setDraft] = useState<SettingsDraft>(() =>
+    settingsFromChatbot(chatbot),
   );
-  const [maxTokens, setMaxTokens] = useState(
-    chatbot.maxTokens?.toString() ?? "2000",
-  );
-  const [showSources, setShowSources] = useState(chatbot.showSources ?? false);
+  const { name, description, model, systemPrompt, temperature, maxTokens } =
+    draft;
+
+  const setField = <K extends keyof SettingsDraft>(
+    key: K,
+    value: SettingsDraft[K],
+  ) => setDraft((d) => ({ ...d, [key]: value }));
 
   // A legacy chatbot may be saved on a model that no longer supports document
   // tools. When that happens we still render it as a selectable option so the
@@ -87,22 +113,6 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   const savedModelIsNonTool =
     !!model &&
     !MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]?.supportsTools;
-
-  // Sync editable fields from server only when not actively editing
-  useEffect(() => {
-    if (isEditing) return;
-    setName(chatbot.name);
-    setDescription(chatbot.description ?? "");
-    setModel(chatbot.model);
-    setSystemPrompt(chatbot.systemPrompt);
-    setTemperature(chatbot.temperature?.toString() ?? "70");
-    setMaxTokens(chatbot.maxTokens?.toString() ?? "2000");
-  }, [chatbot, isEditing]);
-
-  // Sync display settings independently (live toggle, not part of edit flow)
-  useEffect(() => {
-    setShowSources(chatbot.showSources ?? false);
-  }, [chatbot.showSources]);
 
   const utils = trpc.useUtils();
 
@@ -204,7 +214,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
       );
     },
     onError: (error) => {
-      setShowSources(chatbot.showSources ?? false);
+      setField("showSources", chatbot.showSources ?? false);
       toast.error("Failed to update setting", {
         description: error.message,
       });
@@ -212,7 +222,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   });
 
   const handleToggleShowSources = (checked: boolean) => {
-    setShowSources(checked);
+    setField("showSources", checked);
     toggleShowSources.mutate({ id: chatbotId, showSources: checked });
   };
 
@@ -267,12 +277,13 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
           systemPrompt,
           temperature: tempValue,
           maxTokens: tokensValue,
-          showSources: showSources,
+          showSources: draft.showSources,
         },
       },
       {
         onSuccess: () => {
           setIsEditing(false);
+          setDraft(settingsFromChatbot(chatbot));
           toast.success("Settings saved successfully", {
             description: "Your chatbot configuration has been updated",
           });
@@ -282,6 +293,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   };
 
   const handleCancel = () => {
+    setDraft(settingsFromChatbot(chatbot));
     setIsEditing(false);
   };
 
@@ -335,7 +347,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
             id="name"
             label="Name"
             value={name}
-            onChange={setName}
+            onChange={(value) => setField("name", value)}
             maxLength={VALIDATION_LIMITS.NAME_MAX_LENGTH}
             warningThreshold={VALIDATION_LIMITS.NAME_WARNING_THRESHOLD}
             helperText="The display name for your chatbot"
@@ -360,7 +372,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
             id="description"
             label="Description"
             value={description}
-            onChange={setDescription}
+            onChange={(value) => setField("description", value)}
             maxLength={VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH}
             warningThreshold={VALIDATION_LIMITS.DESCRIPTION_WARNING_THRESHOLD}
             helperText="A brief description of what your chatbot does"
@@ -400,7 +412,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
             Choose the AI model to power your chatbot
           </p>
           {isEditing ? (
-            <Select value={model} onValueChange={setModel}>
+            <Select value={model} onValueChange={(v) => setField("model", v)}>
               <SelectTrigger id="model">
                 <SelectValue />
               </SelectTrigger>
@@ -451,7 +463,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
           <Textarea
             id="systemPrompt"
             value={systemPrompt}
-            onChange={(e) => setSystemPrompt(e.target.value)}
+            onChange={(e) => setField("systemPrompt", e.target.value)}
             disabled={!isEditing}
             rows={6}
             className={
@@ -479,7 +491,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
                 max="100"
                 step="1"
                 value={temperature}
-                onChange={(e) => setTemperature(e.target.value)}
+                onChange={(e) => setField("temperature", e.target.value)}
               />
             ) : (
               <div className="px-3 py-2 bg-background rounded-md border">
@@ -502,7 +514,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
                 max="4000"
                 step="100"
                 value={maxTokens}
-                onChange={(e) => setMaxTokens(e.target.value)}
+                onChange={(e) => setField("maxTokens", e.target.value)}
               />
             ) : (
               <div className="px-3 py-2 bg-background rounded-md border">
@@ -533,7 +545,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
           </div>
           <Switch
             id="showSources"
-            checked={showSources}
+            checked={draft.showSources}
             onCheckedChange={handleToggleShowSources}
             disabled={toggleShowSources.isPending}
           />
