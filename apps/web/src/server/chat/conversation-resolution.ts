@@ -48,7 +48,13 @@ export async function resolveConversation(
     conversation = retry;
   }
   if (!conversation) {
-    throw new ChatRequestError("Session id is already in use", 409);
+    // Reached only when the insert lost a concurrent-create race AND the
+    // re-read still found nothing — i.e. the session could neither be
+    // created nor found, so "already in use" would be misleading.
+    throw new ChatRequestError(
+      "Could not start this conversation. Please try again.",
+      409,
+    );
   }
   return conversation;
 }

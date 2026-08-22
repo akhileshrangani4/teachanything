@@ -153,7 +153,7 @@ export async function streamChat(params: {
   // is read after streaming to merge into the final source list.
   let retrievalTools:
     | ReturnType<typeof createRetrievalTools>["tools"]
-    | object = {};
+    | undefined;
   let toolSources: ReturnType<typeof createRetrievalTools>["sources"] = [];
   if (useRetrievalTools) {
     const rt = createRetrievalTools({
@@ -165,11 +165,12 @@ export async function streamChat(params: {
     toolSources = rt.sources;
   }
 
-  const tools = useRetrievalTools
-    ? { ...retrievalTools, ...studyTools }
-    : modelCanUseTools
-      ? { ...studyTools }
-      : {};
+  // When neither tool group applies this collapses to an empty object,
+  // matching the previous explicit branches.
+  const tools = {
+    ...(retrievalTools ?? {}),
+    ...studyTools,
+  };
 
   const { primarySystemPrompt, fallbackSystemPrompt, uiMessages } =
     buildTurnPrompts({

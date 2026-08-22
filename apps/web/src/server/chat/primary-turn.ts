@@ -233,7 +233,9 @@ export async function runFallbackTurn(args: {
   chatbotId: string;
   onStreamError: (error: unknown) => string;
   writer: UIMessageStreamWriter<StudyUIMessage>;
-}): Promise<{ ok: true; finishReason: FinishReason } | { ok: false }> {
+}): Promise<
+  { ok: true; finishReason: FinishReason; text: string } | { ok: false }
+> {
   const fallback = streamText({
     model: args.aiClient.getModel(args.modelId),
     system: args.systemPrompt,
@@ -254,8 +256,8 @@ export async function runFallbackTurn(args: {
         onError: args.onStreamError,
       }),
     );
-    await fallback.text;
-    return { ok: true, finishReason: await fallback.finishReason };
+    const text = await fallback.text;
+    return { ok: true, finishReason: await fallback.finishReason, text };
   } catch (error) {
     logError(error, "fallback turn failed", { chatbotId: args.chatbotId });
     return { ok: false };

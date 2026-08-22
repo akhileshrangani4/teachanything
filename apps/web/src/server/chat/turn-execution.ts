@@ -3,7 +3,7 @@ import { resolveModel, type OpenRouterClient } from "@teachanything/ai";
 import type { RAGContextResult } from "@/server/rag-context";
 import { mergeSources } from "@/server/chat-helpers";
 import { createRetrievalTools } from "@/server/retrieval-tools";
-import { logWarn } from "@/lib/logger";
+import { logError, logWarn } from "@/lib/logger";
 import {
   producedRenderableQuiz,
   type StudyMessageMetadata,
@@ -156,6 +156,25 @@ export async function executeTurn(args: {
     });
     if (!fallback.ok) {
       args.state.executeErrored = true;
+      return;
+    }
+    // Both turns produced nothing user-visible. Ending with a normal
+    // finish here would leave the student a silently dead turn — the
+    // exact UX the fallback exists to prevent. Surface an error part
+    // instead (mirrors the failed-primary path: no success finish).
+    if (!fallback.text.trim()) {
+      logError(
+        new Error("Fallback turn also produced no text"),
+        "empty response after fallback",
+        { chatbotId: args.chatbotId, modelId: args.modelId },
+      );
+      args.state.executeErrored = true;
+      args.writer.write({
+        type: "error",
+        errorText: args.onStreamError(
+          new Error("Model produced no response text"),
+        ),
+      });
       return;
     }
     finishReason = fallback.finishReason;
