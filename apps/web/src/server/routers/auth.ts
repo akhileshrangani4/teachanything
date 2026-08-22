@@ -1,5 +1,4 @@
 import { router, publicProcedure, protectedProcedure } from "../trpc";
-import type { User } from "@/types/better-auth";
 import { z } from "zod";
 import { user, account } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -30,7 +29,7 @@ export const authRouter = router({
       };
     }
 
-    const user = ctx.session.user as User;
+    const user = ctx.session.user;
     return {
       authenticated: true,
       user: {
@@ -87,7 +86,7 @@ export const authRouter = router({
    * Check if user's account is approved
    */
   checkApprovalStatus: protectedProcedure.query(async ({ ctx }) => {
-    const user = ctx.session.user as User;
+    const user = ctx.session.user;
     return {
       status: user.status,
       isApproved: user.status === "approved",
@@ -351,7 +350,7 @@ export const authRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const currentUser = ctx.session.user as User;
+      const currentUser = ctx.session.user;
 
       // Rate limiting: shares budget with password updates (5 attempts/hour)
       // Uses requireRateLimit to fail closed if Redis is unavailable

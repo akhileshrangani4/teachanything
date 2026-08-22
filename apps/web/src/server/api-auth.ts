@@ -20,7 +20,7 @@ export async function requireApiSession(
       response: new Response("Unauthorized", { status: 401 }),
     };
   }
-  return { ok: true, user: session.user as User };
+  return { ok: true, user: session.user };
 }
 
 /**

@@ -3,7 +3,6 @@ import { ZodError } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@teachanything/db";
 import { logError, logWarn } from "@/lib/logger";
-import type { User } from "@/types/better-auth";
 import superjson from "superjson";
 
 /**
@@ -78,7 +77,7 @@ export const protectedProcedure = t.procedure
     }
 
     // Check if user is approved
-    const user = ctx.session.user as User;
+    const user = ctx.session.user;
 
     // Admins bypass the approval workflow
     if (user.role !== "admin" && user.status !== "approved") {
@@ -102,7 +101,7 @@ export const protectedProcedure = t.procedure
 
 // Admin procedure (requires admin role)
 export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  const user = ctx.session.user as User;
+  const user = ctx.session.user;
 
   if (user.role !== "admin") {
     logWarn("[tRPC] Non-admin access attempt to admin endpoint", {

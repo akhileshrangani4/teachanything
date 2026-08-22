@@ -6,7 +6,6 @@ import { chatbots, analytics } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
 import { findOwnedChatbotId } from "@/server/queries/chatbot";
 import type { Ratelimit } from "@upstash/ratelimit";
-import type { User } from "@/types/better-auth";
 import {
   transcriptionRateLimit,
   publicTranscriptionRateLimit,
@@ -89,7 +88,7 @@ async function resolveAuth(
       // than silently falling through to the shareToken path, so a banned
       // user can't transcribe at all (anonymous shareToken access is a
       // separate, lower bucket).
-      const user = session.user as User;
+      const user = session.user;
       if (user.role !== "admin" && user.status !== "approved") {
         logWarn("Unapproved/banned user attempted transcription", {
           surface: "authenticated",
