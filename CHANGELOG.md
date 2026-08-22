@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.34.8](https://github.com/akhileshrangani4/teachanything/compare/v1.34.7...v1.34.8) (2026-08-22)
+
+
+### Bug Fixes
+
+* **quiz:** close the loophole that let a model deliver a quiz as a table ([#455](https://github.com/akhileshrangani4/teachanything/issues/455)) ([001ce54](https://github.com/akhileshrangani4/teachanything/commit/001ce54d7d8c143f6802cd16ba61a59df653384d))
+
+
+### Documentation
+
+* label the tutorials for instructors and signpost them ([#456](https://github.com/akhileshrangani4/teachanything/issues/456)) ([24dbf83](https://github.com/akhileshrangani4/teachanything/commit/24dbf83f3dc42ec61097ec284f652f2f7311b436))
+
 ## [1.34.7](https://github.com/akhileshrangani4/teachanything/compare/v1.34.6...v1.34.7) (2026-08-21)
 
 
