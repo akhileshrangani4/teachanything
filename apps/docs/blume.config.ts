@@ -60,7 +60,7 @@ export default defineConfig({
         path: "/instructors",
         icon: "graduation-cap",
       },
-      { label: "Tutorials", path: "/tutorials", icon: "compass" },
+      { label: "Instructor Tutorials", path: "/tutorials", icon: "compass" },
       { label: "For Students", path: "/students", icon: "book-open" },
     ],
   },
