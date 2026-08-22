@@ -11,16 +11,7 @@ import { TRPCError } from "@trpc/server";
 import { SUPPORTED_MODELS, DEPRECATED_MODELS } from "@teachanything/ai";
 import { checkRateLimit, chatbotCreationRateLimit } from "@/lib/rate-limit";
 import { escapeLikePattern } from "@/server/utils";
-import {
-  findChatbotForUser,
-  findOwnedChatbotId,
-  type ChatbotDb,
-} from "@/server/queries/chatbot";
-
-// Re-export the query helpers so existing tRPC-side imports keep working.
-// The implementations live in the queries module (decoupled from tRPC
-// types); non-tRPC callers like the transcribe route import them there.
-export { findChatbotForUser, findOwnedChatbotId };
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 
 // Accept both current and deprecated model IDs for backwards compatibility (D-08).
 // Chatbots stored with old IDs are resolved at query time via resolveModel().
@@ -28,18 +19,6 @@ const allAcceptedModels = [...SUPPORTED_MODELS, ...DEPRECATED_MODELS] as [
   string,
   ...string[],
 ];
-
-async function getChatbotByIdForUser(
-  db: ChatbotDb,
-  chatbotId: string,
-  userId: string,
-) {
-  const chatbot = await findChatbotForUser(db, chatbotId, userId);
-  if (!chatbot) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Chatbot not found" });
-  }
-  return chatbot;
-}
 
 const createChatbotSchema = z.object({
   name: z.string().min(1).max(100),
@@ -125,7 +104,7 @@ export const chatbotRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return getChatbotByIdForUser(ctx.db, input.id, ctx.session.user.id);
+      return assertOwnedChatbot(ctx, input.id);
     }),
 
   /**
@@ -134,7 +113,7 @@ export const chatbotRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      return getChatbotByIdForUser(ctx.db, input.id, ctx.session.user.id);
+      return assertOwnedChatbot(ctx, input.id);
     }),
 
   /**
@@ -262,23 +241,7 @@ export const chatbotRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       // Check ownership
-      const [existing] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
+      await assertOwnedChatbot(ctx, input.id);
 
       const [updated] = await ctx.db
         .update(chatbots)
@@ -303,11 +266,7 @@ export const chatbotRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const chatbot = await getChatbotByIdForUser(
-        ctx.db,
-        input.id,
-        ctx.session.user.id,
-      );
+      const chatbot = await assertOwnedChatbot(ctx, input.id);
 
       await ctx.db
         .update(chatbots)
@@ -324,23 +283,7 @@ export const chatbotRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       // Check ownership
-      const [existing] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
+      await assertOwnedChatbot(ctx, input.id);
 
       await ctx.db.delete(chatbots).where(eq(chatbots.id, input.id));
 
@@ -354,23 +297,7 @@ export const chatbotRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       // Check ownership
-      const [existing] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
+      const existing = await assertOwnedChatbot(ctx, input.id);
 
       // Reuse existing shareToken if it exists, otherwise generate a new one
       const shareToken = existing.shareToken || nanoid(16);
@@ -405,23 +332,7 @@ export const chatbotRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       // Check ownership
-      const [existing] = await ctx.db
-        .select()
-        .from(chatbots)
-        .where(
-          and(
-            eq(chatbots.id, input.id),
-            eq(chatbots.userId, ctx.session.user.id),
-          ),
-        )
-        .limit(1);
-
-      if (!existing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
-      }
+      await assertOwnedChatbot(ctx, input.id);
 
       // Keep shareToken but disable sharing
       await ctx.db

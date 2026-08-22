@@ -1,10 +1,8 @@
-import { eq, and } from "drizzle-orm";
 import { db } from "@teachanything/db";
-import { chatbots } from "@teachanything/db/schema";
-import { auth } from "@/lib/auth";
-import type { User } from "@/types/better-auth";
 import { logError } from "@/lib/logger";
 import { checkRateLimit, studyResponseRateLimit } from "@/lib/rate-limit";
+import { requireApprovedUser } from "@/server/api-auth";
+import { findOwnedChatbotId } from "@/server/queries/chatbot";
 import {
   authedStudyRequestSchema,
   recordStudyResponse,
@@ -18,22 +16,13 @@ import {
  */
 export async function POST(req: Request): Promise<Response> {
   try {
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session?.user?.id) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+    const authResult = await requireApprovedUser(req.headers, {
+      surface: "study-response",
+    });
+    if (!authResult.ok) return authResult.response;
+    const user = authResult.user;
 
-    const user = session.user as User;
-    if (user.role !== "admin" && user.status !== "approved") {
-      return new Response("Your account is pending admin approval", {
-        status: 403,
-      });
-    }
-
-    const { success } = await checkRateLimit(
-      studyResponseRateLimit,
-      session.user.id,
-    );
+    const { success } = await checkRateLimit(studyResponseRateLimit, user.id);
     if (!success) {
       return new Response("Too many requests. Please slow down.", {
         status: 429,
@@ -47,22 +36,17 @@ export async function POST(req: Request): Promise<Response> {
       return new Response("Invalid request", { status: 400 });
     }
 
-    const [chatbot] = await db
-      .select({ id: chatbots.id })
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, parsed.data.chatbotId),
-          eq(chatbots.userId, session.user.id),
-        ),
-      )
-      .limit(1);
-    if (!chatbot) {
+    const ownedChatbot = await findOwnedChatbotId(
+      db,
+      parsed.data.chatbotId,
+      user.id,
+    );
+    if (!ownedChatbot) {
       return new Response("Chatbot not found", { status: 404 });
     }
 
     await recordStudyResponse({
-      chatbotId: chatbot.id,
+      chatbotId: ownedChatbot.id,
       sessionId: parsed.data.sessionId,
       toolCallId: parsed.data.toolCallId,
       response: parsed.data.response,

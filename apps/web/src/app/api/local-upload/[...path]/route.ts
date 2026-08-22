@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { isLocalStorageMode, saveLocalFile } from "@/lib/local-storage";
+import { requireApiSession } from "@/server/api-auth";
 
 /**
  * Local file upload endpoint for development.
@@ -19,13 +19,11 @@ export async function PUT(
   }
 
   // Validate session
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
-
-  if (!session?.user) {
+  const authResult = await requireApiSession(request.headers);
+  if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const user = authResult.user;
 
   const { path } = await params;
 
@@ -37,7 +35,7 @@ export async function PUT(
   const storagePath = path.join("/");
 
   // Verify the path starts with the user's ID
-  if (!storagePath.startsWith(session.user.id + "/")) {
+  if (!storagePath.startsWith(user.id + "/")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

@@ -13,7 +13,7 @@ import {
   finalizeCrawlSource,
 } from "@/lib/crawl-processor";
 import { checkRateLimit, manualUrlRateLimit } from "@/lib/rate-limit";
-import { assertOwnedChatbot } from "../helpers";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { manualUrlInput } from "../validation";
 
 export const addManualUrlProcedure = protectedProcedure

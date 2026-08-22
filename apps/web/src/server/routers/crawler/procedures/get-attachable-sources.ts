@@ -5,7 +5,7 @@ import {
   crawlSources,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { assertOwnedChatbot } from "../helpers";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 
 // Lists the caller's web sources with a flag for whether each is already
 // attached to the given chatbot. Powers the "Attach existing web source"

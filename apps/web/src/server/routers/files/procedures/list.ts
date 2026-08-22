@@ -1,7 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and, sql, desc, asc, ilike, or, isNull } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import {
   chatbots,
   userFiles,
@@ -9,6 +8,7 @@ import {
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
 import { sweepStaleFiles } from "@/lib/file-stale";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 // Crawled pages are shown as grouped "Web Sources" rows in the Files tab
 // (rendered from crawler.getCrawlSources) rather than cluttering the
 // uploaded-file table as individual rows.
@@ -188,23 +188,7 @@ export const listForChatbotProcedure = protectedProcedure
     await sweepStaleFiles({ db: ctx.db, userId: ctx.session.user.id });
 
     // Verify chatbot ownership
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, input.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
-      });
-    }
+    await assertOwnedChatbot(ctx, input.chatbotId);
 
     const limit = input.limit ?? 10;
     const offset = input.offset ?? 0;

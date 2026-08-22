@@ -53,7 +53,7 @@ import type { SortDirection } from "@/hooks/useServerTable";
 import { getSourceDisplayName } from "@/lib/crawler-metadata";
 import { CrawlProgress } from "@/components/chatbot/web-sources/CrawlProgress";
 import { CrawledPagesList } from "@/components/chatbot/web-sources/CrawledPagesList";
-import { SourceStatusBadge } from "@/components/chatbot/web-sources/status-badges";
+import { SourceStatusBadge } from "@/components/chatbot/web-sources/StatusBadges";
 
 type DashboardSource =
   RouterOutputs["crawler"]["getAllCrawlSources"]["sources"][number];

@@ -10,6 +10,7 @@ import { AllUsersTab } from "@/components/admin/tabs/AllUsersTab";
 import { Shield, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { logError } from "@/lib/logger";
 
 export default function AdminPage() {
   const [isExporting, setIsExporting] = useState(false);
@@ -87,7 +88,7 @@ export default function AdminPage() {
       XLSX.writeFile(workbook, fileName);
       toast.success("Export complete");
     } catch (error) {
-      console.error("Failed to export admin data:", error);
+      logError(error, "Failed to export admin data");
       toast.error("Failed to export data");
     } finally {
       setIsExporting(false);

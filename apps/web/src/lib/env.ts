@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logWarn } from "@/lib/logger";
 
 // Skip validation for CI builds with dummy values
 const skipValidation = process.env.SKIP_ENV_VALIDATION === "1";
@@ -61,7 +62,7 @@ export type Env = z.infer<typeof envSchema>;
 function validateEnv(): Env {
   // Skip validation in CI builds - return a proxy that provides dummy values on-demand
   if (skipValidation) {
-    console.warn("⚠️  Skipping environment validation (CI mode)");
+    logWarn("Skipping environment validation (CI mode)");
     // Return a proxy that provides sensible dummy values for any accessed property
     return new Proxy({} as Env, {
       get(_target, prop: string) {
@@ -97,8 +98,63 @@ function validateEnv(): Env {
   }
 }
 
+/**
+ * NEXT_PUBLIC_* vars (and NODE_ENV) are statically inlined by Next.js at
+ * build time, so they are readable on the client. Everything else is
+ * server-only.
+ */
+const CLIENT_AVAILABLE_KEYS = [
+  "NODE_ENV",
+  "NEXT_PUBLIC_APP_URL",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "NEXT_PUBLIC_MAX_FILE_SIZE_MB",
+  "NEXT_PUBLIC_VOICE_INPUT_ENABLED",
+  "NEXT_PUBLIC_GITHUB_URL",
+  "NEXT_PUBLIC_DONATION_URL",
+  "NEXT_PUBLIC_CONTACT_EMAIL",
+  "NEXT_PUBLIC_LINKEDIN_URL",
+] as const;
+
+function createClientEnv(): Env {
+  // Jest's jsdom environment fakes `window`, but tests legitimately import
+  // server modules (rate limiting, qstash, ...) whose mocks expect missing
+  // server vars to read as undefined. Only real browser bundles get the
+  // strict proxy.
+  if (process.env.NODE_ENV === "test") {
+    const lenient = Object.fromEntries(
+      CLIENT_AVAILABLE_KEYS.map((key) => [key, process.env[key]]),
+    );
+    return new Proxy(lenient as unknown as Env, {
+      get(target, prop: string | symbol) {
+        return target[prop as keyof Env];
+      },
+    });
+  }
+
+  const values = Object.fromEntries(
+    CLIENT_AVAILABLE_KEYS.map((key) => [key, process.env[key]]),
+  );
+
+  // Fail fast (per repo convention): accessing a server-only env var from
+  // client code is a bug — surface it immediately instead of returning
+  // undefined and failing somewhere unrelated downstream.
+  return new Proxy(values as unknown as Env, {
+    get(target, prop: string | symbol) {
+      if (typeof prop === "string" && !(prop in target)) {
+        throw new Error(
+          `env.${prop} is server-only and was accessed from the browser. ` +
+            `Client code may only read ${CLIENT_AVAILABLE_KEYS.join(", ")}.`,
+        );
+      }
+      return target[prop as keyof Env];
+    },
+  });
+}
+
 // Validate env on module load (server-side only)
-export const env = typeof window === "undefined" ? validateEnv() : ({} as Env);
+export const env =
+  typeof window === "undefined" ? validateEnv() : createClientEnv();
 
 /**
  * Check whether an optional external service is configured.

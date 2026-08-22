@@ -17,14 +17,13 @@ import {
   groupStudyResponses,
   type CollectedStudyTool,
 } from "@/server/study/collect-export";
-import type { Context } from "@/server/trpc";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import {
   checkRateLimit,
   conversationSearchRateLimit,
   downloadRateLimit,
 } from "@/lib/rate-limit";
 
-type AuthedContext = Context & { session: { user: { id: string } } };
 type SessionTimeRange = "week" | "month" | "quarter";
 
 const MESSAGE_EVENT_TYPES = ["message_sent", "shared_message_sent"];
@@ -65,25 +64,6 @@ function startOfUtcWeek(date: Date): Date {
 
 function roundToOne(value: number): number {
   return Math.round(value * 10) / 10;
-}
-
-async function assertOwnedChatbot(
-  ctx: AuthedContext,
-  chatbotId: string,
-): Promise<typeof chatbots.$inferSelect> {
-  const [chatbot] = await ctx.db
-    .select()
-    .from(chatbots)
-    .where(
-      and(eq(chatbots.id, chatbotId), eq(chatbots.userId, ctx.session.user.id)),
-    )
-    .limit(1);
-
-  if (!chatbot) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Chatbot not found" });
-  }
-
-  return chatbot;
 }
 
 function buildMessageStatsSubquery(
@@ -516,37 +496,21 @@ export const analyticsRouter = router({
 
       const accountCreatedAt = userRecord.createdAt;
 
-      // Get all chatbots for the user
-      const userChatbots = await ctx.db
-        .select({ id: chatbots.id })
+      // Existence check only — the per-message aggregation below joins
+      // through to chatbots directly, so we never materialize id arrays
+      // for every conversation the user owns.
+      const [chatbotCount] = await ctx.db
+        .select({ count: sql<number>`count(*)::int` })
         .from(chatbots)
         .where(eq(chatbots.userId, ctx.session.user.id));
 
-      if (userChatbots.length === 0) {
+      if (!chatbotCount || Number(chatbotCount.count) === 0) {
         return {
           data: [],
           startDate: accountCreatedAt,
           endDate: accountCreatedAt,
         };
       }
-
-      const chatbotIds = userChatbots.map((cb) => cb.id);
-
-      // Get conversations for all user's chatbots
-      const conversationResults = await ctx.db
-        .select({ id: conversations.id })
-        .from(conversations)
-        .where(inArray(conversations.chatbotId, chatbotIds));
-
-      if (conversationResults.length === 0) {
-        return {
-          data: [],
-          startDate: accountCreatedAt,
-          endDate: accountCreatedAt,
-        };
-      }
-
-      const conversationIds = conversationResults.map((c) => c.id);
 
       // Calculate date range: 30 days ending at (today - offsetDays)
       // But don't go back further than account creation date
@@ -572,16 +536,19 @@ export const analyticsRouter = router({
         endDate.setHours(23, 59, 59, 999);
       }
 
-      // Get messages grouped by day within the date range
+      // Get messages grouped by day within the date range, joined through
+      // to the user's chatbots so no id lists are materialized in Node.
       const messagesData = await ctx.db
         .select({
           date: sql<string>`DATE(${messages.createdAt})`,
           count: sql<number>`count(*)::int`,
         })
         .from(messages)
+        .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+        .innerJoin(chatbots, eq(conversations.chatbotId, chatbots.id))
         .where(
           and(
-            inArray(messages.conversationId, conversationIds),
+            eq(chatbots.userId, ctx.session.user.id),
             gte(messages.createdAt, startDate),
             lte(messages.createdAt, endDate),
           ),

@@ -15,7 +15,7 @@ import {
 import { Pencil } from "lucide-react";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
-import { validateAuthorName } from "./utils/authorNameValidation";
+import { validateAuthorName } from "./utils/author-name-validation";
 
 type Chatbot = RouterOutputs["admin"]["getAllChatbots"]["chatbots"][number];
 

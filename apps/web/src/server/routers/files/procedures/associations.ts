@@ -2,12 +2,9 @@ import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import {
-  chatbots,
-  userFiles,
-  chatbotFileAssociations,
-} from "@teachanything/db/schema";
+import { userFiles, chatbotFileAssociations } from "@teachanything/db/schema";
 import { logInfo } from "@/lib/logger";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 
 /**
  * Associate file with chatbot
@@ -64,23 +61,7 @@ export const associateWithChatbotProcedure = protectedProcedure
     }
 
     // Verify chatbot ownership
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, input.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
-      });
-    }
+    await assertOwnedChatbot(ctx, input.chatbotId);
 
     // Check if association already exists
     const [existing] = await ctx.db
@@ -143,23 +124,7 @@ export const disassociateFromChatbotProcedure = protectedProcedure
     }
 
     // Verify chatbot ownership
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, input.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
-      });
-    }
+    await assertOwnedChatbot(ctx, input.chatbotId);
 
     // Delete association
     await ctx.db

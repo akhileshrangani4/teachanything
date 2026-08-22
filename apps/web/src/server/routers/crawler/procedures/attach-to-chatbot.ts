@@ -6,7 +6,8 @@ import {
   chatbotFileAssociations,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { assertOwnedCrawlSource, assertOwnedChatbot } from "../helpers";
+import { assertOwnedCrawlSource } from "../helpers";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { logInfo } from "@/lib/logger";
 
 export const attachToChatbotProcedure = protectedProcedure

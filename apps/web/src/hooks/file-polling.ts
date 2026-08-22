@@ -1,22 +1,21 @@
 /**
- * Hook to get polling configuration for file queries
- * Automatically polls when files are processing and stops when done
+ * Builds a `refetchInterval` callback for file queries.
+ * Polls while any file is pending/processing and stops when done.
  *
- * @param pollInterval - Interval in milliseconds (default: 2000ms)
- * @returns A function that React Query can use for refetchInterval
+ * Not a hook (no internal state) — call it where you build query options:
  *
  * @example
  * ```tsx
  * const { data: filesData } = trpc.files.list.useQuery(
  *   { limit: 10, offset: 0 },
  *   {
- *     refetchInterval: useFilePolling(),
+ *     refetchInterval: getFilePollingInterval(),
  *   }
  * );
  * // Access files via filesData?.files
  * ```
  */
-export function useFilePolling(pollInterval: number = 2000) {
+export function getFilePollingInterval(pollInterval: number = 2000) {
   return (query: {
     state: {
       data?:

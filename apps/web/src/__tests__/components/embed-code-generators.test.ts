@@ -3,7 +3,7 @@ import {
   generateWidgetHTML,
   generateWidgetReact,
   generateWindowHTML,
-} from "@/components/embed/embedCodeGenerators";
+} from "@/components/embed/embed-code-generators";
 
 const BASE = "https://app.example.edu";
 const TOKEN = "tok_abc123";

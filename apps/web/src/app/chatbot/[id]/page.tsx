@@ -22,11 +22,11 @@ import { ChatbotFilesTab } from "@/components/chat/files/ChatbotFilesTab";
 import { WrappableText } from "@/components/ui/wrappable-text";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
-import { useFilePolling } from "@/hooks/useFilePolling";
+import { getFilePollingInterval } from "@/hooks/file-polling";
 import { WebSourcesTab } from "@/components/chatbot/WebSourcesTab";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { ConversationsTab } from "@/components/chatbot/ConversationsTab";
-import { ChatbotAnalyticsTab } from "@/components/chatbot/analytics-tab";
+import { ChatbotAnalyticsTab } from "@/components/chatbot/AnalyticsTab";
 
 const VALID_TABS = [
   "chat",
@@ -86,7 +86,7 @@ export default function ChatbotDetailPage() {
       { chatbotId, limit: 1, offset: 0 },
       {
         enabled: !!session && !!chatbotId,
-        refetchInterval: useFilePolling(),
+        refetchInterval: getFilePollingInterval(),
       },
     );
 

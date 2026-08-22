@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { getPageDisplayTitle } from "@/lib/crawler-metadata";
 import { getFriendlyError } from "./utils";
-import { PageStatusBadge } from "./status-badges";
+import { PageStatusBadge } from "./StatusBadges";
 
 type CrawledPage = RouterOutputs["crawler"]["getCrawledPages"]["pages"][number];
 

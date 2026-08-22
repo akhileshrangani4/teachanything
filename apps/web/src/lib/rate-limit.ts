@@ -180,6 +180,14 @@ export const conversationSearchRateLimit = createLimiter({
   prefix: "@ratelimit/conversation-search",
 });
 
+// Rate limiter for the public user-status probe (login error handling).
+// The endpoint reveals whether an email is registered and its approval
+// state, so it must not be scannable: strict per-IP cap, fail closed.
+export const userStatusProbeRateLimit = createLimiter({
+  window: [10, "1 m"],
+  prefix: "@ratelimit/user-status-probe",
+});
+
 /** Deny result used when a rate limiter is unavailable and we fail closed. */
 function failClosedResult() {
   return { success: false, limit: 0, remaining: 0, reset: Date.now() + 60000 };

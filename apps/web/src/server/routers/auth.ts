@@ -5,12 +5,18 @@ import { user, account } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import * as bcrypt from "bcryptjs";
-import { requireRateLimit, passwordUpdateRateLimit } from "@/lib/rate-limit";
+import {
+  requireRateLimit,
+  passwordUpdateRateLimit,
+  checkRateLimit,
+  userStatusProbeRateLimit,
+} from "@/lib/rate-limit";
 import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { isPasswordDifferent } from "@/lib/password/password-validation";
-import { logInfo, logError } from "@/lib/logger";
+import { logInfo, logError, logWarn } from "@/lib/logger";
 import { auth } from "@/lib/auth";
 import { deleteUserAccount } from "@/server/services/user-deletion";
+import { getTrustedClientIp } from "@/lib/get-client-ip";
 
 export const authRouter = router({
   /**
@@ -39,10 +45,28 @@ export const authRouter = router({
 
   /**
    * Check user status by email (for login error handling)
+   *
+   * This reveals whether an email is registered and its approval state, so
+   * it is rate limited per IP (fail closed) to prevent account enumeration
+   * scans.
    */
   checkUserStatus: publicProcedure
     .input(z.object({ email: z.string().email() }))
     .query(async ({ ctx, input }) => {
+      const clientIp = getTrustedClientIp(ctx.headers);
+      const probe = await checkRateLimit(
+        userStatusProbeRateLimit,
+        clientIp,
+        { context: "user-status-probe" },
+        false,
+      );
+      if (!probe.success) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "Too many requests. Please try again later.",
+        });
+      }
+
       const [foundUser] = await ctx.db
         .select({ status: user.status })
         .from(user)
@@ -240,12 +264,19 @@ export const authRouter = router({
           });
         }
       } catch (error) {
-        // If comparison fails due to hash format mismatch, skip this check
-        // better-auth's changePassword will handle verification correctly
         if (error instanceof TRPCError && error.code === "BAD_REQUEST") {
           throw error; // Re-throw our validation error
         }
-        // Otherwise, silently continue - better-auth will handle verification
+        // Comparison can fail on a hash-format mismatch; better-auth's
+        // changePassword still verifies properly, so continue — but log the
+        // anomaly rather than discarding it.
+        logWarn(
+          "Password-difference check failed; deferring to changePassword",
+          {
+            userId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
       }
 
       try {
@@ -285,10 +316,14 @@ export const authRouter = router({
           },
         );
 
-        // Check if it's a password-related error
+        // Only a *specific* verification failure from better-auth maps to
+        // "wrong current password". A broad substring match ("password")
+        // would misclassify unrelated faults — e.g. a hashing failure — as
+        // user error and mislead the caller.
         if (
           errorMessage.includes("Invalid password") ||
-          errorMessage.includes("password") ||
+          errorMessage.includes("invalid password") ||
+          errorMessage.includes("Incorrect password") ||
           errorMessage.includes("credentials")
         ) {
           throw new TRPCError({

@@ -586,41 +586,36 @@ export const adminRouter = router({
    * Returns accurate counts for all user statuses and roles
    */
   getUserStats: adminProcedure.query(async ({ ctx }) => {
-    // Get total count
-    const [totalCountResult] = await ctx.db
-      .select({ count: sql<number>`count(*)` })
-      .from(user);
-
-    const totalCount = Number(totalCountResult?.count || 0);
-
-    // Get admin count
-    const [adminCountResult] = await ctx.db
-      .select({ count: sql<number>`count(*)` })
+    // One GROUP BY pass instead of five separate count queries.
+    const rows = await ctx.db
+      .select({
+        isAdmin: sql<number>`(${user.role} = 'admin')::int`,
+        status: user.status,
+        count: sql<number>`count(*)::int`,
+      })
       .from(user)
-      .where(eq(user.role, "admin"));
+      .groupBy(user.role, user.status);
 
-    // Get status counts
-    const [approvedCountResult] = await ctx.db
-      .select({ count: sql<number>`count(*)` })
-      .from(user)
-      .where(eq(user.status, "approved"));
-
-    const [pendingCountResult] = await ctx.db
-      .select({ count: sql<number>`count(*)` })
-      .from(user)
-      .where(eq(user.status, "pending"));
-
-    const [rejectedCountResult] = await ctx.db
-      .select({ count: sql<number>`count(*)` })
-      .from(user)
-      .where(eq(user.status, "rejected"));
+    let total = 0;
+    let admins = 0;
+    const byStatus: Record<string, number> = {
+      approved: 0,
+      pending: 0,
+      rejected: 0,
+    };
+    for (const row of rows) {
+      const count = Number(row.count);
+      total += count;
+      if (row.isAdmin) admins += count;
+      byStatus[row.status] = (byStatus[row.status] ?? 0) + count;
+    }
 
     return {
-      total: totalCount,
-      admins: Number(adminCountResult?.count || 0),
-      approved: Number(approvedCountResult?.count || 0),
-      pending: Number(pendingCountResult?.count || 0),
-      rejected: Number(rejectedCountResult?.count || 0),
+      total,
+      admins,
+      approved: byStatus.approved ?? 0,
+      pending: byStatus.pending ?? 0,
+      rejected: byStatus.rejected ?? 0,
     };
   }),
 

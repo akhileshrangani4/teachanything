@@ -42,11 +42,10 @@ const t = initTRPC.context<Context>().create({
 });
 
 /**
- * Logging middleware - logs all tRPC calls with timing (disabled by default)
+ * Error-logging middleware: logs failed calls and rethrows. Successful
+ * calls are not logged.
  */
 const loggingMiddleware = t.middleware(async ({ path, type, next, ctx }) => {
-  // Logging disabled for cleaner console output
-  // Set ENABLE_LOGGING=true in .env to enable
   try {
     return await next();
   } catch (error) {
@@ -124,6 +123,5 @@ export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   });
 });
 
-// Export router and procedure builders
+// Export router builder
 export const router = t.router;
-export const middleware = t.middleware;

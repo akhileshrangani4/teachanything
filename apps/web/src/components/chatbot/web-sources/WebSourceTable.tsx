@@ -45,7 +45,7 @@ import {
 } from "@/lib/crawler-metadata";
 import { CrawlProgress } from "./CrawlProgress";
 import { CrawledPagesList } from "./CrawledPagesList";
-import { SourceStatusBadge } from "./status-badges";
+import { SourceStatusBadge } from "./StatusBadges";
 
 type CrawlSource = RouterOutputs["crawler"]["getCrawlSources"][number];
 

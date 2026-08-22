@@ -8,7 +8,7 @@ import {
 import { verifyUrlReachable } from "@teachanything/ai/crawler";
 import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
 import { checkRateLimit, crawlSourceRateLimit } from "@/lib/rate-limit";
-import { assertOwnedChatbot } from "../helpers";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { crawlSourceInput } from "../validation";
 
 export const addCrawlSourceProcedure = protectedProcedure

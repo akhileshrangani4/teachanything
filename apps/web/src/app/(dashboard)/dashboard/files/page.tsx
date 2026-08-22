@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { trpc } from "@/lib/trpc";
-import { useFilePolling } from "@/hooks/useFilePolling";
+import { getFilePollingInterval } from "@/hooks/file-polling";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { UploadFileDialog } from "@/components/dashboard/files/UploadFileDialog";
@@ -45,7 +45,7 @@ export default function FilesPage() {
       ...queryParams,
     },
     {
-      refetchInterval: useFilePolling(),
+      refetchInterval: getFilePollingInterval(),
       placeholderData: keepPreviousData,
     },
   );

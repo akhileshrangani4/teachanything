@@ -16,19 +16,22 @@ This is a Turborepo monorepo for the Teach Anything AI chatbot platform.
 ```
 teachanything/
 ├── apps/
-│   └── web/                      # Next.js 16 application
-│       └── src/
-│           ├── app/              # App Router pages & API routes
-│           ├── server/
-│           │   ├── trpc.ts       # tRPC setup, procedures, middleware
-│           │   ├── rag-context.ts  # File manifest, source attribution, token budget, HNSW search
-│           │   └── routers/      # API routers (auth, chatbot, chat, files, admin, analytics, crawler)
-│           ├── lib/              # Utilities (auth, email, rate-limit, qstash, env, file-processor, logger)
-│           ├── components/       # React components (Shadcn UI based)
-│           └── hooks/            # Custom React hooks
+│   ├── web/                      # Next.js 16 application
+│   │   └── src/
+│   │       ├── app/              # App Router pages & API routes
+│   │       ├── server/
+│   │       │   ├── trpc.ts       # tRPC setup, procedures, middleware
+│   │       │   ├── api-auth.ts   # Route Handler auth guards (requireApiSession / requireApprovedUser)
+│   │       │   ├── rag-context.ts  # File manifest, source attribution, token budget, HNSW search
+│   │       │   └── routers/      # API routers (auth, chatbot, chat, files, admin, analytics, crawler)
+│   │       ├── lib/              # Utilities (auth, email, rate-limit, qstash, env, file-processor, logger)
+│   │       ├── components/       # React components (Shadcn UI based)
+│   │       └── hooks/            # Custom React hooks
+│   └── docs/                     # Documentation site (Blume static generator)
 ├── packages/
 │   ├── db/                       # Database package
-│   │   └── src/schema.ts         # Drizzle schema (all tables, relations, enums)
+│   │   ├── src/schema.ts         # Drizzle schema (all tables, relations, enums)
+│   │   └── scripts/              # Seed, reset, migration/backfill helpers
 │   ├── ai/                       # AI package
 │   │   └── src/
 │   │       ├── openrouter-client.ts  # LLM client with streaming

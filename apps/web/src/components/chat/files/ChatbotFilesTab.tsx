@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { logError } from "@/lib/logger";
 import Link from "next/link";
 import { FileTable } from "@/components/dashboard/files/FileTable";
 import { EmptyChatbotFilesState } from "./EmptyChatbotFilesState";
@@ -20,7 +21,7 @@ import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { X } from "lucide-react";
 import { FileTableSkeleton } from "@/components/ui/skeletons";
-import { useFilePolling } from "@/hooks/useFilePolling";
+import { getFilePollingInterval } from "@/hooks/file-polling";
 import { keepPreviousData } from "@tanstack/react-query";
 
 const ITEMS_PER_PAGE = 10;
@@ -59,7 +60,7 @@ export function ChatbotFilesTab({
     },
     {
       enabled: !!chatbotId,
-      refetchInterval: useFilePolling(),
+      refetchInterval: getFilePollingInterval(),
       placeholderData: keepPreviousData,
     },
   );
@@ -230,7 +231,7 @@ export function ChatbotFilesTab({
         });
       } catch (error) {
         // Continue with other files even if one fails
-        console.error(`Failed to remove file ${fileId}:`, error);
+        logError(error, `Failed to remove file ${fileId}`);
       }
     }
     // Refetch after all files are processed

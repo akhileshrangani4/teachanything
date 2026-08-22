@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Globe, X } from "lucide-react";
 import { toast } from "sonner";
+import { logError } from "@/lib/logger";
 import { trpc } from "@/lib/trpc";
 import {
   Card,
@@ -322,7 +323,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
       try {
         await detach.mutateAsync({ crawlSourceId, chatbotId });
       } catch (error) {
-        console.error(`Failed to remove source ${crawlSourceId}:`, error);
+        logError(error, `Failed to remove source ${crawlSourceId}`);
       }
     }
     setSelectedSources(new Set());
@@ -336,7 +337,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
     pagedSources.every((s) => selectedSources.has(s.id));
 
   const isEmpty = allSources.length === 0;
-  const isSearchingEmpty = !state.search && !searchInput;
+  const isNotSearching = !state.search && !searchInput;
 
   return (
     <Card>
@@ -391,7 +392,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
 
         {sourcesLoading ? (
           <WebSourcesSkeleton />
-        ) : isEmpty && isSearchingEmpty ? (
+        ) : isEmpty && isNotSearching ? (
           <EmptyWebSourcesState />
         ) : (
           <div className="space-y-4">

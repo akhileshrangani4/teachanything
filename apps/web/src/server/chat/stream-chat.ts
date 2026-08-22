@@ -485,7 +485,8 @@ export async function streamChat(params: {
           primary.text,
           primary.steps,
         ]);
-      } catch {
+      } catch (error) {
+        logError(error, "primary turn failed", { chatbotId: chatbot.id });
         executeErrored = true;
         return;
       }
@@ -591,7 +592,8 @@ export async function streamChat(params: {
           );
           await fallback.text;
           finishReason = await fallback.finishReason;
-        } catch {
+        } catch (error) {
+          logError(error, "fallback turn failed", { chatbotId: chatbot.id });
           executeErrored = true;
           return;
         }
