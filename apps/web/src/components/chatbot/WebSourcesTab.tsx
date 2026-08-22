@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Globe, X } from "lucide-react";
-import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import {
   Card,
@@ -17,12 +16,6 @@ import { PaginationControls } from "@/components/dashboard/files/PaginationContr
 import { useServerTable } from "@/hooks/useServerTable";
 import { useAddWebSource } from "@/hooks/use-add-web-source";
 import { useCrawlerMutations } from "@/hooks/use-crawler-mutations";
-import {
-  getSourceDisplayName,
-  getSourcePageCount,
-} from "@/lib/crawler-metadata";
-import { toggleAllInSet, toggleInSet } from "@/lib/selection";
-import { runSequentially } from "@/lib/sequential-actions";
 import { WebSourceTable } from "./web-sources/WebSourceTable";
 import { AttachExistingSources } from "./web-sources/AttachExistingSources";
 import {
@@ -32,6 +25,8 @@ import {
   WebSourcesSkeleton,
 } from "./web-sources/WebSourceForms";
 import { getFriendlyError, hasActiveCrawl } from "./web-sources/utils";
+import { usePagedSources } from "./web-sources-tab/use-paged-sources";
+import { useSourceSelection } from "./web-sources-tab/use-source-selection";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -41,12 +36,6 @@ interface WebSourcesTabProps {
 
 export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [expandedSources, setExpandedSources] = useState<Set<string>>(
-    new Set(),
-  );
-  const [selectedSources, setSelectedSources] = useState<Set<string>>(
-    new Set(),
-  );
 
   const { state, searchInput, actions } = useServerTable<WebSourceSortBy>(
     { defaultSortBy: "createdAt", defaultSortDir: "desc" },
@@ -72,80 +61,15 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
 
   const allSources = useMemo(() => sources ?? [], [sources]);
 
-  // Client-side search + sort + pagination (source counts are small, so
-  // the existing array query is reused rather than paginating server-side).
-  const filteredSources = useMemo(() => {
-    const search = state.search.trim().toLowerCase();
-    if (!search) return allSources;
-    return allSources.filter((s) => {
-      const name = getSourceDisplayName(s).toLowerCase();
-      return name.includes(search) || s.rootUrl.toLowerCase().includes(search);
-    });
-  }, [allSources, state.search]);
-
-  const sortedSources = useMemo(() => {
-    const dir = state.sortDir === "asc" ? 1 : -1;
-    const compare = (
-      a: (typeof filteredSources)[number],
-      b: (typeof filteredSources)[number],
-    ): number => {
-      switch (state.sortBy) {
-        case "name":
-          return (
-            getSourceDisplayName(a).localeCompare(getSourceDisplayName(b)) * dir
-          );
-        case "pageCount":
-          return (getSourcePageCount(a) - getSourcePageCount(b)) * dir;
-        case "status":
-          return a.status.localeCompare(b.status) * dir;
-        case "lastCrawledAt": {
-          const at = a.lastCrawledAt ? new Date(a.lastCrawledAt).getTime() : 0;
-          const bt = b.lastCrawledAt ? new Date(b.lastCrawledAt).getTime() : 0;
-          return (at - bt) * dir;
-        }
-        case "createdAt":
-        default: {
-          const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return (at - bt) * dir;
-        }
-      }
-    };
-    return [...filteredSources].sort(compare);
-  }, [filteredSources, state.sortBy, state.sortDir]);
-
-  const totalCount = sortedSources.length;
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-  const pagedSources = useMemo(
-    () =>
-      sortedSources.slice(
-        state.page * ITEMS_PER_PAGE,
-        state.page * ITEMS_PER_PAGE + ITEMS_PER_PAGE,
-      ),
-    [sortedSources, state.page],
-  );
-
-  // Clamp page if the current page no longer exists (e.g. after removal).
-  useEffect(() => {
-    if (state.page >= totalPages && totalPages > 0) {
-      actions.setPage(totalPages - 1);
-    }
-  }, [state.page, totalPages, actions]);
-
-  // Drop selections for sources that are no longer present.
-  useEffect(() => {
-    setSelectedSources((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      for (const id of prev) {
-        if (!allSources.some((s) => s.id === id)) {
-          next.delete(id);
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [allSources]);
+  const { totalCount, totalPages, pagedSources } = usePagedSources({
+    sources: allSources,
+    search: state.search,
+    sortBy: state.sortBy,
+    sortDir: state.sortDir,
+    page: state.page,
+    pageSize: ITEMS_PER_PAGE,
+    setPage: actions.setPage,
+  });
 
   const {
     rootUrl,
@@ -192,38 +116,21 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
       ]),
   });
 
+  const {
+    expandedSources,
+    selectedSources,
+    toggleExpanded,
+    handleToggleSelect,
+    handleSelectAll,
+    handleRemoveSelected,
+  } = useSourceSelection({
+    allSources,
+    pagedSources,
+    removeOne: (crawlSourceId) =>
+      detach.mutateAsync({ crawlSourceId, chatbotId }),
+  });
+
   const unattached = (attachable ?? []).filter((s) => !s.isAttached);
-
-  const toggleExpanded = (sourceId: string) => {
-    setExpandedSources((prev) => toggleInSet(prev, sourceId));
-  };
-
-  const handleToggleSelect = (sourceId: string) => {
-    setSelectedSources((prev) => toggleInSet(prev, sourceId));
-  };
-
-  const handleSelectAll = () => {
-    if (pagedSources.length === 0) return;
-    setSelectedSources((prev) =>
-      toggleAllInSet(
-        prev,
-        pagedSources.map((s) => s.id),
-      ),
-    );
-  };
-
-  const handleRemoveSelected = async () => {
-    const ids = Array.from(selectedSources);
-    await runSequentially(
-      ids,
-      (crawlSourceId) => detach.mutateAsync({ crawlSourceId, chatbotId }),
-      (crawlSourceId) => `Failed to remove source ${crawlSourceId}`,
-    );
-    setSelectedSources(new Set());
-    toast.success(
-      `${ids.length} web source${ids.length !== 1 ? "s" : ""} removed from chatbot`,
-    );
-  };
 
   const allPagedSelected =
     pagedSources.length > 0 &&

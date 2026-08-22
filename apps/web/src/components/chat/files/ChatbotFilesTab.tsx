@@ -10,8 +10,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
-import { logError } from "@/lib/logger";
 import Link from "next/link";
 import { FileTable } from "@/components/dashboard/files/FileTable";
 import { EmptyChatbotFilesState } from "./EmptyChatbotFilesState";
@@ -23,6 +21,7 @@ import { X } from "lucide-react";
 import { FileTableSkeleton } from "@/components/ui/skeletons";
 import { getFilePollingInterval } from "@/hooks/file-polling";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useChatbotFileAssociations } from "./use-chatbot-file-associations";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -38,7 +37,6 @@ export function ChatbotFilesTab({
   onRefetch,
 }: ChatbotFilesTabProps) {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const utils = trpc.useUtils();
 
   const { state, searchInput, actions, queryParams } =
     useServerTable<FileSortBy>(
@@ -91,154 +89,23 @@ export function ChatbotFilesTab({
     }
   }, [associatedFiles]);
 
-  // Associate/disassociate file mutations
-  const associateFile = trpc.files.associateWithChatbot.useMutation({
-    onSuccess: async () => {
-      // Refetch associated files and invalidate library list so added file disappears from there
-      await Promise.all([
-        refetchAssociatedFiles(),
-        utils.files.list.invalidate(),
-      ]);
-      onRefetch();
-      toast.success("File added to chatbot");
-    },
-    onError: (error) => {
-      // Check if it's a failed file error
-      const isFailedFileError = error.message.includes("failed to process");
-      toast.error(
-        isFailedFileError ? "Cannot add file" : "Failed to add file",
-        {
-          description: error.message,
-          duration: 5000,
-        },
-      );
-    },
+  const {
+    isAddingFile,
+    isRemovingFile,
+    handleAddFile,
+    handleAddFiles,
+    handleRemoveFile,
+    handleRemoveFiles: removeFiles,
+  } = useChatbotFileAssociations({
+    chatbotId,
+    onRefetch,
+    refetchAssociatedFiles,
+    currentPage: state.page,
+    setPage: actions.setPage,
   });
-
-  const disassociateFile = trpc.files.disassociateFromChatbot.useMutation({
-    onSuccess: async () => {
-      // Refetch associated files and invalidate library list so removed file appears there
-      const [result] = await Promise.all([
-        refetchAssociatedFiles(),
-        utils.files.list.invalidate(),
-      ]);
-      onRefetch();
-
-      // Adjust page if current page no longer exists
-      const newTotalCount = result.data?.totalCount || 0;
-      const newTotalPages = Math.ceil(newTotalCount / ITEMS_PER_PAGE);
-      if (state.page >= newTotalPages && newTotalPages > 0) {
-        actions.setPage(newTotalPages - 1);
-      }
-
-      toast.success("File removed from chatbot");
-    },
-    onError: (error) => {
-      toast.error("Failed to remove file", {
-        description: error.message,
-      });
-    },
-  });
-
-  const handleAddFile = (fileId: string) => {
-    associateFile.mutate({
-      fileId,
-      chatbotId,
-    });
-  };
-
-  const handleAddFiles = async (fileIds: string[]) => {
-    if (fileIds.length === 0) return;
-
-    const toastId = toast.loading(
-      `Adding ${fileIds.length} file${fileIds.length !== 1 ? "s" : ""}...`,
-      {
-        description: "Please wait",
-      },
-    );
-
-    let successCount = 0;
-    let errorCount = 0;
-    const errors: Array<{ fileId: string; message: string }> = [];
-
-    // Process files sequentially to avoid overwhelming the server
-    for (const fileId of fileIds) {
-      try {
-        await associateFile.mutateAsync({
-          fileId,
-          chatbotId,
-        });
-        successCount++;
-      } catch (error) {
-        errorCount++;
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        errors.push({ fileId, message: errorMessage });
-        // Show individual error for failed files
-        toast.error("Failed to add file", {
-          description: errorMessage,
-          duration: 3000,
-        });
-      }
-    }
-
-    // Refetch after all files are processed
-    await refetchAssociatedFiles();
-    onRefetch();
-
-    // Show summary toast
-    if (successCount > 0 && errorCount === 0) {
-      toast.success(
-        `Successfully added ${successCount} file${successCount !== 1 ? "s" : ""} to chatbot`,
-        {
-          id: toastId,
-        },
-      );
-    } else if (successCount > 0 && errorCount > 0) {
-      toast.warning(
-        `Added ${successCount} file${successCount !== 1 ? "s" : ""}, ${errorCount} failed`,
-        {
-          id: toastId,
-          description:
-            "Some files could not be added. Check individual error messages above.",
-          duration: 5000,
-        },
-      );
-    } else {
-      toast.error("Failed to add files", {
-        id: toastId,
-        description:
-          "None of the selected files could be added. Check error messages above.",
-        duration: 5000,
-      });
-    }
-  };
-
-  const handleRemoveFile = (fileId: string) => {
-    disassociateFile.mutate({
-      fileId,
-      chatbotId,
-    });
-  };
 
   const handleRemoveFiles = async (fileIds: string[]) => {
-    // Process files sequentially to avoid overwhelming the server
-    for (const fileId of fileIds) {
-      try {
-        await disassociateFile.mutateAsync({
-          fileId,
-          chatbotId,
-        });
-      } catch (error) {
-        // Continue with other files even if one fails
-        logError(error, `Failed to remove file ${fileId}`);
-      }
-    }
-    // Refetch after all files are processed
-    onRefetch();
-    toast.success(
-      `${fileIds.length} file${fileIds.length !== 1 ? "s" : ""} removed from chatbot`,
-    );
+    await removeFiles(fileIds);
     setSelectedFiles(new Set());
   };
 
@@ -285,7 +152,7 @@ export function ChatbotFilesTab({
             chatbotId={chatbotId}
             onAddFile={handleAddFile}
             onAddFiles={handleAddFiles}
-            isAdding={associateFile.isPending}
+            isAdding={isAddingFile}
             onRefetch={refetchAssociatedFiles}
           />
         ) : (
@@ -308,7 +175,7 @@ export function ChatbotFilesTab({
                       onClick={() =>
                         handleRemoveFiles(Array.from(selectedFiles))
                       }
-                      disabled={disassociateFile.isPending}
+                      disabled={isRemovingFile}
                     >
                       <X className="h-4 w-4 mr-2" />
                       Remove Selected ({selectedFiles.size})
@@ -336,7 +203,7 @@ export function ChatbotFilesTab({
                     allSelected={allSelected}
                     actionType="remove"
                     onAction={handleRemoveFile}
-                    actionDisabled={disassociateFile.isPending}
+                    actionDisabled={isRemovingFile}
                     sortBy={state.sortBy}
                     sortDir={state.sortDir}
                     onSort={actions.toggleSort}
@@ -359,7 +226,7 @@ export function ChatbotFilesTab({
               chatbotId={chatbotId}
               onAddFile={handleAddFile}
               onAddFiles={handleAddFiles}
-              isAdding={associateFile.isPending}
+              isAdding={isAddingFile}
               onRefetch={refetchAssociatedFiles}
             />
           </div>

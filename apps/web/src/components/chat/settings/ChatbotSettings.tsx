@@ -1,93 +1,27 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { FormFieldWithCounter } from "@/components/ui/form-field-with-counter";
-import { WrappableText } from "@/components/ui/wrappable-text";
-import { CharacterCounter } from "@/components/ui/character-counter";
 import { trpc } from "@/lib/trpc";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  MODEL_REGISTRY,
-  toolCapableModels,
-  type SupportedModel,
-  formatContextWindow,
-} from "@teachanything/ai/models";
+import { MODEL_REGISTRY, type SupportedModel } from "@teachanything/ai/models";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
-import {
-  validateName,
-  validateDescription,
-  VALIDATION_LIMITS,
-} from "@/lib/validation";
-
-// Group tool-capable models by provider for the dropdown. Agentic retrieval
-// requires tool calling, so non-tool models are not offered. Map preserves
-// MODEL_REGISTRY insertion order.
-const modelsByProvider = toolCapableModels().reduce((acc, model) => {
-  const group = acc.get(model.provider) ?? [];
-  group.push(model);
-  acc.set(model.provider, group);
-  return acc;
-}, new Map<string, ReturnType<typeof toolCapableModels>>());
+import type { ChatbotSettingsChatbot, SettingsDraft } from "./settings-draft";
+import { settingsFromChatbot } from "./settings-draft";
+import { validateSettingsDraft } from "./settings-validation";
+import { ConfigurationCard } from "./configuration-card";
+import { DisplaySettingsCard } from "./display-settings-card";
+import { ShareSettingsCard } from "./share-settings-card";
+import { DangerZoneCard } from "./danger-zone-card";
 
 interface ChatbotSettingsProps {
-  chatbot: {
-    name: string;
-    description: string | null;
-    model: string;
-    systemPrompt: string;
-    temperature: number | null;
-    maxTokens: number | null;
-    shareToken: string | null;
-    sharingEnabled: boolean;
-    showSources?: boolean;
-  };
-}
-
-type SettingsDraft = {
-  name: string;
-  description: string;
-  model: string;
-  systemPrompt: string;
-  temperature: string;
-  maxTokens: string;
-  showSources: boolean;
-};
-
-function settingsFromChatbot(
-  c: ChatbotSettingsProps["chatbot"],
-): SettingsDraft {
-  return {
-    name: c.name,
-    description: c.description ?? "",
-    model: c.model,
-    systemPrompt: c.systemPrompt,
-    temperature: c.temperature?.toString() ?? "70",
-    maxTokens: c.maxTokens?.toString() ?? "2000",
-    showSources: c.showSources ?? false,
-  };
+  chatbot: ChatbotSettingsChatbot;
 }
 
 export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   const params = useParams();
   const router = useRouter();
   const chatbotId = typeof params.id === "string" ? params.id : "";
-  const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [disableShareDialog, setDisableShareDialog] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -172,34 +106,6 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
     },
   });
 
-  const handleCopy = () => {
-    if (chatbot.shareToken) {
-      navigator.clipboard.writeText(
-        `${window.location.origin}/chat/${chatbot.shareToken}`,
-      );
-      setCopied(true);
-      toast.success("Link copied to clipboard");
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleEnableSharing = () => {
-    generateShareToken.mutate({ id: chatbotId });
-  };
-
-  const handleDisableSharing = () => {
-    setDisableShareDialog(true);
-  };
-
-  const confirmDisableShare = async () => {
-    disableShare.mutate({ id: chatbotId });
-    setDisableShareDialog(false);
-  };
-
-  const handleDeleteChatbot = () => {
-    deleteChatbot.mutate({ id: chatbotId });
-  };
-
   const toggleShowSources = trpc.chatbot.updateShowSources.useMutation({
     onSuccess: (_, variables) => {
       toast.success(
@@ -221,49 +127,32 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
     },
   });
 
+  const handleEnableSharing = () => {
+    generateShareToken.mutate({ id: chatbotId });
+  };
+
+  const handleDisableSharing = () => {
+    setDisableShareDialog(true);
+  };
+
+  const confirmDisableShare = async () => {
+    disableShare.mutate({ id: chatbotId });
+    setDisableShareDialog(false);
+  };
+
+  const handleDeleteChatbot = () => {
+    deleteChatbot.mutate({ id: chatbotId });
+  };
+
   const handleToggleShowSources = (checked: boolean) => {
     setField("showSources", checked);
     toggleShowSources.mutate({ id: chatbotId, showSources: checked });
   };
 
   const handleSave = () => {
-    const tempValue = parseFloat(temperature);
-    const tokensValue = parseInt(maxTokens);
-
-    const nameValidation = validateName(name);
-    if (!nameValidation.isValid) {
-      toast.error(nameValidation.error!, {
-        description: nameValidation.description,
-      });
-      return;
-    }
-
-    const descriptionValidation = validateDescription(description);
-    if (!descriptionValidation.isValid) {
-      toast.error(descriptionValidation.error!, {
-        description: descriptionValidation.description,
-      });
-      return;
-    }
-
-    if (isNaN(tempValue) || tempValue < 0 || tempValue > 100) {
-      toast.error("Invalid temperature", {
-        description: "Temperature must be between 0 and 100",
-      });
-      return;
-    }
-
-    if (isNaN(tokensValue) || tokensValue < 100 || tokensValue > 4000) {
-      toast.error("Invalid max tokens", {
-        description: "Max tokens must be between 100 and 4000",
-      });
-      return;
-    }
-
-    if (!systemPrompt.trim()) {
-      toast.error("System prompt is required", {
-        description: "Please provide a system prompt for your chatbot",
-      });
+    const issue = validateSettingsDraft(draft);
+    if (issue) {
+      toast.error(issue.title, { description: issue.description });
       return;
     }
 
@@ -275,8 +164,8 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
           description: description.trim() || undefined,
           model: model as SupportedModel,
           systemPrompt,
-          temperature: tempValue,
-          maxTokens: tokensValue,
+          temperature: parseFloat(temperature),
+          maxTokens: parseInt(maxTokens),
           showSources: draft.showSources,
         },
       },
@@ -300,327 +189,38 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   return (
     <div className="space-y-6">
       {/* Configuration Settings Card */}
-      <div className="space-y-6 p-6 bg-muted/30 rounded-lg border">
-        {/* Header with Edit Button */}
-        <div className="flex items-center justify-between pb-4 border-b">
-          <div>
-            <h3 className="text-lg font-semibold">Configuration</h3>
-            <p className="text-xs text-muted-foreground">
-              Manage your chatbot settings
-            </p>
-          </div>
-          {/* Edit/Save/Cancel buttons */}
-          <div className="flex gap-2">
-            {!isEditing ? (
-              <Button
-                onClick={() => setIsEditing(true)}
-                variant="outline"
-                size="sm"
-              >
-                Edit Settings
-              </Button>
-            ) : (
-              <>
-                <Button
-                  onClick={handleCancel}
-                  variant="outline"
-                  size="sm"
-                  disabled={updateChatbot.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  size="sm"
-                  disabled={updateChatbot.isPending}
-                >
-                  {updateChatbot.isPending ? "Saving..." : "Save Changes"}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Name */}
-        {isEditing ? (
-          <FormFieldWithCounter
-            id="name"
-            label="Name"
-            value={name}
-            onChange={(value) => setField("name", value)}
-            maxLength={VALIDATION_LIMITS.NAME_MAX_LENGTH}
-            warningThreshold={VALIDATION_LIMITS.NAME_WARNING_THRESHOLD}
-            helperText="The display name for your chatbot"
-            placeholder="Enter chatbot name"
-            showCounter={isEditing}
-          />
-        ) : (
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">Name</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              The display name for your chatbot
-            </p>
-            <div className="px-3 py-2 bg-background rounded-md border">
-              <p className="text-sm">{name}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Description */}
-        {isEditing ? (
-          <FormFieldWithCounter
-            id="description"
-            label="Description"
-            value={description}
-            onChange={(value) => setField("description", value)}
-            maxLength={VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH}
-            warningThreshold={VALIDATION_LIMITS.DESCRIPTION_WARNING_THRESHOLD}
-            helperText="A brief description of what your chatbot does"
-            placeholder="Enter chatbot description (optional)"
-            type="textarea"
-            rows={3}
-          />
-        ) : (
-          <div className="space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <Label className="text-base font-semibold">Description</Label>
-              <CharacterCounter
-                current={description.length}
-                max={VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH}
-                warningThreshold={
-                  VALIDATION_LIMITS.DESCRIPTION_WARNING_THRESHOLD
-                }
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mb-2">
-              A brief description of what your chatbot does
-            </p>
-            <div className="px-3 py-2 bg-background rounded-md border">
-              <p className="text-sm">
-                <WrappableText>{description || "No description"}</WrappableText>
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Model */}
-        <div className="space-y-2">
-          <Label htmlFor="model" className="text-base font-semibold">
-            Model
-          </Label>
-          <p className="text-xs text-muted-foreground mb-2">
-            Choose the AI model to power your chatbot
-          </p>
-          {isEditing ? (
-            <Select value={model} onValueChange={(v) => setField("model", v)}>
-              <SelectTrigger id="model">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from(modelsByProvider.entries()).map(
-                  ([provider, models]) => (
-                    <SelectGroup key={provider}>
-                      <SelectLabel>{provider}</SelectLabel>
-                      {models.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.displayName} (
-                          {formatContextWindow(m.contextWindow)})
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ),
-                )}
-                {/* Legacy chatbots may have a saved model that no longer
-                    supports document tools. Keep it selectable so editing
-                    other fields does not silently change the saved model. */}
-                {savedModelIsNonTool && (
-                  <SelectItem value={model}>
-                    {MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]
-                      ?.displayName ?? model}{" "}
-                    (no document tools)
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="px-3 py-2 bg-background rounded-md border">
-              <p className="text-sm">
-                {MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]
-                  ?.displayName ?? model}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* System Prompt */}
-        <div className="space-y-2">
-          <Label htmlFor="systemPrompt" className="text-base font-semibold">
-            System Prompt
-          </Label>
-          <p className="text-xs text-muted-foreground mb-2">
-            Define how your chatbot should behave and respond
-          </p>
-          <Textarea
-            id="systemPrompt"
-            value={systemPrompt}
-            onChange={(e) => setField("systemPrompt", e.target.value)}
-            disabled={!isEditing}
-            rows={6}
-            className={
-              !isEditing
-                ? "bg-background resize-none"
-                : "resize-y min-h-[150px]"
-            }
-          />
-        </div>
-
-        {/* Temperature and Max Tokens */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="temperature" className="text-base font-semibold">
-              Temperature
-            </Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Control randomness (0 = focused, 100 = creative)
-            </p>
-            {isEditing ? (
-              <Input
-                id="temperature"
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={temperature}
-                onChange={(e) => setField("temperature", e.target.value)}
-              />
-            ) : (
-              <div className="px-3 py-2 bg-background rounded-md border">
-                <p className="text-sm">{temperature}</p>
-              </div>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="maxTokens" className="text-base font-semibold">
-              Max Tokens
-            </Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Maximum length of responses (100-4000)
-            </p>
-            {isEditing ? (
-              <Input
-                id="maxTokens"
-                type="number"
-                min="100"
-                max="4000"
-                step="100"
-                value={maxTokens}
-                onChange={(e) => setField("maxTokens", e.target.value)}
-              />
-            ) : (
-              <div className="px-3 py-2 bg-background rounded-md border">
-                <p className="text-sm">{maxTokens}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <ConfigurationCard
+        draft={draft}
+        setField={setField}
+        isEditing={isEditing}
+        onEditStart={() => setIsEditing(true)}
+        onCancel={handleCancel}
+        onSave={handleSave}
+        isSaving={updateChatbot.isPending}
+        savedModelIsNonTool={savedModelIsNonTool}
+      />
 
       {/* Display Settings Card */}
-      <div className="space-y-4 p-6 bg-muted/30 rounded-lg border">
-        <div className="space-y-1">
-          <Label className="text-base font-semibold">Display Settings</Label>
-          <p className="text-xs text-muted-foreground">
-            Configure how messages are displayed in the chat
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label htmlFor="showSources" className="text-sm font-medium">
-              Show Sources
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Display source file citations below assistant messages
-            </p>
-          </div>
-          <Switch
-            id="showSources"
-            checked={draft.showSources}
-            onCheckedChange={handleToggleShowSources}
-            disabled={toggleShowSources.isPending}
-          />
-        </div>
-      </div>
+      <DisplaySettingsCard
+        showSources={draft.showSources}
+        isToggling={toggleShowSources.isPending}
+        onToggle={handleToggleShowSources}
+      />
 
       {/* Share Settings Card */}
-      <div className="space-y-4 p-6 bg-muted/30 rounded-lg border">
-        <div className="space-y-1">
-          <Label className="text-base font-semibold">Share Settings</Label>
-          <p className="text-xs text-muted-foreground">
-            {chatbot.sharingEnabled
-              ? "Your chatbot is publicly accessible via the link below"
-              : "Enable sharing to generate a public link for your chatbot"}
-          </p>
-        </div>
-
-        {chatbot.sharingEnabled && chatbot.shareToken ? (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Input
-                value={`${window.location.origin}/chat/${chatbot.shareToken}`}
-                readOnly
-                className="font-mono text-sm bg-background"
-              />
-              <Button
-                variant="outline"
-                onClick={handleCopy}
-                disabled={copied}
-                className="shrink-0"
-              >
-                {copied ? "Copied!" : "Copy"}
-              </Button>
-            </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDisableSharing}
-              disabled={disableShare.isPending}
-            >
-              {disableShare.isPending ? "Disabling..." : "Disable Sharing"}
-            </Button>
-          </div>
-        ) : (
-          <Button
-            onClick={handleEnableSharing}
-            disabled={generateShareToken.isPending}
-            className="w-full sm:w-auto"
-          >
-            {generateShareToken.isPending ? "Generating..." : "Enable Sharing"}
-          </Button>
-        )}
-      </div>
+      <ShareSettingsCard
+        chatbot={chatbot}
+        isGenerating={generateShareToken.isPending}
+        isDisabling={disableShare.isPending}
+        onEnableSharing={handleEnableSharing}
+        onDisableSharing={handleDisableSharing}
+      />
 
       {/* Danger Zone Card */}
-      <div className="space-y-4 p-6 bg-destructive/5 rounded-lg border border-destructive/20">
-        <div className="space-y-1">
-          <Label className="text-base font-semibold text-destructive">
-            Danger Zone
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Permanently delete this chatbot and all associated data
-          </p>
-        </div>
-
-        <Button
-          variant="destructive"
-          onClick={() => setDeleteDialogOpen(true)}
-          disabled={deleteChatbot.isPending}
-          className="w-full sm:w-auto"
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete Chatbot
-        </Button>
-      </div>
+      <DangerZoneCard
+        isDeleting={deleteChatbot.isPending}
+        onDelete={() => setDeleteDialogOpen(true)}
+      />
 
       {/* Disable Share Confirmation Dialog */}
       <ConfirmationDialog

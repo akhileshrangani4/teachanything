@@ -1,66 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  UseVoiceRecorderOptions,
+  UseVoiceRecorderResult,
+  VoiceRecorderErrorCode,
+  VoiceRecorderStatus,
+} from "./voice-recorder-types";
+import {
+  chooseMimeType,
+  isSupportedEnvironment,
+} from "./voice-recorder-support";
 
-export type VoiceRecorderStatus =
-  | "idle"
-  | "requesting_permission"
-  | "recording"
-  | "stopping";
-
-export type VoiceRecorderErrorCode =
-  | "unsupported"
-  | "permission_denied"
-  | "no_microphone"
-  | "recorder_failed"
-  | "no_audio";
-
-export interface VoiceRecorderError {
-  code: VoiceRecorderErrorCode;
-  message: string;
-}
-
-interface UseVoiceRecorderOptions {
-  /** Hard cap before the recorder auto-stops. Defaults to 3 minutes. */
-  maxDurationMs?: number;
-  onComplete: (audio: Blob) => void;
-  onError?: (err: VoiceRecorderError) => void;
-}
-
-interface UseVoiceRecorderResult {
-  status: VoiceRecorderStatus;
-  elapsedMs: number;
-  isSupported: boolean;
-  start: () => Promise<void>;
-  stop: () => void;
-  cancel: () => void;
-}
-
-/**
- * Pick the first MIME type the browser will actually record. Safari prefers
- * mp4, Chrome/Firefox prefer webm. We try in order and fall back to the
- * browser default if none match.
- */
-function chooseMimeType(): string | undefined {
-  if (typeof MediaRecorder === "undefined") return undefined;
-  const candidates = [
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/mp4",
-    "audio/ogg;codecs=opus",
-  ];
-  for (const t of candidates) {
-    if (MediaRecorder.isTypeSupported(t)) return t;
-  }
-  return undefined;
-}
-
-function isSupportedEnvironment(): boolean {
-  if (typeof window === "undefined") return false;
-  if (typeof MediaRecorder === "undefined") return false;
-  return !!(
-    navigator.mediaDevices &&
-    typeof navigator.mediaDevices.getUserMedia === "function"
-  );
-}
+export type {
+  VoiceRecorderStatus,
+  VoiceRecorderErrorCode,
+  VoiceRecorderError,
+} from "./voice-recorder-types";
 
 export function useVoiceRecorder({
   maxDurationMs = 180_000,

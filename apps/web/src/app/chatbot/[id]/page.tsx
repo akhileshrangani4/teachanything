@@ -1,32 +1,15 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { useSession } from "@/lib/auth-client";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { useChatbot } from "@/hooks/useChatbot";
-import { ChatInterface } from "@/components/chat/messages/ChatInterface";
-import { ChatbotSettings } from "@/components/chat/settings/ChatbotSettings";
-import { EmbedCode } from "@/components/chat/sharing/EmbedCode";
-import { ShareLinkSection } from "@/components/chat/sharing/ShareLinkSection";
-import { ChatbotFilesTab } from "@/components/chat/files/ChatbotFilesTab";
-import { WrappableText } from "@/components/ui/wrappable-text";
-import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { getFilePollingInterval } from "@/hooks/file-polling";
-import { WebSourcesTab } from "@/components/chatbot/WebSourcesTab";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { ConversationsTab } from "@/components/chatbot/ConversationsTab";
-import { ChatbotAnalyticsTab } from "@/components/chatbot/AnalyticsTab";
+import { ChatbotLoadingSkeleton } from "./chatbot-loading-skeleton";
+import { ChatbotNotFound } from "./chatbot-not-found";
+import { ChatbotHeader } from "./chatbot-header";
+import { ChatbotDetailTabs } from "./chatbot-detail-tabs";
 
 const VALID_TABS = [
   "chat",
@@ -65,20 +48,7 @@ export default function ChatbotDetailPage() {
     [searchParams, router, chatbotId],
   );
 
-  const {
-    messages,
-    currentMessage,
-    setCurrentMessage,
-    status,
-    messagesEndRef,
-    chatbot,
-    chatbotLoading,
-    handleSendMessage,
-    resetChat,
-    stop,
-    onStudyAttempt,
-    studyAttempts,
-  } = useChatbot(chatbotId, session);
+  const chat = useChatbot(chatbotId, session);
 
   // Fetch files associated with this chatbot (will be paginated in ChatbotFilesTab)
   const { isLoading: filesLoading, refetch: refetchFiles } =
@@ -102,32 +72,9 @@ export default function ChatbotDetailPage() {
     },
   });
 
-  const handleEnableSharing = () => {
-    generateShareToken.mutate({ id: chatbotId });
-  };
-
   // Loading state
-  if (sessionLoading || chatbotLoading) {
-    return (
-      <div className="flex-1 p-4 md:p-6 lg:p-8 min-w-0">
-        <div className="max-w-7xl mx-auto space-y-8">
-          <div>
-            <Skeleton className="h-10 w-64 mb-3" />
-            <Skeleton className="h-5 w-96" />
-            <div className="flex items-center gap-2 mt-4">
-              <Skeleton className="h-6 w-24 rounded-full" />
-              <Skeleton className="h-6 w-32 rounded-full" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-9 w-16 rounded-md" />
-            <Skeleton className="h-9 w-16 rounded-md" />
-            <Skeleton className="h-9 w-20 rounded-md" />
-          </div>
-          <Skeleton className="h-96 rounded-lg" />
-        </div>
-      </div>
-    );
+  if (sessionLoading || chat.chatbotLoading) {
+    return <ChatbotLoadingSkeleton />;
   }
 
   // Redirect if not logged in
@@ -137,168 +84,48 @@ export default function ChatbotDetailPage() {
   }
 
   // Not found
-  if (!chatbot) {
-    return (
-      <div className="flex-1 p-4 md:p-6 lg:p-8 min-w-0">
-        <div className="max-w-7xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Chatbot Not Found</CardTitle>
-              <CardDescription>
-                The chatbot you&apos;re looking for doesn&apos;t exist.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={() => router.push("/dashboard")}>
-                Back to Dashboard
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
+  if (!chat.chatbot) {
+    return <ChatbotNotFound onBack={() => router.push("/dashboard")} />;
   }
+
+  const chatbot = chat.chatbot;
 
   return (
     <div className="flex-1 p-4 md:p-6 lg:p-8 min-w-0">
       <div className="max-w-7xl mx-auto space-y-8 overflow-hidden">
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-4xl font-bold text-foreground tracking-tight">
-              {chatbot.name}
-            </h1>
-          </div>
-          <p className="text-muted-foreground mt-2 text-lg">
-            <WrappableText>{chatbot.description}</WrappableText>
-          </p>
-          <div className="flex flex-wrap items-center gap-2 mt-4">
-            <Badge>{chatbot.model}</Badge>
-            {chatbot.sharingEnabled && (
-              <Badge variant="outline">Sharing Enabled</Badge>
-            )}
-          </div>
-
-          {/* Share Link Section */}
-          <div className="mt-6">
-            <ShareLinkSection
-              shareToken={chatbot.shareToken}
-              sharingEnabled={chatbot.sharingEnabled}
-              onEnableSharing={handleEnableSharing}
-              isEnabling={generateShareToken.isPending}
-            />
-          </div>
-        </div>
+        <ChatbotHeader
+          name={chatbot.name}
+          description={chatbot.description}
+          model={chatbot.model}
+          sharingEnabled={chatbot.sharingEnabled}
+          shareToken={chatbot.shareToken}
+          onEnableSharing={() => generateShareToken.mutate({ id: chatbotId })}
+          isEnabling={generateShareToken.isPending}
+        />
 
         {/* Tabs */}
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-          className="space-y-6"
-        >
-          <TabsList className="h-auto flex-wrap justify-start gap-1 bg-muted-foreground/10 border border-border">
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
-            <TabsTrigger value="web-sources">Web Sources</TabsTrigger>
-            <TabsTrigger value="conversations">Student Chats</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            {chatbot.sharingEnabled && chatbot.shareToken && (
-              <TabsTrigger value="embed">Embed</TabsTrigger>
-            )}
-          </TabsList>
-
-          {/* Chat Tab */}
-          <TabsContent value="chat" className="mt-6">
-            <ErrorBoundary>
-              <ChatInterface
-                messages={messages}
-                status={status}
-                currentMessage={currentMessage}
-                setCurrentMessage={setCurrentMessage}
-                handleSendMessage={handleSendMessage}
-                messagesEndRef={
-                  messagesEndRef as React.RefObject<HTMLDivElement>
-                }
-                chatbotName={chatbot.name || "Chatbot"}
-                resetChat={resetChat}
-                stop={stop}
-                showSources={chatbot.showSources ?? false}
-                chatbotId={chatbot.id}
-                voiceInputEnabled
-                onStudyAttempt={onStudyAttempt}
-                studyAttempts={studyAttempts}
-              />
-            </ErrorBoundary>
-          </TabsContent>
-
-          {/* Files Tab */}
-          <TabsContent value="files" className="mt-6">
-            <ChatbotFilesTab
-              chatbotId={chatbotId}
-              filesLoading={filesLoading}
-              onRefetch={refetchFiles}
-            />
-          </TabsContent>
-
-          {/* Web Sources Tab */}
-          <TabsContent value="web-sources" className="mt-6">
-            <WebSourcesTab chatbotId={chatbotId} />
-          </TabsContent>
-
-          <TabsContent value="conversations" className="mt-6">
-            <ConversationsTab chatbotId={chatbotId} />
-          </TabsContent>
-
-          <TabsContent value="analytics" className="mt-6">
-            <ChatbotAnalyticsTab chatbotId={chatbotId} />
-          </TabsContent>
-
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Chatbot Settings</CardTitle>
-                <CardDescription>Configure your chatbot</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ChatbotSettings
-                  chatbot={{
-                    name: chatbot.name,
-                    description: chatbot.description,
-                    model: chatbot.model,
-                    systemPrompt: chatbot.systemPrompt,
-                    temperature: chatbot.temperature,
-                    maxTokens: chatbot.maxTokens,
-                    shareToken: chatbot.shareToken,
-                    sharingEnabled: chatbot.sharingEnabled,
-                    showSources: chatbot.showSources ?? false,
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Embed Tab */}
-          {chatbot.sharingEnabled && chatbot.shareToken && (
-            <TabsContent value="embed" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Embed On Website</CardTitle>
-                  <CardDescription>
-                    Add your chatbot to any website. Choose between a floating
-                    widget button (recommended for most sites) or an
-                    always-visible chat window. Works with HTML, WordPress,
-                    React, Next.js, and any web platform.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <EmbedCode shareToken={chatbot.shareToken} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
-        </Tabs>
+        <ChatbotDetailTabs
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          chatbotId={chatbotId}
+          chatbot={chatbot}
+          filesLoading={filesLoading}
+          onRefetchFiles={refetchFiles}
+          messages={chat.messages}
+          status={chat.status}
+          currentMessage={chat.currentMessage}
+          setCurrentMessage={chat.setCurrentMessage}
+          handleSendMessage={chat.handleSendMessage}
+          messagesEndRef={
+            chat.messagesEndRef as React.RefObject<HTMLDivElement>
+          }
+          resetChat={chat.resetChat}
+          stop={chat.stop}
+          showSources={chatbot.showSources ?? false}
+          onStudyAttempt={chat.onStudyAttempt}
+          studyAttempts={chat.studyAttempts}
+        />
       </div>
     </div>
   );
