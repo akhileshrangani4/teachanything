@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { env, isServiceAvailable } from "./env";
+import { env, isServiceAvailable } from "@/lib/env";
 
 /**
  * Create Supabase client for server-side operations.

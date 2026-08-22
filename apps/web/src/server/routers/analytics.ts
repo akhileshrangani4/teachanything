@@ -22,7 +22,7 @@ import {
   checkRateLimit,
   conversationSearchRateLimit,
   downloadRateLimit,
-} from "@/lib/rate-limit";
+} from "@/server/rate-limit";
 
 type SessionTimeRange = "week" | "month" | "quarter";
 

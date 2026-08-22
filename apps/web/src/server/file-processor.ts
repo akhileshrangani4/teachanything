@@ -5,12 +5,12 @@ import { createSupabaseClient } from "./supabase";
 import { isLocalStorageMode, readLocalFile } from "./local-storage";
 import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
 import { EMBEDDING_MODEL } from "@teachanything/ai/models";
-import { env } from "./env";
-import { logInfo, logError } from "./logger";
+import { env } from "@/lib/env";
+import { logInfo, logError } from "@/lib/logger";
 import {
   sanitizeProcessingError,
   STORAGE_MISSING_ERROR,
-} from "./processing-error";
+} from "@/lib/processing-error";
 
 const EXTRACTION_TIMEOUT_MS = 60_000;
 

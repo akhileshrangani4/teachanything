@@ -13,7 +13,8 @@ jest.mock("@/lib/logger", () => ({
 }));
 
 // Dynamic import after mocks are set up
-const { checkRateLimit, requireRateLimit } = await import("@/lib/rate-limit");
+const { checkRateLimit, requireRateLimit } =
+  await import("@/server/rate-limit");
 
 function mockLimiter(response: {
   success: boolean;

@@ -2,8 +2,8 @@ import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@teachanything/db";
 import * as schema from "@teachanything/db/schema";
-import { env, getApprovedDomains } from "./env";
-import { logInfo, logError } from "./logger";
+import { env, getApprovedDomains } from "@/lib/env";
+import { logInfo, logError } from "@/lib/logger";
 import {
   sendAdminNotificationEmail,
   sendApprovalEmail,

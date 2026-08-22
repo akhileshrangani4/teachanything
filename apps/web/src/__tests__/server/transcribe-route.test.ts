@@ -37,7 +37,7 @@ const mockGlobalLimit = jest.fn<() => Promise<{ success: boolean }>>();
 const mockShareLookup = jest.fn<() => Promise<Array<{ id: string }>>>();
 const mockAnalyticsInsert = jest.fn<() => Promise<void>>();
 
-jest.unstable_mockModule("@/lib/auth", () => ({
+jest.unstable_mockModule("@/server/auth", () => ({
   auth: { api: { getSession: mockGetSession } },
 }));
 
@@ -91,7 +91,7 @@ async function fakeRequire(
   const r = await limiter.limit();
   return { ...r, reset: r.reset ?? 0 } as { success: boolean; reset: number };
 }
-jest.unstable_mockModule("@/lib/rate-limit", () => ({
+jest.unstable_mockModule("@/server/rate-limit", () => ({
   checkRateLimit: fakeCheck,
   requireRateLimit: fakeRequire,
   transcriptionRateLimit: { limit: mockAuthedLimit },

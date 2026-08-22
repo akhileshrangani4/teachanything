@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
+import { qstashReceiver, verifyQStashSignature } from "@/server/qstash";
 import { env, isServiceAvailable } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { db } from "@teachanything/db";

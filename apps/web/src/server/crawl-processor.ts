@@ -17,9 +17,9 @@ import {
   isRobotsAllowed,
   isUrlSafeWithDns,
 } from "@teachanything/ai/crawler";
-import { env } from "./env";
+import { env } from "@/lib/env";
 import { publishQStashJob } from "./qstash";
-import { logInfo, logError } from "./logger";
+import { logInfo, logError } from "@/lib/logger";
 import {
   mergeCrawledPageMetadata,
   mergeCrawlSourceMetadata,

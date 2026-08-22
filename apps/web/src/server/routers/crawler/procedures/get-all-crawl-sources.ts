@@ -17,7 +17,7 @@ import {
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
-import { sweepStaleCrawls } from "@/lib/crawl-stale";
+import { sweepStaleCrawls } from "@/server/crawl-stale";
 import { allCrawlSourcesInput } from "../validation";
 
 export const getAllCrawlSourcesProcedure = protectedProcedure

@@ -9,7 +9,7 @@ import { eq, and, sql, desc, asc, ilike, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { TRPCError } from "@trpc/server";
 import { SUPPORTED_MODELS, DEPRECATED_MODELS } from "@teachanything/ai";
-import { checkRateLimit, chatbotCreationRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, chatbotCreationRateLimit } from "@/server/rate-limit";
 import { escapeLikePattern } from "@/server/utils";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 

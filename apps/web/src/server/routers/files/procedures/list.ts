@@ -7,12 +7,12 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
-import { sweepStaleFiles } from "@/lib/file-stale";
+import { sweepStaleFiles } from "@/server/file-stale";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 // Crawled pages are shown as grouped "Web Sources" rows in the Files tab
 // (rendered from crawler.getCrawlSources) rather than cluttering the
 // uploaded-file table as individual rows.
-import { excludeCrawledPages } from "@/lib/crawled-page-files";
+import { excludeCrawledPages } from "@/server/crawled-page-files";
 
 /**
  * List all user files (centralized) with search and sort

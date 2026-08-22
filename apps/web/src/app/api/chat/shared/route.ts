@@ -7,7 +7,7 @@ import {
   requireRateLimit,
   publicChatRateLimit,
   publicChatGlobalRateLimit,
-} from "@/lib/rate-limit";
+} from "@/server/rate-limit";
 import { getTrustedClientIp } from "@/lib/get-client-ip";
 import { env } from "@/lib/env";
 import { streamChat, newSessionId } from "@/server/chat/stream-chat";

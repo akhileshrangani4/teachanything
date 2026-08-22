@@ -13,7 +13,7 @@ import { escapeLikePattern } from "@/server/utils";
 import {
   approveUser as approveUserHelper,
   rejectUser as rejectUserHelper,
-} from "@/lib/auth";
+} from "@/server/auth";
 import { getApprovedDomains } from "@/lib/env";
 import { logError } from "@/lib/logger";
 import {
@@ -21,7 +21,7 @@ import {
   sendDemoteFromAdminEmail,
   sendAccountDisabledEmail,
   sendAccountEnabledEmail,
-} from "@/lib/email";
+} from "@/server/email";
 import { deleteUserAccount } from "@/server/services/user-deletion";
 import { validateDomainForAllowlist } from "@/lib/domain-validation";
 

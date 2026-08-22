@@ -6,7 +6,7 @@
 
 import { mkdir, writeFile, readFile, unlink, stat } from "fs/promises";
 import { join, dirname, resolve } from "path";
-import { isServiceAvailable } from "./env";
+import { isServiceAvailable } from "@/lib/env";
 
 /** Root directory for local file storage */
 const UPLOADS_DIR = join(process.cwd(), "uploads");

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 // Note: Better Auth session check happens in tRPC context
 // Middleware focuses on rate limiting and subdomain routing
-import { publicChatRateLimit, checkRateLimit } from "./lib/rate-limit";
+import { publicChatRateLimit, checkRateLimit } from "@/server/rate-limit";
 import { getTrustedClientIp } from "./lib/get-client-ip";
 import { logWarn } from "./lib/logger";
 

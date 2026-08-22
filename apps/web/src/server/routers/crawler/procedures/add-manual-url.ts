@@ -11,8 +11,8 @@ import {
   dispatchCrawlJob,
   processCrawlPage,
   finalizeCrawlSource,
-} from "@/lib/crawl-processor";
-import { checkRateLimit, manualUrlRateLimit } from "@/lib/rate-limit";
+} from "@/server/crawl-processor";
+import { checkRateLimit, manualUrlRateLimit } from "@/server/rate-limit";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { manualUrlInput } from "../validation";
 

@@ -6,8 +6,11 @@ import {
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
 import { verifyUrlReachable } from "@teachanything/ai/crawler";
-import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
-import { checkRateLimit, crawlSourceRateLimit } from "@/lib/rate-limit";
+import {
+  dispatchCrawlJob,
+  processCrawlDiscovery,
+} from "@/server/crawl-processor";
+import { checkRateLimit, crawlSourceRateLimit } from "@/server/rate-limit";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { crawlSourceInput } from "../validation";
 

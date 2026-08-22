@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 import { db } from "@teachanything/db";
 import { chatbots, analytics } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -12,7 +12,7 @@ import {
   publicTranscriptionGlobalRateLimit,
   checkRateLimit,
   requireRateLimit,
-} from "@/lib/rate-limit";
+} from "@/server/rate-limit";
 import {
   TRANSCRIPTION_LIMITS,
   validateAudioBlob,

@@ -1,6 +1,6 @@
 import { render } from "@react-email/render";
-import { env, getAdminEmails, isServiceAvailable } from "./env";
-import { logInfo, logError } from "./logger";
+import { env, getAdminEmails, isServiceAvailable } from "@/lib/env";
+import { logInfo, logError } from "@/lib/logger";
 import { publishEmailJob } from "./qstash";
 import { UserRegistrationNotification } from "@/components/emails/UserRegistrationNotification";
 import { ApprovalConfirmation } from "@/components/emails/ApprovalConfirmation";

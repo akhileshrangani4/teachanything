@@ -2,8 +2,8 @@ import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { createSupabaseClient } from "@/lib/supabase";
-import { checkRateLimit, fileUploadRateLimit } from "@/lib/rate-limit";
+import { createSupabaseClient } from "@/server/supabase";
+import { checkRateLimit, fileUploadRateLimit } from "@/server/rate-limit";
 import { isServiceAvailable } from "@/lib/env";
 import { userFiles } from "@teachanything/db/schema";
 import {

@@ -6,7 +6,7 @@ import {
   crawledPages,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { sweepStaleCrawls } from "@/lib/crawl-stale";
+import { sweepStaleCrawls } from "@/server/crawl-stale";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 
 export const getCrawlSourcesProcedure = protectedProcedure

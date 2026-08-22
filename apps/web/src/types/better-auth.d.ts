@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 
 // Infer types from Better Auth configuration
 export type Session = typeof auth.$Infer.Session;

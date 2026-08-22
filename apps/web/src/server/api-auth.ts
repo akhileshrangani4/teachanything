@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 import type { User } from "@/types/better-auth";
 import { logWarn } from "@/lib/logger";
 

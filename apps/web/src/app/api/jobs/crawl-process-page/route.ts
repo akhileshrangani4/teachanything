@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
+import { qstashReceiver, verifyQStashSignature } from "@/server/qstash";
 import { logError } from "@/lib/logger";
-import { processCrawlPage, finalizeCrawlSource } from "@/lib/crawl-processor";
+import {
+  processCrawlPage,
+  finalizeCrawlSource,
+} from "@/server/crawl-processor";
 import { db } from "@teachanything/db";
 import { crawledPages } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";

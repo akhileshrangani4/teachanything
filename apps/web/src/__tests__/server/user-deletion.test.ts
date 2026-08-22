@@ -32,7 +32,7 @@ jest.unstable_mockModule("@/lib/env", () => ({
   getMaxFileSizeBytes: jest.fn().mockReturnValue(50 * 1024 * 1024),
 }));
 
-jest.unstable_mockModule("@/lib/supabase", () => ({
+jest.unstable_mockModule("@/server/supabase", () => ({
   createSupabaseClient: () => ({
     storage: {
       from: () => ({ remove: (...args: unknown[]) => mockRemove(...args) }),
@@ -40,7 +40,7 @@ jest.unstable_mockModule("@/lib/supabase", () => ({
   }),
 }));
 
-jest.unstable_mockModule("@/lib/email", () => ({
+jest.unstable_mockModule("@/server/email", () => ({
   sendAccountDeletedEmail: mockSendAccountDeletedEmail,
   sendAdminNotificationEmail: jest.fn(),
   sendApprovalEmail: jest.fn(),

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@teachanything/db";
 import { userFiles } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
-import { createSupabaseClient } from "@/lib/supabase";
-import { isLocalStorageMode, readLocalFile } from "@/lib/local-storage";
+import { createSupabaseClient } from "@/server/supabase";
+import { isLocalStorageMode, readLocalFile } from "@/server/local-storage";
 import { logError, logInfo } from "@/lib/logger";
-import { downloadRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { downloadRateLimit, checkRateLimit } from "@/server/rate-limit";
 import { env } from "@/lib/env";
 import { requireApiSession } from "@/server/api-auth";
 

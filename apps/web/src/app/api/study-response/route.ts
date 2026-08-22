@@ -1,6 +1,6 @@
 import { db } from "@teachanything/db";
 import { logError } from "@/lib/logger";
-import { checkRateLimit, studyResponseRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, studyResponseRateLimit } from "@/server/rate-limit";
 import { requireApprovedUser } from "@/server/api-auth";
 import { findOwnedChatbotId } from "@/server/queries/chatbot";
 import {

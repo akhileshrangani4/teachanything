@@ -2,7 +2,7 @@ import type { db as database } from "@teachanything/db";
 import { userFiles } from "@teachanything/db/schema";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { excludeCrawledPages, isCrawledPagePath } from "./crawled-page-files";
-import { logInfo, logError } from "./logger";
+import { logInfo, logError } from "@/lib/logger";
 
 /**
  * A file sitting in `pending` this long never had its job picked up -- the

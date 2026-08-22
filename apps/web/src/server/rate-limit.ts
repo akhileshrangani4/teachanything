@@ -1,7 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { isServiceAvailable, env } from "./env";
-import { logWarn } from "./logger";
+import { isServiceAvailable, env } from "@/lib/env";
+import { logWarn } from "@/lib/logger";
 
 // Conditionally create Redis client and rate limiters
 const redis = isServiceAvailable("redis")

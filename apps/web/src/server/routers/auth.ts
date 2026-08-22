@@ -9,11 +9,11 @@ import {
   passwordUpdateRateLimit,
   checkRateLimit,
   userStatusProbeRateLimit,
-} from "@/lib/rate-limit";
+} from "@/server/rate-limit";
 import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { isPasswordDifferent } from "@/lib/password/password-validation";
 import { logInfo, logError, logWarn } from "@/lib/logger";
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 import { deleteUserAccount } from "@/server/services/user-deletion";
 import { getTrustedClientIp } from "@/lib/get-client-ip";
 

@@ -1,6 +1,6 @@
 import { Client, Receiver } from "@upstash/qstash";
-import { isServiceAvailable, env } from "./env";
-import { logInfo, logError } from "./logger";
+import { isServiceAvailable, env } from "@/lib/env";
+import { logInfo, logError } from "@/lib/logger";
 
 // Conditionally create QStash client and receiver
 export const qstash = isServiceAvailable("qstash")

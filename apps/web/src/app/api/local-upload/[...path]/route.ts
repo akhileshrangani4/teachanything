@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isLocalStorageMode, saveLocalFile } from "@/lib/local-storage";
+import { isLocalStorageMode, saveLocalFile } from "@/server/local-storage";
 import { requireApiSession } from "@/server/api-auth";
 
 /**

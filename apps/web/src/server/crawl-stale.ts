@@ -1,7 +1,7 @@
 import type { db as database } from "@teachanything/db";
 import { crawlSources, crawledPages } from "@teachanything/db/schema";
 import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
-import { logInfo, logError } from "./logger";
+import { logInfo, logError } from "@/lib/logger";
 import {
   mergeCrawledPageMetadata,
   mergeCrawlSourceMetadata,

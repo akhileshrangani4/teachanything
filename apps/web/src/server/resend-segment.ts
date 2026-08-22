@@ -1,5 +1,5 @@
-import { env } from "./env";
-import { logInfo, logWarn, logError } from "./logger";
+import { env } from "@/lib/env";
+import { logInfo, logWarn, logError } from "@/lib/logger";
 
 // A human waits on the approval mutation, so bound each request tightly.
 // AbortSignal.timeout both bounds the latency and aborts the request.

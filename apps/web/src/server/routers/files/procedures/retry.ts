@@ -3,10 +3,10 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { userFiles, fileChunks } from "@teachanything/db/schema";
-import { publishQStashJob } from "@/lib/qstash";
+import { publishQStashJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
-import { processFile } from "@/lib/file-processor";
+import { processFile } from "@/server/file-processor";
 
 export const retryProcedure = protectedProcedure
   .input(

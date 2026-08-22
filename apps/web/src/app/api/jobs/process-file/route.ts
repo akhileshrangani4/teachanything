@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
+import { qstashReceiver, verifyQStashSignature } from "@/server/qstash";
 import { logError } from "@/lib/logger";
-import { processFile } from "@/lib/file-processor";
+import { processFile } from "@/server/file-processor";
 
 /**
  * Embedding a document is the slowest stage of the pipeline and the one that

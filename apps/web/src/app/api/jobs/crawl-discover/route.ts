@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
+import { qstashReceiver, verifyQStashSignature } from "@/server/qstash";
 import { logError } from "@/lib/logger";
-import { processCrawlDiscovery } from "@/lib/crawl-processor";
+import { processCrawlDiscovery } from "@/server/crawl-processor";
 
 export const maxDuration = 300;
 
