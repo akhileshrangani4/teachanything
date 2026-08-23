@@ -141,7 +141,13 @@ function createClientEnv(): Env {
   // undefined and failing somewhere unrelated downstream.
   return new Proxy(values as unknown as Env, {
     get(target, prop: string | symbol) {
-      if (typeof prop === "string" && !(prop in target)) {
+      // hasOwn, not `in`: inherited properties (toString, constructor,
+      // …) must not satisfy this check or they would resolve instead of
+      // throwing, weakening the fail-fast.
+      if (
+        typeof prop === "string" &&
+        !Object.prototype.hasOwnProperty.call(target, prop)
+      ) {
         throw new Error(
           `env.${prop} is server-only and was accessed from the browser. ` +
             `Client code may only read ${CLIENT_AVAILABLE_KEYS.join(", ")}.`,

@@ -165,11 +165,12 @@ export async function streamChat(params: {
     toolSources = rt.sources;
   }
 
-  // When neither tool group applies this collapses to an empty object,
-  // matching the previous explicit branches.
+  // Study tools stay gated on tool capability (the doc contract above);
+  // when neither tool group applies this collapses to an empty object,
+  // matching the pre-refactor explicit branches.
   const tools = {
     ...(retrievalTools ?? {}),
-    ...studyTools,
+    ...(modelCanUseTools ? studyTools : {}),
   };
 
   const { primarySystemPrompt, fallbackSystemPrompt, uiMessages } =
