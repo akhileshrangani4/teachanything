@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.9](https://github.com/akhileshrangani4/teachanything/compare/v1.34.8...v1.34.9) (2026-08-24)
+
+
+### Bug Fixes
+
+* **crawler:** name the hourly web source limits in errors and on the dashboard ([#459](https://github.com/akhileshrangani4/teachanything/issues/459)) ([6c629b3](https://github.com/akhileshrangani4/teachanything/commit/6c629b3f46b58b56a780f7cceb93900f2e68101e))
+
 ## [1.34.8](https://github.com/akhileshrangani4/teachanything/compare/v1.34.7...v1.34.8) (2026-08-22)
 
 
