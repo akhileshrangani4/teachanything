@@ -34,8 +34,10 @@ export const getStatusProcedure = publicProcedure.query(async ({ ctx }) => {
  * Check user status by email (for login error handling)
  *
  * This reveals whether an email is registered and its approval state, so
- * it is rate limited per IP (fail closed) to prevent account enumeration
- * scans.
+ * it is rate limited per IP to prevent account enumeration scans. Fail
+ * closed on a limiter that errors at runtime; a deploy with no Redis at
+ * all still answers, since denying there would break the login page's
+ * pending/rejected redirect on every Redis-less environment.
  */
 export const checkUserStatusProcedure = publicProcedure
   .input(z.object({ email: z.string().email() }))

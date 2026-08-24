@@ -107,7 +107,12 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   });
 
   const toggleShowSources = trpc.chatbot.updateShowSources.useMutation({
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
+      // Without this the `chatbot` prop keeps the pre-toggle value, and
+      // handleCancel — which resets the whole draft from that prop — would
+      // silently flip the switch back.
+      await utils.chatbot.get.invalidate({ id: chatbotId });
+      await utils.chatbot.getById.invalidate({ id: chatbotId });
       toast.success(
         variables.showSources
           ? "Sources display enabled"
@@ -170,9 +175,13 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
         },
       },
       {
-        onSuccess: () => {
+        // Reset from the row the server returned, never from the `chatbot`
+        // prop: this callback closes over the pre-save value, so resetting
+        // from it reverts the form to the user's old settings while the
+        // toast claims success.
+        onSuccess: (updated) => {
           setIsEditing(false);
-          setDraft(settingsFromChatbot(chatbot));
+          if (updated) setDraft(settingsFromChatbot(updated));
           toast.success("Settings saved successfully", {
             description: "Your chatbot configuration has been updated",
           });

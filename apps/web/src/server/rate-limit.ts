@@ -215,10 +215,14 @@ export async function checkRateLimit(
   remaining: number;
   reset: number;
 }> {
+  // No limiter configured is a deployment choice (Redis is optional), not a
+  // limiter failure, so it always allows — otherwise a Redis-less deploy
+  // would permanently deny every fail-closed caller rather than merely go
+  // unmetered. `failOpen` governs the runtime-error path below.
+  // Security-critical callers that must deny without a limiter use
+  // `requireRateLimit`, which handles the null case itself before delegating.
   if (!ratelimiter) {
-    return failOpen
-      ? { success: true, limit: 0, remaining: 0, reset: 0 }
-      : failClosedResult();
+    return { success: true, limit: 0, remaining: 0, reset: 0 };
   }
 
   let result: Awaited<ReturnType<Ratelimit["limit"]>>;

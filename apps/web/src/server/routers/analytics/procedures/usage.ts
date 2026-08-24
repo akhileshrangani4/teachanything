@@ -138,12 +138,20 @@ export const getTotalMessagesPerMonthProcedure = protectedProcedure
     // Existence check only — the per-message aggregation below joins
     // through to chatbots directly, so we never materialize id arrays
     // for every conversation the user owns.
-    const [chatbotCount] = await ctx.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(chatbots)
-      .where(eq(chatbots.userId, ctx.session.user.id));
+    //
+    // This probes CONVERSATIONS, not chatbots: a user who owns chatbots but
+    // has never been chatted with must still get the empty-series response,
+    // otherwise they receive 30 zero-filled rows plus `accountCreatedAt`,
+    // which flips MessagesChart's back-pagination guard on. Costs one
+    // indexed EXISTS, and LIMIT 1 stops at the first row.
+    const [existingConversation] = await ctx.db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .innerJoin(chatbots, eq(conversations.chatbotId, chatbots.id))
+      .where(eq(chatbots.userId, ctx.session.user.id))
+      .limit(1);
 
-    if (!chatbotCount || Number(chatbotCount.count) === 0) {
+    if (!existingConversation) {
       return {
         data: [],
         startDate: accountCreatedAt,

@@ -70,15 +70,21 @@ export function useSourceSelection({
 
   const handleRemoveSelected = async () => {
     const ids = Array.from(selectedSources);
-    await runSequentially(
+    const failures = await runSequentially(
       ids,
       (crawlSourceId) => removeOne(crawlSourceId),
       (crawlSourceId) => `Failed to remove source ${crawlSourceId}`,
     );
     setSelectedSources(new Set());
-    toast.success(
-      `${ids.length} web source${ids.length !== 1 ? "s" : ""} removed from chatbot`,
-    );
+    if (failures === 0) {
+      toast.success(
+        `${ids.length} web source${ids.length !== 1 ? "s" : ""} removed from chatbot`,
+      );
+    } else {
+      toast.error(
+        `${failures} of ${ids.length} web source${ids.length !== 1 ? "s" : ""} could not be removed`,
+      );
+    }
   };
 
   return {
