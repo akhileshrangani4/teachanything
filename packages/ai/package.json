@@ -14,7 +14,7 @@
     "./token-budget": "./src/token-budget.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.60",
+    "@ai-sdk/openai": "^4.0.46",
     "@teachanything/logger": "*",
     "@langchain/community": "^1.1.29",
     "@langchain/core": "^1.1.48",
@@ -22,7 +22,7 @@
     "@mozilla/readability": "^0.6.0",
     "@openrouter/ai-sdk-provider": "^1.5.4",
     "@types/pdf-parse": "^1.1.4",
-    "ai": "^6.0.175",
+    "ai": "^7.0.78",
     "cheerio": "^1.2.0",
     "js-tiktoken": "^1.0.12",
     "jsdom": "^26.1.0",
