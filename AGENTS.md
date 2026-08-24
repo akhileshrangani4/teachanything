@@ -19,12 +19,19 @@ teachanything/
 │   ├── web/                      # Next.js 16 application
 │   │   └── src/
 │   │       ├── app/              # App Router pages & API routes
-│   │       ├── server/
+│   │       ├── server/           # Server-only code — never imported from a client component
 │   │       │   ├── trpc.ts       # tRPC setup, procedures, middleware
 │   │       │   ├── api-auth.ts   # Route Handler auth guards (requireApiSession / requireApprovedUser)
 │   │       │   ├── rag-context.ts  # File manifest, source attribution, token budget, HNSW search
+│   │       │   ├── rate-limit.ts # Upstash rate limiters
+│   │       │   ├── qstash.ts     # QStash job publishing & verification
+│   │       │   ├── auth/         # Better Auth config, domain check, session gate, registration
+│   │       │   ├── email/        # Resend delivery + notification templates
+│   │       │   ├── chat/         # Chat turn pipeline (context, prompts, execution, persistence)
+│   │       │   ├── file-processor/  # Upload → extract → chunk → embed pipeline
+│   │       │   ├── crawl-processor/ # Discover → fetch → extract → embed pipeline
 │   │       │   └── routers/      # API routers (auth, chatbot, chat, files, admin, analytics, crawler)
-│   │       ├── lib/              # Utilities (auth, email, rate-limit, qstash, env, file-processor, logger)
+│   │       ├── lib/              # Client-safe utilities (env, logger, validation, formatting)
 │   │       ├── components/       # React components (Shadcn UI based)
 │   │       └── hooks/            # Custom React hooks
 │   └── docs/                     # Documentation site (Blume static generator)
@@ -219,10 +226,10 @@ await ctx.db.delete(chatbots).where(eq(chatbots.id, id));
 
 ## 11. Rate Limiting
 
-Use limiters from `lib/rate-limit.ts`:
+Use limiters from `server/rate-limit.ts`:
 
 ```typescript
-import { chatbotCreationRateLimit } from "@/lib/rate-limit";
+import { chatbotCreationRateLimit } from "@/server/rate-limit";
 
 const { success } = await chatbotCreationRateLimit.limit(userId);
 if (!success) {
@@ -373,9 +380,10 @@ Checklist that the hook does NOT enforce — still your responsibility:
 | `apps/web/src/server/routers/_app.ts`  | Root router combining all sub-routers                                 |
 | `apps/web/src/server/rag-context.ts`   | RAG context builder (file manifest, source attribution, token budget) |
 | `apps/web/src/lib/env.ts`              | Environment validation (Zod schema)                                   |
-| `apps/web/src/lib/auth.ts`             | Better Auth configuration                                             |
-| `apps/web/src/lib/rate-limit.ts`       | Upstash rate limiters                                                 |
-| `apps/web/src/lib/qstash.ts`           | QStash job publishing & verification                                  |
+| `apps/web/src/server/auth/config.ts`   | Better Auth configuration                                             |
+| `apps/web/src/server/api-auth.ts`      | Route Handler auth guards (requireApiSession / requireApprovedUser)   |
+| `apps/web/src/server/rate-limit.ts`    | Upstash rate limiters                                                 |
+| `apps/web/src/server/qstash.ts`        | QStash job publishing & verification                                  |
 | `packages/db/src/schema.ts`            | Complete database schema                                              |
 | `packages/ai/src/openrouter-client.ts` | LLM client with streaming                                             |
 | `packages/ai/src/rag-service.ts`       | Text extraction, chunking, embeddings                                 |
