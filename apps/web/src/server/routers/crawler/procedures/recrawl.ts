@@ -4,6 +4,10 @@ import { TRPCError } from "@trpc/server";
 import { crawlSources } from "@teachanything/db/schema";
 import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
 import { checkRateLimit, recrawlRateLimit } from "@/lib/rate-limit";
+import {
+  RECRAWLS_PER_HOUR,
+  formatRetryAfter,
+} from "@/lib/constants/rate-limits";
 import { crawlSourceIdInput } from "../validation";
 import { assertOwnedCrawlSource } from "../helpers";
 
@@ -12,7 +16,7 @@ export const recrawlProcedure = protectedProcedure
   .mutation(async ({ ctx, input }) => {
     const source = await assertOwnedCrawlSource(ctx, input.crawlSourceId);
 
-    const { success } = await checkRateLimit(
+    const { success, reset } = await checkRateLimit(
       recrawlRateLimit,
       ctx.session.user.id,
       { action: "recrawl" },
@@ -20,7 +24,7 @@ export const recrawlProcedure = protectedProcedure
     if (!success) {
       throw new TRPCError({
         code: "TOO_MANY_REQUESTS",
-        message: "Too many recrawl requests. Please try again later.",
+        message: `You've reached the hourly limit of ${RECRAWLS_PER_HOUR} re-crawls. You can re-crawl again in ${formatRetryAfter(reset)}.`,
       });
     }
 
