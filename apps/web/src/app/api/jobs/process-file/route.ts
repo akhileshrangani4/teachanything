@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { qstashReceiver, verifyQStashSignature } from "@/server/qstash";
 import { logError } from "@/lib/logger";
 import { processFile } from "@/server/file-processor";
@@ -12,6 +13,8 @@ import { processFile } from "@/server/file-processor";
  * sticks at 40% and then fails.
  */
 export const maxDuration = 300;
+
+const payloadSchema = z.object({ fileId: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,8 +54,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    // Parse job data
-    const { fileId } = JSON.parse(body);
+    // Parse job data. Matches the sibling crawl job routes: validate the
+    // payload rather than destructuring a bare JSON.parse, so a malformed
+    // id is a 400 here instead of an error surfacing from the DB layer.
+    const parsed = payloadSchema.safeParse(JSON.parse(body));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+    const { fileId } = parsed.data;
 
     // Process the file using shared function
     const result = await processFile({ fileId });
@@ -65,10 +74,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logError(error, "File processing job failed");
 
+    // Do not echo the raw error message to the caller.
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Internal processing error" },
       { status: 500 },
     );
   }

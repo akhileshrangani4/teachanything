@@ -5,28 +5,6 @@ import { sendApprovalEmail, sendRejectionEmail } from "../email";
 import { syncUserToResendSegment } from "../resend-segment";
 import { eq } from "drizzle-orm";
 
-// Helper to check if user is approved
-export async function isUserApproved(userId: string): Promise<boolean> {
-  const [user] = await db
-    .select()
-    .from(schema.user)
-    .where(eq(schema.user.id, userId))
-    .limit(1);
-
-  return user?.status === "approved";
-}
-
-// Helper to check if user is admin
-export async function isUserAdmin(userId: string): Promise<boolean> {
-  const [user] = await db
-    .select()
-    .from(schema.user)
-    .where(eq(schema.user.id, userId))
-    .limit(1);
-
-  return user?.role === "admin";
-}
-
 // Helper to approve user
 export async function approveUser(userId: string): Promise<void> {
   const [user] = await db

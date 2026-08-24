@@ -46,9 +46,15 @@ export interface AuthContext {
  *
  * IMPORTANT: this does NOT perform the shareToken -> chatbot DB lookup.
  * That lookup is intentionally deferred to AFTER the rate-limit check in
- * the handler so an unauthenticated caller can't drive unbounded DB
- * queries before the limiter runs. We only need the (cheap, header-only)
- * identifier here.
+ * the handler so an unauthenticated caller can't drive that query before
+ * the limiter runs.
+ *
+ * Note the deferral covers the shareToken lookup only, not every DB read:
+ * `auth.api.getSession` below runs whenever ANY cookie header is present,
+ * so an anonymous caller sending a junk cookie still drives one Better
+ * Auth session lookup per request before any limiter has run. Carried
+ * over from the pre-split route; tightening it needs a coarse per-IP
+ * limiter ahead of resolveAuth, not a comment.
  */
 export async function resolveAuth(
   request: NextRequest,

@@ -24,23 +24,6 @@ export function createSupabaseClient() {
 }
 
 /**
- * Create Supabase client for client-side operations.
- * Throws a descriptive error when Supabase env vars are missing.
- */
-export function createSupabaseClientBrowser() {
-  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error(
-      "Supabase Storage is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to enable file uploads.",
-    );
-  }
-
-  return createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
-}
-
-/**
  * Generate signed URL for file preview
  */
 export async function getSignedUrl(

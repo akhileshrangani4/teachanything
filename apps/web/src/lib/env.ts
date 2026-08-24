@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { logWarn } from "@/lib/logger";
 
 // Skip validation for CI builds with dummy values
 const skipValidation = process.env.SKIP_ENV_VALIDATION === "1";
@@ -62,7 +61,10 @@ export type Env = z.infer<typeof envSchema>;
 function validateEnv(): Env {
   // Skip validation in CI builds - return a proxy that provides dummy values on-demand
   if (skipValidation) {
-    logWarn("Skipping environment validation (CI mode)");
+    // Deliberately console.warn, not logWarn: the shared logger is gated on
+    // ENABLE_LOGGING, and a build that silently skipped env validation must
+    // still say so in the build log.
+    console.warn("Skipping environment validation (CI mode)");
     // Return a proxy that provides sensible dummy values for any accessed property
     return new Proxy({} as Env, {
       get(_target, prop: string) {
@@ -103,18 +105,27 @@ function validateEnv(): Env {
  * build time, so they are readable on the client. Everything else is
  * server-only.
  */
-const CLIENT_AVAILABLE_KEYS = [
-  "NODE_ENV",
-  "NEXT_PUBLIC_APP_URL",
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "NEXT_PUBLIC_MAX_FILE_SIZE_MB",
-  "NEXT_PUBLIC_VOICE_INPUT_ENABLED",
-  "NEXT_PUBLIC_GITHUB_URL",
-  "NEXT_PUBLIC_DONATION_URL",
-  "NEXT_PUBLIC_CONTACT_EMAIL",
-  "NEXT_PUBLIC_LINKEDIN_URL",
-] as const;
+// Each value MUST be written as a literal `process.env.X` member expression.
+// Next.js inlines only literal accesses into the client bundle; a dynamic
+// `process.env[key]` lookup is left as-is and reads `undefined` in the
+// browser, where `process.env` is an empty polyfill object.
+function clientEnvValues(): Partial<Record<keyof Env, string | undefined>> {
+  return {
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_MAX_FILE_SIZE_MB: process.env.NEXT_PUBLIC_MAX_FILE_SIZE_MB,
+    NEXT_PUBLIC_VOICE_INPUT_ENABLED:
+      process.env.NEXT_PUBLIC_VOICE_INPUT_ENABLED,
+    NEXT_PUBLIC_GITHUB_URL: process.env.NEXT_PUBLIC_GITHUB_URL,
+    NEXT_PUBLIC_DONATION_URL: process.env.NEXT_PUBLIC_DONATION_URL,
+    NEXT_PUBLIC_CONTACT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL,
+    NEXT_PUBLIC_LINKEDIN_URL: process.env.NEXT_PUBLIC_LINKEDIN_URL,
+  };
+}
+
+const CLIENT_AVAILABLE_KEYS = Object.keys(clientEnvValues()) as (keyof Env)[];
 
 function createClientEnv(): Env {
   // Jest's jsdom environment fakes `window`, but tests legitimately import
@@ -122,9 +133,7 @@ function createClientEnv(): Env {
   // server vars to read as undefined. Only real browser bundles get the
   // strict proxy.
   if (process.env.NODE_ENV === "test") {
-    const lenient = Object.fromEntries(
-      CLIENT_AVAILABLE_KEYS.map((key) => [key, process.env[key]]),
-    );
+    const lenient = clientEnvValues();
     return new Proxy(lenient as unknown as Env, {
       get(target, prop: string | symbol) {
         return target[prop as keyof Env];
@@ -132,9 +141,7 @@ function createClientEnv(): Env {
     });
   }
 
-  const values = Object.fromEntries(
-    CLIENT_AVAILABLE_KEYS.map((key) => [key, process.env[key]]),
-  );
+  const values = clientEnvValues();
 
   // Fail fast (per repo convention): accessing a server-only env var from
   // client code is a bug — surface it immediately instead of returning
