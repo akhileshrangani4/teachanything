@@ -32,7 +32,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/postcss": "^4.3.0",
-    "@tanstack/react-query": "^5.100.8",
+    "@tanstack/react-query": "^5.101.4",
     "@teachanything/ai": "*",
     "@teachanything/db": "*",
     "@teachanything/logger": "*",
