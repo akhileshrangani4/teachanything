@@ -59,6 +59,56 @@ export async function withTiming<T>(
 }
 
 /**
+ * Fields a driver or client attaches to an error alongside `message`.
+ *
+ * Postgres (via postgres.js) is the one that matters here: `code`, `detail`,
+ * `constraint` and friends carry the actual reason a statement failed, and none
+ * of it is in `message`.
+ */
+const CAUSE_FIELDS = [
+  "code",
+  "detail",
+  "hint",
+  "constraint",
+  "table",
+  "column",
+  "routine",
+  "severity",
+] as const;
+
+type CauseInfo = {
+  message: string;
+  name?: string;
+} & Partial<Record<(typeof CAUSE_FIELDS)[number], string>>;
+
+/**
+ * Unwrap an error's `cause` chain into something loggable.
+ *
+ * Wrapper libraries put the real failure here and keep only a summary in
+ * `message`. drizzle is the case that bit us: a failing statement arrives as
+ * `Failed query: delete from "file_chunks" where ...` with the Postgres error
+ * -- the part naming what actually went wrong -- reachable only through
+ * `cause`. Logging just `message` turned a one-look diagnosis into a hunt.
+ *
+ * Depth-capped because a cause chain can be self-referential.
+ */
+function unwrapCause(error: unknown, depth = 0): CauseInfo[] {
+  if (depth > 4 || !error || typeof error !== "object") return [];
+  const cause = (error as { cause?: unknown }).cause;
+  if (!cause || typeof cause !== "object") return [];
+
+  const c = cause as Record<string, unknown>;
+  const info: CauseInfo = {
+    message: c.message?.toString() ?? String(cause),
+    name: c.name?.toString(),
+  };
+  for (const field of CAUSE_FIELDS) {
+    if (c[field] !== undefined) info[field] = String(c[field]);
+  }
+  return [info, ...unwrapCause(cause, depth + 1)];
+}
+
+/**
  * Log error with stack trace
  */
 export function logError(
@@ -72,6 +122,7 @@ export function logError(
     stack?: string;
     name?: string;
     details?: unknown;
+    causes?: CauseInfo[];
   };
 
   if (error instanceof Error) {
@@ -96,6 +147,9 @@ export function logError(
       name: "Error",
     };
   }
+
+  const causes = unwrapCause(error);
+  if (causes.length > 0) errorInfo.causes = causes;
 
   console.error(`[ERROR] ${message}`, {
     ...context,

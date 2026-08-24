@@ -66,7 +66,7 @@ export function DashboardHeader() {
         >
           <Image
             src="/logo.svg"
-            alt="Teach Anything™"
+            alt="Teach Anything®"
             width={28}
             height={28}
             className="h-7 w-7"
@@ -82,6 +82,14 @@ export function DashboardHeader() {
         >
           Support
         </Link>
+        <a
+          href="/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium hidden md:inline-block"
+        >
+          Docs
+        </a>
       </div>
 
       <div className="flex items-center gap-4">

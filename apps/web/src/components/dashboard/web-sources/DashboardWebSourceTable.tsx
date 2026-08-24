@@ -11,6 +11,7 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  CircleStop,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
@@ -98,10 +99,12 @@ interface DashboardWebSourceTableProps {
   isAttaching: boolean;
   onRecrawl: (sourceId: string) => void;
   onDelete: (sourceId: string) => void;
+  onStop: (sourceId: string) => void;
   onToggleEnabled: (sourceId: string, enabled: boolean) => void;
   onRename: (sourceId: string, name: string) => Promise<unknown>;
   isRecrawling: boolean;
   isDeleting: boolean;
+  isStopping: boolean;
   isTogglingEnabled: boolean;
   isRenaming: boolean;
   sortBy: DashboardSortBy;
@@ -245,18 +248,23 @@ function SourceActions({
   onToggleExpand,
   onRecrawl,
   onDelete,
+  onStop,
   isRecrawling,
   isDeleting,
+  isStopping,
 }: {
   source: DashboardSource;
   isExpanded: boolean;
   onToggleExpand: (sourceId: string) => void;
   onRecrawl: (sourceId: string) => void;
   onDelete: (sourceId: string) => void;
+  onStop: (sourceId: string) => void;
   isRecrawling: boolean;
   isDeleting: boolean;
+  isStopping: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
   const handleExport = useExportSource(source);
   const isActive = isActiveSource(source);
 
@@ -289,6 +297,18 @@ function SourceActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
+          {isActive && (
+            <DropdownMenuItem
+              disabled={isStopping}
+              onSelect={(e) => {
+                e.preventDefault();
+                setConfirmStop(true);
+              }}
+            >
+              <CircleStop className="mr-2 h-4 w-4" />
+              Stop crawl
+            </DropdownMenuItem>
+          )}
           {(source.status === "completed" || source.status === "failed") && (
             <DropdownMenuItem
               disabled={isRecrawling}
@@ -306,7 +326,7 @@ function SourceActions({
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            disabled={isDeleting || isActive}
+            disabled={isDeleting}
             onSelect={(e) => {
               e.preventDefault();
               setConfirmDelete(true);
@@ -318,6 +338,24 @@ function SourceActions({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={confirmStop} onOpenChange={setConfirmStop}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop crawl</AlertDialogTitle>
+            <AlertDialogDescription>
+              Stop this crawl now. Pages already crawled are kept; the rest are
+              skipped. You can re-crawl or delete the source afterwards.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep crawling</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onStop(source.id)}>
+              Stop crawl
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
@@ -355,10 +393,12 @@ interface RowProps {
   isAttaching: boolean;
   onRecrawl: (sourceId: string) => void;
   onDelete: (sourceId: string) => void;
+  onStop: (sourceId: string) => void;
   onToggleEnabled: (sourceId: string, enabled: boolean) => void;
   onRename: (sourceId: string, name: string) => Promise<unknown>;
   isRecrawling: boolean;
   isDeleting: boolean;
+  isStopping: boolean;
   isTogglingEnabled: boolean;
   isRenaming: boolean;
 }
@@ -413,10 +453,12 @@ function DashboardTableRow({
   isAttaching,
   onRecrawl,
   onDelete,
+  onStop,
   onToggleEnabled,
   onRename,
   isRecrawling,
   isDeleting,
+  isStopping,
   isTogglingEnabled,
   isRenaming,
 }: RowProps & { colSpan: number }) {
@@ -479,8 +521,10 @@ function DashboardTableRow({
             onToggleExpand={onToggleExpand}
             onRecrawl={onRecrawl}
             onDelete={onDelete}
+            onStop={onStop}
             isRecrawling={isRecrawling}
             isDeleting={isDeleting}
+            isStopping={isStopping}
           />
         </TableCell>
       </TableRow>
@@ -513,10 +557,12 @@ function DashboardSourceCardMobile({
   isAttaching,
   onRecrawl,
   onDelete,
+  onStop,
   onToggleEnabled,
   onRename,
   isRecrawling,
   isDeleting,
+  isStopping,
   isTogglingEnabled,
   isRenaming,
 }: RowProps) {
@@ -549,8 +595,10 @@ function DashboardSourceCardMobile({
           onToggleExpand={onToggleExpand}
           onRecrawl={onRecrawl}
           onDelete={onDelete}
+          onStop={onStop}
           isRecrawling={isRecrawling}
           isDeleting={isDeleting}
+          isStopping={isStopping}
         />
       </div>
 
@@ -613,10 +661,12 @@ export function DashboardWebSourceTable({
   isAttaching,
   onRecrawl,
   onDelete,
+  onStop,
   onToggleEnabled,
   onRename,
   isRecrawling,
   isDeleting,
+  isStopping,
   isTogglingEnabled,
   isRenaming,
   sortBy,
@@ -638,10 +688,12 @@ export function DashboardWebSourceTable({
     isAttaching,
     onRecrawl,
     onDelete,
+    onStop,
     onToggleEnabled,
     onRename,
     isRecrawling,
     isDeleting,
+    isStopping,
     isTogglingEnabled,
     isRenaming,
   });

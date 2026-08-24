@@ -1,0 +1,78 @@
+---
+title: Add your assistant to your course website
+description: Put a chat button on your course site or LMS so students can ask questions without leaving the page.
+sidebar:
+  label: Embed on your site
+  icon: code
+---
+
+A shared link works well, but embedding puts the assistant right where students already are — a chat button in the corner of your course page that opens without leaving the page. This tutorial walks through it end to end.
+
+:::note[Before you start]
+You'll need an assistant that already has materials and works (see [Build your first course assistant](/tutorials/first-assistant)), and somewhere to paste a snippet — your course website, or an LMS page that accepts custom HTML.
+:::
+
+## Step 1 — Make it match your site
+
+Before you grab the code, style the button so it fits your site. In the assistant's settings, set:
+
+- **Light or dark** theme
+- Which **corner** the button sits in
+- The **button and chat colors**
+
+See [Customize › Appearance](/instructors/customize#appearance-for-embedded-assistants) for the full list.
+
+## Step 2 — Turn on sharing
+
+Embedding uses the same sharing switch as a share link. In the assistant's settings, make sure **sharing is enabled** — an embedded assistant won't load if sharing is off.
+
+## Step 3 — Copy the snippet
+
+<Steps>
+  <Step title="Open the embed panel">
+    In the assistant's settings, find the embed / share-code section.
+  </Step>
+  <Step title="Pick a format">
+    The platform generates the code for you — a plain **HTML** version and a
+    **React** version. Use HTML unless your site is a React app.
+  </Step>
+  <Step title="Copy it">
+    Copy the whole snippet. You don't need to edit it.
+  </Step>
+</Steps>
+
+## Step 4 — Paste it into your site
+
+<Steps>
+  <Step title="Find a custom-HTML spot">
+    On most platforms — WordPress, Canvas, a school CMS — look for a "custom
+    HTML," "embed code," or "raw HTML" block on the page where you want the
+    assistant.
+  </Step>
+  <Step title="Paste and save">
+    Drop the snippet in and save the page. A chat button appears in the corner
+    you chose.
+  </Step>
+  <Step title="Not your site to edit?">
+    Send the snippet to whoever manages your course site — it's copy-and-paste
+    for them too.
+  </Step>
+</Steps>
+
+## Step 5 — Test it live
+
+Open your course page as a student would and click the chat button. Ask a question and confirm you get a good answer. If students should be able to speak their questions, check that the microphone button appears — see [voice input](/instructors/share-and-embed#voice-input).
+
+:::warning[Button not showing up?]
+Two usual causes: the snippet was pasted into a plain-text field instead of an HTML block, or sharing is turned off. See [Troubleshooting the embed](/instructors/share-and-embed) for more.
+:::
+
+## What's next
+
+<Card
+  title="See what students ask"
+  href="/instructors/review-conversations"
+  icon="messages-square"
+>
+  Every conversation from the embedded assistant shows up for you to review.
+</Card>

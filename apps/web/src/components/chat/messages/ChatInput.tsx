@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   PromptInput,
@@ -7,6 +8,7 @@ import {
 import { ArrowUp, Square } from "lucide-react";
 import { toast } from "sonner";
 import { VALIDATION_LIMITS } from "@/lib/validation";
+import { VoiceInputButton } from "./VoiceInputButton";
 
 interface ChatInputProps {
   currentMessage: string;
@@ -14,6 +16,12 @@ interface ChatInputProps {
   isStreaming: boolean;
   onSendMessage: (e: React.FormEvent) => void;
   onStopStreaming?: () => void;
+  /** When set, voice input posts to /api/transcribe with this shareToken. */
+  shareToken?: string;
+  /** Chatbot ID forwarded to /api/transcribe for analytics. */
+  chatbotId?: string;
+  /** Hide voice input on surfaces where mic capture is unreliable (e.g. embeds). */
+  voiceInputEnabled?: boolean;
 }
 
 export function ChatInput({
@@ -22,7 +30,16 @@ export function ChatInput({
   isStreaming,
   onSendMessage,
   onStopStreaming,
+  shareToken,
+  chatbotId,
+  voiceInputEnabled = true,
 }: ChatInputProps) {
+  // Global kill switch — when off, voice is hidden everywhere regardless
+  // of the per-surface prop. Must match the server-side check in the
+  // /api/transcribe route or users see a button that always 404s.
+  const voiceFeatureFlag =
+    process.env.NEXT_PUBLIC_VOICE_INPUT_ENABLED !== "false";
+  const showVoiceInput = voiceFeatureFlag && voiceInputEnabled;
   const messageLength = currentMessage.length;
   const maxLength = VALIDATION_LIMITS.MESSAGE_MAX_LENGTH;
 
@@ -58,6 +75,28 @@ export function ChatInput({
     }
   };
 
+  // Mirror the message in a ref so an async transcript callback reads the
+  // LIVE value. The transcription fetch takes seconds; the in-flight
+  // closure was created when recording stopped, so reading the
+  // `currentMessage` prop there would see a stale snapshot and overwrite
+  // anything typed while the request was in flight. Refs are stable
+  // across renders, so even a stale closure dereferences the latest text.
+  const currentMessageRef = useRef(currentMessage);
+  currentMessageRef.current = currentMessage;
+
+  const handleTranscript = (text: string) => {
+    // Append to the live message (via ref, see above). We don't read the
+    // DOM: PromptInputTextarea owns its own internal ref and does not
+    // forward one, so a passed ref would be null.
+    const trimmed = currentMessageRef.current.replace(/\s+$/, "");
+    const next = trimmed.length === 0 ? text : `${trimmed} ${text}`;
+    const capped = next.slice(0, VALIDATION_LIMITS.MESSAGE_MAX_LENGTH);
+    setCurrentMessage(capped);
+    if (capped.length === VALIDATION_LIMITS.MESSAGE_MAX_LENGTH) {
+      toast.warning("Message truncated to character limit");
+    }
+  };
+
   return (
     <div className="w-full">
       <PromptInput
@@ -74,6 +113,21 @@ export function ChatInput({
             className="flex-1 text-foreground text-base min-h-[60px] md:min-h-[120px] scrollbar-thin"
           />
           <PromptInputActions>
+            {showVoiceInput && (
+              // Keep the button MOUNTED while streaming (disabled, not
+              // removed): unmounting mid-recording stops the mic and
+              // silently discards the clip, and unmounting mid-request
+              // aborts the in-flight transcription — so a routine send
+              // would destroy the user's dictation. Disabled only blocks
+              // STARTING a new recording; stop/cancel and an in-flight
+              // transcript still complete and append to the input.
+              <VoiceInputButton
+                disabled={isStreaming}
+                shareToken={shareToken}
+                chatbotId={chatbotId}
+                onTranscript={handleTranscript}
+              />
+            )}
             {isStreaming && onStopStreaming ? (
               <Button
                 type="button"

@@ -153,7 +153,7 @@ export default function SupportUsSection() {
 
           {/* Support Text */}
           <motion.p
-            className="text-muted-foreground text-base mb-16 leading-[1.8] max-w-3xl mx-auto"
+            className="text-muted-foreground text-base mb-8 leading-[1.8] max-w-3xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -165,6 +165,39 @@ export default function SupportUsSection() {
             University, Washington Research Library Consortium, Public Interest
             Technology Scholar program, the NSF Institute for Trustworthy AI in
             Law & Society, and George Washington University.
+          </motion.p>
+
+          {/* Non-Profit Status */}
+          <motion.div
+            className="flex justify-center mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6, delay: 0.45 }}
+          >
+            <Image
+              src="/assets/logos/dc-flag-bw.svg"
+              alt="District of Columbia flag"
+              width={40}
+              height={30}
+              className="opacity-80"
+            />
+          </motion.div>
+          <motion.p
+            className="text-muted-foreground text-sm mb-16 leading-[1.8] max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            Teach Anything is a registered 501(c)(3) non-profit organization
+            with the Internal Revenue Service (IRS).{" "}
+            <strong className="font-semibold">
+              Donations are tax-deductible.
+            </strong>{" "}
+            Our organization is incorporated in Washington, D.C., in the U.S.A.
+            Our certificate of incorporation is on file in the Washington, D.C.
+            Department of Licensing and Consumer Protection.
           </motion.p>
 
           {/* Featured In Section */}

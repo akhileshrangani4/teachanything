@@ -8,6 +8,7 @@ import { EmbedError } from "@/components/embed/EmbedError";
 import { EmbedHeader } from "@/components/embed/EmbedHeader";
 import { EmbedFooter } from "@/components/embed/EmbedFooter";
 import { useEmbedVisibility } from "@/hooks/useEmbedVisibility";
+import { useEmbedVoice } from "@/hooks/useEmbedVoice";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function EmbedWindowPage() {
@@ -15,21 +16,23 @@ export default function EmbedWindowPage() {
   const shareToken =
     typeof params.shareToken === "string" ? params.shareToken : "";
   const { isMounted, isVisible, withExitX, close } = useEmbedVisibility();
+  const voiceInputEnabled = useEmbedVoice();
 
   const {
     messages,
     currentMessage,
     setCurrentMessage,
     isStreaming,
-    isThinking,
-    streamingContent,
+    status,
     messagesEndRef,
     chatbot,
     chatbotLoading,
     handleSendMessage,
     resetChat,
-    stopStreaming,
+    stop,
     error,
+    onStudyAttempt,
+    studyAttempts,
   } = useChat(shareToken);
 
   if (!isMounted || chatbotLoading) {
@@ -62,6 +65,7 @@ export default function EmbedWindowPage() {
           onReset={resetChat}
           onClose={close}
           messages={messages}
+          studyAttempts={studyAttempts}
         />
       )}
 
@@ -69,20 +73,31 @@ export default function EmbedWindowPage() {
         <ErrorBoundary>
           <ChatInterface
             messages={messages}
-            isStreaming={isStreaming}
-            isThinking={isThinking}
-            streamingContent={streamingContent}
+            status={status}
             currentMessage={currentMessage}
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
             resetChat={resetChat}
-            stopStreaming={stopStreaming}
+            stop={stop}
             height="h-full"
             hideHeader={withExitX}
             embedMode={true}
             showSources={chatbot.showSources ?? false}
+            shareToken={shareToken}
+            // Voice in embeds is opt-in: getUserMedia() inside a
+            // third-party iframe only works when the embedding page sets
+            // `<iframe allow="microphone">`. Current embed snippets carry
+            // that attribute plus a `voice=1` URL param; useEmbedVoice
+            // requires the param and, where the browser exposes the
+            // Permissions Policy API, verifies the delegation actually
+            // survived (some CMS editors strip iframe attributes). Older
+            // pasted embeds have neither and stay text-only rather than
+            // showing a mic that can never get permission.
+            voiceInputEnabled={voiceInputEnabled}
+            onStudyAttempt={onStudyAttempt}
+            studyAttempts={studyAttempts}
           />
         </ErrorBoundary>
       </div>

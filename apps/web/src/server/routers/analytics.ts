@@ -6,13 +6,23 @@ import {
   messages,
   analytics,
   user,
+  studyToolResponses,
 } from "@teachanything/db/schema";
 import type { SQL } from "drizzle-orm";
 import { eq, and, sql, gte, lte, desc, asc, inArray, ilike } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern, formatPreview } from "@/server/utils";
+import {
+  collectStudyTools,
+  groupStudyResponses,
+  type CollectedStudyTool,
+} from "@/server/study/collect-export";
 import type { Context } from "@/server/trpc";
-import { checkRateLimit, conversationSearchRateLimit } from "@/lib/rate-limit";
+import {
+  checkRateLimit,
+  conversationSearchRateLimit,
+  downloadRateLimit,
+} from "@/lib/rate-limit";
 
 type AuthedContext = Context & { session: { user: { id: string } } };
 type SessionTimeRange = "week" | "month" | "quarter";
@@ -730,10 +740,28 @@ export const analyticsRouter = router({
         .limit(input.limit)
         .offset(input.offset);
 
+      // Student study-tool attempts for this conversation (quiz answers, etc.),
+      // in chronological order so the client can label them Attempt 1, 2, ...
+      // per toolCallId. Loaded in full (not tied to the message page) so a quiz
+      // on any message page shows all its attempts; responses per conversation
+      // are small, but capped defensively against a pathological conversation.
+      const studyResponses = await ctx.db
+        .select({
+          toolCallId: studyToolResponses.toolCallId,
+          toolName: studyToolResponses.toolName,
+          attempt: studyToolResponses.attempt,
+          response: studyToolResponses.response,
+        })
+        .from(studyToolResponses)
+        .where(eq(studyToolResponses.conversationId, input.conversationId))
+        .orderBy(asc(studyToolResponses.createdAt))
+        .limit(500);
+
       return {
         messages: conversationMessages,
         conversation: row.conversation,
         totalCount: totalResult?.count ?? 0,
+        studyResponses,
       };
     }),
 
@@ -825,6 +853,200 @@ export const analyticsRouter = router({
           lastMessageAt: r.lastMessageAt,
         })),
         totalCount,
+      };
+    }),
+
+  /**
+   * Delete one or more conversations (and their messages, via cascade) for a
+   * chatbot the caller owns. Used by the Student Chats tab to clear retry junk.
+   */
+  deleteConversations: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        conversationIds: z.array(z.string().uuid()).min(1).max(100),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertOwnedChatbot(ctx, input.chatbotId);
+
+      // Scope the delete to this chatbot so a caller can't delete another
+      // chatbot's conversations by id. Messages cascade-delete via FK.
+      const deleted = await ctx.db
+        .delete(conversations)
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            inArray(conversations.id, input.conversationIds),
+          ),
+        )
+        .returning({ id: conversations.id });
+
+      return { deletedCount: deleted.length };
+    }),
+
+  /**
+   * Export student chat records for a chatbot the caller owns. Returns the
+   * full transcripts (user + assistant turns, timestamps, RAG sources) for the
+   * given conversations, or for ALL of the chatbot's conversations when no ids
+   * are passed. Powers the "Export" action in the Student Chats tab; the client
+   * turns this payload into the chosen HTML/CSV/text files.
+   *
+   * This pages through unindexed content, so it is rate-limited and capped at
+   * EXPORT_MAX_CONVERSATIONS per request (with a `truncated` flag so the client
+   * can warn the professor when a chatbot has more than one bundle's worth).
+   */
+  exportConversations: protectedProcedure
+    .input(
+      z.object({
+        chatbotId: z.string().uuid(),
+        // Omitted or empty => export every conversation for the chatbot.
+        conversationIds: z.array(z.string().uuid()).max(1000).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const chatbot = await assertOwnedChatbot(ctx, input.chatbotId);
+
+      const { success } = await checkRateLimit(
+        downloadRateLimit,
+        ctx.session.user.id,
+        { path: "analytics.exportConversations" },
+      );
+      if (!success) {
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: "Too many exports. Please wait a moment and try again.",
+        });
+      }
+
+      const EXPORT_MAX_CONVERSATIONS = 1000;
+      const selecting =
+        input.conversationIds !== undefined && input.conversationIds.length > 0;
+
+      // Resolve which conversations to export, always scoped to this chatbot so
+      // a caller can't reach another chatbot's records by id. Fetch one extra
+      // row to detect (and flag) truncation.
+      const conversationRows = await ctx.db
+        .select({
+          id: conversations.id,
+          sessionId: conversations.sessionId,
+          createdAt: conversations.createdAt,
+        })
+        .from(conversations)
+        .where(
+          and(
+            eq(conversations.chatbotId, input.chatbotId),
+            selecting
+              ? inArray(conversations.id, input.conversationIds!)
+              : undefined,
+          ),
+        )
+        .orderBy(asc(conversations.createdAt), asc(conversations.id))
+        .limit(EXPORT_MAX_CONVERSATIONS + 1);
+
+      const truncated = conversationRows.length > EXPORT_MAX_CONVERSATIONS;
+      const selectedConversations = truncated
+        ? conversationRows.slice(0, EXPORT_MAX_CONVERSATIONS)
+        : conversationRows;
+
+      const exportedAt = new Date().toISOString();
+
+      if (selectedConversations.length === 0) {
+        return {
+          chatbotName: chatbot.name,
+          exportedAt,
+          truncated: false,
+          maxConversations: EXPORT_MAX_CONVERSATIONS,
+          conversations: [],
+        };
+      }
+
+      const conversationIds = selectedConversations.map((c) => c.id);
+
+      // Pull all visible turns for the selected conversations in one query,
+      // globally ordered so each conversation's turns land in chronological
+      // order when grouped below. System/internal messages are excluded to
+      // mirror what the professor sees in the conversation viewer.
+      const messageRows = await ctx.db
+        .select({
+          conversationId: messages.conversationId,
+          role: messages.role,
+          content: messages.content,
+          metadata: messages.metadata,
+          createdAt: messages.createdAt,
+        })
+        .from(messages)
+        .where(
+          and(
+            inArray(messages.conversationId, conversationIds),
+            inArray(messages.role, ["user", "assistant"]),
+          ),
+        )
+        .orderBy(asc(messages.createdAt), asc(messages.id));
+
+      // Student study-tool attempts (quiz answers) for the selected
+      // conversations, matched to the quiz that was shown via `toolCallId`.
+      // Ordered chronologically so attempts label as 1, 2, ... per quiz.
+      const responseRows = await ctx.db
+        .select({
+          conversationId: studyToolResponses.conversationId,
+          toolCallId: studyToolResponses.toolCallId,
+          attempt: studyToolResponses.attempt,
+          response: studyToolResponses.response,
+        })
+        .from(studyToolResponses)
+        .where(inArray(studyToolResponses.conversationId, conversationIds))
+        .orderBy(asc(studyToolResponses.createdAt))
+        .limit(20000);
+
+      // Group attempts by (conversation, toolCallId); `response` stays raw so
+      // the client renderer for each tool interprets its own payload shape.
+      const responsesByKey = groupStudyResponses(responseRows);
+
+      const messagesByConversation = new Map<
+        string,
+        Array<{
+          role: "user" | "assistant";
+          content: string;
+          createdAt: Date;
+          sources: Array<{ fileName: string; similarity: number }>;
+          studyTools: CollectedStudyTool[];
+        }>
+      >();
+
+      for (const row of messageRows) {
+        const list = messagesByConversation.get(row.conversationId) ?? [];
+        list.push({
+          role: row.role as "user" | "assistant",
+          content: row.content,
+          createdAt: row.createdAt,
+          sources: (row.metadata?.sources ?? []).map((s) => ({
+            fileName: s.fileName,
+            similarity: s.similarity,
+          })),
+          studyTools:
+            row.role === "assistant"
+              ? collectStudyTools(
+                  row.metadata?.parts,
+                  row.conversationId,
+                  responsesByKey,
+                )
+              : [],
+        });
+        messagesByConversation.set(row.conversationId, list);
+      }
+
+      return {
+        chatbotName: chatbot.name,
+        exportedAt,
+        truncated,
+        maxConversations: EXPORT_MAX_CONVERSATIONS,
+        conversations: selectedConversations.map((c) => ({
+          id: c.id,
+          sessionId: c.sessionId,
+          createdAt: c.createdAt,
+          messages: messagesByConversation.get(c.id) ?? [],
+        })),
       };
     }),
 });

@@ -1,5 +1,247 @@
 # Changelog
 
+## [1.34.8](https://github.com/akhileshrangani4/teachanything/compare/v1.34.7...v1.34.8) (2026-08-22)
+
+
+### Bug Fixes
+
+* **quiz:** close the loophole that let a model deliver a quiz as a table ([#455](https://github.com/akhileshrangani4/teachanything/issues/455)) ([001ce54](https://github.com/akhileshrangani4/teachanything/commit/001ce54d7d8c143f6802cd16ba61a59df653384d))
+
+
+### Documentation
+
+* label the tutorials for instructors and signpost them ([#456](https://github.com/akhileshrangani4/teachanything/issues/456)) ([24dbf83](https://github.com/akhileshrangani4/teachanything/commit/24dbf83f3dc42ec61097ec284f652f2f7311b436))
+
+## [1.34.7](https://github.com/akhileshrangani4/teachanything/compare/v1.34.6...v1.34.7) (2026-08-21)
+
+
+### Bug Fixes
+
+* **quiz:** fill the silence while a leaked quiz is buffering ([#453](https://github.com/akhileshrangani4/teachanything/issues/453)) ([beda43c](https://github.com/akhileshrangani4/teachanything/commit/beda43c0936818b1500e299608c37eb650856380))
+
+## [1.34.6](https://github.com/akhileshrangani4/teachanything/compare/v1.34.5...v1.34.6) (2026-08-21)
+
+
+### Bug Fixes
+
+* **ai:** stop retrying an exhausted API quota, and say so when the provider is the problem ([#452](https://github.com/akhileshrangani4/teachanything/issues/452)) ([4a70b2b](https://github.com/akhileshrangani4/teachanything/commit/4a70b2b7b2fa0dcb35cc264d277a8e0bb046aab9))
+* **db:** disable prepared statements on the transaction-mode pooler ([#450](https://github.com/akhileshrangani4/teachanything/issues/450)) ([78bc899](https://github.com/akhileshrangani4/teachanything/commit/78bc8994c7fc4feaaedf95bb25610efc8d95acdd))
+
+## [1.34.5](https://github.com/akhileshrangani4/teachanything/compare/v1.34.4...v1.34.5) (2026-08-21)
+
+
+### Bug Fixes
+
+* Bug Fixes in file uploads and quiz ([#448](https://github.com/akhileshrangani4/teachanything/issues/448)) ([fd2b673](https://github.com/akhileshrangani4/teachanything/commit/fd2b673a83cb49e79cf110b90c825f3795a83655))
+
+## [1.34.4](https://github.com/akhileshrangani4/teachanything/compare/v1.34.3...v1.34.4) (2026-08-17)
+
+
+### Bug Fixes
+
+* **crawler:** recover stuck crawls, add a stop button, unblock deletion ([#445](https://github.com/akhileshrangani4/teachanything/issues/445)) ([7b68788](https://github.com/akhileshrangani4/teachanything/commit/7b687884535ccf01a6da5307e2a551840a73ecda))
+* **quiz:** accept the answer field models actually emit ([#446](https://github.com/akhileshrangani4/teachanything/issues/446)) ([c23823d](https://github.com/akhileshrangani4/teachanything/commit/c23823dea1159b30c77207405e110105ddeff9e8))
+
+
+### Documentation
+
+* **instructors:** add Choose an open-source LLM page ([#443](https://github.com/akhileshrangani4/teachanything/issues/443)) ([3967a74](https://github.com/akhileshrangani4/teachanything/commit/3967a74e0eb7bb61983aab3405002b4b031ea409))
+
+## [1.34.3](https://github.com/akhileshrangani4/teachanything/compare/v1.34.2...v1.34.3) (2026-08-17)
+
+
+### Bug Fixes
+
+* **build:** declare RESEND_SEGMENT_ID in turbo.json env ([#441](https://github.com/akhileshrangani4/teachanything/issues/441)) ([1021996](https://github.com/akhileshrangani4/teachanything/commit/10219961aaaad7eb78424dad8aa445d17b2cf975))
+
+## [1.34.2](https://github.com/akhileshrangani4/teachanything/compare/v1.34.1...v1.34.2) (2026-08-17)
+
+
+### Miscellaneous Chores
+
+* **ci:** move CI and engines from Node.js 20 to 24 ([#439](https://github.com/akhileshrangani4/teachanything/issues/439)) ([36a7411](https://github.com/akhileshrangani4/teachanything/commit/36a7411d15cbffa3d618201084c63175777bbf72))
+
+## [1.34.1](https://github.com/akhileshrangani4/teachanything/compare/v1.34.0...v1.34.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **ci:** stop building docs during tests and cache its webfonts ([#436](https://github.com/akhileshrangani4/teachanything/issues/436)) ([b3f0f04](https://github.com/akhileshrangani4/teachanything/commit/b3f0f04f1b5ee0d65c2c94aee0bd7d49774d1c71))
+
+## [1.34.0](https://github.com/akhileshrangani4/teachanything/compare/v1.33.6...v1.34.0) (2026-08-12)
+
+
+### Features
+
+* **chat:** surface pipeline working steps in the thinking indicator ([#404](https://github.com/akhileshrangani4/teachanything/issues/404)) ([6cca00f](https://github.com/akhileshrangani4/teachanything/commit/6cca00fdb2ff08de5d9da4e3c98328ac3273bc65))
+
+## [1.33.6](https://github.com/akhileshrangani4/teachanything/compare/v1.33.5...v1.33.6) (2026-08-12)
+
+
+### Bug Fixes
+
+* **quiz:** recover leaked quiz calls after prose and in pseudo-call syntax ([#432](https://github.com/akhileshrangani4/teachanything/issues/432)) ([6f3c046](https://github.com/akhileshrangani4/teachanything/commit/6f3c046787b21fefe5f9619256fa42b05cd52f27))
+* **quiz:** salvage a quiz the token limit cut off instead of failing ([#433](https://github.com/akhileshrangani4/teachanything/issues/433)) ([285120b](https://github.com/akhileshrangani4/teachanything/commit/285120b0b16adaf1e21d8f09461ddc7ec9c77382))
+
+## [1.33.5](https://github.com/akhileshrangani4/teachanything/compare/v1.33.4...v1.33.5) (2026-08-11)
+
+
+### Miscellaneous Chores
+
+* **brand:** switch trademark symbol from TM to registered mark ([#430](https://github.com/akhileshrangani4/teachanything/issues/430)) ([86defb0](https://github.com/akhileshrangani4/teachanything/commit/86defb06c3e6dd8bcd7f0a7030f410964ce4037a))
+
+## [1.33.4](https://github.com/akhileshrangani4/teachanything/compare/v1.33.3...v1.33.4) (2026-07-28)
+
+
+### Documentation
+
+* **landing:** update non-profit language with 501(c)(3) and tax-deductible notice ([#412](https://github.com/akhileshrangani4/teachanything/issues/412)) ([dd1aefa](https://github.com/akhileshrangani4/teachanything/commit/dd1aefaa2a52c72d8b59d1aa75b192642cff5fdd))
+
+## [1.33.3](https://github.com/akhileshrangani4/teachanything/compare/v1.33.2...v1.33.3) (2026-07-19)
+
+
+### Bug Fixes
+
+* **quiz:** restore finished quiz on remount and recover text-leaked quizzes ([#400](https://github.com/akhileshrangani4/teachanything/issues/400)) ([7dfe633](https://github.com/akhileshrangani4/teachanything/commit/7dfe633a24685c1719cee13cc2a312ecbf251ac5))
+
+## [1.33.2](https://github.com/akhileshrangani4/teachanything/compare/v1.33.1...v1.33.2) (2026-07-19)
+
+
+### Documentation
+
+* surface and document the quiz feature ([#395](https://github.com/akhileshrangani4/teachanything/issues/395)) ([ac539c2](https://github.com/akhileshrangani4/teachanything/commit/ac539c2f6065e3623d9d38a511f9d3ff165f2e98))
+
+## [1.33.1](https://github.com/akhileshrangani4/teachanything/compare/v1.33.0...v1.33.1) (2026-07-19)
+
+
+### Documentation
+
+* **students:** add quiz feature guide ([#393](https://github.com/akhileshrangani4/teachanything/issues/393)) ([29927ac](https://github.com/akhileshrangani4/teachanything/commit/29927ac2c459a8fa85be3dea05f9b11fe39c20e7))
+
+## [1.33.0](https://github.com/akhileshrangani4/teachanything/compare/v1.32.1...v1.33.0) (2026-07-19)
+
+
+### Features
+
+* **auth:** auto-sync approved users to Resend audience ([#378](https://github.com/akhileshrangani4/teachanything/issues/378)) ([7991594](https://github.com/akhileshrangani4/teachanything/commit/7991594167f41897f7de78b090adf1ce8eed7dbb))
+* **chat:** migrate chat to AI SDK transport with quiz study tool (Phase 1) ([#380](https://github.com/akhileshrangani4/teachanything/issues/380)) ([fd31463](https://github.com/akhileshrangani4/teachanything/commit/fd3146387defa4d27584f7ac8cc3e2a531bc5cff))
+* **conversations:** export student chat records from the dashboard ([#386](https://github.com/akhileshrangani4/teachanything/issues/386)) ([be22761](https://github.com/akhileshrangani4/teachanything/commit/be227618651b2b4376c94aa37dd067a43c92b56b))
+* **db:** add --dry-run flag to Resend segment backfill ([#391](https://github.com/akhileshrangani4/teachanything/issues/391)) ([4b4704e](https://github.com/akhileshrangani4/teachanything/commit/4b4704eaedcf0d1c948723616278410e40e594e6))
+
+
+### Bug Fixes
+
+* **auth:** fail closed on rate-limit outage for updatePassword ([#389](https://github.com/akhileshrangani4/teachanything/issues/389)) ([6cf2271](https://github.com/akhileshrangani4/teachanything/commit/6cf2271d5555d25a740973b43e3e5fc10be69e88))
+* **auth:** never reset unsubscribed when syncing to Resend segment ([#392](https://github.com/akhileshrangani4/teachanything/issues/392)) ([9ffb02b](https://github.com/akhileshrangani4/teachanything/commit/9ffb02b42746660c9e123f109f121de2e772a86a))
+
+## [1.32.1](https://github.com/akhileshrangani4/teachanything/compare/v1.32.0...v1.32.1) (2026-07-18)
+
+
+### Documentation
+
+* **instructors:** apply Prof Joubin's requested revisions ([#387](https://github.com/akhileshrangani4/teachanything/issues/387)) ([ebbdc19](https://github.com/akhileshrangani4/teachanything/commit/ebbdc199cf73a93eadb48c14080fc3c1d4f3ce7b))
+
+## [1.32.0](https://github.com/akhileshrangani4/teachanything/compare/v1.31.1...v1.32.0) (2026-07-14)
+
+
+### Features
+
+* **legal:** add Terms of Use page and reposition DC flag on homepage ([#383](https://github.com/akhileshrangani4/teachanything/issues/383)) ([861f4e9](https://github.com/akhileshrangani4/teachanything/commit/861f4e9283158c01cafc43c74a4218cc2611da3b))
+
+
+### Documentation
+
+* **readme:** add docs site + apps/docs to README ([#385](https://github.com/akhileshrangani4/teachanything/issues/385)) ([e2d6423](https://github.com/akhileshrangani4/teachanything/commit/e2d6423e2a1f03873046ec5048e6bbb626800748))
+
+## [1.31.1](https://github.com/akhileshrangani4/teachanything/compare/v1.31.0...v1.31.1) (2026-07-13)
+
+
+### Documentation
+
+* **site:** add non-technical docs site served at /docs ([#381](https://github.com/akhileshrangani4/teachanything/issues/381)) ([f9442da](https://github.com/akhileshrangani4/teachanything/commit/f9442da872da52a9d40654c2344bd8c9ff650191))
+
+## [1.31.0](https://github.com/akhileshrangani4/teachanything/compare/v1.30.0...v1.31.0) (2026-07-07)
+
+
+### Features
+
+* **ai:** add Mistral Large 3 to the model lineup ([#375](https://github.com/akhileshrangani4/teachanything/issues/375)) ([851c170](https://github.com/akhileshrangani4/teachanything/commit/851c170df5777e879ab08ca45dba8f54995caa3f))
+
+## [1.30.0](https://github.com/akhileshrangani4/teachanything/compare/v1.29.0...v1.30.0) (2026-07-07)
+
+
+### Features
+
+* **embed:** enable voice input in embedded chatbots via delegation opt-in ([#373](https://github.com/akhileshrangani4/teachanything/issues/373)) ([7a3bbc4](https://github.com/akhileshrangani4/teachanything/commit/7a3bbc4fa70f6f9222ce5b78ba8dd8b407d38380))
+
+## [1.29.0](https://github.com/akhileshrangani4/teachanything/compare/v1.28.5...v1.29.0) (2026-07-07)
+
+
+### Features
+
+* **chat:** add multilingual voice input via Whisper ([#307](https://github.com/akhileshrangani4/teachanything/issues/307)) ([78d1c64](https://github.com/akhileshrangani4/teachanything/commit/78d1c6475bd6a7f4580ff3c47c38be72982747ee))
+
+## [1.28.5](https://github.com/akhileshrangani4/teachanything/compare/v1.28.4...v1.28.5) (2026-07-07)
+
+
+### Bug Fixes
+
+* **chat:** cut agentic RAG latency and harden stream transport ([#370](https://github.com/akhileshrangani4/teachanything/issues/370)) ([cad7843](https://github.com/akhileshrangani4/teachanything/commit/cad7843d76e4b1adfb85cb947ddcc60b6d873f25))
+
+## [1.28.4](https://github.com/akhileshrangani4/teachanything/compare/v1.28.3...v1.28.4) (2026-06-29)
+
+
+### Bug Fixes
+
+* **chat:** retire nemotron from tool models + cap static-path chunks ([#368](https://github.com/akhileshrangani4/teachanything/issues/368)) ([42518bb](https://github.com/akhileshrangani4/teachanything/commit/42518bb05557d9bdb56b29bfe6a4bfd160efc909))
+
+## [1.28.3](https://github.com/akhileshrangani4/teachanything/compare/v1.28.2...v1.28.3) (2026-06-29)
+
+
+### Bug Fixes
+
+* **files:** externalize officeparser to fix PowerPoint upload error ([#366](https://github.com/akhileshrangani4/teachanything/issues/366)) ([f0f6124](https://github.com/akhileshrangani4/teachanything/commit/f0f612438cd9037a4b2187bcdbc0787e07c7b6e9))
+
+## [1.28.2](https://github.com/akhileshrangani4/teachanything/compare/v1.28.1...v1.28.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* **chat:** stop inline citation markers in answers ([#363](https://github.com/akhileshrangani4/teachanything/issues/363)) ([dd7081d](https://github.com/akhileshrangani4/teachanything/commit/dd7081de0f247ec70e3e820a843c0624a363a5e4))
+
+
+### Performance Improvements
+
+* **chat:** fix many-files slowness/timeouts (reprocess throttle + manifest cap + step budget) ([#365](https://github.com/akhileshrangani4/teachanything/issues/365)) ([ef7b7f7](https://github.com/akhileshrangani4/teachanything/commit/ef7b7f7f50a3f9e680dfbca31f08d4c23eb95c0c))
+
+## [1.28.1](https://github.com/akhileshrangani4/teachanything/compare/v1.28.0...v1.28.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **db:** setup-extensions must run statements individually for CONCURRENTLY ([#360](https://github.com/akhileshrangani4/teachanything/issues/360)) ([8c7feb9](https://github.com/akhileshrangani4/teachanything/commit/8c7feb989a8cf3766d9ecbe91dc3feb85f4f4820))
+
+## [1.28.0](https://github.com/akhileshrangani4/teachanything/compare/v1.27.0...v1.28.0) (2026-06-29)
+
+
+### Features
+
+* **rag:** agentic retrieval with hybrid search + page citations ([#271](https://github.com/akhileshrangani4/teachanything/issues/271)) ([#357](https://github.com/akhileshrangani4/teachanything/issues/357)) ([1b6a555](https://github.com/akhileshrangani4/teachanything/commit/1b6a5551a4961f9304cb8705e4503bb154bdb328))
+
+## [1.27.0](https://github.com/akhileshrangani4/teachanything/compare/v1.26.0...v1.27.0) (2026-06-16)
+
+
+### Features
+
+* **landing:** non-profit status note + DC flag in footer ([#350](https://github.com/akhileshrangani4/teachanything/issues/350)) ([dbcdbf4](https://github.com/akhileshrangani4/teachanything/commit/dbcdbf4270c38ca2e405d6fdd7901aaacf5ce757))
+
+## [1.26.0](https://github.com/akhileshrangani4/teachanything/compare/v1.25.0...v1.26.0) (2026-06-15)
+
+
+### Features
+
+* **auth:** add approval email whitelist note to signup screen ([#345](https://github.com/akhileshrangani4/teachanything/issues/345)) ([796b7ea](https://github.com/akhileshrangani4/teachanything/commit/796b7ea5ae84ed08b6019e4b4d153867bd9f24f0))
+
 ## [1.25.0](https://github.com/akhileshrangani4/teachanything/compare/v1.24.0...v1.25.0) (2026-06-14)
 
 

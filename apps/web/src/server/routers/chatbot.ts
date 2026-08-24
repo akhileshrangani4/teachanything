@@ -11,6 +11,16 @@ import { TRPCError } from "@trpc/server";
 import { SUPPORTED_MODELS, DEPRECATED_MODELS } from "@teachanything/ai";
 import { checkRateLimit, chatbotCreationRateLimit } from "@/lib/rate-limit";
 import { escapeLikePattern } from "@/server/utils";
+import {
+  findChatbotForUser,
+  findOwnedChatbotId,
+  type ChatbotDb,
+} from "@/server/queries/chatbot";
+
+// Re-export the query helpers so existing tRPC-side imports keep working.
+// The implementations live in the queries module (decoupled from tRPC
+// types); non-tRPC callers like the transcribe route import them there.
+export { findChatbotForUser, findOwnedChatbotId };
 
 // Accept both current and deprecated model IDs for backwards compatibility (D-08).
 // Chatbots stored with old IDs are resolved at query time via resolveModel().
@@ -20,22 +30,14 @@ const allAcceptedModels = [...SUPPORTED_MODELS, ...DEPRECATED_MODELS] as [
 ];
 
 async function getChatbotByIdForUser(
-  db: Parameters<
-    Parameters<typeof protectedProcedure.query>[0]
-  >[0]["ctx"]["db"],
+  db: ChatbotDb,
   chatbotId: string,
   userId: string,
 ) {
-  const [chatbot] = await db
-    .select()
-    .from(chatbots)
-    .where(and(eq(chatbots.id, chatbotId), eq(chatbots.userId, userId)))
-    .limit(1);
-
+  const chatbot = await findChatbotForUser(db, chatbotId, userId);
   if (!chatbot) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Chatbot not found" });
   }
-
   return chatbot;
 }
 

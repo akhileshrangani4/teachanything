@@ -32,7 +32,7 @@ export function PromoteToAdmin({
 
               <p style={text}>
                 I wanted to let you know that you&apos;ve been promoted to an
-                administrator role on Teach Anything™. You now have full access
+                administrator role on Teach Anything®. You now have full access
                 to manage users, chatbots, and system settings.
               </p>
 
@@ -58,14 +58,14 @@ export function PromoteToAdmin({
               </p>
 
               <p style={text}>
-                Welcome to the Teach Anything™ admin team! We trust you&apos;ll
+                Welcome to the Teach Anything® admin team! We trust you&apos;ll
                 help us maintain a secure and efficient platform.
               </p>
 
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach Anything™ Admin Team
+                Teach Anything® Admin Team
               </p>
 
               <p style={footer}>

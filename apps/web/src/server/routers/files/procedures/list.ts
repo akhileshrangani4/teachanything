@@ -1,17 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import {
-  eq,
-  and,
-  sql,
-  desc,
-  asc,
-  ilike,
-  like,
-  or,
-  isNull,
-  not,
-} from "drizzle-orm";
+import { eq, and, sql, desc, asc, ilike, or, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   chatbots,
@@ -19,14 +8,11 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import { escapeLikePattern } from "@/server/utils";
-
-// Crawler-sourced userFiles have storagePath set to the page URL.
+import { sweepStaleFiles } from "@/lib/file-stale";
 // Crawled pages are shown as grouped "Web Sources" rows in the Files tab
 // (rendered from crawler.getCrawlSources) rather than cluttering the
 // uploaded-file table as individual rows.
-// Uploaded files always use a lowercase `{userId}/{fileId}` path, so a
-// case-sensitive LIKE is sufficient (and index-friendlier than ILIKE).
-const excludeCrawledPages = not(like(userFiles.storagePath, "http%"));
+import { excludeCrawledPages } from "@/lib/crawled-page-files";
 
 /**
  * List all user files (centralized) with search and sort
@@ -53,6 +39,10 @@ export const listProcedure = protectedProcedure
       .optional(),
   )
   .query(async ({ ctx, input }) => {
+    // Settle abandoned processing runs before reading so a dead worker can't
+    // leave a file spinning at 40% forever (see sweepStaleFiles).
+    await sweepStaleFiles({ db: ctx.db, userId: ctx.session.user.id });
+
     const limit = input?.limit ?? 10;
     const offset = input?.offset ?? 0;
     const currentChatbotId = input?.currentChatbotId;
@@ -79,8 +69,13 @@ export const listProcedure = protectedProcedure
     const orderBy =
       input?.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
-    // Build WHERE conditions - base + search + optional exclusion
-    const baseConditions = [eq(userFiles.userId, ctx.session.user.id)];
+    // Build WHERE conditions - base + search + optional exclusion.
+    // excludeCrawledPages keeps crawler-sourced files (storagePath = URL) out of
+    // the uploaded-files table; they're shown as grouped Web Sources rows.
+    const baseConditions = [
+      eq(userFiles.userId, ctx.session.user.id),
+      excludeCrawledPages,
+    ];
     if (searchCondition) baseConditions.push(searchCondition);
 
     // Validate chatbot ownership before using it for exclusion
@@ -188,6 +183,10 @@ export const listForChatbotProcedure = protectedProcedure
     }),
   )
   .query(async ({ ctx, input }) => {
+    // Settle abandoned processing runs before reading so a dead worker can't
+    // leave a file spinning at 40% forever (see sweepStaleFiles).
+    await sweepStaleFiles({ db: ctx.db, userId: ctx.session.user.id });
+
     // Verify chatbot ownership
     const [chatbot] = await ctx.db
       .select()

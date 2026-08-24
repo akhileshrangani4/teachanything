@@ -3,6 +3,16 @@ import { qstashReceiver, verifyQStashSignature } from "@/lib/qstash";
 import { logError } from "@/lib/logger";
 import { processFile } from "@/lib/file-processor";
 
+/**
+ * Embedding a document is the slowest stage of the pipeline and the one that
+ * dominates wall-clock time, so this job needs the same ceiling the crawl jobs
+ * already declare. Without it the route ran on the platform default -- an order
+ * of magnitude shorter -- and any file big enough to need more than a couple of
+ * embedding batches was killed mid-run, which the student sees as a file that
+ * sticks at 40% and then fails.
+ */
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   try {
     // When QStash is not configured, signature verification is impossible

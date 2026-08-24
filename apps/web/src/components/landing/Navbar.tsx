@@ -61,7 +61,7 @@ export default function Navbar() {
               >
                 <Image
                   src="/logo.svg"
-                  alt="Teach Anything™"
+                  alt="Teach Anything®"
                   width={32}
                   height={32}
                   className="h-8 w-8"
@@ -97,6 +97,12 @@ export default function Navbar() {
               >
                 Support Us
               </Link>
+              <a
+                href="/docs"
+                className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors duration-200"
+              >
+                Docs
+              </a>
               <a
                 href={
                   process.env.NEXT_PUBLIC_GITHUB_URL ||
@@ -178,6 +184,12 @@ export default function Navbar() {
                 >
                   Support Us
                 </Link>
+                <a
+                  href="/docs"
+                  className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors duration-200 px-2 py-2"
+                >
+                  Docs
+                </a>
                 <a
                   href={
                     process.env.NEXT_PUBLIC_GITHUB_URL ||

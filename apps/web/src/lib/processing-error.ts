@@ -1,0 +1,85 @@
+import {
+  isPermanentProviderError,
+  isTransientError,
+} from "@teachanything/ai/error-utils";
+
+/**
+ * Owner-facing messages for a failed file-processing run.
+ *
+ * Split out from `file-processor.ts` so it can be tested without pulling in
+ * the database, storage, and env singletons that module needs at import time.
+ */
+
+/** Shown when the upload is gone from storage but the row still exists. */
+export const STORAGE_MISSING_ERROR =
+  "The uploaded file could not be found in storage. Upload it again.";
+
+/**
+ * Turn an internal error into something the file owner can act on.
+ *
+ * The catch-all matters more than it looks: a professor who sees only "failed
+ * due to an internal error" cannot tell a scanned PDF from a corrupt one from
+ * an outage, so every failure looks like a platform bug and none of them get
+ * reported usefully. Each branch below names a real, observed failure and says
+ * what to do about it.
+ */
+export function sanitizeProcessingError(error: unknown): string {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (msg.includes("timed out")) return "File processing timed out";
+  if (msg.includes("Unsupported file type")) return msg;
+  if (msg.includes("no readable text")) {
+    // Overwhelmingly a scan or an image-only export: there is no text layer to
+    // extract, and no amount of retrying will create one.
+    return (
+      "No readable text found. If this is a scanned document, it needs to be " +
+      "run through OCR (or re-exported as a text PDF) before it can be used."
+    );
+  }
+  if (msg.includes("Invalid PDF") || msg.includes("Empty buffer")) {
+    return "This file is not a readable PDF -- it may be truncated or corrupt. Try re-exporting or re-downloading it.";
+  }
+  // Word-bounded and case-insensitive: the signal here comes from pdf.js's
+  // `PasswordException`, wrapped by `RAGService.extractPDF`, and its wording
+  // varies by cause and by version ("No password given", "Incorrect Password").
+  // A bare `includes("password")` missed the capitalized one outright, and
+  // matched unrelated messages that merely contained the letters.
+  if (/\bpasswords?\b|\bencrypted\b/i.test(msg)) {
+    return "This file is password-protected. Remove the protection and upload it again.";
+  }
+  if (msg.includes("embedding") && msg.includes("dimension"))
+    return "Embedding dimension mismatch";
+  // Catch-alls keyed on OUR OWN wrapper text rather than on the parser's
+  // internals. pdf.js reports structural damage a dozen different ways ("bad
+  // XRef entry", "invalid top-level pages dictionary", ...) and that vocabulary
+  // shifts between versions, but the wrapper messages thrown by
+  // `RAGService.extract*` do not. Anything that failed inside extraction is,
+  // from the file owner's point of view, a file that could not be read.
+  if (msg.includes("Failed to extract PDF content")) {
+    return "This PDF could not be read -- it may be damaged, truncated, or protected. Try re-saving or re-downloading it from the original source.";
+  }
+  if (
+    msg.includes("Word document") ||
+    msg.includes("Failed to extract Word document content")
+  ) {
+    return "This Word document could not be read. If it is an older .doc file, save it as .docx and upload again.";
+  }
+  if (msg.includes("Failed to extract content")) {
+    return "This file could not be read. Try re-saving it in its native application and uploading again.";
+  }
+  // Provider failures are classified LAST, after every extraction-specific
+  // branch above. The patterns include bare status numbers, and a parser message
+  // can legitimately contain one ("bad object 500"), so letting these run first
+  // would relabel a corrupt PDF as an outage.
+  //
+  // Both branches exist because the generic catch-all below is actively harmful
+  // here: an exhausted API balance takes out EVERY file at once, and reporting
+  // that as "an internal error" is what made a billing problem look like a
+  // platform bug. It cost hours of diagnosis twice.
+  if (isPermanentProviderError(msg)) {
+    return "The AI service is out of quota or its key was rejected, so this file could not be indexed. This is a platform issue, not a problem with your file.";
+  }
+  if (isTransientError(msg)) {
+    return "The AI service was busy or unavailable and did not recover after retrying. Try again in a few minutes.";
+  }
+  return "File processing failed due to an internal error";
+}

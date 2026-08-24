@@ -19,6 +19,9 @@ export default function Footer() {
             >
               Features
             </Link>
+            <a href="/docs" className="hover:text-foreground transition-colors">
+              Docs
+            </a>
             <Link
               href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || ""}`}
               className="hover:text-foreground transition-colors"
@@ -42,11 +45,20 @@ export default function Footer() {
             >
               Privacy Policy
             </Link>
+            <Link
+              href="/terms-of-service"
+              className="hover:text-foreground transition-colors"
+            >
+              Terms of Use
+            </Link>
           </div>
-          <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()}{" "}
-            <BrandName markClassName="text-[0.45em]" />. All rights reserved.
-          </p>
+          <div className="flex items-center gap-2.5 text-muted-foreground">
+            <p className="text-sm">
+              © {new Date().getFullYear()}{" "}
+              <BrandName markClassName="text-[0.45em] ml-0" />. All rights
+              reserved.
+            </p>
+          </div>
         </div>
       </div>
     </footer>

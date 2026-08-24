@@ -6,6 +6,8 @@ import { env } from "@/lib/env";
 // Disable static optimization for API routes
 export const dynamic = "force-dynamic";
 
+export const maxDuration = 300;
+
 const handler = (req: Request) =>
   fetchRequestHandler({
     endpoint: "/api/trpc",

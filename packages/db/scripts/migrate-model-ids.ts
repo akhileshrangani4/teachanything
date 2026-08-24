@@ -6,9 +6,12 @@
  * safely re-run (idempotent) -- if no rows match the old IDs, zero
  * rows are updated.
  *
- * Mapping:
- *   mistralai/mistral-large       -> mistralai/mistral-large-2411
- *   qwen/qwen-2.5-72b-instruct   -> qwen/qwen3-235b-a22b
+ * Mapping (kept in sync with DEPRECATED_MODEL_MAP in packages/ai/src/models.ts):
+ *   qwen/qwen3-235b-a22b          -> qwen/qwen3-235b-a22b-2507
+ *   qwen/qwen-2.5-72b-instruct    -> qwen/qwen3-235b-a22b-2507
+ *   mistralai/mistral-large       -> meta-llama/llama-3.3-70b-instruct
+ *   mistralai/mistral-large-2411  -> meta-llama/llama-3.3-70b-instruct  (retired from OpenRouter)
+ *   google/gemma-4-31b-it         -> meta-llama/llama-3.3-70b-instruct  (unreliable tool-calling)
  *
  * Usage:
  *   npx tsx packages/db/scripts/migrate-model-ids.ts
@@ -40,8 +43,11 @@ if (!databaseUrl) {
 
 // Inline mapping (self-contained -- no build dependency on models.ts)
 const MODEL_MIGRATIONS: Record<string, string> = {
-  "mistralai/mistral-large": "mistralai/mistral-large-2411",
-  "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b",
+  "qwen/qwen3-235b-a22b": "qwen/qwen3-235b-a22b-2507",
+  "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b-2507",
+  "mistralai/mistral-large": "meta-llama/llama-3.3-70b-instruct",
+  "mistralai/mistral-large-2411": "meta-llama/llama-3.3-70b-instruct",
+  "google/gemma-4-31b-it": "meta-llama/llama-3.3-70b-instruct",
 };
 
 async function migrate() {

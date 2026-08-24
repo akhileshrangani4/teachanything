@@ -1,55 +1,82 @@
-import { ChatMessage, StreamingMessage } from "./ChatMessage";
+"use client";
+
+import { ChatMessage, isVisiblePart } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
-import type { ChatMessage as MessageType } from "@/types/database";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
+import type { StudyResponsePayload } from "@/lib/submit-study-response";
 import {
   ChatContainerRoot,
   ChatContainerContent,
   ChatContainerScrollAnchor,
 } from "@/components/ui/chat-container";
 import { Button } from "@/components/ui/button";
+import { MessageAvatar } from "@/components/ui/message";
+import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
+import { deriveStatusLine } from "@/server/chat-helpers";
+import type { ChatStatus } from "ai";
 import { toast } from "sonner";
 
+function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
+  if (!message || message.role !== "assistant") return false;
+  return message.parts.some(isVisiblePart);
+}
+
 interface ChatInterfaceProps {
-  messages: MessageType[];
-  isStreaming: boolean;
-  isThinking?: boolean;
-  streamingContent: string;
+  messages: StudyUIMessage[];
+  status: ChatStatus;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
   handleSendMessage: (e: React.FormEvent) => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   chatbotName: string;
   resetChat: () => void;
-  stopStreaming?: () => void;
+  stop?: () => void;
   height?: string;
   hideHeader?: boolean;
   embedMode?: boolean;
   showFrame?: boolean;
   showSources?: boolean;
   brandingText?: React.ReactNode;
+  shareToken?: string;
+  chatbotId?: string;
+  voiceInputEnabled?: boolean;
+  /** Called when the student finishes a study-tool attempt (keyed by toolCallId). */
+  onStudyAttempt?: (toolCallId: string, response: StudyResponsePayload) => void;
+  /** Student's own attempts by tool toolCallId, for the chat export. */
+  studyAttempts?: Record<string, StudyResponsePayload[]>;
 }
 
 export function ChatInterface({
   messages,
-  isStreaming,
-  isThinking = false,
-  streamingContent,
+  status,
   currentMessage,
   setCurrentMessage,
   handleSendMessage,
   messagesEndRef,
   chatbotName,
   resetChat,
-  stopStreaming,
+  stop,
   height = "h-[600px]",
   hideHeader = false,
   embedMode = false,
   showFrame,
   showSources = false,
   brandingText,
+  shareToken,
+  chatbotId,
+  voiceInputEnabled = true,
+  onStudyAttempt,
+  studyAttempts,
 }: ChatInterfaceProps) {
+  const isStreaming = status === "submitted" || status === "streaming";
+  const lastMessage = messages[messages.length - 1];
+  // Show the typing/status indicator while streaming until the assistant
+  // message has visible content of its own (text or a rendered study tool).
+  const showIndicator = isStreaming && !hasVisibleContent(lastMessage);
+  const statusLine = deriveStatusLine(lastMessage, status);
+
   return (
     <div
       className={`flex flex-col ${height} ${(showFrame ?? !embedMode) ? "border rounded-lg" : ""} bg-background overflow-hidden`}
@@ -72,7 +99,9 @@ export function ChatInterface({
                   size="sm"
                   onClick={() => {
                     try {
-                      exportChatAsText(messages, chatbotName);
+                      exportChatAsText(messages, chatbotName, {
+                        studyAttempts,
+                      });
                       toast.success("Chat exported successfully");
                     } catch (error) {
                       toast.error("Failed to export chat", {
@@ -84,9 +113,13 @@ export function ChatInterface({
                     }
                   }}
                   disabled={isStreaming}
+                  aria-label="Export chat"
                   className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
                 >
-                  <Download className="h-3.5 w-3.5 md:mr-1.5" />
+                  <Download
+                    className="h-3.5 w-3.5 md:mr-1.5"
+                    aria-hidden="true"
+                  />
                   <span className="hidden md:inline">Export Chat</span>
                 </Button>
                 <Button
@@ -94,9 +127,13 @@ export function ChatInterface({
                   size="sm"
                   onClick={resetChat}
                   disabled={isStreaming}
+                  aria-label="New chat"
                   className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
                 >
-                  <RotateCcw className="h-3.5 w-3.5 md:mr-1.5" />
+                  <RotateCcw
+                    className="h-3.5 w-3.5 md:mr-1.5"
+                    aria-hidden="true"
+                  />
                   <span className="hidden md:inline">New Chat</span>
                 </Button>
               </>
@@ -125,18 +162,29 @@ export function ChatInterface({
               </div>
             ) : (
               <div className="space-y-3 md:space-y-4">
-                {messages.map((msg, idx) => (
+                {messages.map((msg) => (
                   <ChatMessage
-                    key={`${msg.role}-${idx}`}
+                    key={msg.id}
                     message={msg}
                     showSources={showSources}
+                    onStudyAttempt={onStudyAttempt}
+                    studyAttempts={studyAttempts}
                   />
                 ))}
-                {isStreaming && (
-                  <StreamingMessage
-                    content={streamingContent}
-                    isThinking={isThinking}
-                  />
+                {showIndicator && (
+                  <div className="flex gap-2 md:gap-3 items-start">
+                    <MessageAvatar
+                      src="/logo.svg"
+                      alt="Teach Anything®"
+                      imageClassName="grayscale"
+                    />
+                    <div className="bg-secondary rounded-xl md:rounded-lg px-3 py-2 md:px-4 md:py-3 w-fit min-w-0 max-w-full shadow-xs border border-border/50">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+                        <TypingLoader size="sm" className="opacity-60" />
+                        <span className="min-w-0 truncate">{statusLine}</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -152,7 +200,10 @@ export function ChatInterface({
           setCurrentMessage={setCurrentMessage}
           isStreaming={isStreaming}
           onSendMessage={handleSendMessage}
-          onStopStreaming={stopStreaming}
+          onStopStreaming={stop}
+          shareToken={shareToken}
+          chatbotId={chatbotId}
+          voiceInputEnabled={voiceInputEnabled}
         />
       </div>
     </div>

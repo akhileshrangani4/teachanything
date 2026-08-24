@@ -69,15 +69,15 @@ export default function ChatbotDetailPage() {
     messages,
     currentMessage,
     setCurrentMessage,
-    isStreaming,
-    isThinking,
-    streamingContent,
+    status,
     messagesEndRef,
     chatbot,
     chatbotLoading,
     handleSendMessage,
     resetChat,
-    stopStreaming,
+    stop,
+    onStudyAttempt,
+    studyAttempts,
   } = useChatbot(chatbotId, session);
 
   // Fetch files associated with this chatbot (will be paginated in ChatbotFilesTab)
@@ -213,9 +213,7 @@ export default function ChatbotDetailPage() {
             <ErrorBoundary>
               <ChatInterface
                 messages={messages}
-                isStreaming={isStreaming}
-                isThinking={isThinking}
-                streamingContent={streamingContent}
+                status={status}
                 currentMessage={currentMessage}
                 setCurrentMessage={setCurrentMessage}
                 handleSendMessage={handleSendMessage}
@@ -224,8 +222,12 @@ export default function ChatbotDetailPage() {
                 }
                 chatbotName={chatbot.name || "Chatbot"}
                 resetChat={resetChat}
-                stopStreaming={stopStreaming}
+                stop={stop}
                 showSources={chatbot.showSources ?? false}
+                chatbotId={chatbot.id}
+                voiceInputEnabled
+                onStudyAttempt={onStudyAttempt}
+                studyAttempts={studyAttempts}
               />
             </ErrorBoundary>
           </TabsContent>

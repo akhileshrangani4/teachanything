@@ -7,22 +7,47 @@ import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
 import { EMBEDDING_MODEL } from "@teachanything/ai/models";
 import { env } from "./env";
 import { logInfo, logError } from "./logger";
+import {
+  sanitizeProcessingError,
+  STORAGE_MISSING_ERROR,
+} from "./processing-error";
 
 const EXTRACTION_TIMEOUT_MS = 60_000;
+
+/**
+ * Bump when ingestion logic changes (chunking, page metadata, etc.). Files with
+ * userFiles.metadata.processingVersion < this are reprocessed lazily on access.
+ * v1 = pre-page flat chunks @2500; v2 = page-aware @1000 with pageNumber.
+ */
+export const CURRENT_PROCESSING_VERSION = 2;
 
 /**
  * Sanitize error messages before storing in metadata visible to users.
  * Prevents internal details (hostnames, connection strings, API keys) from leaking.
  */
-function sanitizeProcessingError(error: unknown): string {
-  const msg = error instanceof Error ? error.message : String(error);
-  if (msg.includes("timed out")) return "File processing timed out";
-  if (msg.includes("Unsupported file type")) return msg;
-  if (msg.includes("no readable text")) return msg;
-  if (msg.includes("Invalid PDF")) return "Invalid PDF format";
-  if (msg.includes("embedding") && msg.includes("dimension"))
-    return "Embedding dimension mismatch";
-  return "File processing failed due to an internal error";
+/**
+ * Mark a file failed and stop. Used by the paths that bail out mid-run without
+ * throwing: the atomic guard has already flipped the row to `processing`, so
+ * returning without a terminal status leaves it claimed forever -- a spinner the
+ * owner cannot clear and that every QStash retry bounces off. The stale sweep
+ * would eventually catch it, but only after 15 minutes and with a misleading
+ * "stopped responding" message, so settle it here with the real reason.
+ */
+async function abandonProcessing(
+  fileId: string,
+  reason: string,
+): Promise<{ success: false; chunkCount: 0 }> {
+  try {
+    await db
+      .update(userFiles)
+      .set({ processingStatus: "failed", metadata: { error: reason } })
+      .where(eq(userFiles.id, fileId));
+  } catch (statusError) {
+    logError(statusError, "Failed to mark abandoned file as failed", {
+      fileId,
+    });
+  }
+  return { success: false, chunkCount: 0 };
 }
 
 function withTimeout<T>(
@@ -171,7 +196,7 @@ export async function processFile(params: {
             "File not found in local storage (likely deleted), skipping processing",
             { fileId, storagePath: file.storagePath },
           );
-          return { success: false, chunkCount: 0 };
+          return abandonProcessing(fileId, STORAGE_MISSING_ERROR);
         }
         throw err;
       }
@@ -190,7 +215,7 @@ export async function processFile(params: {
             "File storage not found (likely deleted), skipping processing",
             { fileId, storagePath: file.storagePath },
           );
-          return { success: false, chunkCount: 0 };
+          return abandonProcessing(fileId, STORAGE_MISSING_ERROR);
         }
         throw new Error(`Failed to download file: ${error?.message}`);
       }
@@ -204,8 +229,8 @@ export async function processFile(params: {
     // Stage 2: Extract text content (10-30%)
     await updateProgress(fileId, "extracting", 10);
     const ragService = createRAGService();
-    const content = await withTimeout(
-      ragService.extractContent(buffer, file.fileType),
+    const pagedChunks = await withTimeout(
+      ragService.extractAndChunk(buffer, file.fileType),
       EXTRACTION_TIMEOUT_MS,
       `File extraction timed out after ${EXTRACTION_TIMEOUT_MS / 1000}s`,
     );
@@ -213,8 +238,8 @@ export async function processFile(params: {
 
     // Stage 3: Chunk text (30-40%)
     await updateProgress(fileId, "chunking", 30);
-    const chunks = await ragService.chunkText(content);
-    await updateProgress(fileId, "chunking", 40, 0, chunks.length);
+    const chunks = pagedChunks.map((c) => c.content);
+    await updateProgress(fileId, "chunking", 40, 0, pagedChunks.length);
 
     // Stage 4: Generate embeddings (40-90%)
     // This is the slowest part, so batch process and report progress
@@ -296,6 +321,10 @@ export async function processFile(params: {
           content: chunk,
           embedding,
           tokenCount: await ragService.countTokens(chunk),
+          metadata:
+            pagedChunks[index]?.pageNumber != null
+              ? { pageNumber: pagedChunks[index]!.pageNumber }
+              : {},
         };
       }),
     );
@@ -311,6 +340,7 @@ export async function processFile(params: {
         metadata: {
           chunkCount: chunks.length,
           processedAt: new Date().toISOString(),
+          processingVersion: CURRENT_PROCESSING_VERSION,
           processingProgress: {
             stage: "storing",
             percentage: 100,

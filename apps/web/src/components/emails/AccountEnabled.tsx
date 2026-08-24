@@ -31,7 +31,7 @@ export function AccountEnabled({
               <p style={text}>Hi {userName},</p>
 
               <p style={text}>
-                Great news! Your Teach Anything™ account has been re-enabled and
+                Great news! Your Teach Anything® account has been re-enabled and
                 you can now log in again. All your chatbots and data are ready
                 for you to access.
               </p>
@@ -59,7 +59,7 @@ export function AccountEnabled({
               <p style={signature}>
                 Best regards,
                 <br />
-                Teach Anything™ Team
+                Teach Anything® Team
               </p>
 
               <p style={footer}>

@@ -27,6 +27,7 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
+  RESEND_SEGMENT_ID: z.string().min(1).optional(),
 
   // Upstash Redis (optional — rate limiting disabled without these)
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
@@ -43,6 +44,7 @@ const envSchema = z.object({
   ALLOWED_EMAIL_DOMAINS: z.string().default(".edu,.ac.in,.edu.in"),
   ADMIN_EMAILS: z.string().min(1), // Comma-separated list of admin emails
   NEXT_PUBLIC_MAX_FILE_SIZE_MB: z.string().default("50"),
+  NEXT_PUBLIC_VOICE_INPUT_ENABLED: z.enum(["true", "false"]).default("true"),
   NEXT_PUBLIC_GITHUB_URL: z.string().url().optional(),
   NEXT_PUBLIC_DONATION_URL: z.string().url().optional(),
   NEXT_PUBLIC_CONTACT_EMAIL: z.string().email().optional(),
