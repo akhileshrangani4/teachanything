@@ -13,7 +13,7 @@ import { studyTools, type StudyUIMessage } from "@/server/chat/study-tools";
 import { stripRetrievalOutputs } from "@/server/chat/stream-filter";
 import { repairQuizToolParts } from "@/server/chat/repair-quiz-parts";
 import { recoverLeakedQuiz } from "@/server/chat/recover-quiz";
-import { assistantMessageForDb } from "@/server/chat/ui-messages";
+import { assistantMessageForDb } from "@/lib/chat/ui-messages";
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 
 type Chunk = InferUIMessageChunk<StudyUIMessage>;

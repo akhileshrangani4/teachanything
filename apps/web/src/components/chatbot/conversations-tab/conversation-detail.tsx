@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "@/components/chat/messages/ChatMessage";
-import { rowToUIMessage } from "@/server/chat/ui-messages";
+import { rowToUIMessage } from "@/lib/chat/ui-messages";
 import type { StudyResponsePayload } from "@/lib/submit-study-response";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, MessageSquare } from "lucide-react";

@@ -1,11 +1,15 @@
 import type { ChatStatus } from "ai";
-import type { StudyUIMessage } from "./chat/study-tools";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { RETRIEVAL_PART_TYPES } from "@/lib/retrieval-tool-names";
 
 /**
  * Pure helpers for the chat router and the chat UI. Kept free of the streaming
  * / AI-SDK runtime chain so they can be unit-tested in isolation -- the only
  * imports here are types and a zero-dependency constant set.
+ *
+ * Lives under lib/, not server/, because client components import it. Anything
+ * under server/ must stay off client import paths so a server-only dependency
+ * added later can't be pulled into the browser bundle.
  */
 
 /** Clamp a requested max output token count to the supported range (100-4000). */

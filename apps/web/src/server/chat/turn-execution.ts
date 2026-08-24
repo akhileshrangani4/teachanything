@@ -1,7 +1,7 @@
 import type { ModelMessage, ToolSet, UIMessageStreamWriter } from "ai";
 import { resolveModel, type OpenRouterClient } from "@teachanything/ai";
 import type { RAGContextResult } from "@/server/rag-context";
-import { mergeSources } from "@/server/chat-helpers";
+import { mergeSources } from "@/lib/chat/helpers";
 import { createRetrievalTools } from "@/server/retrieval-tools";
 import { logError, logWarn } from "@/lib/logger";
 import {

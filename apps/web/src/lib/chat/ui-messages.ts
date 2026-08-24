@@ -1,5 +1,5 @@
 import { repairQuiz } from "@/lib/quiz";
-import type { StudyUIMessage } from "./study-tools";
+import type { StudyUIMessage } from "@/server/chat/study-tools";
 
 type MessageRow = {
   id: string;

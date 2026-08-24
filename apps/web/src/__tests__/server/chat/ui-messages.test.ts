@@ -5,7 +5,7 @@ import {
   assistantMessageForDb,
   hasPersistableStudyPart,
   stripToolPartsForTextModel,
-} from "@/server/chat/ui-messages";
+} from "@/lib/chat/ui-messages";
 
 describe("rowToUIMessage", () => {
   it("rehydrates a legacy text row (no parts) into a single text part", () => {

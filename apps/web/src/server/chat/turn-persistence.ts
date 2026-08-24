@@ -9,7 +9,7 @@ import {
   assistantMessageForDb,
   hasPersistableStudyPart,
   PARTS_VERSION,
-} from "./ui-messages";
+} from "@/lib/chat/ui-messages";
 
 type SourceList = RAGContextResult["sources"];
 

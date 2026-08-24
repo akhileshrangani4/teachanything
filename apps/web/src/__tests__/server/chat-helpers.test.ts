@@ -4,7 +4,7 @@ import {
   describeToolActivity,
   deriveStatusLine,
   mergeSources,
-} from "@/server/chat-helpers";
+} from "@/lib/chat/helpers";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 
 // Minimal fixtures: deriveStatusLine only reads `role` and the last part's

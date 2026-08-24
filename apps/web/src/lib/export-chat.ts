@@ -1,5 +1,5 @@
 import type { StudyUIMessage } from "@/server/chat/study-tools";
-import { extractText } from "@/server/chat/ui-messages";
+import { extractText } from "@/lib/chat/ui-messages";
 import { isRenderableQuiz, type Quiz, type QuizResponse } from "@/lib/quiz";
 import type { StudyResponsePayload } from "@/lib/submit-study-response";
 

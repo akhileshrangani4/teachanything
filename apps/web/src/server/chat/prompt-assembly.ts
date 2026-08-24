@@ -5,7 +5,10 @@ import {
   type StoredStudyResponse,
 } from "@/server/study/model-note";
 import { buildStudyToolsAddendum, type StudyUIMessage } from "./study-tools";
-import { rowToUIMessage, stripToolPartsForTextModel } from "./ui-messages";
+import {
+  rowToUIMessage,
+  stripToolPartsForTextModel,
+} from "@/lib/chat/ui-messages";
 
 type HistoryRow = typeof messages.$inferSelect;
 

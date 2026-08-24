@@ -15,11 +15,11 @@ import { chatbots } from "@teachanything/db/schema";
 import type { db as DbType } from "@teachanything/db";
 import { createRetrievalTools } from "@/server/retrieval-tools";
 import { maybeEnqueueReprocess } from "@/server/reprocess";
-import { clampMaxTokens } from "@/server/chat-helpers";
+import { clampMaxTokens } from "@/lib/chat/helpers";
 import { env } from "@/lib/env";
 import { logError } from "@/lib/logger";
 import { studyTools, type StudyUIMessage } from "./study-tools";
-import { extractText } from "./ui-messages";
+import { extractText } from "@/lib/chat/ui-messages";
 import { initTokenCounter } from "./token-counter";
 import { resolveConversation } from "./conversation-resolution";
 import {
