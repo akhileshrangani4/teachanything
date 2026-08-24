@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { crawlSources } from "@teachanything/db/schema";
 import { logInfo } from "@/lib/logger";
 import { checkRateLimit, recrawlRateLimit } from "@/lib/rate-limit";
+import { formatRetryAfter } from "@/lib/constants/rate-limits";
 import { assertOwnedCrawlSource } from "../helpers";
 
 export const toggleCrawlSourceProcedure = protectedProcedure
@@ -17,7 +18,7 @@ export const toggleCrawlSourceProcedure = protectedProcedure
   .mutation(async ({ ctx, input }) => {
     await assertOwnedCrawlSource(ctx, input.crawlSourceId);
 
-    const { success } = await checkRateLimit(
+    const { success, reset } = await checkRateLimit(
       recrawlRateLimit,
       ctx.session.user.id,
       { action: "toggleCrawlSource" },
@@ -25,7 +26,7 @@ export const toggleCrawlSourceProcedure = protectedProcedure
     if (!success) {
       throw new TRPCError({
         code: "TOO_MANY_REQUESTS",
-        message: "Too many toggle requests. Please try again later.",
+        message: `Too many requests. Please try again in ${formatRetryAfter(reset)}.`,
       });
     }
 
