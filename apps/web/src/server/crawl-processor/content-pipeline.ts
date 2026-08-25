@@ -7,7 +7,7 @@ import {
   chatbotFileAssociations,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   fetchAndExtractPage,
   fetchRobots,
@@ -19,6 +19,21 @@ import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { mergeCrawledPageMetadata } from "../crawler-metadata-sql";
 import { CrawledPageDeletedError, getFriendlyErrorMessage } from "./errors";
+
+/**
+ * The page statuses `processCrawlPage` is willing to claim.
+ *
+ * `pending` is the normal dispatch state (both page-discovery and
+ * add-manual-url set it before dispatching) and `failed` lets a QStash retry
+ * re-attempt a transient failure. Every other status is a page that is either
+ * held by another worker (`processing`) or already settled (`completed`,
+ * `skipped`, `blocked`), and re-entering one of those is what orphans files.
+ *
+ * Exported for the test that pins it against the full crawled_page_status
+ * enum, so adding a status forces a decision here rather than defaulting it
+ * into the refused set by accident.
+ */
+export const CLAIMABLE_PAGE_STATUSES = ["pending", "failed"] as const;
 
 /** Mark a page blocked (SSRF guard or robots.txt) and stop processing it. */
 async function markPageBlocked(
@@ -91,10 +106,42 @@ export async function processCrawlPage(params: {
       return;
     }
 
-    await db
+    // Claim the page atomically. Without a status predicate two QStash
+    // deliveries of the same page both proceed, both read `userFileId` as
+    // null, and both insert a `userFiles` row -- the loser is orphaned,
+    // carrying chunks and chatbot associations that nothing points at.
+    //
+    // `pending` is the normal dispatch state (page-discovery and add-manual-url
+    // both set it) and `failed` lets a QStash retry re-attempt a transient
+    // failure. Everything else is refused: `processing` means another worker
+    // holds it, and `completed` / `skipped` / `blocked` mean a duplicate
+    // delivery arrived after the page was already settled.
+    //
+    // Refusing `processing` cannot wedge a page: a worker that dies without
+    // reaching its catch is recovered by sweepStaleCrawls, which flips stuck
+    // `pending` / `processing` pages to `failed` (crawl-stale.ts).
+    const claimed = await db
       .update(crawledPages)
       .set({ status: "processing", updatedAt: new Date() })
-      .where(eq(crawledPages.id, crawledPageId));
+      .where(
+        and(
+          eq(crawledPages.id, crawledPageId),
+          inArray(crawledPages.status, [...CLAIMABLE_PAGE_STATUSES]),
+        ),
+      )
+      .returning({ userFileId: crawledPages.userFileId });
+
+    if (claimed.length === 0) {
+      logInfo("Crawled page already claimed or settled, skipping", {
+        crawledPageId,
+        status: page.status,
+      });
+      return;
+    }
+    // Read from the claim, not from the `page` row selected before it: the
+    // claim is the point at which this worker's view of the row becomes
+    // authoritative.
+    const claimedUserFileId = claimed[0]!.userFileId;
 
     const pageContent = await fetchAndExtractPage(page.url);
 
@@ -130,6 +177,39 @@ export async function processCrawlPage(params: {
       env.OPENAI_API_KEY,
     );
 
+    // Embed BEFORE opening the transaction. These are network calls to the
+    // embedding provider and can take minutes when the provider is slow or
+    // rate-limiting; running them inside the transaction held the source's
+    // share lock and a pooled connection for that whole time, and discovery
+    // dispatches up to 20 page jobs concurrently. That was enough to exhaust
+    // the connection pool and block source deletion.
+    //
+    // Nothing here writes, so a failure just throws to the catch below and the
+    // page is marked failed, exactly as before. The transaction still covers
+    // delete + insert + status atomically, which is the property that matters.
+    const EMBED_BATCH_SIZE = 50;
+    const embeddedChunks: {
+      chunkIndex: number;
+      content: string;
+      embedding: number[];
+      tokenCount: number;
+    }[] = [];
+    for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
+      const batch = chunks.slice(i, i + EMBED_BATCH_SIZE);
+      const batchEmbeddings = await ragService.generateEmbeddingsForChunks(
+        batch,
+        openrouterClient,
+      );
+      for (const [batchIdx, chunk] of batch.entries()) {
+        embeddedChunks.push({
+          chunkIndex: i + batchIdx,
+          content: chunk,
+          embedding: batchEmbeddings[batchIdx]!,
+          tokenCount: await ragService.countTokens(chunk),
+        });
+      }
+    }
+
     await db.transaction(async (tx) => {
       // Hold the source in share mode for the life of this transaction. A
       // delete takes the exclusive lock, so it cannot slip between the checks
@@ -156,7 +236,7 @@ export async function processCrawlPage(params: {
 
       const customTitle = currentPage?.metadata?.customTitle?.trim();
       const displayTitle = customTitle || pageContent.title || page.url;
-      let userFileId = page.userFileId;
+      let userFileId = claimedUserFileId;
       if (!userFileId) {
         const [file] = await tx
           .insert(userFiles)
@@ -212,26 +292,19 @@ export async function processCrawlPage(params: {
       // Delete old chunks before inserting new ones (atomic within transaction)
       await tx.delete(fileChunks).where(eq(fileChunks.fileId, userFileId));
 
-      // Generate embeddings and insert in batches to limit memory
-      const EMBED_BATCH_SIZE = 50;
-      for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
-        const batch = chunks.slice(i, i + EMBED_BATCH_SIZE);
-        const batchEmbeddings = await ragService.generateEmbeddingsForChunks(
-          batch,
-          openrouterClient,
-        );
-
-        const chunkRecords = await Promise.all(
-          batch.map(async (chunk, batchIdx) => ({
-            fileId: userFileId,
-            chunkIndex: i + batchIdx,
-            content: chunk,
-            embedding: batchEmbeddings[batchIdx],
-            tokenCount: await ragService.countTokens(chunk),
+      // Insert the pre-computed embeddings. Batched for statement size only --
+      // no network calls happen inside the transaction.
+      const INSERT_BATCH_SIZE = 50;
+      for (let i = 0; i < embeddedChunks.length; i += INSERT_BATCH_SIZE) {
+        await tx.insert(fileChunks).values(
+          embeddedChunks.slice(i, i + INSERT_BATCH_SIZE).map((c) => ({
+            fileId: userFileId as string,
+            chunkIndex: c.chunkIndex,
+            content: c.content,
+            embedding: c.embedding,
+            tokenCount: c.tokenCount,
           })),
         );
-
-        await tx.insert(fileChunks).values(chunkRecords);
       }
 
       const [updatedPage] = await tx
