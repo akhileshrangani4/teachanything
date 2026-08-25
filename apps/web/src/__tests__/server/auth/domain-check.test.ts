@@ -22,7 +22,8 @@ jest.unstable_mockModule("@/lib/logger", () => ({
   logError: jest.fn(),
 }));
 
-const { enforceAllowedDomain } = await import("@/server/auth/domain-check");
+const { enforceAllowedDomain, matchesAllowedDomain } =
+  await import("@/server/auth/domain-check");
 
 describe("enforceAllowedDomain", () => {
   beforeEach(() => {
@@ -64,23 +65,20 @@ describe("enforceAllowedDomain", () => {
     ).rejects.toThrow(/not authorized for registration/);
   });
 
-  // The match is `emailDomain.endsWith(domain)` where emailDomain keeps its
-  // leading "@". An entry written WITH the "@" therefore anchors correctly,
-  // while a bare "gwu.edu" entry also matches any lookalike ending in it.
-  // Both cases are pinned here so a future change to the matcher is a
-  // deliberate one rather than a silent widening or narrowing.
-  it("anchors on the @ when the allowlist entry includes it", async () => {
+  // Matching is on a label boundary, so a lookalike is refused whether or not
+  // the allowlist entry was written with a leading "@".
+  it("refuses a lookalike domain for an entry written with the @", async () => {
     mockGetApprovedDomains.mockReturnValue(["@gwu.edu"]);
     await expect(
       enforceAllowedDomain({ email: "attacker@evil-gwu.edu" }),
     ).rejects.toThrow(/not authorized for registration/);
   });
 
-  it("admits a lookalike when the allowlist entry omits the @", async () => {
+  it("refuses a lookalike domain for an entry written without the @", async () => {
     mockGetApprovedDomains.mockReturnValue(["gwu.edu"]);
     await expect(
       enforceAllowedDomain({ email: "attacker@evil-gwu.edu" }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow(/not authorized for registration/);
   });
 
   it("matches subdomains of an allowlisted suffix", async () => {
@@ -88,5 +86,45 @@ describe("enforceAllowedDomain", () => {
     await expect(
       enforceAllowedDomain({ email: "student@cs.gwu.edu" }),
     ).resolves.toBeUndefined();
+  });
+
+  it("is case-insensitive on both sides", async () => {
+    mockGetApprovedDomains.mockReturnValue(["@GWU.edu"]);
+    await expect(
+      enforceAllowedDomain({ email: "Student@Gwu.EDU" }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("matchesAllowedDomain", () => {
+  it("accepts the exact host for a specific-domain entry", () => {
+    for (const entry of ["gwu.edu", "@gwu.edu", " GWU.edu "]) {
+      expect(matchesAllowedDomain("gwu.edu", entry)).toBe(true);
+    }
+  });
+
+  it("accepts a subdomain of a specific-domain entry", () => {
+    expect(matchesAllowedDomain("cs.gwu.edu", "gwu.edu")).toBe(true);
+  });
+
+  // The bug this function exists to close.
+  it("refuses a host that merely ends with the entry text", () => {
+    expect(matchesAllowedDomain("evil-gwu.edu", "gwu.edu")).toBe(false);
+    expect(matchesAllowedDomain("notgwu.edu", "@gwu.edu")).toBe(false);
+  });
+
+  it("treats a dotted or bare TLD entry as a wildcard", () => {
+    expect(matchesAllowedDomain("gwu.edu", ".edu")).toBe(true);
+    expect(matchesAllowedDomain("gwu.edu", "edu")).toBe(true);
+    // A TLD wildcard is meant to admit every institution under it, lookalike
+    // names included -- that is what ".edu" asks for.
+    expect(matchesAllowedDomain("evil-gwu.edu", ".edu")).toBe(true);
+    expect(matchesAllowedDomain("gwu.com", ".edu")).toBe(false);
+  });
+
+  it("refuses an empty or whitespace entry", () => {
+    expect(matchesAllowedDomain("gwu.edu", "")).toBe(false);
+    expect(matchesAllowedDomain("gwu.edu", "   ")).toBe(false);
+    expect(matchesAllowedDomain("gwu.edu", "@")).toBe(false);
   });
 });
