@@ -95,6 +95,12 @@ npm run db:studio        # Open Drizzle Studio GUI
 ## 5. Naming Conventions
 
 - **Files/directories**: kebab-case (`user-profile.tsx`, `auth-utils.ts`)
+  - **Exception, React component files**: a file whose default/primary export is
+    a React component is named for that component, in PascalCase
+    (`ChatMessage.tsx`, `AnalyticsTab.tsx`). Everything else stays kebab-case,
+    including hooks (`use-files-page.ts`), helper modules
+    (`settings-validation.ts`), and any directory name. This matches the bulk of
+    the existing tree; do not mass-rename either direction to "fix" it.
 - **Components/Classes**: PascalCase (`UserProfile`, `ChatbotService`)
 - **Variables/functions**: camelCase (`getUserById`, `isLoading`)
 - **Environment variables**: UPPER_SNAKE_CASE (`DATABASE_URL`)
@@ -367,10 +373,21 @@ Checklist that the hook does NOT enforce — still your responsibility:
 **Do**:
 
 - Keep functions short and single-purpose (<20 statements ideal)
-- Keep files focused (<300 lines ideal)
+- Keep files focused (<300 lines ideal). Scope: application source under
+  `apps/web/src`. Not held to the line count, because splitting them makes them
+  worse rather than better: generated or single-declaration files
+  (`packages/db/src/schema.ts`), long-form prose pages (privacy policy, terms of
+  service), and test files, where a table of cases reads better whole than split
+  across files. `packages/ai` is in scope but currently over; see the note below.
 - Run lint and type-check before considering work complete
 - Ask for clarification when requirements are ambiguous
 - Be direct; flag problematic requirements immediately
+
+**Known guideline debt** (stated so nobody has to rediscover it): `packages/ai`
+is in scope for the file-size guideline and does not yet meet it --
+`crawler.ts` (608 lines) and `rag-service.ts` (486) both want splitting. They
+were left alone during the August 2026 architecture cleanup, which scoped
+itself to `apps/web`.
 
 ## Key Files Reference
 
