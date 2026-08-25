@@ -40,13 +40,23 @@ async function forward(
   source: ReadableStream<Chunk>,
 ): Promise<void> {
   const reader = source.getReader();
+  let drained = false;
   try {
     for (;;) {
       const { done, value } = await reader.read();
-      if (done) return;
+      if (done) {
+        drained = true;
+        return;
+      }
       writer.write(value);
     }
   } finally {
+    // Leaving early means a write or a transform threw. Releasing the lock
+    // alone leaves the upstream model call generating into a stream nobody
+    // reads; cancel propagates the stop back through the pipeline.
+    if (!drained) {
+      await reader.cancel().catch(() => {});
+    }
     reader.releaseLock();
   }
 }
@@ -135,14 +145,18 @@ export async function runPrimaryTurn(args: {
   // JSON blob (instead of a native showQuiz call) into a real tool part, so
   // it renders as the widget rather than raw JSON. Only quiz-shaped text is
   // buffered; ordinary answers still stream live. See recoverLeakedQuiz.
-  await forward(
-    args.writer,
-    args.modelCanUseTools
-      ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
-      : primaryUiStream,
-  );
-
   try {
+    // Inside the try: a writer or transform failure here used to escape
+    // runPrimaryTurn entirely, so the caller never set its terminal error
+    // state and persistence could still classify the turn as successful.
+    // Now it lands in the same `{ ok: false }` path as a model failure.
+    await forward(
+      args.writer,
+      args.modelCanUseTools
+        ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
+        : primaryUiStream,
+    );
+
     const [primaryText, primarySteps] = await Promise.all([
       primary.text,
       primary.steps,
