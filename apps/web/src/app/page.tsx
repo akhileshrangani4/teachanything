@@ -7,6 +7,7 @@ import StatsSection from "@/components/landing/StatsSection";
 import TechnologySection from "@/components/landing/TechnologySection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import InfoSection from "@/components/landing/InfoSection";
+import TrustedBySection from "@/components/landing/TrustedBySection";
 import SupportUsSection from "@/components/landing/SupportUsSection";
 import Footer from "@/components/landing/Footer";
 
@@ -31,6 +32,8 @@ export default function HomePage() {
       <ComparisonSection />
       {/* Info Section */}
       <InfoSection />
+      {/* Trusted By Section */}
+      <TrustedBySection />
       {/* Support Us Section */}
       <SupportUsSection />
       {/* Footer */}
