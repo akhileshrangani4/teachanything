@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 /**
  * Alphabetical by the main keyword in each name, as supplied by Prof Joubin.
- * Names only — no logos, no institutional typefaces. Countries are shown as
+ * Names only, no logos, no institutional typefaces. Countries are shown as
  * a secondary label to make the international reach legible at a glance; the
  * ones Prof Joubin did not spell out are filled in here.
  */
