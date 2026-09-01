@@ -71,7 +71,6 @@
   --animate-wave-bars: wave-bars 1s ease-in-out infinite;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-spinner-fade: spinner-fade 1s ease-in-out infinite;
-  --animate-infinite-scroll: infinite-scroll linear infinite;
 }
 
 :root {
@@ -310,15 +309,6 @@
   }
   100% {
     opacity: 1;
-  }
-}
-
-@keyframes infinite-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
   }
 }
 

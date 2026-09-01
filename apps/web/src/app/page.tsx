@@ -7,12 +7,13 @@ import StatsSection from "@/components/landing/StatsSection";
 import TechnologySection from "@/components/landing/TechnologySection";
 import ComparisonSection from "@/components/landing/ComparisonSection";
 import InfoSection from "@/components/landing/InfoSection";
+import TrustedBySection from "@/components/landing/TrustedBySection";
 import SupportUsSection from "@/components/landing/SupportUsSection";
 import Footer from "@/components/landing/Footer";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-clip">
       {/* Navbar */}
       <Navbar />
       {/* Hero Section with background image and gradient */}
@@ -31,6 +32,8 @@ export default function HomePage() {
       <ComparisonSection />
       {/* Info Section */}
       <InfoSection />
+      {/* Trusted By Section */}
+      <TrustedBySection />
       {/* Support Us Section */}
       <SupportUsSection />
       {/* Footer */}
