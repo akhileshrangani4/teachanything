@@ -11,11 +11,35 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Clock, CheckCircle, XCircle, Eye, MoreHorizontal } from "lucide-react";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Eye,
+  MoreHorizontal,
+  Mail,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,6 +110,25 @@ export function PendingUsersTab() {
     userEmail: null,
   });
 
+  const [sendEmailDialog, setSendEmailDialog] = useState<{
+    isOpen: boolean;
+    userId: string | null;
+    userName: string | null;
+    userEmail: string | null;
+    templateId:
+      | "request_more_info"
+      | "incorrect_info"
+      | "generic_admin_message";
+    customMessage: string;
+  }>({
+    isOpen: false,
+    userId: null,
+    userName: null,
+    userEmail: null,
+    templateId: "request_more_info",
+    customMessage: "",
+  });
+
   const [detailsDialog, setDetailsDialog] = useState<UserDetailsDialogState>({
     isOpen: false,
     user: null,
@@ -107,6 +150,21 @@ export function PendingUsersTab() {
   );
 
   const { data: stats, refetch: refetchStats } = useUserStats();
+
+  const sendRegistrationEmail = trpc.admin.sendRegistrationEmail.useMutation({
+    onSuccess: () => {
+      closeSendEmailDialog();
+      toast.success("Email queued successfully", {
+        description:
+          "The message is being delivered and the user will receive it shortly.",
+      });
+    },
+    onError: (error) => {
+      toast.error("Failed to send email", {
+        description: error.message,
+      });
+    },
+  });
 
   const pendingUsers = pendingUsersData?.users || [];
   const totalCount = pendingUsersData?.totalCount || 0;
@@ -178,6 +236,81 @@ export function PendingUsersTab() {
       userName,
       userEmail,
     });
+  };
+
+  const openSendEmailDialog = (
+    userId: string,
+    userName: string,
+    userEmail: string,
+  ) => {
+    setSendEmailDialog({
+      isOpen: true,
+      userId,
+      userName,
+      userEmail,
+      templateId: "request_more_info",
+      customMessage: "",
+    });
+  };
+
+  const closeSendEmailDialog = () =>
+    setSendEmailDialog({
+      isOpen: false,
+      userId: null,
+      userName: null,
+      userEmail: null,
+      templateId: "request_more_info",
+      customMessage: "",
+    });
+
+  const getPreviewBody = () => {
+    const name = sendEmailDialog.userName || "User";
+    switch (sendEmailDialog.templateId) {
+      case "request_more_info":
+        return (
+          <>
+            <p className="mb-3">Hi {name},</p>
+            <p className="mb-3">
+              Thank you for registering with Teach Anything™. We need a bit more
+              information to complete your account approval, such as your
+              affiliation, department, or academic webpage.
+            </p>
+            <p className="mb-3">
+              Please review your registration and update any missing or
+              incomplete details. If you need help, reply to the support email
+              included with this message.
+            </p>
+          </>
+        );
+      case "incorrect_info":
+        return (
+          <>
+            <p className="mb-3">Hi {name},</p>
+            <p className="mb-3">
+              Some information in your registration appears to be incorrect.
+              Please double-check your details and submit the corrected
+              information so we can approve your account.
+            </p>
+            <p className="mb-3">
+              If you have questions or need assistance, reply to the support
+              email included with this message.
+            </p>
+          </>
+        );
+      case "generic_admin_message":
+        return (
+          <>
+            <p className="mb-3">Hi {name},</p>
+            <p className="mb-3">{sendEmailDialog.customMessage || ""}</p>
+            <p className="mb-3">
+              If you have questions, reply to the support email included with
+              this message.
+            </p>
+          </>
+        );
+      default:
+        return null;
+    }
   };
 
   const openUserDetails = useCallback(
@@ -390,6 +523,21 @@ export function PendingUsersTab() {
                             </Button>
                             <Button
                               size="sm"
+                              variant="secondary"
+                              onClick={() =>
+                                openSendEmailDialog(
+                                  user.id,
+                                  user.name || "User",
+                                  user.email,
+                                )
+                              }
+                              className="gap-2"
+                            >
+                              <Mail className="h-4 w-4" />
+                              Send Email
+                            </Button>
+                            <Button
+                              size="sm"
                               onClick={() =>
                                 handleApprove(
                                   user.id,
@@ -453,6 +601,19 @@ export function PendingUsersTab() {
                                 >
                                   <Eye className="h-4 w-4 mr-2" />
                                   Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    openSendEmailDialog(
+                                      user.id,
+                                      user.name || "User",
+                                      user.email,
+                                    )
+                                  }
+                                  className="cursor-pointer"
+                                >
+                                  <Mail className="h-4 w-4 mr-2" />
+                                  Send Email
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -565,6 +726,121 @@ export function PendingUsersTab() {
         }
         user={detailsDialog.user}
       />
+
+      <Dialog
+        open={sendEmailDialog.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeSendEmailDialog();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send registration email</DialogTitle>
+            <DialogDescription>
+              Choose a template and preview the message before sending it to the
+              user.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="template-select">Template</Label>
+              <Select
+                value={sendEmailDialog.templateId}
+                onValueChange={(value) =>
+                  setSendEmailDialog((current) => ({
+                    ...current,
+                    templateId: value as
+                      | "request_more_info"
+                      | "incorrect_info"
+                      | "generic_admin_message",
+                  }))
+                }
+              >
+                <SelectTrigger id="template-select">
+                  <SelectValue placeholder="Select an email template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="request_more_info">
+                    Request more information
+                  </SelectItem>
+                  <SelectItem value="incorrect_info">
+                    Incorrect registration information
+                  </SelectItem>
+                  <SelectItem value="generic_admin_message">
+                    Generic admin message
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {sendEmailDialog.templateId === "generic_admin_message" && (
+              <div className="grid gap-2">
+                <Label htmlFor="custom-message">Custom message</Label>
+                <Textarea
+                  id="custom-message"
+                  value={sendEmailDialog.customMessage}
+                  onChange={(event) =>
+                    setSendEmailDialog((current) => ({
+                      ...current,
+                      customMessage: event.target.value,
+                    }))
+                  }
+                  placeholder="Write the custom message you want the user to receive."
+                />
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm font-medium">Preview</p>
+              <div className="rounded-lg border border-muted p-4 bg-muted/70 text-sm">
+                <p className="mb-3 text-muted-foreground">Subject</p>
+                <p className="mb-4 font-medium">
+                  {sendEmailDialog.templateId === "request_more_info" &&
+                    "Additional information required for your registration"}
+                  {sendEmailDialog.templateId === "incorrect_info" &&
+                    "Please review your registration details"}
+                  {sendEmailDialog.templateId === "generic_admin_message" &&
+                    "Message from Teach Anything administrator"}
+                </p>
+                {getPreviewBody()}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeSendEmailDialog}
+              disabled={sendRegistrationEmail.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!sendEmailDialog.userId) return;
+                await sendRegistrationEmail.mutateAsync({
+                  userId: sendEmailDialog.userId,
+                  templateId: sendEmailDialog.templateId,
+                  customMessage:
+                    sendEmailDialog.templateId === "generic_admin_message"
+                      ? sendEmailDialog.customMessage
+                      : undefined,
+                });
+              }}
+              disabled={
+                sendRegistrationEmail.isPending ||
+                (sendEmailDialog.templateId === "generic_admin_message" &&
+                  !sendEmailDialog.customMessage.trim())
+              }
+            >
+              {sendRegistrationEmail.isPending ? "Sending..." : "Send Email"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

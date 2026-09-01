@@ -24,6 +24,10 @@ import {
 } from "@/lib/email";
 import { deleteUserAccount } from "@/server/services/user-deletion";
 import { validateDomainForAllowlist } from "@/lib/domain-validation";
+import {
+  sendRegistrationEmail as sendRegistrationEmailHandler,
+  sendRegistrationEmailInputSchema,
+} from "@/server/routers/admin-send-registration-email";
 
 export const adminRouter = router({
   /**
@@ -104,6 +108,15 @@ export const adminRouter = router({
     .mutation(async ({ input }) => {
       await rejectUserHelper(input.userId);
       return { success: true };
+    }),
+
+  /**
+   * Send a templated registration email to a pending user.
+   */
+  sendRegistrationEmail: adminProcedure
+    .input(sendRegistrationEmailInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      return sendRegistrationEmailHandler(ctx, input);
     }),
 
   /**
