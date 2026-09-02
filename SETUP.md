@@ -314,9 +314,20 @@ environment variable. An entry is read one of two ways:
 Matching is on a label boundary, so a lookalike domain like `evil-gwu.edu` does
 **not** match a `gwu.edu` entry. Entries are case-insensitive.
 
-If no domains are configured → all emails allowed. Blank entries are ignored,
-so an empty `ALLOWED_EMAIL_DOMAINS` also means "no restriction" rather than
-"reject everyone".
+**Unset is not the same as empty.** `ALLOWED_EMAIL_DOMAINS` defaults to
+`.edu,.ac.in,.edu.in`, so leaving it out of your environment restricts
+registration to those TLDs rather than allowing everything:
+
+| `ALLOWED_EMAIL_DOMAINS` | Effective allowlist                                               |
+| ----------------------- | ----------------------------------------------------------------- |
+| unset                   | `.edu,.ac.in,.edu.in` plus any database entries                   |
+| `.edu`                  | `.edu` plus any database entries                                  |
+| `` (explicitly empty)   | database entries only; if there are none, any domain may register |
+
+To turn allowlisting off entirely, set it to an empty string and leave
+`approved_domains` empty. Blank entries within the list are ignored, so a
+trailing comma is harmless and an all-blank list reads as "no restriction"
+rather than "reject everyone".
 
 The check runs only when the account is created, so tightening the list never
 locks out an existing user.

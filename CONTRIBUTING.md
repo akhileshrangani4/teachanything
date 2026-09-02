@@ -103,8 +103,13 @@ teachanything/
 everything that must never reach the browser: tRPC routers, Better Auth, the
 chat turn pipeline, the file and crawl processors, rate limiting, QStash, and
 storage clients. `lib/` holds only what is safe to bundle for the client, so it
-reads no server-only environment variables and imports no database, Redis,
-Resend or Supabase client.
+imports no database, Redis, Resend or Supabase client.
+
+`lib/env.ts` is the one deliberate exception: it declares and validates the
+whole schema, server-only keys included, because validation has to happen
+somewhere a server entry point can reach. What it does not do is hand those
+values to the browser. On the client it exposes only the `NEXT_PUBLIC_*` keys
+and throws on anything else.
 
 Two practical consequences:
 
