@@ -10,6 +10,9 @@ import { db } from "@teachanything/db";
 import { crawledPages } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
 
+// Keep PROCESSING_LEASE_MS in server/crawl-processor/content-pipeline.ts above
+// this value: the claim lease has to outlast the budget of the worker holding
+// it, or a retry can reclaim a page whose first worker is still running.
 export const maxDuration = 300;
 
 const payloadSchema = z.object({ crawledPageId: z.string().uuid() });

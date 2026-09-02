@@ -67,6 +67,15 @@ export async function gateSessionCreation(session: { userId: string }) {
 
     return true; // Allow session creation
   } catch (error) {
+    // The pending/rejected branches above throw APIError deliberately: the
+    // ACCOUNT_PENDING / ACCOUNT_REJECTED codes exist so the login page can
+    // tell a user waiting for approval apart from one who was turned down.
+    // Swallowing them here collapsed both into a bare `false`, which aborts
+    // the session correctly but tells the client nothing. Let them through;
+    // keep the catch for genuine failures (a database outage), where
+    // aborting is the safe default.
+    if (error instanceof APIError) throw error;
+
     logError(error, "Error in session.create.before hook", {
       userId: session.userId,
     });
