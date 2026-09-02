@@ -250,12 +250,15 @@ Visit: http://localhost:3000
 teachanything/
 ├── apps/web/              # Next.js application
 │   ├── src/app/          # Pages & API routes
+│   ├── src/server/       # Server-only (tRPC routers, auth, jobs, storage)
+│   ├── src/lib/          # Client-safe utilities
 │   ├── src/components/   # UI components
-│   ├── src/lib/          # Utilities
-│   └── src/server/       # tRPC routers
+│   └── src/hooks/        # React hooks
+├── apps/docs/            # User guides (served at /docs)
 ├── packages/
 │   ├── db/               # Database schema
-│   └── ai/               # OpenRouter + RAG
+│   ├── ai/               # OpenRouter + RAG
+│   └── logger/           # Structured logger
 ```
 
 ---
@@ -276,7 +279,9 @@ teachanything/
 1. User enters credentials
 2. Better Auth validates
 3. Database hook checks status
-4. Blocks if pending/rejected
+4. Blocks if pending/rejected, and the reason reaches the client, so a user
+   awaiting approval is sent to `/pending` and a rejected one to `/rejected`
+   rather than seeing a generic failure
 5. Allows if approved
 
 **Approval:**
@@ -288,7 +293,8 @@ teachanything/
 
 ### Domain Validation (Optional)
 
-Restrict registration to specific domains:
+Restrict registration to specific domains, either through the admin UI or
+directly:
 
 ```sql
 INSERT INTO "approved_domains" (domain, created_at)
@@ -297,7 +303,23 @@ VALUES
   ('university.edu', NOW());
 ```
 
-If no domains configured → all emails allowed.
+Entries from the database are combined with the `ALLOWED_EMAIL_DOMAINS`
+environment variable. An entry is read one of two ways:
+
+| Entry                   | Matches                                     |
+| ----------------------- | ------------------------------------------- |
+| `gwu.edu` or `@gwu.edu` | that host and its subdomains (`cs.gwu.edu`) |
+| `.edu` or `edu`         | anything under that TLD                     |
+
+Matching is on a label boundary, so a lookalike domain like `evil-gwu.edu` does
+**not** match a `gwu.edu` entry. Entries are case-insensitive.
+
+If no domains are configured → all emails allowed. Blank entries are ignored,
+so an empty `ALLOWED_EMAIL_DOMAINS` also means "no restriction" rather than
+"reject everyone".
+
+The check runs only when the account is created, so tightening the list never
+locks out an existing user.
 
 ---
 

@@ -30,7 +30,7 @@ teachanything/
 │   │       │   ├── chat/         # Chat turn pipeline (context, prompts, execution, persistence)
 │   │       │   ├── file-processor/  # Upload → extract → chunk → embed pipeline
 │   │       │   ├── crawl-processor/ # Discover → fetch → extract → embed pipeline
-│   │       │   └── routers/      # API routers (auth, chatbot, chat, files, admin, analytics, crawler)
+│   │       │   └── routers/      # API routers (auth, chatbot, files, analytics, admin, crawler)
 │   │       ├── lib/              # Client-safe utilities (env, logger, validation, formatting)
 │   │       ├── components/       # React components (Shadcn UI based)
 │   │       └── hooks/            # Custom React hooks

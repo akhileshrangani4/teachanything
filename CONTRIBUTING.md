@@ -85,17 +85,35 @@ npm run stop             # Stop PostgreSQL container
 ```
 teachanything/
 ├── apps/
-│   └── web/                  # Next.js 16 application
-│       └── src/
-│           ├── app/          # App Router pages & API routes
-│           ├── server/       # tRPC routers & middleware
-│           ├── lib/          # Utilities (auth, email, rate-limit, qstash)
-│           ├── components/   # React components (Shadcn UI)
-│           └── hooks/        # Custom React hooks
+│   ├── web/                  # Next.js 16 application
+│   │   └── src/
+│   │       ├── app/          # App Router pages & API routes
+│   │       ├── server/       # Server-only code (see below)
+│   │       ├── lib/          # Client-safe utilities
+│   │       ├── components/   # React components (Shadcn UI)
+│   │       └── hooks/        # Custom React hooks
+│   └── docs/                 # User guides (Blume static site, served at /docs)
 ├── packages/
 │   ├── db/                   # Database package (Drizzle schema)
-│   └── ai/                   # AI package (LLM client, RAG pipeline)
+│   ├── ai/                   # AI package (LLM client, RAG pipeline, crawler)
+│   └── logger/               # Shared structured logger
 ```
+
+**`server/` vs `lib/` is a boundary, not a preference.** `server/` holds
+everything that must never reach the browser: tRPC routers, Better Auth, the
+chat turn pipeline, the file and crawl processors, rate limiting, QStash, and
+storage clients. `lib/` holds only what is safe to bundle for the client, so it
+reads no server-only environment variables and imports no database, Redis,
+Resend or Supabase client.
+
+Two practical consequences:
+
+- A client component may import a **type** from `server/` but never a value.
+- Reading a non-`NEXT_PUBLIC_*` key off `env` in client-reachable code throws at
+  runtime in the browser rather than silently returning `undefined`. If you need
+  a value on the client, add it to the schema with a `NEXT_PUBLIC_` prefix.
+
+Nothing currently enforces this at build time, so it is on review to catch.
 
 ## Pull Request Workflow
 
