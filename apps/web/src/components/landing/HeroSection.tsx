@@ -6,7 +6,6 @@ import { buildGradient } from "./hero/utils";
 import HeroHeading from "./hero/HeroHeading";
 import HeroSubheading from "./hero/HeroSubheading";
 import HeroCTA from "./hero/HeroCTA";
-import UsedBySection from "./hero/UsedBySection";
 
 export default function HeroSection() {
   return (
@@ -32,9 +31,6 @@ export default function HeroSection() {
           <HeroSubheading text="Build open-access, course-specific AI chatbots using open-source LLMs for your students. Upload materials and customize responses—all for free." />
           <HeroCTA />
         </motion.div>
-
-        {/* Used By Section at Bottom */}
-        <UsedBySection />
       </div>
     </section>
   );

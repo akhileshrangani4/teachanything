@@ -12,6 +12,10 @@ import {
 } from "@/server/crawl-processor";
 import { checkRateLimit, crawlSourceRateLimit } from "@/server/rate-limit";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
+import {
+  CRAWL_SOURCES_PER_HOUR,
+  formatRetryAfter,
+} from "@/lib/constants/rate-limits";
 import { crawlSourceInput } from "../validation";
 
 export const addCrawlSourceProcedure = protectedProcedure
@@ -21,7 +25,7 @@ export const addCrawlSourceProcedure = protectedProcedure
       await assertOwnedChatbot(ctx, input.chatbotId);
     }
 
-    const { success } = await checkRateLimit(
+    const { success, reset } = await checkRateLimit(
       crawlSourceRateLimit,
       ctx.session.user.id,
       { action: "addCrawlSource" },
@@ -29,7 +33,7 @@ export const addCrawlSourceProcedure = protectedProcedure
     if (!success) {
       throw new TRPCError({
         code: "TOO_MANY_REQUESTS",
-        message: "Too many crawl sources created. Please try again later.",
+        message: `You've reached the hourly limit of ${CRAWL_SOURCES_PER_HOUR} full website crawls. This is an hourly limit, not a total cap on web sources. You can start another crawl in ${formatRetryAfter(reset)}.`,
       });
     }
 

@@ -20,6 +20,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  CRAWL_SOURCES_PER_HOUR,
+  MANUAL_URLS_PER_HOUR,
+} from "@/lib/constants/rate-limits";
 
 export function AddFullWebSourceDialog({
   open,
@@ -65,7 +69,8 @@ export function AddFullWebSourceDialog({
           <DialogTitle>Add Full Web Source</DialogTitle>
           <DialogDescription>
             Enter a starting URL. The crawler follows links from that page
-            within the limits you set.
+            within the limits you set. You can start up to{" "}
+            {CRAWL_SOURCES_PER_HOUR} crawls per hour.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -149,14 +154,17 @@ export function SingleWebpageForm({
   onSubmit: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <div className="flex-1">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+      <div className="flex-1 space-y-1">
         <Input
           placeholder="Add a single page URL..."
           value={manualUrl}
           onChange={(event) => onManualUrlChange(event.target.value)}
           onKeyDown={(event) => event.key === "Enter" && onSubmit()}
         />
+        <p className="text-xs text-muted-foreground">
+          Up to {MANUAL_URLS_PER_HOUR} single webpages per hour.
+        </p>
       </div>
       <TooltipProvider>
         <Tooltip>

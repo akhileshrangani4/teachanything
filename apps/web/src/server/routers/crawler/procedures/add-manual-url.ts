@@ -14,6 +14,10 @@ import {
 } from "@/server/crawl-processor";
 import { checkRateLimit, manualUrlRateLimit } from "@/server/rate-limit";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
+import {
+  MANUAL_URLS_PER_HOUR,
+  formatRetryAfter,
+} from "@/lib/constants/rate-limits";
 import { manualUrlInput } from "../validation";
 
 export const addManualUrlProcedure = protectedProcedure
@@ -23,7 +27,7 @@ export const addManualUrlProcedure = protectedProcedure
       await assertOwnedChatbot(ctx, input.chatbotId);
     }
 
-    const { success } = await checkRateLimit(
+    const { success, reset } = await checkRateLimit(
       manualUrlRateLimit,
       ctx.session.user.id,
       { action: "addManualUrl" },
@@ -31,7 +35,7 @@ export const addManualUrlProcedure = protectedProcedure
     if (!success) {
       throw new TRPCError({
         code: "TOO_MANY_REQUESTS",
-        message: "Too many manual URL additions. Please try again later.",
+        message: `You've reached the hourly limit of ${MANUAL_URLS_PER_HOUR} single webpages. This is an hourly limit, not a total cap on web sources. You can add another page in ${formatRetryAfter(reset)}.`,
       });
     }
 

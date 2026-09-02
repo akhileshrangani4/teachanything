@@ -6,6 +6,10 @@ import { AddWebSourcePanel } from "@/components/dashboard/web-sources/AddWebSour
 import { useWebSourcesPage } from "./use-web-sources-page";
 import { WebSourcesEmptyState } from "./web-sources-empty-state";
 import { WebSourcesList } from "./web-sources-list";
+import {
+  CRAWL_SOURCES_PER_HOUR,
+  MANUAL_URLS_PER_HOUR,
+} from "@/lib/constants/rate-limits";
 
 export default function WebSourcesPage() {
   const page = useWebSourcesPage();
@@ -55,6 +59,16 @@ export default function WebSourcesPage() {
               {showInlineLoading && (
                 <Loader2 className="ml-2 inline h-4 w-4 animate-spin align-[-2px] text-muted-foreground" />
               )}
+            </p>
+            <p className="text-muted-foreground mt-2 text-sm">
+              You can add up to {CRAWL_SOURCES_PER_HOUR} full website crawls and{" "}
+              {MANUAL_URLS_PER_HOUR} single webpages per hour. These are hourly
+              limits, not a cap on how many web sources you can have in total.
+            </p>
+            <p className="text-muted-foreground mt-2 text-sm">
+              You can add up to {CRAWL_SOURCES_PER_HOUR} full website crawls and{" "}
+              {MANUAL_URLS_PER_HOUR} single webpages per hour. These are hourly
+              limits, not a cap on how many web sources you can have in total.
             </p>
           </div>
           <AddWebSourcePanel />

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.34.10](https://github.com/akhileshrangani4/teachanything/compare/v1.34.9...v1.34.10) (2026-09-01)
+
+
+### Bug Fixes
+
+* **landing:** replace university logo carousel with a plain-text list ([#474](https://github.com/akhileshrangani4/teachanything/issues/474)) ([2d736a2](https://github.com/akhileshrangani4/teachanything/commit/2d736a2f8ed0c4045fcd505e75770b80e6d7c550))
+
+## [1.34.9](https://github.com/akhileshrangani4/teachanything/compare/v1.34.8...v1.34.9) (2026-08-24)
+
+
+### Bug Fixes
+
+* **crawler:** name the hourly web source limits in errors and on the dashboard ([#459](https://github.com/akhileshrangani4/teachanything/issues/459)) ([6c629b3](https://github.com/akhileshrangani4/teachanything/commit/6c629b3f46b58b56a780f7cceb93900f2e68101e))
+
 ## [1.34.8](https://github.com/akhileshrangani4/teachanything/compare/v1.34.7...v1.34.8) (2026-08-22)
 
 

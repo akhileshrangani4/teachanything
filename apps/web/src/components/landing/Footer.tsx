@@ -6,7 +6,7 @@ export default function Footer() {
     <footer className="py-12 px-6 md:px-12 bg-white">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-muted-foreground">
             <Link
               href="/login"
               className="hover:text-foreground transition-colors"

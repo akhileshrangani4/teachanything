@@ -2,6 +2,11 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { isServiceAvailable, env } from "@/lib/env";
 import { logWarn } from "@/lib/logger";
+import {
+  CRAWL_SOURCES_PER_HOUR,
+  MANUAL_URLS_PER_HOUR,
+  RECRAWLS_PER_HOUR,
+} from "@/lib/constants/rate-limits";
 
 // Conditionally create Redis client and rate limiters
 const redis = isServiceAvailable("redis")
@@ -127,21 +132,21 @@ export const downloadRateLimit = createLimiter({
 // Rate limiter for adding crawl sources
 // 5 per hour per user (each triggers many page fetches + embeddings)
 export const crawlSourceRateLimit = createLimiter({
-  window: [5, "1 h"],
+  window: [CRAWL_SOURCES_PER_HOUR, "1 h"],
   prefix: "@ratelimit/crawl-source",
 });
 
 // Rate limiter for adding manual URLs
 // 20 per hour per user
 export const manualUrlRateLimit = createLimiter({
-  window: [20, "1 h"],
+  window: [MANUAL_URLS_PER_HOUR, "1 h"],
   prefix: "@ratelimit/manual-url",
 });
 
 // Rate limiter for recrawl requests
 // 5 per hour per user
 export const recrawlRateLimit = createLimiter({
-  window: [5, "1 h"],
+  window: [RECRAWLS_PER_HOUR, "1 h"],
   prefix: "@ratelimit/recrawl",
 });
 
