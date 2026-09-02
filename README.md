@@ -72,8 +72,11 @@ For developers, see [SETUP.md](./SETUP.md) (environment configuration), [CONTRIB
 teachanything/
 ├── apps/web/           # Next.js application
 │   ├── src/app/        # Pages & API routes
+│   ├── src/server/     # Server-only: tRPC routers, auth, chat pipeline,
+│   │                   #   file/crawl processors, rate limiting, jobs
+│   ├── src/lib/        # Client-safe utilities (env, logger, validation, formatting)
 │   ├── src/components/ # UI components
-│   └── src/server/     # tRPC routers (incl. rag-context, analytics, crawler)
+│   └── src/hooks/      # React hooks
 ├── apps/docs/          # User guides (Blume static site, served at /docs)
 ├── packages/
 │   ├── db/             # Database schema (Drizzle, pgvector, HNSW index)
