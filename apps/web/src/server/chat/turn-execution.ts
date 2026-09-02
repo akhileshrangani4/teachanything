@@ -31,6 +31,27 @@ export type TurnState = {
 };
 
 /**
+ * End the turn as failed: mark it for persistence AND write an error part.
+ *
+ * Both halves matter. `createUIMessageStream` only synthesises an error part
+ * when its `execute` promise REJECTS (`result.catch(...)` in the AI SDK); a
+ * normal return ends the stream with no error and no finish chunk, so the
+ * student's text just stops. Every exit that sets `executeErrored` therefore
+ * has to write the part itself.
+ */
+export function failTurn(
+  args: {
+    state: TurnState;
+    writer: UIMessageStreamWriter<StudyUIMessage>;
+    onStreamError: (error: unknown) => string;
+  },
+  error: unknown,
+): void {
+  args.state.executeErrored = true;
+  args.writer.write({ type: "error", errorText: args.onStreamError(error) });
+}
+
+/**
  * Run the streaming part of a chat turn against `writer`: the primary agentic
  * / study-tool generation, its quiz salvage paths, the empty-response
  * fallback, and the closing finish chunk.
@@ -78,7 +99,7 @@ export async function executeTurn(args: {
     writer: args.writer,
   });
   if (!primaryOutcome.ok) {
-    args.state.executeErrored = true;
+    failTurn(args, primaryOutcome.error);
     return;
   }
   const {
@@ -155,7 +176,7 @@ export async function executeTurn(args: {
       writer: args.writer,
     });
     if (!fallback.ok) {
-      args.state.executeErrored = true;
+      failTurn(args, fallback.error);
       return;
     }
     // Both turns produced nothing user-visible. Ending with a normal
@@ -168,13 +189,7 @@ export async function executeTurn(args: {
         "empty response after fallback",
         { chatbotId: args.chatbotId, modelId: args.modelId },
       );
-      args.state.executeErrored = true;
-      args.writer.write({
-        type: "error",
-        errorText: args.onStreamError(
-          new Error("Model produced no response text"),
-        ),
-      });
+      failTurn(args, new Error("Model produced no response text"));
       return;
     }
     finishReason = fallback.finishReason;

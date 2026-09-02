@@ -51,9 +51,14 @@ async function forward(
       writer.write(value);
     }
   } finally {
-    // Leaving early means a write or a transform threw. Releasing the lock
-    // alone leaves the upstream model call generating into a stream nobody
-    // reads; cancel propagates the stop back through the pipeline.
+    // Leaving early means a transform threw, or the source stream errored.
+    // Cancel so this pipeline stops being consumed and its transforms are torn
+    // down rather than left holding a lock. It does NOT stop the provider
+    // request: `toUIMessageStream` reads one branch of a `tee()`, and a tee
+    // only cancels its source once BOTH branches are cancelled. `abortSignal`
+    // is what actually ends generation. Cancelling also skips the transform's
+    // `flush()`, which drops a buffered leaked quiz -- harmless here, because
+    // this path ends the turn with an error part instead of an answer.
     if (!drained) {
       await reader.cancel().catch(() => {});
     }
@@ -90,7 +95,7 @@ export async function runPrimaryTurn(args: {
       primarySteps: Array<StepResult<ToolSet>>;
       finishReason: PromiseLike<FinishReason>;
     }
-  | { ok: false }
+  | { ok: false; error: unknown }
 > {
   const primary = streamText({
     model: args.aiClient.getModel(args.modelId),
@@ -169,7 +174,7 @@ export async function runPrimaryTurn(args: {
     };
   } catch (error) {
     logError(error, "primary turn failed", { chatbotId: args.chatbotId });
-    return { ok: false };
+    return { ok: false, error };
   }
 }
 
@@ -246,7 +251,8 @@ export async function runFallbackTurn(args: {
   onStreamError: (error: unknown) => string;
   writer: UIMessageStreamWriter<StudyUIMessage>;
 }): Promise<
-  { ok: true; finishReason: FinishReason; text: string } | { ok: false }
+  | { ok: true; finishReason: FinishReason; text: string }
+  | { ok: false; error: unknown }
 > {
   const fallback = streamText({
     model: args.aiClient.getModel(args.modelId),
@@ -272,6 +278,6 @@ export async function runFallbackTurn(args: {
     return { ok: true, finishReason: await fallback.finishReason, text };
   } catch (error) {
     logError(error, "fallback turn failed", { chatbotId: args.chatbotId });
-    return { ok: false };
+    return { ok: false, error };
   }
 }
