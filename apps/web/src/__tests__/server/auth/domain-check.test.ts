@@ -88,6 +88,30 @@ describe("enforceAllowedDomain", () => {
     ).resolves.toBeUndefined();
   });
 
+  // ALLOWED_EMAIL_DOMAINS="" (an operator disabling the allowlist) and a
+  // trailing comma both put a blank entry in the list. getApprovedDomains does
+  // not filter, so the blank has to be dropped before the "is the list empty"
+  // gate: otherwise the gate is armed by an entry that matches nothing and
+  // every registration on the instance is refused.
+  it("treats an all-blank allowlist as no allowlist", async () => {
+    for (const domains of [[""], ["", "  "], ["   "]]) {
+      mockGetApprovedDomains.mockReturnValue(domains);
+      await expect(
+        enforceAllowedDomain({ email: "anyone@example.com" }),
+      ).resolves.toBeUndefined();
+    }
+  });
+
+  it("ignores a blank entry without disarming the real ones", async () => {
+    mockGetApprovedDomains.mockReturnValue([".edu", ""]);
+    await expect(
+      enforceAllowedDomain({ email: "student@gwu.edu" }),
+    ).resolves.toBeUndefined();
+    await expect(
+      enforceAllowedDomain({ email: "attacker@example.com" }),
+    ).rejects.toThrow(/not authorized for registration/);
+  });
+
   it("is case-insensitive on both sides", async () => {
     mockGetApprovedDomains.mockReturnValue(["@GWU.edu"]);
     await expect(

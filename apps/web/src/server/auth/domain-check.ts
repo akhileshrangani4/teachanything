@@ -49,10 +49,18 @@ export async function enforceAllowedDomain(user: { email: string }) {
 
   // Also check database for allowed domains
   const dbDomains = await db.select().from(schema.approvedDomains);
+  // Drop blank entries BEFORE the length gate below. `getApprovedDomains()`
+  // splits the env var on commas without filtering, so `ALLOWED_EMAIL_DOMAINS=""`
+  // yields `[""]` and a trailing comma yields a stray `""`. A list of nothing
+  // but blanks has to read as "no allowlist configured", which the gate already
+  // treats as "allow everyone"; leaving the blank in would arm the gate against
+  // an entry that matches nothing and refuse every registration on the instance.
   const allAllowedDomains = [
     ...allowedDomains,
     ...dbDomains.map((d) => d.domain),
-  ];
+  ]
+    .map((domain) => domain.trim())
+    .filter(Boolean);
 
   const isAllowedDomain = allAllowedDomains.some((domain) =>
     matchesAllowedDomain(emailDomain, domain),
