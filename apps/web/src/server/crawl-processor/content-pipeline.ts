@@ -7,7 +7,7 @@ import {
   chatbotFileAssociations,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, or, sql } from "drizzle-orm";
 import {
   fetchAndExtractPage,
   fetchRobots,
@@ -21,19 +21,47 @@ import { mergeCrawledPageMetadata } from "../crawler-metadata-sql";
 import { CrawledPageDeletedError, getFriendlyErrorMessage } from "./errors";
 
 /**
- * The page statuses `processCrawlPage` is willing to claim.
+ * The page statuses `processCrawlPage` claims unconditionally.
  *
  * `pending` is the normal dispatch state (both page-discovery and
  * add-manual-url set it before dispatching) and `failed` lets a QStash retry
- * re-attempt a transient failure. Every other status is a page that is either
- * held by another worker (`processing`) or already settled (`completed`,
- * `skipped`, `blocked`), and re-entering one of those is what orphans files.
+ * re-attempt a transient failure. `completed` / `skipped` / `blocked` are
+ * settled and never reclaimed: re-entering one of those is what orphans files.
+ * `processing` is the interesting case, handled by the lease below.
  *
  * Exported for the test that pins it against the full crawled_page_status
  * enum, so adding a status forces a decision here rather than defaulting it
  * into the refused set by accident.
  */
 export const CLAIMABLE_PAGE_STATUSES = ["pending", "failed"] as const;
+
+/**
+ * How long a `processing` claim is honoured before another delivery may take
+ * the page over.
+ *
+ * Two very different situations both leave a row in `processing`, and the only
+ * thing separating them is age:
+ *
+ *   - a duplicate QStash delivery arriving while the first worker is running.
+ *     Seconds old. Must be refused, or both workers insert a `userFiles` row
+ *     and the loser is orphaned -- the bug the conditional claim exists to fix.
+ *   - a worker killed mid-run (the page job embeds every chunk and can exceed
+ *     the function's budget). Minutes old, and nothing will ever finish it.
+ *     Refusing this one costs the page its retry: it sits untouched until
+ *     `sweepStaleCrawls` gives up and marks it `failed` 30 minutes later,
+ *     where before the conditional claim a plain retry just re-processed it.
+ *
+ * So the predicate is "not `processing`, OR `processing` and older than the
+ * lease". `updatedAt` is stamped once at claim and not touched again until the
+ * page settles, so it measures exactly how long this claim has been held.
+ *
+ * CONSTRAINT: this MUST exceed `maxDuration` on
+ * `app/api/jobs/crawl-process-page/route.ts` (300s). A lease shorter than the
+ * function's own budget lets a retry reclaim a page whose first worker is
+ * still alive and still about to insert, which is the duplicate bug again.
+ * 10 minutes leaves 2x headroom. `crawl-page-lease.test.ts` pins the relation.
+ */
+export const PROCESSING_LEASE_MS = 10 * 60 * 1000;
 
 /** Mark a page blocked (SSRF guard or robots.txt) and stop processing it. */
 async function markPageBlocked(
@@ -111,22 +139,27 @@ export async function processCrawlPage(params: {
     // null, and both insert a `userFiles` row -- the loser is orphaned,
     // carrying chunks and chatbot associations that nothing points at.
     //
-    // `pending` is the normal dispatch state (page-discovery and add-manual-url
-    // both set it) and `failed` lets a QStash retry re-attempt a transient
-    // failure. Everything else is refused: `processing` means another worker
-    // holds it, and `completed` / `skipped` / `blocked` mean a duplicate
-    // delivery arrived after the page was already settled.
-    //
-    // Refusing `processing` cannot wedge a page: a worker that dies without
-    // reaching its catch is recovered by sweepStaleCrawls, which flips stuck
-    // `pending` / `processing` pages to `failed` (crawl-stale.ts).
+    // Claimable: `pending` (the normal dispatch state) and `failed` (so a
+    // retry can re-attempt a transient failure), plus a `processing` row whose
+    // lease has expired, which means the worker holding it died without
+    // reaching its catch. `completed` / `skipped` / `blocked` are settled and
+    // a duplicate delivery for one of those is refused outright.
+    // See PROCESSING_LEASE_MS for why the lease has to be longer than the
+    // function's own budget.
+    const leaseCutoff = new Date(Date.now() - PROCESSING_LEASE_MS);
     const claimed = await db
       .update(crawledPages)
       .set({ status: "processing", updatedAt: new Date() })
       .where(
         and(
           eq(crawledPages.id, crawledPageId),
-          inArray(crawledPages.status, [...CLAIMABLE_PAGE_STATUSES]),
+          or(
+            inArray(crawledPages.status, [...CLAIMABLE_PAGE_STATUSES]),
+            and(
+              eq(crawledPages.status, "processing"),
+              lt(crawledPages.updatedAt, leaseCutoff),
+            ),
+          ),
         ),
       )
       .returning({ userFileId: crawledPages.userFileId });
@@ -134,7 +167,9 @@ export async function processCrawlPage(params: {
     if (claimed.length === 0) {
       logInfo("Crawled page already claimed or settled, skipping", {
         crawledPageId,
-        status: page.status,
+        // Read before the claim, so in the racing case it reports the status
+        // this worker saw rather than the one that refused it.
+        statusBeforeClaim: page.status,
       });
       return;
     }
