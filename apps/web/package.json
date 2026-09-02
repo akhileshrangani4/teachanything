@@ -55,7 +55,7 @@
     "fflate": "^0.8.3",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
-    "nanoid": "^5.1.11",
+    "nanoid": "^5.1.16",
     "next": "^16.2.7",
     "postcss": "^8.5.15",
     "react": "^19.2.5",
