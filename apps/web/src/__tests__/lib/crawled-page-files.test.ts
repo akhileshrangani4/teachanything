@@ -3,7 +3,7 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import {
   excludeCrawledPages,
   isCrawledPagePath,
-} from "@/lib/crawled-page-files";
+} from "@/server/crawled-page-files";
 
 /**
  * `userFiles` mixes uploads and crawled pages, and `storagePath` is the only

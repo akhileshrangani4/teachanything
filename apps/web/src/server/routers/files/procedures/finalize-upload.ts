@@ -3,17 +3,17 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { userFiles } from "@teachanything/db/schema";
-import { createSupabaseClient } from "@/lib/supabase";
+import { createSupabaseClient } from "@/server/supabase";
 import { isServiceAvailable } from "@/lib/env";
 import {
   localFileExists,
   getLocalFileSize,
   deleteLocalFile,
-} from "@/lib/local-storage";
-import { publishQStashJob } from "@/lib/qstash";
+} from "@/server/local-storage";
+import { publishQStashJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
-import { processFile } from "@/lib/file-processor";
+import { processFile } from "@/server/file-processor";
 
 /**
  * Finalize upload after client has uploaded to storage.

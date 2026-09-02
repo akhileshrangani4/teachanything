@@ -17,7 +17,7 @@ const {
   sweepStaleCrawls,
   STALE_PRE_CRAWL_MS,
   STALE_CRAWL_MS,
-} = await import("@/lib/crawl-stale");
+} = await import("@/server/crawl-stale");
 
 const NOW = new Date("2026-08-16T12:00:00.000Z");
 

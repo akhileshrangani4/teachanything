@@ -9,7 +9,7 @@ import { PaginationControls } from "@/components/dashboard/files/PaginationContr
 import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useFilePolling } from "@/hooks/useFilePolling";
+import { getFilePollingInterval } from "@/hooks/file-polling";
 import { keepPreviousData } from "@tanstack/react-query";
 import type { RouterOutputs } from "@/lib/trpc";
 
@@ -53,7 +53,7 @@ export function QuickAddFilesSection({
       ...queryParams,
     },
     {
-      refetchInterval: useFilePolling(),
+      refetchInterval: getFilePollingInterval(),
       placeholderData: keepPreviousData,
     },
   );

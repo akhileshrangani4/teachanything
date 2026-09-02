@@ -16,7 +16,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { SourceBadge } from "@/components/ui/source-badge";
 import { FileText, AlertTriangle } from "lucide-react";
 import { dedupeSourcesByFileName } from "@/lib/message-sources";
-import { extractText } from "@/server/chat/ui-messages";
+import { extractText } from "@/lib/chat/ui-messages";
 
 interface ChatMessageProps {
   message: StudyUIMessage;

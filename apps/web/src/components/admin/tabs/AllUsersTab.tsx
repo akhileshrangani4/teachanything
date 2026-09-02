@@ -29,8 +29,8 @@ import { UserDetailsDialog } from "../components/UserDetailsDialog";
 import type { UserDetailsDialogState } from "../types/user-details";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { TableSkeleton } from "@/components/ui/skeletons";
+import { useUserConfirms } from "./all-users-tab/use-user-confirms";
+import { UsersTableSkeleton } from "./all-users-tab/users-table-skeleton";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -81,41 +81,13 @@ export function AllUsersTab() {
     user: null,
   });
 
-  const confirmPromote = async () => {
-    if (!dialogs.promote.userId) return;
-    await userActions.promoteToAdmin.mutateAsync({
-      userId: dialogs.promote.userId,
-    });
-    closers.closePromote();
-  };
-
-  const confirmDemote = async () => {
-    if (!dialogs.demote.userId) return;
-    await userActions.demoteFromAdmin.mutateAsync({
-      userId: dialogs.demote.userId,
-    });
-    closers.closeDemote();
-  };
-
-  const confirmDisable = async () => {
-    if (!dialogs.disable.userId) return;
-    await userActions.disableUser.mutateAsync({
-      userId: dialogs.disable.userId,
-    });
-    closers.closeDisable();
-  };
-
-  const confirmEnable = async () => {
-    if (!dialogs.enable.userId) return;
-    await userActions.enableUser.mutateAsync({ userId: dialogs.enable.userId });
-    closers.closeEnable();
-  };
-
-  const confirmDelete = async () => {
-    if (!dialogs.delete.userId) return;
-    await userActions.deleteUser.mutateAsync({ userId: dialogs.delete.userId });
-    closers.closeDelete();
-  };
+  const {
+    confirmPromote,
+    confirmDemote,
+    confirmDisable,
+    confirmEnable,
+    confirmDelete,
+  } = useUserConfirms({ userActions, dialogs, closers });
 
   const isAnyActionPending =
     userActions.promoteToAdmin.isPending ||
@@ -163,32 +135,7 @@ export function AllUsersTab() {
           />
 
           {usersLoading && !usersData ? (
-            <TableSkeleton
-              minWidth={700}
-              header={
-                <>
-                  <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-10 shrink-0" />
-                  <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-20 shrink-0" />
-                  <Skeleton className="h-4 w-14 shrink-0 ml-auto" />
-                </>
-              }
-              row={
-                <>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-4 w-24" />
-                  </div>
-                  <Skeleton className="h-4 w-32 shrink-0" />
-                  <Skeleton className="h-5 w-14 rounded-full shrink-0" />
-                  <Skeleton className="h-5 w-20 rounded-full shrink-0" />
-                  <Skeleton className="h-4 w-20 shrink-0" />
-                  <Skeleton className="h-8 w-20 rounded-md shrink-0 ml-auto" />
-                </>
-              }
-            />
+            <UsersTableSkeleton />
           ) : allUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Users className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />

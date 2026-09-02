@@ -1,7 +1,7 @@
 import { protectedProcedure } from "@/server/trpc";
 import { TRPCError } from "@trpc/server";
 import { logInfo, logError } from "@/lib/logger";
-import { timeOutStuckCrawl } from "@/lib/crawl-stale";
+import { timeOutStuckCrawl } from "@/server/crawl-stale";
 import { crawlSourceIdInput } from "../validation";
 import { assertOwnedCrawlSource } from "../helpers";
 

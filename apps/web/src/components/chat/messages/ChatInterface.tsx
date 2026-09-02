@@ -14,7 +14,7 @@ import { MessageAvatar } from "@/components/ui/message";
 import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
-import { deriveStatusLine } from "@/server/chat-helpers";
+import { deriveStatusLine } from "@/lib/chat/helpers";
 import type { ChatStatus } from "ai";
 import { toast } from "sonner";
 

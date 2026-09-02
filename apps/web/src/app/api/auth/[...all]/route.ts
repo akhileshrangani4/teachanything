@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -6,7 +6,7 @@ import {
   loginRateLimit,
   registrationRateLimit,
   checkRateLimit,
-} from "@/lib/rate-limit";
+} from "@/server/rate-limit";
 
 const { GET: authGET, POST: authPOST } = toNextJsHandler(auth);
 

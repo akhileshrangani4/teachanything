@@ -5,7 +5,7 @@ import { type RouterOutputs } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { resolveSourceDisplayName } from "@/lib/crawler-metadata";
-import { SourceStatusBadge } from "./status-badges";
+import { SourceStatusBadge } from "./StatusBadges";
 
 type AttachableSource =
   RouterOutputs["crawler"]["getAttachableSources"][number];

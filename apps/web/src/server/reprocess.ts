@@ -1,7 +1,10 @@
 import { eq, and, or, isNull, sql } from "drizzle-orm";
 import { userFiles, chatbotFileAssociations } from "@teachanything/db/schema";
-import { CURRENT_PROCESSING_VERSION, processFile } from "@/lib/file-processor";
-import { publishQStashJob } from "@/lib/qstash";
+import {
+  CURRENT_PROCESSING_VERSION,
+  processFile,
+} from "@/server/file-processor";
+import { publishQStashJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logError, logInfo } from "@/lib/logger";
 import type { db as DbType } from "@teachanything/db";

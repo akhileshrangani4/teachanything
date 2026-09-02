@@ -6,13 +6,16 @@ import {
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
 import { verifyUrlReachable } from "@teachanything/ai/crawler";
-import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
-import { checkRateLimit, crawlSourceRateLimit } from "@/lib/rate-limit";
+import {
+  dispatchCrawlJob,
+  processCrawlDiscovery,
+} from "@/server/crawl-processor";
+import { checkRateLimit, crawlSourceRateLimit } from "@/server/rate-limit";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import {
   CRAWL_SOURCES_PER_HOUR,
   formatRetryAfter,
 } from "@/lib/constants/rate-limits";
-import { assertOwnedChatbot } from "../helpers";
 import { crawlSourceInput } from "../validation";
 
 export const addCrawlSourceProcedure = protectedProcedure

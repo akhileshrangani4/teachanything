@@ -1,14 +1,13 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and, sql, inArray } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
+import { eq, sql, inArray } from "drizzle-orm";
 import {
-  chatbots,
   crawlSources,
   crawledPages,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { sweepStaleCrawls } from "@/lib/crawl-stale";
+import { sweepStaleCrawls } from "@/server/crawl-stale";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 
 export const getCrawlSourcesProcedure = protectedProcedure
   .input(z.object({ chatbotId: z.string().uuid() }))
@@ -17,23 +16,7 @@ export const getCrawlSourcesProcedure = protectedProcedure
     // source spinning (and undeletable) indefinitely.
     await sweepStaleCrawls({ db: ctx.db, userId: ctx.session.user.id });
 
-    const [chatbot] = await ctx.db
-      .select()
-      .from(chatbots)
-      .where(
-        and(
-          eq(chatbots.id, input.chatbotId),
-          eq(chatbots.userId, ctx.session.user.id),
-        ),
-      )
-      .limit(1);
-
-    if (!chatbot) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Chatbot not found",
-      });
-    }
+    await assertOwnedChatbot(ctx, input.chatbotId);
 
     const sources = await ctx.db
       .select({

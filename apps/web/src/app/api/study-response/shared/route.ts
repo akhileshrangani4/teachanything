@@ -2,7 +2,10 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@teachanything/db";
 import { chatbots } from "@teachanything/db/schema";
 import { logError } from "@/lib/logger";
-import { checkRateLimit, publicStudyResponseRateLimit } from "@/lib/rate-limit";
+import {
+  checkRateLimit,
+  publicStudyResponseRateLimit,
+} from "@/server/rate-limit";
 import { getTrustedClientIp } from "@/lib/get-client-ip";
 import {
   sharedStudyRequestSchema,

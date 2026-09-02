@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@teachanything/db";
 import { userFiles } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
-import { createSupabaseClient } from "@/lib/supabase";
-import { isLocalStorageMode, readLocalFile } from "@/lib/local-storage";
+import { createSupabaseClient } from "@/server/supabase";
+import { isLocalStorageMode, readLocalFile } from "@/server/local-storage";
 import { logError, logInfo } from "@/lib/logger";
-import { downloadRateLimit, checkRateLimit } from "@/lib/rate-limit";
+import { downloadRateLimit, checkRateLimit } from "@/server/rate-limit";
 import { env } from "@/lib/env";
+import { requireApiSession } from "@/server/api-auth";
 
 /**
  * Secure file download endpoint
@@ -24,19 +24,19 @@ export async function GET(
     const { fileId } = await params;
 
     // Validate session - this is checked on EVERY request
-    const session = await auth.api.getSession({
-      headers: request.headers,
-    });
-
-    if (!session || !session.user) {
+    const authResult = await requireApiSession(request.headers);
+    if (!authResult.ok) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const user = authResult.user;
 
     // Rate limiting (skipped when Redis is not configured)
     const { success, reset } = await checkRateLimit(
       downloadRateLimit,
-      session.user.id,
-      { context: "file-download" },
+      user.id,
+      {
+        context: "file-download",
+      },
     );
     if (!success) {
       const retryAfter = Math.ceil((reset - Date.now()) / 1000);
@@ -57,9 +57,7 @@ export async function GET(
     const [file] = await db
       .select()
       .from(userFiles)
-      .where(
-        and(eq(userFiles.id, fileId), eq(userFiles.userId, session.user.id)),
-      )
+      .where(and(eq(userFiles.id, fileId), eq(userFiles.userId, user.id)))
       .limit(1);
 
     if (!file) {
@@ -120,7 +118,7 @@ export async function GET(
     if (env.NODE_ENV === "production") {
       logInfo("File downloaded", {
         fileId: fileId,
-        userId: session.user.id,
+        userId: user.id,
         fileName: file.fileName,
         fileSize: file.fileSize,
       });

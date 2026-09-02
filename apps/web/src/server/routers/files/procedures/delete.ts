@@ -7,9 +7,9 @@ import {
   chatbotFileAssociations,
   fileChunks,
 } from "@teachanything/db/schema";
-import { createSupabaseClient } from "@/lib/supabase";
+import { createSupabaseClient } from "@/server/supabase";
 import { isServiceAvailable } from "@/lib/env";
-import { deleteLocalFile } from "@/lib/local-storage";
+import { deleteLocalFile } from "@/server/local-storage";
 import { logInfo, logError } from "@/lib/logger";
 
 /**
