@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.12](https://github.com/akhileshrangani4/teachanything/compare/v1.34.11...v1.34.12) (2026-09-06)
+
+
+### Bug Fixes
+
+* **web-sources:** remove duplicated hourly limit paragraph ([#494](https://github.com/akhileshrangani4/teachanything/issues/494)) ([580b36b](https://github.com/akhileshrangani4/teachanything/commit/580b36b8711e9659826ac9e7e167607a7e037cf2))
+
 ## [1.34.11](https://github.com/akhileshrangani4/teachanything/compare/v1.34.10...v1.34.11) (2026-09-02)
 
 
