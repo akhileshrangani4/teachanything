@@ -65,11 +65,6 @@ export default function WebSourcesPage() {
               {MANUAL_URLS_PER_HOUR} single webpages per hour. These are hourly
               limits, not a cap on how many web sources you can have in total.
             </p>
-            <p className="text-muted-foreground mt-2 text-sm">
-              You can add up to {CRAWL_SOURCES_PER_HOUR} full website crawls and{" "}
-              {MANUAL_URLS_PER_HOUR} single webpages per hour. These are hourly
-              limits, not a cap on how many web sources you can have in total.
-            </p>
           </div>
           <AddWebSourcePanel />
         </div>
