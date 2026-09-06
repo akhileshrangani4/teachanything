@@ -9,7 +9,7 @@ import {
   STALE_PENDING_MS,
   STALE_PROCESSING_ERROR,
   STALE_PROCESSING_MS,
-} from "@/lib/file-stale";
+} from "@/server/file-stale";
 
 const NOW = new Date("2026-08-19T12:00:00.000Z");
 const ago = (ms: number) => new Date(NOW.getTime() - ms);

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { crawledPages, userFiles } from "@teachanything/db/schema";
 import { renameCrawledPageInput } from "../validation";
 import { assertOwnedCrawledPage } from "../helpers";
-import { mergeCrawledPageMetadata } from "@/lib/crawler-metadata-sql";
+import { mergeCrawledPageMetadata } from "@/server/crawler-metadata-sql";
 
 export const renameCrawledPageProcedure = protectedProcedure
   .input(renameCrawledPageInput)

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { crawlSources } from "@teachanything/db/schema";
 import { renameCrawlSourceInput } from "../validation";
 import { assertOwnedCrawlSource } from "../helpers";
-import { mergeCrawlSourceMetadata } from "@/lib/crawler-metadata-sql";
+import { mergeCrawlSourceMetadata } from "@/server/crawler-metadata-sql";
 
 export const renameCrawlSourceProcedure = protectedProcedure
   .input(renameCrawlSourceInput)

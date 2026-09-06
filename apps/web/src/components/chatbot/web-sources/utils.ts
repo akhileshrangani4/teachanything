@@ -15,13 +15,16 @@ export function parsePatternList(value: string): string[] {
     : [];
 }
 
-export function hasActiveCrawl(sources: Array<{ status: string }>): boolean {
-  return sources.some(
-    (source) =>
-      source.status === "pending" ||
-      source.status === "discovering" ||
-      source.status === "crawling",
+export function isActiveSource(source: { status: string }): boolean {
+  return (
+    source.status === "pending" ||
+    source.status === "discovering" ||
+    source.status === "crawling"
   );
+}
+
+export function hasActiveCrawl(sources: Array<{ status: string }>): boolean {
+  return sources.some(isActiveSource);
 }
 
 export function getFriendlyError(error: { message: string }): string {

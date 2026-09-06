@@ -4,25 +4,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
-import { Clock, CheckCircle, XCircle, Eye, MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Clock } from "lucide-react";
 import { PaginationControls } from "../../dashboard/files/PaginationControls";
 import {
   TableToolbar,
@@ -30,30 +18,19 @@ import {
   type PendingUserSortBy,
 } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
-import { UserAvatarCell, UserEmailCell } from "../components/UserCells";
 import { StatsHeader } from "../components/StatsHeader";
 import { useUserStats } from "../hooks/useUserStats";
-import { UserDetailsDialog } from "../components/UserDetailsDialog";
 import type { UserDetailsDialogState } from "../types/user-details";
 import { useState, useCallback } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableSkeleton } from "@/components/ui/skeletons";
+import { usePendingUsersActions } from "./pending-users-tab/use-pending-users-actions";
+import { PendingUserRow } from "./pending-users-tab/pending-user-row";
+import { PendingUsersDialogs } from "./pending-users-tab/pending-users-dialogs";
+import { EMPTY_USER_DIALOG, type PendingUser } from "./pending-users-tab/types";
 
 const ITEMS_PER_PAGE = 10;
-
-type PendingUser = {
-  id: string;
-  name: string | null;
-  email: string;
-  title: string | null;
-  institutionalAffiliation: string | null;
-  department: string | null;
-  facultyWebpage: string | null;
-  country: string | null;
-  status: "pending" | "approved" | "rejected";
-  createdAt: Date;
-};
 
 export function PendingUsersTab() {
   const { state, searchInput, actions, queryParams } =
@@ -61,30 +38,6 @@ export function PendingUsersTab() {
       { defaultSortBy: "createdAt", defaultSortDir: "desc" },
       ITEMS_PER_PAGE,
     );
-
-  const [approveDialog, setApproveDialog] = useState<{
-    isOpen: boolean;
-    userId: string | null;
-    userName: string | null;
-    userEmail: string | null;
-  }>({
-    isOpen: false,
-    userId: null,
-    userName: null,
-    userEmail: null,
-  });
-
-  const [rejectDialog, setRejectDialog] = useState<{
-    isOpen: boolean;
-    userId: string | null;
-    userName: string | null;
-    userEmail: string | null;
-  }>({
-    isOpen: false,
-    userId: null,
-    userName: null,
-    userEmail: null,
-  });
 
   const [detailsDialog, setDetailsDialog] = useState<UserDetailsDialogState>({
     isOpen: false,
@@ -112,73 +65,26 @@ export function PendingUsersTab() {
   const totalCount = pendingUsersData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  const approveUser = trpc.admin.approveUser.useMutation({
-    onSuccess: () => {
-      // If we're on the last page and it becomes empty after approval, go to previous page
-      const newTotalCount = totalCount - 1;
-      const newTotalPages = Math.ceil(newTotalCount / ITEMS_PER_PAGE);
-      if (state.page >= newTotalPages && state.page > 0) {
-        actions.setPage(newTotalPages - 1);
-      }
-      refetch();
-      refetchStats();
-      toast.success("User approved successfully", {
-        description: "The user has been notified via email",
-      });
-    },
-    onError: (error) => {
-      toast.error("Failed to approve user", {
-        description: error.message,
-      });
-    },
+  const {
+    approveDialog,
+    setApproveDialog,
+    rejectDialog,
+    setRejectDialog,
+    isApproving,
+    isRejecting,
+    approveError,
+    rejectError,
+    handleApprove,
+    handleReject,
+    confirmApprove,
+    confirmReject,
+  } = usePendingUsersActions({
+    totalCount,
+    currentPage: state.page,
+    setPage: actions.setPage,
+    refetchUsers: refetch,
+    refetchStats,
   });
-
-  const rejectUser = trpc.admin.rejectUser.useMutation({
-    onSuccess: () => {
-      // If we're on the last page and it becomes empty after rejection, go to previous page
-      const newTotalCount = totalCount - 1;
-      const newTotalPages = Math.ceil(newTotalCount / ITEMS_PER_PAGE);
-      if (state.page >= newTotalPages && state.page > 0) {
-        actions.setPage(newTotalPages - 1);
-      }
-      refetch();
-      refetchStats();
-      toast.success("User rejected", {
-        description: "The user has been notified via email",
-      });
-    },
-    onError: (error) => {
-      toast.error("Failed to reject user", {
-        description: error.message,
-      });
-    },
-  });
-
-  const handleApprove = (
-    userId: string,
-    userName: string,
-    userEmail: string,
-  ) => {
-    setApproveDialog({
-      isOpen: true,
-      userId,
-      userName,
-      userEmail,
-    });
-  };
-
-  const handleReject = (
-    userId: string,
-    userName: string,
-    userEmail: string,
-  ) => {
-    setRejectDialog({
-      isOpen: true,
-      userId,
-      userName,
-      userEmail,
-    });
-  };
 
   const openUserDetails = useCallback(
     (user: PendingUser) => {
@@ -200,28 +106,6 @@ export function PendingUsersTab() {
     },
     [setDetailsDialog],
   );
-
-  const confirmApprove = async () => {
-    if (!approveDialog.userId) return;
-    await approveUser.mutateAsync({ userId: approveDialog.userId });
-    setApproveDialog({
-      isOpen: false,
-      userId: null,
-      userName: null,
-      userEmail: null,
-    });
-  };
-
-  const confirmReject = async () => {
-    if (!rejectDialog.userId) return;
-    await rejectUser.mutateAsync({ userId: rejectDialog.userId });
-    setRejectDialog({
-      isOpen: false,
-      userId: null,
-      userName: null,
-      userEmail: null,
-    });
-  };
 
   return (
     <>
@@ -245,14 +129,14 @@ export function PendingUsersTab() {
           />
         </CardHeader>
         <CardContent>
-          {approveUser.error && (
+          {approveError && (
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{approveUser.error.message}</AlertDescription>
+              <AlertDescription>{approveError.message}</AlertDescription>
             </Alert>
           )}
-          {rejectUser.error && (
+          {rejectError && (
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{rejectUser.error.message}</AlertDescription>
+              <AlertDescription>{rejectError.message}</AlertDescription>
             </Alert>
           )}
 
@@ -343,149 +227,14 @@ export function PendingUsersTab() {
                   </TableHeader>
                   <TableBody>
                     {pendingUsers.map((user) => (
-                      <TableRow
+                      <PendingUserRow
                         key={user.id}
-                        className="hover:bg-muted/50 transition-colors"
-                      >
-                        <TableCell>
-                          <UserAvatarCell
-                            name={user.name}
-                            email={user.email}
-                            showEmail={!!user.name}
-                          />
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <UserEmailCell email={user.email} />
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className="flex items-center gap-1.5 w-fit font-medium"
-                          >
-                            <Clock className="h-3.5 w-3.5" />
-                            <span className="capitalize">{user.status}</span>
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <div className="text-sm">
-                            <p>
-                              {new Date(user.createdAt).toLocaleDateString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(user.createdAt).toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {/* Desktop Actions */}
-                          <div className="hidden md:flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openUserDetails(user)}
-                              className="gap-2"
-                            >
-                              <Eye className="h-4 w-4" />
-                              Details
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleApprove(
-                                  user.id,
-                                  user.name || "User",
-                                  user.email,
-                                )
-                              }
-                              disabled={
-                                approveUser.isPending || rejectUser.isPending
-                              }
-                              className="gap-2"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                handleReject(
-                                  user.id,
-                                  user.name || "User",
-                                  user.email,
-                                )
-                              }
-                              disabled={
-                                approveUser.isPending || rejectUser.isPending
-                              }
-                              className="gap-2"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              Reject
-                            </Button>
-                          </div>
-                          {/* Mobile Dropdown Actions */}
-                          <div className="md:hidden flex justify-end">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={
-                                    approveUser.isPending ||
-                                    rejectUser.isPending
-                                  }
-                                  aria-label="Open user actions menu"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent
-                                align="end"
-                                side="bottom"
-                                className="w-[160px]"
-                                sideOffset={5}
-                                collisionPadding={16}
-                              >
-                                <DropdownMenuItem
-                                  onClick={() => openUserDetails(user)}
-                                  className="cursor-pointer"
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Details
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleApprove(
-                                      user.id,
-                                      user.name || "User",
-                                      user.email,
-                                    )
-                                  }
-                                  className="cursor-pointer text-green-600"
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Approve
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    handleReject(
-                                      user.id,
-                                      user.name || "User",
-                                      user.email,
-                                    )
-                                  }
-                                  className="cursor-pointer text-destructive"
-                                >
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Reject
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                        user={user}
+                        isAnyActionPending={isApproving || isRejecting}
+                        onOpenDetails={openUserDetails}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
+                      />
                     ))}
                   </TableBody>
                 </Table>
@@ -504,66 +253,17 @@ export function PendingUsersTab() {
         </CardContent>
       </Card>
 
-      {/* Approval Confirmation Dialog */}
-      <ConfirmationDialog
-        open={approveDialog.isOpen}
-        onOpenChange={(open) =>
-          !open &&
-          setApproveDialog({
-            isOpen: false,
-            userId: null,
-            userName: null,
-            userEmail: null,
-          })
-        }
-        onConfirm={confirmApprove}
-        title="Approve User"
-        description={
-          <>
-            Are you sure you want to approve{" "}
-            <strong>{approveDialog.userName}</strong> ({approveDialog.userEmail}
-            )? They will be notified via email and granted access to the system.
-          </>
-        }
-        confirmText="Approve"
-        variant="default"
-        loading={approveUser.isPending}
-      />
-
-      {/* Rejection Confirmation Dialog */}
-      <ConfirmationDialog
-        open={rejectDialog.isOpen}
-        onOpenChange={(open) =>
-          !open &&
-          setRejectDialog({
-            isOpen: false,
-            userId: null,
-            userName: null,
-            userEmail: null,
-          })
-        }
-        onConfirm={confirmReject}
-        title="Reject User"
-        description={
-          <>
-            Are you sure you want to reject{" "}
-            <strong>{rejectDialog.userName}</strong> ({rejectDialog.userEmail})?
-            They will be notified via email and will not be able to access the
-            system.
-          </>
-        }
-        confirmText="Reject"
-        variant="destructive"
-        loading={rejectUser.isPending}
-      />
-
-      {/* User Details Dialog */}
-      <UserDetailsDialog
-        open={detailsDialog.isOpen}
-        onOpenChange={(open) =>
-          !open && setDetailsDialog({ isOpen: false, user: null })
-        }
-        user={detailsDialog.user}
+      <PendingUsersDialogs
+        approveDialog={approveDialog}
+        rejectDialog={rejectDialog}
+        detailsDialog={detailsDialog}
+        onCloseApprove={() => setApproveDialog(EMPTY_USER_DIALOG)}
+        onCloseReject={() => setRejectDialog(EMPTY_USER_DIALOG)}
+        onCloseDetails={() => setDetailsDialog({ isOpen: false, user: null })}
+        onConfirmApprove={confirmApprove}
+        onConfirmReject={confirmReject}
+        isApproving={isApproving}
+        isRejecting={isRejecting}
       />
     </>
   );

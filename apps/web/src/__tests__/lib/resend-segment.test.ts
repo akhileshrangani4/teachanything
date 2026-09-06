@@ -11,7 +11,7 @@ jest.unstable_mockModule("@/lib/logger", () => ({
   logError: mockLogError,
 }));
 
-const { syncUserToResendSegment } = await import("@/lib/resend-segment");
+const { syncUserToResendSegment } = await import("@/server/resend-segment");
 
 const mockFetch = jest.fn<typeof fetch>();
 

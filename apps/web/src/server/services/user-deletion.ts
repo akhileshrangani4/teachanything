@@ -5,9 +5,9 @@ import {
   approvedDomains,
   emailDeliveries,
 } from "@teachanything/db/schema";
-import { createSupabaseClient } from "@/lib/supabase";
+import { createSupabaseClient } from "@/server/supabase";
 import { isServiceAvailable } from "@/lib/env";
-import { sendAccountDeletedEmail } from "@/lib/email";
+import { sendAccountDeletedEmail } from "@/server/email";
 import { logInfo, logError } from "@/lib/logger";
 import type { db as DbType } from "@teachanything/db";
 

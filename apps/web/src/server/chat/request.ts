@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import type { StudyUIMessage } from "./study-tools";
+import { sessionIdSchema } from "@/server/utils";
 
 /** Matches the prior tRPC `message` bound (z.string().min(1).max(16000)). */
 const MAX_MESSAGE_CHARS = 16000;
@@ -38,23 +39,17 @@ const incomingMessageSchema = z.object({
     .optional(),
 });
 
-/** Session ids are client-minted nanoids; mirror the prior tRPC bound. */
-const sessionIdSchema = z
-  .string()
-  .min(10)
-  .max(30)
-  .regex(/^[a-zA-Z0-9_-]+$/)
-  .optional();
+const optionalSessionIdSchema = sessionIdSchema.optional();
 
 export const authedChatRequestSchema = z.object({
   message: incomingMessageSchema,
-  sessionId: sessionIdSchema,
+  sessionId: optionalSessionIdSchema,
   chatbotId: z.string().uuid(),
 });
 
 export const sharedChatRequestSchema = z.object({
   message: incomingMessageSchema,
-  sessionId: sessionIdSchema,
+  sessionId: optionalSessionIdSchema,
   shareToken: z.string().min(1).max(100),
 });
 

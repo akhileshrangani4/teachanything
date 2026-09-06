@@ -12,12 +12,6 @@ import {
   getContextAroundInput,
 } from "./retrieval-tool-schemas";
 
-export {
-  searchDocumentsInput,
-  getPageInput,
-  getContextAroundInput,
-} from "./retrieval-tool-schemas";
-
 export interface RetrievalToolContext {
   db: typeof DbType;
   fileIds: string[];

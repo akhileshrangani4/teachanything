@@ -1,109 +1,13 @@
-import type { InferUIMessageChunk } from "ai";
 import { nanoid } from "nanoid";
 import { parseQuizFromText } from "@/lib/quiz";
-import type { StudyUIMessage } from "./study-tools";
-
-type Chunk = InferUIMessageChunk<StudyUIMessage>;
-
-/**
- * Openers that can begin a leaked `showQuiz` call inside assistant text:
- * a bare JSON object, a code fence, or the pseudo-call syntax
- * (`showQuiz(quiz_title=...)`) that Llama-family models emit.
- */
-const MARKERS = ["{", "```", "showQuiz("] as const;
-
-/**
- * How much streamed text stays buffered while watching for a marker. A marker
- * can be split across deltas ("[show" + "Quiz("), so the tail that could be an
- * incomplete marker -- one char less than the longest one, counting the `[` a
- * pseudo-call is usually wrapped in -- must not be released yet.
- */
-const MARKER_LOOKBACK = "[showQuiz(".length - 1;
-
-/**
- * Hard cap on held text. A 5-question quiz serializes to ~2KB, so anything past
- * this is not the leak we're looking for; bail out rather than withhold an
- * unbounded stretch of a real answer.
- */
-const MAX_HELD_CHARS = 8_000;
-
-/**
- * How far past `showQuiz(` to wait for `quiz_title` / `questions` before
- * concluding the text isn't a real call. Generous enough for a pretty-printed
- * call that puts its first arg on the next line.
- */
-const PSEUDO_ARG_WINDOW = 48;
-
-/**
- * How much held text has to accumulate before the "Building your quiz..."
- * placeholder is shown.
- *
- * The point of the threshold is to separate a real leak from a short non-quiz
- * JSON blob. A five-question quiz with explanations serializes to 2KB or more,
- * while the quiz-shaped false positives in `leak-false-positives.test.ts` are
- * all under 200 characters, so nothing in that corpus can reach this.
- */
-const QUIZ_PLACEHOLDER_MIN_CHARS = 600;
-
-/**
- * Whether held text is a quiz being written, confidently enough to show the
- * placeholder for it.
- *
- * Stricter than `stillPlausible`, which only asks "could this still be a quiz".
- * Both keys are required: a blob carrying just one of them (a `questions` array
- * with no title, a title with no questions) is a shape the parser rejects
- * anyway.
- */
-function isQuizInProgress(held: string): boolean {
-  return (
-    held.length >= QUIZ_PLACEHOLDER_MIN_CHARS &&
-    /quiz_title/.test(held) &&
-    /"question"\s*:/.test(held)
-  );
-}
-
-/** Index where the earliest leak marker starts in `text`, or -1. */
-function findMarker(text: string): number {
-  let earliest = -1;
-  for (const marker of MARKERS) {
-    const at = text.indexOf(marker);
-    if (at !== -1 && (earliest === -1 || at < earliest)) earliest = at;
-  }
-  // A pseudo-call usually arrives bracketed -- `[showQuiz(...)]` -- so include
-  // the bracket in the held text instead of stranding it in the prose.
-  if (earliest > 0 && text[earliest - 1] === "[") return earliest - 1;
-  return earliest;
-}
-
-/**
- * Whether held text can still turn out to be a leaked quiz. The markers are
- * deliberately broad, so this bails out of the inevitable false positives as
- * soon as the text rules a quiz out -- a `{` in prose or LaTeX, a ```js code
- * block -- and the rest of that answer goes back to streaming live.
- */
-function stillPlausible(held: string): boolean {
-  const text = held.replace(/^\s+/, "");
-  if (text.length === 0) return true;
-  if (text[0] === "{") {
-    // A JSON object opens with a quoted key (or closes immediately). Prose like
-    // "the set {a, b}" or "\frac{1}{2}" is ruled out at the very next char.
-    return /^\{\s*(?:"|\}|$)/.test(text);
-  }
-  if (text[0] === "`") {
-    const newline = text.indexOf("\n");
-    // Fence info-line still arriving: keep holding, but not indefinitely.
-    if (newline === -1) return text.length <= 20;
-    const info = text.slice(0, newline).replace(/`/g, "").trim().toLowerCase();
-    return info === "" || info === "json";
-  }
-  // Pseudo-call: rule it out as soon as the arg list proves it isn't a quiz, so
-  // prose that merely mentions `showQuiz()` doesn't buffer the rest of the
-  // block. A real call names one of its two args up front; anything that closes
-  // its parens, or runs past the window, without naming either is not a call.
-  const args = text.slice(text.indexOf("(") + 1);
-  if (args.length < PSEUDO_ARG_WINDOW && !args.includes(")")) return true;
-  return /quiz_title|questions/.test(args);
-}
+import type { Chunk } from "./ui-chunks";
+import {
+  findMarker,
+  isQuizInProgress,
+  stillPlausible,
+  MARKER_LOOKBACK,
+  MAX_HELD_CHARS,
+} from "./quiz-leak-detection";
 
 /**
  * Recover a quiz a model emitted as text instead of a native `showQuiz` tool
@@ -196,7 +100,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
         type: "tool-output-error",
         toolCallId: placeholderCallId,
         errorText: "The quiz could not be built. Please ask again.",
-      } as Chunk);
+      });
       placeholderCallId = null;
       pending = [];
       pendingText = "";
@@ -223,15 +127,20 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
   ) => {
     if (placeholderCallId || markerAt === -1 || !isQuizInProgress(held)) return;
 
+    // markerAt is only ever set while an open text block is being buffered,
+    // so blockId is provably non-null here; the check keeps TS honest.
+    const id = blockId;
+    if (id === null) return;
+
     const preamble = pendingText.slice(0, markerAt);
     if (preamble.trim().length > 0) {
       emitStart(controller);
       controller.enqueue({
         type: "text-delta",
-        id: blockId,
+        id,
         delta: preamble,
-      } as Chunk);
-      controller.enqueue({ type: "text-end", id: blockId } as Chunk);
+      });
+      controller.enqueue({ type: "text-end", id });
     }
     // The preamble is out, and the rest is the leak. `pending` holds the raw
     // chunks that would have been replayed as prose; they are no longer needed.
@@ -244,7 +153,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
       type: "tool-input-start",
       toolCallId: placeholderCallId,
       toolName: "showQuiz",
-    } as Chunk);
+    });
   };
 
   /**
@@ -272,17 +181,20 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     // reset to 0 and this is empty.
     const preamble = pendingText.slice(0, markerAt);
     if (!placeholderCallId && (startEmitted || preamble.trim().length > 0)) {
+      const id = blockId;
       emitStart(controller);
-      if (preamble.length > 0) {
+      if (id !== null && preamble.length > 0) {
         controller.enqueue({
           type: "text-delta",
-          id: blockId,
+          id,
           delta: preamble,
-        } as Chunk);
+        });
       }
-      controller.enqueue(
-        endChunk ?? ({ type: "text-end", id: blockId } as Chunk),
-      );
+      if (endChunk) {
+        controller.enqueue(endChunk);
+      } else if (id !== null) {
+        controller.enqueue({ type: "text-end", id });
+      }
     }
     // Reuse the placeholder's id so the skeleton becomes the finished quiz
     // instead of a second widget appearing beneath it.
@@ -291,7 +203,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
       toolCallId: placeholderCallId ?? nanoid(),
       toolName: "showQuiz",
       input: quiz,
-    } as Chunk);
+    });
     placeholderCallId = null;
     return true;
   };
@@ -310,7 +222,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     const textPartOpen = placeholderCallId === null;
     flushPending(controller);
     if (id !== null && textPartOpen) {
-      controller.enqueue({ type: "text-end", id } as Chunk);
+      controller.enqueue({ type: "text-end", id });
     }
   };
 

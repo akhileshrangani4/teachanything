@@ -11,13 +11,13 @@ import {
   dispatchCrawlJob,
   processCrawlPage,
   finalizeCrawlSource,
-} from "@/lib/crawl-processor";
-import { checkRateLimit, manualUrlRateLimit } from "@/lib/rate-limit";
+} from "@/server/crawl-processor";
+import { checkRateLimit, manualUrlRateLimit } from "@/server/rate-limit";
+import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import {
   MANUAL_URLS_PER_HOUR,
   formatRetryAfter,
 } from "@/lib/constants/rate-limits";
-import { assertOwnedChatbot } from "../helpers";
 import { manualUrlInput } from "../validation";
 
 export const addManualUrlProcedure = protectedProcedure

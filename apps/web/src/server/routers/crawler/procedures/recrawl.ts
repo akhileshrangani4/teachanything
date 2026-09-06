@@ -2,8 +2,11 @@ import { protectedProcedure } from "@/server/trpc";
 import { eq, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { crawlSources } from "@teachanything/db/schema";
-import { dispatchCrawlJob, processCrawlDiscovery } from "@/lib/crawl-processor";
-import { checkRateLimit, recrawlRateLimit } from "@/lib/rate-limit";
+import {
+  dispatchCrawlJob,
+  processCrawlDiscovery,
+} from "@/server/crawl-processor";
+import { checkRateLimit, recrawlRateLimit } from "@/server/rate-limit";
 import {
   RECRAWLS_PER_HOUR,
   formatRetryAfter,

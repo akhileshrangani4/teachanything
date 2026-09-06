@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.34.11](https://github.com/akhileshrangani4/teachanything/compare/v1.34.10...v1.34.11) (2026-09-02)
+
+
+### Bug Fixes
+
+* harden pre-existing job, stream, upload and auth paths ([#461](https://github.com/akhileshrangani4/teachanything/issues/461)) ([b8bd3b2](https://github.com/akhileshrangani4/teachanything/commit/b8bd3b20216601718922b89c8601097fe12d953f))
+
+
+### Documentation
+
+* bring the docs in line with the post-refactor tree ([#482](https://github.com/akhileshrangani4/teachanything/issues/482)) ([6b99f9b](https://github.com/akhileshrangani4/teachanything/commit/6b99f9b6f4a2edc09c9fada66726f48e05adb29a))
+
+
+### Code Refactoring
+
+* architecture cleanup — dedup, layering, file-size guideline, hardening ([#458](https://github.com/akhileshrangani4/teachanything/issues/458)) ([73fc52d](https://github.com/akhileshrangani4/teachanything/commit/73fc52df4e90244e22994e3f5e9a7c5f0f93b194))
+
 ## [1.34.10](https://github.com/akhileshrangani4/teachanything/compare/v1.34.9...v1.34.10) (2026-09-01)
 
 

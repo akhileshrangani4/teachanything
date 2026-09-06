@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { crawlSources } from "@teachanything/db/schema";
 import { logInfo } from "@/lib/logger";
-import { checkRateLimit, recrawlRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, recrawlRateLimit } from "@/server/rate-limit";
 import { formatRetryAfter } from "@/lib/constants/rate-limits";
 import { assertOwnedCrawlSource } from "../helpers";
 

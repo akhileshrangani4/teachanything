@@ -1,7 +1,6 @@
 import { eq, and, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
-  chatbots,
   crawlSources,
   crawledPages,
   userFiles,
@@ -76,31 +75,6 @@ export async function assertOwnedCrawledPage(
   }
 
   return row;
-}
-
-/**
- * Verifies the caller owns the given chatbot. Returns the chatbot row.
- */
-export async function assertOwnedChatbot(
-  ctx: AuthedContext,
-  chatbotId: string,
-): Promise<typeof chatbots.$inferSelect> {
-  const [chatbot] = await ctx.db
-    .select()
-    .from(chatbots)
-    .where(
-      and(eq(chatbots.id, chatbotId), eq(chatbots.userId, ctx.session.user.id)),
-    )
-    .limit(1);
-
-  if (!chatbot) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Chatbot not found",
-    });
-  }
-
-  return chatbot;
 }
 
 /**

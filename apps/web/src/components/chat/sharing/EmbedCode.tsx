@@ -12,7 +12,7 @@ import {
   generateWidgetHTML,
   generateWidgetReact,
   generateWindowHTML,
-} from "@/components/embed/embedCodeGenerators";
+} from "@/components/embed/embed-code-generators";
 
 interface EmbedCodeProps {
   shareToken: string;

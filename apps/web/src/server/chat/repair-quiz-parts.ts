@@ -1,8 +1,5 @@
-import type { InferUIMessageChunk } from "ai";
 import { isRenderableQuiz, repairQuiz, type Quiz } from "@/lib/quiz";
-import type { StudyUIMessage } from "./study-tools";
-
-type Chunk = InferUIMessageChunk<StudyUIMessage>;
+import type { Chunk } from "./ui-chunks";
 
 /** A chunk that closes out a `showQuiz` input the model never finished. */
 export type ClosingQuizChunk =
@@ -97,7 +94,7 @@ export function repairQuizToolParts(): TransformStream<Chunk, Chunk> {
             toolCallId: part.toolCallId,
             toolName: "showQuiz",
             input: quiz,
-          } as Chunk);
+          });
           return;
         }
       }
@@ -113,13 +110,13 @@ export function repairQuizToolParts(): TransformStream<Chunk, Chunk> {
       }
 
       if (
-        part.type === "tool-input-available" &&
-        part.toolName === "showQuiz" &&
-        !isRenderableQuiz(part.input as Quiz)
+        chunk.type === "tool-input-available" &&
+        chunk.toolName === "showQuiz" &&
+        !isRenderableQuiz(chunk.input as Quiz)
       ) {
-        const quiz = repairQuiz(part.input);
+        const quiz = repairQuiz(chunk.input);
         if (quiz) {
-          controller.enqueue({ ...part, input: quiz } as Chunk);
+          controller.enqueue({ ...chunk, input: quiz });
           return;
         }
       }

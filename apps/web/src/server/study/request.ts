@@ -8,15 +8,9 @@ import {
 } from "@teachanything/db/schema";
 import { StudyRequestError } from "./errors";
 import { STUDY_TOOL_HANDLERS } from "./handlers";
+import { sessionIdSchema } from "@/server/utils";
 
 export { StudyRequestError };
-
-/** Mirror the chat send-path session id bound (client-minted nanoid). */
-const sessionIdSchema = z
-  .string()
-  .min(10)
-  .max(30)
-  .regex(/^[a-zA-Z0-9_-]+$/);
 
 /**
  * A student's study-tool response from the client. The `response` shape is
@@ -106,10 +100,20 @@ export async function recordStudyResponse(params: {
     throw new StudyRequestError("Conversation not found", 404);
   }
 
-  const rows = await db
+  // Pre-filter server-side with jsonb containment: only rows whose parts
+  // array actually contains this toolCallId are transferred and parsed.
+  // A long conversation no longer ships every row's metadata into Node.
+  const rows: StudyMessageRow[] = await db
     .select({ metadata: messages.metadata })
     .from(messages)
-    .where(eq(messages.conversationId, conversation.id));
+    .where(
+      and(
+        eq(messages.conversationId, conversation.id),
+        sql`${messages.metadata}->'parts' @> ${JSON.stringify([
+          { toolCallId },
+        ])}::jsonb`,
+      ),
+    );
 
   const part = findToolPartByToolCallId(rows, toolCallId);
   if (!part) {

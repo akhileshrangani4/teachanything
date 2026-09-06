@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Table,
@@ -13,7 +12,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { trpc } from "@/lib/trpc";
 import { useSession } from "@/lib/auth-client";
-import { toast } from "sonner";
 import { ChatbotTableRow } from "../ChatbotTableRow";
 import { PaginationControls } from "../../dashboard/files/PaginationControls";
 import {
@@ -27,15 +25,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TableSkeleton } from "@/components/ui/skeletons";
 import { Bot } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useDeleteChatbot } from "./all-chatbots-tab/use-delete-chatbot";
 
 const ITEMS_PER_PAGE = 10;
-
-type DeleteDialogState = {
-  isOpen: boolean;
-  chatbotId: string | null;
-  chatbotName: string | null;
-  ownerName: string | null;
-};
 
 export function AllChatbotsTab() {
   const { data: session } = useSession();
@@ -46,14 +38,6 @@ export function AllChatbotsTab() {
       { defaultSortBy: "createdAt", defaultSortDir: "desc" },
       ITEMS_PER_PAGE,
     );
-
-  const [deleteChatbotDialog, setDeleteChatbotDialog] =
-    useState<DeleteDialogState>({
-      isOpen: false,
-      chatbotId: null,
-      chatbotName: null,
-      ownerName: null,
-    });
 
   const {
     data: chatbotsData,
@@ -75,54 +59,13 @@ export function AllChatbotsTab() {
   const featuredCount = chatbotsData?.featuredCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  const deleteChatbot = trpc.admin.deleteChatbot.useMutation({
-    onSuccess: () => {
-      refetchChatbots();
-      toast.success("Chatbot deleted successfully", {
-        description: "The chatbot and all associated data have been removed",
-      });
-    },
-    onError: (error) => {
-      toast.error("Failed to delete chatbot", {
-        description: error.message,
-      });
-    },
-  });
-
-  const handleDeleteChatbot = (
-    chatbotId: string,
-    chatbotName: string,
-    ownerName: string,
-  ) => {
-    setDeleteChatbotDialog({
-      isOpen: true,
-      chatbotId,
-      chatbotName,
-      ownerName,
-    });
-  };
-
-  const confirmDeleteChatbot = async () => {
-    if (!deleteChatbotDialog.chatbotId) return;
-    await deleteChatbot.mutateAsync({
-      chatbotId: deleteChatbotDialog.chatbotId,
-    });
-    setDeleteChatbotDialog({
-      isOpen: false,
-      chatbotId: null,
-      chatbotName: null,
-      ownerName: null,
-    });
-  };
-
-  const closeDeleteDialog = () => {
-    setDeleteChatbotDialog({
-      isOpen: false,
-      chatbotId: null,
-      chatbotName: null,
-      ownerName: null,
-    });
-  };
+  const {
+    deleteChatbot,
+    deleteChatbotDialog,
+    handleDeleteChatbot,
+    confirmDeleteChatbot,
+    closeDeleteDialog,
+  } = useDeleteChatbot({ refetchChatbots });
 
   return (
     <>

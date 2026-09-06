@@ -17,7 +17,7 @@ process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
 
 // Every boundary the module pulls in at import time. Nothing here is exercised;
 // the point is to be able to import the route at all.
-jest.unstable_mockModule("@/lib/qstash", () => ({
+jest.unstable_mockModule("@/server/qstash", () => ({
   qstashReceiver: null,
   verifyQStashSignature: jest.fn(),
 }));
@@ -26,7 +26,7 @@ jest.unstable_mockModule("@/lib/logger", () => ({
   logInfo: jest.fn(),
   logWarn: jest.fn(),
 }));
-jest.unstable_mockModule("@/lib/file-processor", () => ({
+jest.unstable_mockModule("@/server/file-processor", () => ({
   processFile: jest.fn(),
 }));
 
