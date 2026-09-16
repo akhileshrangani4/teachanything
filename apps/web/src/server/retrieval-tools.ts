@@ -40,17 +40,80 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
     }
   };
 
+  /** Documents attached to this chatbot, id and name. Queried at most once. */
+  let documentIndex: Array<{ fileId: string; fileName: string }> | null = null;
+  const listDocuments = async () => {
+    if (!documentIndex) {
+      documentIndex =
+        ctx.fileIds.length === 0
+          ? []
+          : await ctx.db
+              .select({
+                fileId: userFiles.id,
+                fileName: userFiles.fileName,
+              })
+              .from(userFiles)
+              .where(inArray(userFiles.id, ctx.fileIds));
+    }
+    return documentIndex;
+  };
+
+  /**
+   * Turn whatever the model passed as `fileId` into a real document id.
+   *
+   * The system prompt's file manifest lists NAMES, so a model that never
+   * called `list_documents` has only a name to offer. Accepting one costs a
+   * single cached query and saves a turn; the alternative is an error the
+   * student sees as "Failed to generate a response".
+   *
+   * An unresolvable reference comes back as a tool result listing what does
+   * exist, so the model can correct itself on the next step rather than the
+   * turn ending. Still authorization-safe: nothing outside `ctx.fileIds`
+   * is ever matched.
+   */
+  const resolveFileId = async (
+    reference: string,
+  ): Promise<
+    | { ok: true; fileId: string }
+    | { ok: false; result: { error: string; availableDocuments: string[] } }
+  > => {
+    if (ctx.fileIds.includes(reference)) {
+      return { ok: true, fileId: reference };
+    }
+
+    const documents = await listDocuments();
+    const wanted = reference.trim().toLowerCase();
+    const byName = documents.find(
+      (d) =>
+        d.fileName.toLowerCase() === wanted ||
+        sourceDisplayName(d.fileName, null).toLowerCase() === wanted,
+    );
+
+    if (byName) return { ok: true, fileId: byName.fileId };
+
+    return {
+      ok: false,
+      result: {
+        error: `No document matches "${reference}". Use one of the names below, or call list_documents for their ids.`,
+        availableDocuments: documents.map((d) => d.fileName),
+      },
+    };
+  };
+
   const tools = {
     search_documents: tool({
       description:
         "Search the attached documents for passages. Use the user's exact words or a quoted phrase for specific details. Returns passages with file name, page number, and chunk index. ALWAYS search before claiming something is or is not in the documents.",
       inputSchema: searchDocumentsInput,
       execute: async ({ query, fileId, limit }) => {
-        // Authorization: reject a model-supplied fileId outside this chatbot's
-        // scope, matching get_page / get_context_around (hybridSearch also
-        // intersects defensively).
-        if (fileId && !ctx.fileIds.includes(fileId)) {
-          return { error: "Unknown document" };
+        // Authorization: a model-supplied reference is resolved only against
+        // this chatbot's files, so nothing outside scope can be reached
+        // (hybridSearch also intersects defensively).
+        let resolvedFileId: string | undefined;
+        if (fileId) {
+          const resolved = await resolveFileId(fileId);
+          if (!resolved.ok) return resolved.result;
+          resolvedFileId = resolved.fileId;
         }
         const queryEmbedding = await ctx.aiClient.generateEmbedding(query);
         const results = await hybridSearch({
@@ -59,7 +122,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
           query,
           queryEmbedding,
           limit: limit ?? 6,
-          fileId,
+          fileId: resolvedFileId,
         });
         record(results);
         return results.map((r) => ({
@@ -76,7 +139,13 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         "Return the full text of a specific page of a document. Use when the user asks about a page number or to verify a citation.",
       inputSchema: getPageInput,
       execute: async ({ fileId, pageNumber }) => {
-        if (!ctx.fileIds.includes(fileId)) return { error: "Unknown document" };
+        const resolved = await resolveFileId(fileId);
+        if (!resolved.ok) return resolved.result;
+        if (pageNumber < 1) {
+          return {
+            error: `Pages are numbered from 1, so page ${pageNumber} does not exist.`,
+          };
+        }
         const rows = await ctx.db
           .select({
             content: fileChunks.content,
@@ -87,7 +156,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
           .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
           .where(
             and(
-              eq(fileChunks.fileId, fileId),
+              eq(fileChunks.fileId, resolved.fileId),
               sql`(${fileChunks.metadata} ->> 'pageNumber')::int = ${pageNumber}`,
             ),
           )
@@ -105,7 +174,8 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         "Return a chunk and its immediate neighbors (previous and next) in document order. Use to recover context when a search hit reads as if it starts mid-thought.",
       inputSchema: getContextAroundInput,
       execute: async ({ fileId, chunkIndex }) => {
-        if (!ctx.fileIds.includes(fileId)) return { error: "Unknown document" };
+        const resolved = await resolveFileId(fileId);
+        if (!resolved.ok) return resolved.result;
         const rows = await ctx.db
           .select({
             chunkId: fileChunks.id,
@@ -119,7 +189,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
           .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
           .where(
             and(
-              eq(fileChunks.fileId, fileId),
+              eq(fileChunks.fileId, resolved.fileId),
               inArray(fileChunks.chunkIndex, [
                 chunkIndex - 1,
                 chunkIndex,
@@ -131,7 +201,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         record(
           rows.map((r) => ({
             chunkId: r.chunkId,
-            fileId,
+            fileId: resolved.fileId,
             storagePath: r.storagePath,
             fileName: r.fileName,
             chunkIndex: r.chunkIndex,
