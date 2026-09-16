@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.34.14](https://github.com/akhileshrangani4/teachanything/compare/v1.34.13...v1.34.14) (2026-09-16)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump the actions group across 1 directory with 3 updates ([#499](https://github.com/akhileshrangani4/teachanything/issues/499)) ([fe95634](https://github.com/akhileshrangani4/teachanything/commit/fe95634f1928eacba37eeea4ab36bc33e4056682))
+* **deps:** collapse dependabot into a handful of grouped PRs ([#504](https://github.com/akhileshrangani4/teachanything/issues/504)) ([a3aa9ab](https://github.com/akhileshrangani4/teachanything/commit/a3aa9ab250bb67093cf4edf1fbf08a8811b0d4dc))
+
 ## [1.34.13](https://github.com/akhileshrangani4/teachanything/compare/v1.34.12...v1.34.13) (2026-09-16)
 
 
