@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.34.15](https://github.com/akhileshrangani4/teachanything/compare/v1.34.14...v1.34.15) (2026-09-16)
+
+
+### Bug Fixes
+
+* **auth:** add the account columns Better Auth 1.7 validates for ([#509](https://github.com/akhileshrangani4/teachanything/issues/509)) ([cd3819b](https://github.com/akhileshrangani4/teachanything/commit/cd3819b1b18cb26d671e10b8e138122467453f94))
+* **chat:** accept quoted integers on model-filled tool inputs ([#510](https://github.com/akhileshrangani4/teachanything/issues/510)) ([deccfbf](https://github.com/akhileshrangani4/teachanything/commit/deccfbfce69cea24e40bf54d518b682ed5e17f69))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump the npm-minor-patch group with 47 updates ([#506](https://github.com/akhileshrangani4/teachanything/issues/506)) ([e21fc8b](https://github.com/akhileshrangani4/teachanything/commit/e21fc8bfa03d5a897120c6b4349d0e45a4180b87))
+
 ## [1.34.14](https://github.com/akhileshrangani4/teachanything/compare/v1.34.13...v1.34.14) (2026-09-16)
 
 
