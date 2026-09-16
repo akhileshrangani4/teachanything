@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.17](https://github.com/akhileshrangani4/teachanything/compare/v1.34.16...v1.34.17) (2026-09-16)
+
+
+### Bug Fixes
+
+* **chat:** group source citations per file and cap the visible list ([#513](https://github.com/akhileshrangani4/teachanything/issues/513)) ([ba3dac9](https://github.com/akhileshrangani4/teachanything/commit/ba3dac93b2e67bcf1b0d64b08d5479154709bd42))
+
 ## [1.34.16](https://github.com/akhileshrangani4/teachanything/compare/v1.34.15...v1.34.16) (2026-09-16)
 
 
