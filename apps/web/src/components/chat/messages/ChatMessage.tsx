@@ -13,9 +13,9 @@ import {
   MessageAvatar,
 } from "@/components/ui/message";
 import { CopyButton } from "@/components/ui/copy-button";
-import { SourceBadge } from "@/components/ui/source-badge";
-import { FileText, AlertTriangle } from "lucide-react";
-import { dedupeSourcesByFileName } from "@/lib/message-sources";
+import { AlertTriangle } from "lucide-react";
+import { groupSourcesByFile } from "@/lib/message-sources";
+import { SourceList } from "./source-list";
 import { extractText } from "@/lib/chat/ui-messages";
 
 interface ChatMessageProps {
@@ -74,7 +74,7 @@ function ChatMessageImpl({
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const sources = useMemo(
-    () => dedupeSourcesByFileName(message.metadata?.sources ?? []),
+    () => groupSourcesByFile(message.metadata?.sources ?? []),
     [message.metadata?.sources],
   );
   const truncated = message.metadata?.truncated;
@@ -209,21 +209,7 @@ function ChatMessageImpl({
           )}
 
           {showSources && sources.length > 0 && (
-            <div className="mt-2 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="font-medium">Sources:</span>
-              </div>
-              {sources.map((source, index) => (
-                <SourceBadge
-                  key={index}
-                  source={source}
-                  variant="outline"
-                  showSimilarityTooltip
-                  className="text-xs font-normal"
-                />
-              ))}
-            </div>
+            <SourceList sources={sources} />
           )}
         </div>
       </Message>
