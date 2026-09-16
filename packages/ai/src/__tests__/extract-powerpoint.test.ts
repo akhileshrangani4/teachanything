@@ -190,9 +190,11 @@ describe("extractPowerPoint", () => {
   it("rejects a file whose bytes are not a zip, whatever it was uploaded as", async () => {
     // officeparser sniffs the buffer and dispatches on the real type, so PDF
     // bytes uploaded under the pptx MIME would otherwise reach pdfjs-dist.
+    // The check itself is covered in file-signature.test.ts; this pins that
+    // extraction runs it before the parser ever sees the buffer.
     await expect(
       service.extractContent(Buffer.from("%PDF-1.4\n1 0 obj\n"), PPTX_MIME),
-    ).rejects.toThrow(/do not match its type/);
+    ).rejects.toThrow(/do not match the file type/);
 
     expect(mockParseOffice).not.toHaveBeenCalled();
   });
@@ -200,7 +202,7 @@ describe("extractPowerPoint", () => {
   it("rejects a buffer too short to carry a signature", async () => {
     await expect(
       service.extractContent(Buffer.from([0x50, 0x4b]), PPTX_MIME),
-    ).rejects.toThrow(/do not match its type/);
+    ).rejects.toThrow(/do not match the file type/);
 
     expect(mockParseOffice).not.toHaveBeenCalled();
   });

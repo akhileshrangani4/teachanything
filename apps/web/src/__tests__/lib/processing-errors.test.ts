@@ -23,9 +23,31 @@ describe("sanitizeProcessingError", () => {
       "not a readable PDF",
     ],
     [
+      "empty upload of any type",
+      "Failed to extract content: Empty file: the upload has no content",
+      "This file is empty",
+    ],
+    [
       "non-PDF renamed .pdf",
       'Invalid PDF format: expected PDF header, got "This"',
       "not a readable PDF",
+    ],
+    // `assertFileSignature` rejects these before any parser runs, so the owner
+    // is told the file is mislabelled rather than that its parser failed.
+    [
+      "PDF renamed .pptx",
+      "Failed to extract content: Invalid PowerPoint (.pptx) file: the contents do not match the file type. This may indicate a renamed or corrupted file.",
+      "not the format it says it is",
+    ],
+    [
+      "PDF renamed .docx",
+      "Failed to extract content: Invalid Word (.docx) file: the contents do not match the file type. This may indicate a renamed or corrupted file.",
+      "not the format it says it is",
+    ],
+    [
+      "Office document renamed .txt",
+      "Failed to extract content: Invalid text file: the contents are a zip or Office document, so they do not match the file type. This may indicate a renamed or corrupted file.",
+      "not the format it says it is",
     ],
     [
       "truncated PDF",

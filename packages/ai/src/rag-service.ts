@@ -1,5 +1,6 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { logWarn, logError } from "@teachanything/logger";
+import { assertFileSignature } from "./file-signature";
 import type { OpenRouterClient } from "./openrouter-client";
 import { CHARS_PER_TOKEN } from "./token-budget";
 
@@ -81,6 +82,11 @@ export class RAGService {
    */
   async extractContent(buffer: Buffer, mimeType: string): Promise<string> {
     try {
+      // Nothing upstream has checked that these bytes are the type they were
+      // uploaded as, and the extractors below do not all take the MIME type's
+      // word for it. See file-signature.ts.
+      assertFileSignature(buffer, mimeType);
+
       switch (mimeType) {
         case "application/pdf":
           return await this.extractPDF(buffer);
@@ -231,26 +237,6 @@ export class RAGService {
    */
   private async extractPowerPoint(buffer: Buffer): Promise<string> {
     let sanitizedText: string;
-
-    // `parseOffice` takes a Buffer with no filename, so it sniffs the real type
-    // with `fileTypeFromBuffer` and dispatches on that, ignoring the MIME type
-    // this file was uploaded under. Upload validation only checks that the
-    // declared MIME matches the file NAME, never the bytes, so a file named
-    // `deck.pptx` carrying PDF bytes lands here and officeparser hands it to
-    // pdfjs-dist. Every .pptx is a zip, so requiring the zip signature keeps
-    // the dispatch on the branch we meant to call.
-    const isZip =
-      buffer.length >= 4 &&
-      buffer[0] === 0x50 && // P
-      buffer[1] === 0x4b && // K
-      buffer[2] === 0x03 &&
-      buffer[3] === 0x04;
-
-    if (!isZip) {
-      throw new Error(
-        "Invalid PowerPoint format: expected a .pptx file. The file contents do not match its type.",
-      );
-    }
 
     try {
       // Dynamic import to avoid build-time execution
