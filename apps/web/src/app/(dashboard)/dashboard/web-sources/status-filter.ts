@@ -1,9 +1,5 @@
 export type StatusFilter =
-  | "all"
-  | "crawling"
-  | "completed"
-  | "failed"
-  | "disabled";
+  "all" | "crawling" | "completed" | "failed" | "disabled";
 
 export const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All statuses" },

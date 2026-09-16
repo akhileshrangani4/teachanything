@@ -148,10 +148,7 @@ export async function transcribeAudio({
 }
 
 export type TranscriptionErrorReason =
-  | "timeout"
-  | "network"
-  | "provider_error"
-  | "provider_rate_limit";
+  "timeout" | "network" | "provider_error" | "provider_rate_limit";
 
 export class TranscriptionError extends Error {
   readonly reason: TranscriptionErrorReason;

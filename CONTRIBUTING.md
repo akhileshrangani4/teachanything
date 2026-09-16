@@ -207,15 +207,16 @@ PR titles **must** use [Conventional Commits](https://www.conventionalcommits.or
 ```
 
 **Types:**
-| Type | When to Use | Release |
-|------|-------------|---------|
-| `feat` | New feature | Minor |
-| `fix` | Bug fix | Patch |
-| `refactor` | Code restructuring (no behavior change) | Patch |
-| `perf` | Performance improvement | Patch |
-| `docs` | Documentation only | None |
-| `test` | Adding/updating tests | None |
-| `chore` | Maintenance, dependencies | None |
+
+| Type       | When to Use                             | Release |
+| ---------- | --------------------------------------- | ------- |
+| `feat`     | New feature                             | Minor   |
+| `fix`      | Bug fix                                 | Patch   |
+| `refactor` | Code restructuring (no behavior change) | Patch   |
+| `perf`     | Performance improvement                 | Patch   |
+| `docs`     | Documentation only                      | None    |
+| `test`     | Adding/updating tests                   | None    |
+| `chore`    | Maintenance, dependencies               | None    |
 
 **Scopes:** `files`, `ai`, `chat`, `auth`, `admin`, `analytics`, `crawler`, `web`, `db`
 
