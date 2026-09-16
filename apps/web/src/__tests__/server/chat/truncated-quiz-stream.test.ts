@@ -66,7 +66,7 @@ async function runCutOffTurn(deltaCount: number) {
               })),
               {
                 type: "finish",
-                finishReason: "length",
+                finishReason: { unified: "length", raw: "length" },
                 usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
               },
             ] as never),
@@ -113,7 +113,10 @@ async function runCutOffTurn(deltaCount: number) {
         steps.flatMap((s) => (s.toolCalls ?? []).map((t) => t.toolCallId)),
       );
       for (const chunk of closing) writer.write(chunk);
-      writer.write({ type: "finish", finishReason: "length" } as never);
+      writer.write({
+        type: "finish",
+        finishReason: { unified: "length", raw: "length" },
+      } as never);
     },
   });
 

@@ -1,5 +1,6 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { logWarn, logError } from "@teachanything/logger";
+import { assertFileSignature } from "./file-signature";
 import type { OpenRouterClient } from "./openrouter-client";
 import { CHARS_PER_TOKEN } from "./token-budget";
 
@@ -81,6 +82,11 @@ export class RAGService {
    */
   async extractContent(buffer: Buffer, mimeType: string): Promise<string> {
     try {
+      // Nothing upstream has checked that these bytes are the type they were
+      // uploaded as, and the extractors below do not all take the MIME type's
+      // word for it. See file-signature.ts.
+      assertFileSignature(buffer, mimeType);
+
       switch (mimeType) {
         case "application/pdf":
           return await this.extractPDF(buffer);

@@ -35,6 +35,14 @@ export function sanitizeProcessingError(error: unknown): string {
       "run through OCR (or re-exported as a text PDF) before it can be used."
     );
   }
+  // Both thrown by `assertFileSignature`, before any parser runs. Named ahead of
+  // the PDF branch because the message for a mislabelled PDF matches both.
+  if (msg.includes("do not match the file type")) {
+    return "This file is not the format it says it is. That usually means it was renamed, for example a PDF saved as a .pptx. Open it, save it again in the format its name says, and upload it once more.";
+  }
+  if (msg.includes("Empty file")) {
+    return "This file is empty. Check that it opens on your computer, then upload it again.";
+  }
   if (msg.includes("Invalid PDF") || msg.includes("Empty buffer")) {
     return "This file is not a readable PDF -- it may be truncated or corrupt. Try re-exporting or re-downloading it.";
   }

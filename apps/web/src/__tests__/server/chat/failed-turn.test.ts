@@ -88,7 +88,7 @@ describe("runPrimaryTurn failure contract", () => {
           { type: "text-end", id: "t1" },
           {
             type: "finish",
-            finishReason: "stop",
+            finishReason: { unified: "stop", raw: "stop" },
             usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
           },
         ]),

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.34.13](https://github.com/akhileshrangani4/teachanything/compare/v1.34.12...v1.34.13) (2026-09-16)
+
+
+### Bug Fixes
+
+* **files:** validate magic bytes for every uploaded file type ([#502](https://github.com/akhileshrangani4/teachanything/issues/502)) ([fe606c9](https://github.com/akhileshrangani4/teachanything/commit/fe606c9133789380442df5bc25ee6fd1b27d2f97))
+
+
+### Miscellaneous Chores
+
+* **deps:** group dependabot security updates and clear the advisory backlog ([#497](https://github.com/akhileshrangani4/teachanything/issues/497)) ([8c3c47b](https://github.com/akhileshrangani4/teachanything/commit/8c3c47ba1886957a249645f60c691d3afe63e785))
+
 ## [1.34.12](https://github.com/akhileshrangani4/teachanything/compare/v1.34.11...v1.34.12) (2026-09-06)
 
 
