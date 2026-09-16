@@ -10,28 +10,61 @@ export type SourceCitation = {
   pageNumber?: number | null;
 };
 
+/** A file's citations collapsed into one badge. */
+export type GroupedSource = {
+  fileName: string;
+  /** Pages cited, ascending. Empty for sources with no page concept (web). */
+  pageNumbers: number[];
+  /** Best similarity among the citations that were grouped. */
+  similarity: number;
+  /** Chunk index of that best citation. */
+  chunkIndex: number;
+};
+
 /**
- * Dedupe citations by fileName + pageNumber, keeping the highest-similarity
- * chunk per (file, page). O(n) via Map. The same file cited on different pages
- * yields separate badges; chunks without a page collapse under one key.
+ * Collapse citations to one entry per file, carrying the pages cited.
+ *
+ * This replaced a dedupe that keyed on file AND page, so a reply drawing on
+ * six pages of one PDF produced six badges and a source footer taller than the
+ * answer it belonged to (#397). One badge per file with its page count keeps
+ * the citation honest without letting it dominate the message.
+ *
+ * Sorted by similarity, best first, so a capped list shows the sources that
+ * actually mattered rather than whichever the database returned first.
  */
-export function dedupeSourcesByFileName<
-  T extends {
-    fileName: string;
-    similarity: number;
-    pageNumber?: number | null;
-  },
->(sources: T[]): T[] {
-  if (sources.length === 0) return sources;
-  const best = new Map<string, T>();
-  for (const s of sources) {
-    const key = `${s.fileName}::${s.pageNumber ?? ""}`;
-    const existing = best.get(key);
-    if (!existing || s.similarity > existing.similarity) {
-      best.set(key, s);
+export function groupSourcesByFile(sources: SourceCitation[]): GroupedSource[] {
+  const groups = new Map<string, GroupedSource>();
+
+  for (const source of sources) {
+    const existing = groups.get(source.fileName);
+    const page = source.pageNumber;
+
+    if (!existing) {
+      groups.set(source.fileName, {
+        fileName: source.fileName,
+        pageNumbers: page == null ? [] : [page],
+        similarity: source.similarity,
+        chunkIndex: source.chunkIndex,
+      });
+      continue;
+    }
+
+    if (page != null && !existing.pageNumbers.includes(page)) {
+      existing.pageNumbers.push(page);
+    }
+    // The badge's tooltip and ordering follow the strongest match in the group.
+    if (source.similarity > existing.similarity) {
+      existing.similarity = source.similarity;
+      existing.chunkIndex = source.chunkIndex;
     }
   }
-  return [...best.values()];
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      pageNumbers: [...group.pageNumbers].sort((a, b) => a - b),
+    }))
+    .sort((a, b) => b.similarity - a.similarity);
 }
 
 const WEB_PREFIX = "Web: ";
