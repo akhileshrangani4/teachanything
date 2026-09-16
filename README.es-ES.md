@@ -23,7 +23,7 @@ Teach Anything es una plataforma lista para producción para crear chatbots de I
 
 ## Características
 
-- **7 Modelos de Código Abierto** — Llama 3.3 70B, Llama 4 Maverick, Mistral Large 2411, Qwen 3 235B, GPT-OSS 120B, NVIDIA Nemotron 3 Super, Gemma 4 31B
+- **6 Modelos Soportados** — GPT-OSS 120B, Qwen 3 235B (2507), Llama 3.3 70B, Llama 4 Maverick, DeepSeek V3.2, Mistral Large 3
 - **Pipeline RAG** — Búsqueda semántica indexada con HNSW con atribución de origen, manifiesto de archivos y asignación de tokens para que las respuestas citen el archivo y fragmento exactos de procedencia
 - **Ingesta de Archivos** — PDF, Word, PowerPoint (con límites de diapositivas y notas del ponente) y Markdown, procesados de forma asíncrona mediante QStash
 - **Rastreador Web** — Descubrimiento e indexación automática de páginas desde una URL raíz con límites de profundidad/páginas, patrones de inclusión/exclusión, detección de re-rastreo mediante hash de contenido y exportación a JSON
