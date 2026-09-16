@@ -26,13 +26,13 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
-    "@types/node": "^25.5.0",
+    "@types/node": "^26.5.1",
     "bcryptjs": "^3.0.3",
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "mammoth": "^1.12.3",
-    "pdf-parse": "^1.1.1",
+    "pdf-parse": "^2.4.5",
     "tsx": "^4.23.13",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   }
 }
