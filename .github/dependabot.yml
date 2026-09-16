@@ -14,6 +14,10 @@ updates:
       actions:
         patterns:
           - "*"
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/"
@@ -39,6 +43,13 @@ updates:
         - "ai"
         - "@ai-sdk/*"
     groups:
+      # Security updates ignore open-pull-requests-limit and cooldown, and are
+      # only grouped when a group explicitly opts in. Without this they arrive
+      # one PR per advisory.
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       trpc:
         patterns:
           - "@trpc/*"
