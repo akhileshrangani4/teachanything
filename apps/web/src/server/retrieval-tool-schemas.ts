@@ -34,18 +34,50 @@ const modelInt = (schema: z.ZodNumber) =>
     schema,
   );
 
+/**
+ * A document reference the MODEL supplies.
+ *
+ * Not `.uuid()`, deliberately. The system prompt's file manifest lists file
+ * NAMES, so a model that reads it and passes "syllabus.pdf" here is following
+ * the only identifier it was given. Rejecting that at the schema throws
+ * `AI_InvalidToolInputError`, which ends the student's turn outright; the
+ * tools resolve a name to its id instead, and answer with the document list
+ * when they cannot. See `resolveFileId` in retrieval-tools.ts.
+ */
+const modelFileRef = z
+  .string()
+  .min(1)
+  .describe("The fileId from list_documents, or the document's exact name");
+
 export const searchDocumentsInput = z.object({
   query: z.string().min(1).describe("Search terms or an exact quoted phrase"),
-  fileId: z.string().uuid().optional().describe("Restrict to one document"),
-  limit: modelInt(z.number().int().min(1).max(12)).optional(),
+  fileId: modelFileRef.optional().describe("Restrict to one document"),
+  /**
+   * `.catch` rather than a hard bound: a model asking for 50 passages has
+   * made a harmless mistake, and falling back to the default beats ending the
+   * turn over a tuning knob. The bound stays in the JSON Schema either way, so
+   * the model is still told the real range, and `query` above keeps no
+   * fallback because a search without one means nothing.
+   */
+  limit: modelInt(z.number().int().min(1).max(12))
+    .optional()
+    .catch(6)
+    .describe("Passages to return, 1 to 12"),
 });
 
+/**
+ * Page and chunk numbers get no fallback, deliberately. Quietly answering
+ * about page 6 because the model asked for page 0 is a wrong citation
+ * delivered confidently, which is worse than an error. They stay unbounded
+ * here so the tool can return an explanation the model can act on, rather than
+ * the SDK rejecting the call and ending the turn.
+ */
 export const getPageInput = z.object({
-  fileId: z.string().uuid(),
-  pageNumber: modelInt(z.number().int().min(1)),
+  fileId: modelFileRef,
+  pageNumber: modelInt(z.number().int()).describe("1-based page number"),
 });
 
 export const getContextAroundInput = z.object({
-  fileId: z.string().uuid(),
-  chunkIndex: modelInt(z.number().int().min(0)),
+  fileId: modelFileRef,
+  chunkIndex: modelInt(z.number().int()).describe("0-based chunk index"),
 });

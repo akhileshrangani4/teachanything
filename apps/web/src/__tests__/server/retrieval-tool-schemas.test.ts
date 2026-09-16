@@ -78,31 +78,60 @@ describe("retrieval tool inputs", () => {
       ).toBe(false);
     });
 
-    it("keeps the range bounds when the value arrives as a string", () => {
-      // "13" is over the max of 12, "0" is under the min of 1.
+    it("falls back to the default when limit is out of range", () => {
+      // Out of range is no longer fatal: ending a turn over a tuning knob
+      // costs the student their question. "13" is over the max of 12 and "0"
+      // under the min of 1, so both land on the default.
       expect(
-        searchDocumentsInput.safeParse({ query: "q", limit: "13" }).success,
-      ).toBe(false);
+        searchDocumentsInput.safeParse({ query: "q", limit: "13" }).data?.limit,
+      ).toBe(6);
       expect(
-        searchDocumentsInput.safeParse({ query: "q", limit: "0" }).success,
+        searchDocumentsInput.safeParse({ query: "q", limit: "0" }).data?.limit,
+      ).toBe(6);
+      expect(
+        searchDocumentsInput.safeParse({ query: "q", limit: true }).data?.limit,
+      ).toBe(6);
+    });
+
+    it("still refuses a search with no query", () => {
+      // The fallback is on `limit` alone. A search without a query means
+      // nothing, so there is nothing to recover to.
+      expect(searchDocumentsInput.safeParse({}).success).toBe(false);
+      expect(
+        searchDocumentsInput.safeParse({ query: "", limit: 5 }).success,
       ).toBe(false);
     });
   });
 
-  it("shows the model an unchanged contract", () => {
-    // The widening is on what we accept, not on what we ask for. If this
-    // drifts, the model is being told it may send a string, which is not the
-    // intent.
+  it("still asks the model for an integer in range", () => {
+    // The recovery is on what we accept, never on what we ask for. The model
+    // is still told limit is an integer from 1 to 12, so the fallback stays a
+    // safety net rather than becoming the advertised contract. If this drifts
+    // to `type: "string"` or loses its bounds, the model is being told it may
+    // send anything, which is not the intent.
     const properties = (
       z.toJSONSchema(searchDocumentsInput, { io: "input" }) as {
         properties: Record<string, unknown>;
       }
     ).properties;
 
-    expect(properties.limit).toEqual({
+    expect(properties.limit).toMatchObject({
       type: "integer",
       minimum: 1,
       maximum: 12,
     });
+  });
+
+  it("asks for the document reference as a plain string", () => {
+    // Not `format: "uuid"`: the file manifest gives the model names, so a name
+    // is a reference it can legitimately produce and the tool resolves it.
+    const properties = (
+      z.toJSONSchema(getPageInput, { io: "input" }) as {
+        properties: Record<string, { type?: string; format?: string }>;
+      }
+    ).properties;
+
+    expect(properties.fileId?.type).toBe("string");
+    expect(properties.fileId?.format).toBeUndefined();
   });
 });
