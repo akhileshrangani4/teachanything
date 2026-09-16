@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.34.16](https://github.com/akhileshrangani4/teachanything/compare/v1.34.15...v1.34.16) (2026-09-16)
+
+
+### Bug Fixes
+
+* **chat:** recover from a malformed retrieval call instead of ending the turn ([#511](https://github.com/akhileshrangani4/teachanything/issues/511)) ([f061062](https://github.com/akhileshrangani4/teachanything/commit/f0610626da22ffb6ee4f40458a98e6891763937d))
+
 ## [1.34.15](https://github.com/akhileshrangani4/teachanything/compare/v1.34.14...v1.34.15) (2026-09-16)
 
 
