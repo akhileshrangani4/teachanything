@@ -134,6 +134,13 @@
       "when": 1784421113463,
       "tag": "0018_black_silvermane",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789595999466,
+      "tag": "0019_wise_killraven",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@ node_modules
 dist
 coverage
 apps/docs/.blume
+apps/docs/.blume-verify
 
 # Generated files
 packages/db/drizzle

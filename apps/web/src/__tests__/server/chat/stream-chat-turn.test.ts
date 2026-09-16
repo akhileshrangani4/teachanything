@@ -118,8 +118,7 @@ async function runTurn(script: Step[]) {
 
       const calls = steps.flatMap((s) => s.toolCalls ?? []);
       const doneInput = calls.find((c) => c.toolName === "done")?.input as
-        | { answer?: unknown }
-        | undefined;
+        { answer?: unknown } | undefined;
       const doneAnswer =
         typeof doneInput?.answer === "string" ? doneInput.answer : undefined;
       const producedQuiz = calls.some((c) => c.toolName === "showQuiz");
@@ -222,8 +221,7 @@ describe("streamChat turn semantics", () => {
     const r = await runTurn([{ text: leak, finish: "stop" }]);
 
     const quiz = r.parts.find((p) => p.type === "tool-showQuiz") as
-      | { input: { questions: unknown[] } }
-      | undefined;
+      { input: { questions: unknown[] } } | undefined;
     expect(quiz).toBeDefined();
     expect(quiz!.input.questions).toHaveLength(5); // trimmed to the ceiling
     expect(r.content).toContain("Here are 5 questions");

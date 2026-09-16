@@ -3,8 +3,7 @@ import type { User } from "@/types/better-auth";
 import { logWarn } from "@/lib/logger";
 
 export type ApiAuthResult =
-  | { ok: true; user: User }
-  | { ok: false; response: Response };
+  { ok: true; user: User } | { ok: false; response: Response };
 
 /**
  * Route Handler equivalent of tRPC's session lookup: resolves the Better Auth
