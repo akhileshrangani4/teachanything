@@ -128,6 +128,14 @@ export const account = pgTable("account", {
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),
   expiresAt: timestamp("expires_at"),
+  // OAuth-only columns. Unused while the app is email/password, but Better
+  // Auth declares them on its account model and, since 1.7, its Drizzle
+  // adapter validates the schema on every auth request and throws
+  // SchemaMismatchError when one is absent. Missing columns took sign-in
+  // down in 1.34.13. See __tests__/server/auth-schema.test.ts.
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+  scope: text("scope"),
   password: text("password"), // For email/password
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
