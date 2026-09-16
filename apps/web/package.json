@@ -83,8 +83,8 @@
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/node": "^25.5.0",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "docs": "*",
     "eslint": "^9.39.4",
     "typescript": "5.9.3"
