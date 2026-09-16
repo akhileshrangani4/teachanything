@@ -211,11 +211,7 @@ export const userFiles = pgTable("user_files", {
       // Processing progress tracking
       processingProgress?: {
         stage:
-          | "downloading"
-          | "extracting"
-          | "chunking"
-          | "embedding"
-          | "storing";
+          "downloading" | "extracting" | "chunking" | "embedding" | "storing";
         percentage: number; // 0-100
         currentChunk?: number;
         totalChunks?: number;

@@ -71,6 +71,15 @@ updates:
         applies-to: security-updates
         patterns:
           - "*"
+      # Prettier reformats the tree when its output changes, so a bump has to
+      # carry a `npm run format` commit with it. Riding in the batch below,
+      # that reformat fails the whole 47-package PR on `format:check` and the
+      # unrelated 46 bumps are blocked behind it. Its own PR keeps the reformat
+      # reviewable and keeps it out of everyone else's way.
+      prettier:
+        applies-to: version-updates
+        patterns:
+          - "prettier"
       # One routine PR per run. Reviewing 40 minor bumps together is no harder
       # than reviewing them in 20 PRs, and it is one CI run instead of 20.
       npm-minor-patch:

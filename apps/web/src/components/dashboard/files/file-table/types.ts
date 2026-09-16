@@ -11,11 +11,7 @@ export type BaseFile = {
     processedAt?: string;
     processingProgress?: {
       stage:
-        | "downloading"
-        | "extracting"
-        | "chunking"
-        | "embedding"
-        | "storing";
+        "downloading" | "extracting" | "chunking" | "embedding" | "storing";
       percentage: number;
       currentChunk?: number;
       totalChunks?: number;

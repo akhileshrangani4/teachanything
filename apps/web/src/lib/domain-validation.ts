@@ -29,8 +29,7 @@ function normalizeDomain(domain: string): string {
 }
 
 export type DomainValidationResult =
-  | { valid: true }
-  | { valid: false; reason: string };
+  { valid: true } | { valid: false; reason: string };
 
 /**
  * Validates a domain for the email allowlist.

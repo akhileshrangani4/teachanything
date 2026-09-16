@@ -9,12 +9,7 @@ interface CopyButtonProps {
   className?: string;
   size?: "default" | "sm" | "lg" | "icon";
   variant?:
-    | "default"
-    | "destructive"
-    | "outline"
-    | "secondary"
-    | "ghost"
-    | "link";
+    "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
   successMessage?: string;
   errorMessage?: string;
   tooltip?: string;
