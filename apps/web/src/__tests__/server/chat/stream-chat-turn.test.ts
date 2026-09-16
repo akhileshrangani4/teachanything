@@ -64,7 +64,7 @@ async function runTurn(script: Step[]) {
         }
         parts.push({
           type: "finish",
-          finishReason: step.finish,
+          finishReason: { unified: step.finish, raw: step.finish },
           usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
         });
         return { stream: convertArrayToReadableStream(parts as never) };
