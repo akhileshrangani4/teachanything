@@ -42,7 +42,7 @@ describe("multi-step turn text", () => {
                 },
                 {
                   type: "finish",
-                  finishReason: "tool-calls",
+                  finishReason: { unified: "tool-calls", raw: "tool_calls" },
                   usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
                 },
               ] as never),
@@ -52,7 +52,7 @@ describe("multi-step turn text", () => {
                 { type: "stream-start", warnings: [] },
                 {
                   type: "finish",
-                  finishReason: "stop",
+                  finishReason: { unified: "stop", raw: "stop" },
                   usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
                 },
               ] as never),
