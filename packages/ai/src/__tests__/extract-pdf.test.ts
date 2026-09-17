@@ -48,13 +48,13 @@ describe("RAGService PDF extraction", () => {
   });
 
   it("rejects an empty upload before reaching the parser", async () => {
-    await expect(extract(Buffer.alloc(0))).rejects.toThrow("Empty buffer");
+    await expect(extract(Buffer.alloc(0))).rejects.toThrow("Empty file");
     expect(mockPdfParse).not.toHaveBeenCalled();
   });
 
   it("rejects a non-PDF renamed .pdf before reaching the parser", async () => {
     await expect(extract(Buffer.from("This is a text file"))).rejects.toThrow(
-      "Invalid PDF format",
+      "Invalid PDF file",
     );
     expect(mockPdfParse).not.toHaveBeenCalled();
   });

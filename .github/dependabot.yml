@@ -1,32 +1,59 @@
 version: 2
+
+# Kept deliberately coarse. The point of this file is a small, predictable
+# number of PRs, not per-library precision.
+#
+# Two things open PRs here and they obey different rules:
+#
+#   Version updates run on the schedule below and respect open-pull-requests-limit,
+#   cooldown and groups.
+#
+#   Security updates are fired per alert. They ignore the schedule, ignore the
+#   limit, ignore cooldown, and ignore groups UNLESS a group opts in with
+#   `applies-to: security-updates`. Without that opt-in a backlog of alerts
+#   arrives as one PR each, which is how this repo ended up with 33 open PRs
+#   against a limit of 15.
+#
+# So each ecosystem gets one security group and one group per risk tier for
+# version updates, running on the 1st and 15th. That caps a normal month at
+# roughly four routine PRs plus whatever the alerts raise.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    # No native biweekly interval, so cron on the 1st and 15th. The timezone
+    # goes here, never inside the expression.
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
+      interval: "cron"
+      cronjob: "0 9 1,15 * *"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 3
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
     groups:
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
       actions:
+        applies-to: version-updates
         patterns:
           - "*"
 
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "cron"
+      cronjob: "0 9 1,15 * *"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
     # Let package releases bake for a bit before updating,
-    # in case there is a bad release
+    # in case there is a bad release. Security updates ignore this.
     cooldown:
       default-days: 5
       semver-major-days: 7
@@ -39,76 +66,35 @@ updates:
         - "ai"
         - "@ai-sdk/*"
     groups:
-      trpc:
+      # Everything the alerts raise, in one PR.
+      npm-security:
+        applies-to: security-updates
         patterns:
-          - "@trpc/*"
-      radix-ui:
+          - "*"
+      # Prettier reformats the tree when its output changes, so a bump has to
+      # carry a `npm run format` commit with it. Riding in the batch below,
+      # that reformat fails the whole 47-package PR on `format:check` and the
+      # unrelated 46 bumps are blocked behind it. Its own PR keeps the reformat
+      # reviewable and keeps it out of everyone else's way.
+      prettier:
+        applies-to: version-updates
         patterns:
-          - "@radix-ui/*"
-      drizzle:
-        patterns:
-          - "drizzle-kit"
-          - "drizzle-orm"
-      ai-sdk:
-        patterns:
-          - "ai"
-          - "@ai-sdk/*"
-      langchain:
-        patterns:
-          - "langchain"
-          - "@langchain/*"
-      next:
-        patterns:
-          - "next"
-          - "@next/*"
-      react:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
-      tanstack:
-        patterns:
-          - "@tanstack/*"
-      upstash:
-        patterns:
-          - "@upstash/*"
-      supabase:
-        patterns:
-          - "@supabase/*"
-      eslint:
-        patterns:
-          - "@eslint/*"
-          - "eslint"
-          - "typescript-eslint"
-          - "eslint-plugin-*"
-          - "eslint-config-*"
-      tailwind:
-        patterns:
-          - "tailwindcss"
-          - "tailwind-*"
-          - "@tailwindcss/*"
-          - "tw-animate-css"
-          - "tailwind-merge"
-          - "postcss"
-      small-safe-packages:
-        # These are generally safe to update unconditionally
-        patterns:
-          - "lucide-react"
           - "prettier"
-          - "clsx"
-          - "class-variance-authority"
-          - "zod"
-          - "superjson"
-          - "nanoid"
-          - "sonner"
-          - "framer-motion"
-      markdown:
+      # One routine PR per run. Reviewing 40 minor bumps together is no harder
+      # than reviewing them in 20 PRs, and it is one CI run instead of 20.
+      npm-minor-patch:
+        applies-to: version-updates
         patterns:
-          - "marked"
-          - "react-markdown"
-          - "remark-*"
-      turbo:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Majors stay separate from the routine PR because they are the ones that
+      # need reading. They are still grouped, so a run's worth is one PR, not
+      # one each.
+      npm-major:
+        applies-to: version-updates
         patterns:
-          - "turbo"
-          - "@turbo/*"
+          - "*"
+        update-types:
+          - "major"

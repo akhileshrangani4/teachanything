@@ -1,8 +1,5 @@
 export type VoiceRecorderStatus =
-  | "idle"
-  | "requesting_permission"
-  | "recording"
-  | "stopping";
+  "idle" | "requesting_permission" | "recording" | "stopping";
 
 export type VoiceRecorderErrorCode =
   | "unsupported"

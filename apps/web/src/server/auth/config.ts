@@ -9,6 +9,7 @@ import * as bcrypt from "bcryptjs";
 import { enforceAllowedDomain } from "./domain-check";
 import { registerPendingUserAndNotify } from "./registration";
 import { gateSessionCreation } from "./session-gate";
+import { userAdditionalFields } from "./user-fields";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -82,39 +83,7 @@ export const auth = betterAuth({
   },
   user: {
     // Include custom fields in session
-    additionalFields: {
-      role: {
-        type: "string",
-        required: true,
-        defaultValue: "user",
-      },
-      status: {
-        type: "string",
-        required: true,
-        defaultValue: "pending",
-      },
-      // Verification fields (optional in auth config, required at registration via client-side validation)
-      title: {
-        type: "string",
-        required: false,
-      },
-      institutionalAffiliation: {
-        type: "string",
-        required: false, // Nullable in DB for existing users; enforced at registration
-      },
-      department: {
-        type: "string",
-        required: false, // Nullable in DB for existing users; enforced at registration
-      },
-      facultyWebpage: {
-        type: "string",
-        required: false,
-      },
-      country: {
-        type: "string",
-        required: false,
-      },
-    },
+    additionalFields: userAdditionalFields,
   },
 
   // Database hooks for approval workflow

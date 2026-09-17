@@ -19,12 +19,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: "npm"
@@ -37,7 +37,7 @@ jobs:
       # wipes, so every run re-fetched from Google and a rotated font URL took
       # the whole build down. Restored after `npm ci` for that reason.
       - name: Restore docs font cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             node_modules/blume/node_modules/.astro/fonts

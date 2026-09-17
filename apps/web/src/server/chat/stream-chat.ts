@@ -152,8 +152,7 @@ export async function streamChat(params: {
   // Build retrieval tools once. `toolSources` accumulates as the tools run and
   // is read after streaming to merge into the final source list.
   let retrievalTools:
-    | ReturnType<typeof createRetrievalTools>["tools"]
-    | undefined;
+    ReturnType<typeof createRetrievalTools>["tools"] | undefined;
   let toolSources: ReturnType<typeof createRetrievalTools>["sources"] = [];
   if (useRetrievalTools) {
     const rt = createRetrievalTools({

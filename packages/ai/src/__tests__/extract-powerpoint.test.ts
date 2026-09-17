@@ -31,6 +31,18 @@ function buildMockAST(
   };
 }
 
+// `extractPowerPoint` requires the zip signature every .pptx starts with, so a
+// stand-in buffer has to carry it. See the note in rag-service.ts.
+const PPTX_MIME =
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+function fakePptx(): Buffer {
+  return Buffer.concat([
+    Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+    Buffer.from("fake"),
+  ]);
+}
+
 describe("extractPowerPoint", () => {
   let service: InstanceType<typeof RAGService>;
   let mockParseOffice: jest.Mock;
@@ -75,10 +87,7 @@ describe("extractPowerPoint", () => {
       ]),
     );
 
-    const result = await service.extractContent(
-      Buffer.from("fake"),
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    );
+    const result = await service.extractContent(fakePptx(), PPTX_MIME);
 
     expect(result).toContain("--- Slide 1 ---");
     expect(result).toContain("Introduction to ML");
@@ -106,10 +115,7 @@ describe("extractPowerPoint", () => {
       ]),
     );
 
-    const result = await service.extractContent(
-      Buffer.from("fake"),
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    );
+    const result = await service.extractContent(fakePptx(), PPTX_MIME);
 
     expect(result).toContain("--- Slide 1 ---");
     expect(result).toContain("Title Slide");
@@ -121,23 +127,17 @@ describe("extractPowerPoint", () => {
   it("throws on empty presentation", async () => {
     mockParseOffice.mockResolvedValue(buildMockAST([]));
 
-    await expect(
-      service.extractContent(
-        Buffer.from("fake"),
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      ),
-    ).rejects.toThrow("no readable text content");
+    await expect(service.extractContent(fakePptx(), PPTX_MIME)).rejects.toThrow(
+      "no readable text content",
+    );
   });
 
   it("wraps officeparser errors", async () => {
     mockParseOffice.mockRejectedValue(new Error("Corrupted file"));
 
-    await expect(
-      service.extractContent(
-        Buffer.from("fake"),
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      ),
-    ).rejects.toThrow("Failed to extract PowerPoint content: Corrupted file");
+    await expect(service.extractContent(fakePptx(), PPTX_MIME)).rejects.toThrow(
+      "Failed to extract PowerPoint content: Corrupted file",
+    );
   });
 
   it("sanitizes null bytes in content", async () => {
@@ -151,10 +151,7 @@ describe("extractPowerPoint", () => {
       ]),
     );
 
-    const result = await service.extractContent(
-      Buffer.from("fake"),
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    );
+    const result = await service.extractContent(fakePptx(), PPTX_MIME);
 
     expect(result).not.toContain("\0");
     expect(result).toContain("Cleantexthere");
@@ -181,10 +178,7 @@ describe("extractPowerPoint", () => {
       ]),
     );
 
-    const result = await service.extractContent(
-      Buffer.from("fake"),
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    );
+    const result = await service.extractContent(fakePptx(), PPTX_MIME);
 
     const slide1Pos = result.indexOf("--- Slide 1 ---");
     const slide2Pos = result.indexOf("--- Slide 2 ---");
@@ -192,5 +186,24 @@ describe("extractPowerPoint", () => {
 
     expect(slide1Pos).toBeLessThan(slide2Pos);
     expect(slide2Pos).toBeLessThan(slide3Pos);
+  });
+  it("rejects a file whose bytes are not a zip, whatever it was uploaded as", async () => {
+    // officeparser sniffs the buffer and dispatches on the real type, so PDF
+    // bytes uploaded under the pptx MIME would otherwise reach pdfjs-dist.
+    // The check itself is covered in file-signature.test.ts; this pins that
+    // extraction runs it before the parser ever sees the buffer.
+    await expect(
+      service.extractContent(Buffer.from("%PDF-1.4\n1 0 obj\n"), PPTX_MIME),
+    ).rejects.toThrow(/do not match the file type/);
+
+    expect(mockParseOffice).not.toHaveBeenCalled();
+  });
+
+  it("rejects a buffer too short to carry a signature", async () => {
+    await expect(
+      service.extractContent(Buffer.from([0x50, 0x4b]), PPTX_MIME),
+    ).rejects.toThrow(/do not match the file type/);
+
+    expect(mockParseOffice).not.toHaveBeenCalled();
   });
 });

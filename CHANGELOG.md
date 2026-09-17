@@ -1,5 +1,76 @@
 # Changelog
 
+## [1.34.17](https://github.com/akhileshrangani4/teachanything/compare/v1.34.16...v1.34.17) (2026-09-16)
+
+
+### Bug Fixes
+
+* **chat:** group source citations per file and cap the visible list ([#513](https://github.com/akhileshrangani4/teachanything/issues/513)) ([ba3dac9](https://github.com/akhileshrangani4/teachanything/commit/ba3dac93b2e67bcf1b0d64b08d5479154709bd42))
+
+## [1.34.16](https://github.com/akhileshrangani4/teachanything/compare/v1.34.15...v1.34.16) (2026-09-16)
+
+
+### Bug Fixes
+
+* **chat:** recover from a malformed retrieval call instead of ending the turn ([#511](https://github.com/akhileshrangani4/teachanything/issues/511)) ([f061062](https://github.com/akhileshrangani4/teachanything/commit/f0610626da22ffb6ee4f40458a98e6891763937d))
+
+## [1.34.15](https://github.com/akhileshrangani4/teachanything/compare/v1.34.14...v1.34.15) (2026-09-16)
+
+
+### Bug Fixes
+
+* **auth:** add the account columns Better Auth 1.7 validates for ([#509](https://github.com/akhileshrangani4/teachanything/issues/509)) ([cd3819b](https://github.com/akhileshrangani4/teachanything/commit/cd3819b1b18cb26d671e10b8e138122467453f94))
+* **chat:** accept quoted integers on model-filled tool inputs ([#510](https://github.com/akhileshrangani4/teachanything/issues/510)) ([deccfbf](https://github.com/akhileshrangani4/teachanything/commit/deccfbfce69cea24e40bf54d518b682ed5e17f69))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump the npm-minor-patch group with 47 updates ([#506](https://github.com/akhileshrangani4/teachanything/issues/506)) ([e21fc8b](https://github.com/akhileshrangani4/teachanything/commit/e21fc8bfa03d5a897120c6b4349d0e45a4180b87))
+
+## [1.34.14](https://github.com/akhileshrangani4/teachanything/compare/v1.34.13...v1.34.14) (2026-09-16)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump the actions group across 1 directory with 3 updates ([#499](https://github.com/akhileshrangani4/teachanything/issues/499)) ([fe95634](https://github.com/akhileshrangani4/teachanything/commit/fe95634f1928eacba37eeea4ab36bc33e4056682))
+* **deps:** collapse dependabot into a handful of grouped PRs ([#504](https://github.com/akhileshrangani4/teachanything/issues/504)) ([a3aa9ab](https://github.com/akhileshrangani4/teachanything/commit/a3aa9ab250bb67093cf4edf1fbf08a8811b0d4dc))
+
+## [1.34.13](https://github.com/akhileshrangani4/teachanything/compare/v1.34.12...v1.34.13) (2026-09-16)
+
+
+### Bug Fixes
+
+* **files:** validate magic bytes for every uploaded file type ([#502](https://github.com/akhileshrangani4/teachanything/issues/502)) ([fe606c9](https://github.com/akhileshrangani4/teachanything/commit/fe606c9133789380442df5bc25ee6fd1b27d2f97))
+
+
+### Miscellaneous Chores
+
+* **deps:** group dependabot security updates and clear the advisory backlog ([#497](https://github.com/akhileshrangani4/teachanything/issues/497)) ([8c3c47b](https://github.com/akhileshrangani4/teachanything/commit/8c3c47ba1886957a249645f60c691d3afe63e785))
+
+## [1.34.12](https://github.com/akhileshrangani4/teachanything/compare/v1.34.11...v1.34.12) (2026-09-06)
+
+
+### Bug Fixes
+
+* **web-sources:** remove duplicated hourly limit paragraph ([#494](https://github.com/akhileshrangani4/teachanything/issues/494)) ([580b36b](https://github.com/akhileshrangani4/teachanything/commit/580b36b8711e9659826ac9e7e167607a7e037cf2))
+
+## [1.34.11](https://github.com/akhileshrangani4/teachanything/compare/v1.34.10...v1.34.11) (2026-09-02)
+
+
+### Bug Fixes
+
+* harden pre-existing job, stream, upload and auth paths ([#461](https://github.com/akhileshrangani4/teachanything/issues/461)) ([b8bd3b2](https://github.com/akhileshrangani4/teachanything/commit/b8bd3b20216601718922b89c8601097fe12d953f))
+
+
+### Documentation
+
+* bring the docs in line with the post-refactor tree ([#482](https://github.com/akhileshrangani4/teachanything/issues/482)) ([6b99f9b](https://github.com/akhileshrangani4/teachanything/commit/6b99f9b6f4a2edc09c9fada66726f48e05adb29a))
+
+
+### Code Refactoring
+
+* architecture cleanup — dedup, layering, file-size guideline, hardening ([#458](https://github.com/akhileshrangani4/teachanything/issues/458)) ([73fc52d](https://github.com/akhileshrangani4/teachanything/commit/73fc52df4e90244e22994e3f5e9a7c5f0f93b194))
+
 ## [1.34.10](https://github.com/akhileshrangani4/teachanything/compare/v1.34.9...v1.34.10) (2026-09-01)
 
 
