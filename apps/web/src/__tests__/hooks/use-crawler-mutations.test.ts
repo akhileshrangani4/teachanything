@@ -1,4 +1,4 @@
-import { jest, describe, it, expect } from "@jest/globals";
+import { jest, describe, it, expect, beforeEach } from "@jest/globals";
 
 type MutationOptions = {
   onSuccess?: (...args: unknown[]) => unknown;
@@ -42,7 +42,13 @@ function deferred() {
   return { promise, resolve };
 }
 
-const flushMicrotasks = () => new Promise((r) => setTimeout(r, 0));
+const flushAsync = () => new Promise((r) => setTimeout(r, 0));
+
+beforeEach(() => {
+  // Module-level, so a failed capture would otherwise silently reuse the
+  // previous test's options instead of surfacing as `undefined`.
+  mockCaptured.clear();
+});
 
 describe.each(["attachToChatbot", "detachFromChatbot"])(
   "useCrawlerMutations %s onSuccess",
@@ -58,7 +64,7 @@ describe.each(["attachToChatbot", "detachFromChatbot"])(
         settled = true;
       });
 
-      await flushMicrotasks();
+      await flushAsync();
       expect(settled).toBe(false);
 
       refresh.resolve();
@@ -66,9 +72,31 @@ describe.each(["attachToChatbot", "detachFromChatbot"])(
       expect(settled).toBe(true);
     });
 
+    it("holds the mutation pending until the attachment refresh settles", async () => {
+      const attachments = deferred();
+      useCrawlerMutations({
+        refresh: () => Promise.resolve(),
+        refreshAttachments: () => attachments.promise,
+      });
+
+      let settled = false;
+      const result = Promise.resolve(
+        mockCaptured.get(procedure)?.onSuccess?.(),
+      ).then(() => {
+        settled = true;
+      });
+
+      await flushAsync();
+      expect(settled).toBe(false);
+
+      attachments.resolve();
+      await result;
+      expect(settled).toBe(true);
+    });
+
     it("fires the toast and attachment refresh before the list refresh settles", () => {
       const refresh = deferred();
-      const refreshAttachments = jest.fn();
+      const refreshAttachments = jest.fn(() => Promise.resolve());
       useCrawlerMutations({
         refresh: () => refresh.promise,
         refreshAttachments,

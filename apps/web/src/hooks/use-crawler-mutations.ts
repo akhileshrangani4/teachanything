@@ -38,13 +38,19 @@ interface UseCrawlerMutationsOptions {
    * await it so `isPending` holds until the refetched list lands (the row's
    * chatbot picker is gated on it); the other mutations fire it without
    * awaiting.
+   *
+   * Must not reject: react-query awaits `onSuccess` inside its own try, so a
+   * rejection here turns a successful mutation into the error branch (wrong
+   * toast, rejected `mutateAsync`). `refetch`/`invalidate` already swallow
+   * per-query errors, so pass one of those rather than a raw fetch.
    */
   refresh: () => Promise<unknown>;
   /**
    * Extra refresh for attach/detach (e.g. invalidate the chatbot's
-   * attachable-sources list). Not awaited.
+   * attachable-sources list). Awaited alongside `refresh`, because the attach
+   * button list is driven by it — same "must not reject" rule applies.
    */
-  refreshAttachments?: () => void;
+  refreshAttachments?: () => Promise<unknown>;
   /**
    * Success toasts for attach/detach. Omit both to stay silent after
    * attach/detach.
@@ -82,22 +88,22 @@ export function useCrawlerMutations(
 
   const attach = trpc.crawler.attachToChatbot.useMutation({
     onSuccess: () => {
-      refreshAttachments?.();
+      const attachments = refreshAttachments?.();
       if (attachSuccessMessage) {
         toast.success(attachSuccessMessage);
       }
-      return refresh();
+      return Promise.all([refresh(), attachments]);
     },
     onError: (error) => showError("Failed to attach", error),
   });
 
   const detach = trpc.crawler.detachFromChatbot.useMutation({
     onSuccess: () => {
-      refreshAttachments?.();
+      const attachments = refreshAttachments?.();
       if (detachSuccessMessage) {
         toast.success(detachSuccessMessage);
       }
-      return refresh();
+      return Promise.all([refresh(), attachments]);
     },
     onError: (error) => showError("Failed to remove", error),
   });
