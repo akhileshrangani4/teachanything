@@ -256,6 +256,7 @@ export async function streamChat(params: {
         truncated: turnState.truncated,
         responseTime: turnState.responseTime,
         startTime,
+        modelId,
       }),
   });
 
