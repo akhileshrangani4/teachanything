@@ -31,12 +31,34 @@ export function hasQuotedPhrase(query: string): boolean {
 }
 
 /**
- * Chatbot-scoped triple-fusion search over file chunks.
+ * Full-text query for the lexical retriever.
  *
- * Runs three independent retrievers — vector similarity (HNSW), Postgres
- * full-text (tsvector), and trigram (pg_trgm) — over the same file scope, then
- * fuses their rankings in TypeScript via Reciprocal Rank Fusion. FTS is weighted
- * higher when the user quoted an exact phrase.
+ * A quoted phrase keeps `websearch_to_tsquery`, which honours the phrase and
+ * ANDs the rest. Anything else ORs its words: ANDing every word of a
+ * full-sentence question matched nothing for 15 of 20 sampled production
+ * questions. `plainto_tsquery` only ever joins lexemes with `&`, so swapping
+ * `&` for `|` is safe; `websearch_to_tsquery` output is not rewritten because
+ * it can carry phrase operators.
+ */
+export function lexicalTsQuery(query: string) {
+  return hasQuotedPhrase(query)
+    ? sql`websearch_to_tsquery('english', ${query})`
+    : sql`replace(plainto_tsquery('english', ${query})::text, '&', '|')::tsquery`;
+}
+
+/**
+ * Chatbot-scoped hybrid search over file chunks.
+ *
+ * Runs two independent retrievers, vector similarity (HNSW) and Postgres
+ * full-text (tsvector), over the same file scope, then fuses their rankings in
+ * TypeScript via Reciprocal Rank Fusion. FTS is weighted higher when the user
+ * quoted an exact phrase.
+ *
+ * There is deliberately no trigram (pg_trgm) retriever. `similarity()` is
+ * Jaccard over trigram sets, so a question can never reach the 0.3 threshold
+ * against a chunk more than ~3x its length, yet the GIN index still hands back
+ * most of the table for recheck. In production it averaged 11.7 s per call for
+ * 0.6 rows and was the bulk of the Sep 2026 disk IO exhaustion.
  *
  * MATCHES rag-context.ts vector patterns: cosine `1 - (embedding <=> :json)` in
  * SELECT, raw distance `embedding <=> :json` in ORDER BY (HNSW index), the
@@ -64,10 +86,11 @@ export async function hybridSearch(
     isNotNull(fileChunks.embedding),
   );
 
-  // The three retrievers are independent -- run them concurrently. Still
-  // three queries (and three pool connections), but wall-clock cost drops
-  // from the sum of all three to the slowest one.
-  const [vectorRows, ftsRows, trgmRows] = await Promise.all([
+  const tsQuery = lexicalTsQuery(query);
+
+  // The two retrievers are independent -- run them concurrently, so
+  // wall-clock cost is the slower one rather than the sum.
+  const [vectorRows, ftsRows] = await Promise.all([
     // 1. Vector candidates (HNSW, distance ascending)
     db
       .select({
@@ -80,7 +103,7 @@ export async function hybridSearch(
       .orderBy(sql`${fileChunks.embedding} <=> ${embeddingLiteral}`)
       .limit(overfetch),
 
-    // 2. Full-text candidates (websearch_to_tsquery + ts_rank_cd)
+    // 2. Full-text candidates (see lexicalTsQuery + ts_rank_cd)
     db
       .select({ chunkId: fileChunks.id })
       .from(fileChunks)
@@ -88,21 +111,12 @@ export async function hybridSearch(
       .where(
         and(
           baseWhere,
-          sql`to_tsvector('english', ${fileChunks.content}) @@ websearch_to_tsquery('english', ${query})`,
+          sql`to_tsvector('english', ${fileChunks.content}) @@ ${tsQuery}`,
         ),
       )
       .orderBy(
-        sql`ts_rank_cd(to_tsvector('english', ${fileChunks.content}), websearch_to_tsquery('english', ${query})) DESC`,
+        sql`ts_rank_cd(to_tsvector('english', ${fileChunks.content}), ${tsQuery}) DESC`,
       )
-      .limit(overfetch),
-
-    // 3. Trigram candidates (similarity DESC). Uses pg_trgm % operator.
-    db
-      .select({ chunkId: fileChunks.id })
-      .from(fileChunks)
-      .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-      .where(and(baseWhere, sql`${fileChunks.content} % ${query}`))
-      .orderBy(sql`similarity(${fileChunks.content}, ${query}) DESC`)
       .limit(overfetch),
   ]);
 
@@ -112,7 +126,6 @@ export async function hybridSearch(
     [
       { items: vectorRows.map((r) => r.chunkId), weight: 1 },
       { items: ftsRows.map((r) => r.chunkId), weight: ftsWeight },
-      { items: trgmRows.map((r) => r.chunkId), weight: 1 },
     ],
     { k: 60 },
   ).slice(0, limit);
