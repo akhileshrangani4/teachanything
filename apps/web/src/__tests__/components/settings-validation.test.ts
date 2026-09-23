@@ -1,6 +1,9 @@
 import { describe, it, expect } from "@jest/globals";
 import { validateSettingsDraft } from "@/components/chat/settings/settings-validation";
-import type { SettingsDraft } from "@/components/chat/settings/settings-draft";
+import {
+  settingsFromChatbot,
+  type SettingsDraft,
+} from "@/components/chat/settings/settings-draft";
 
 const draft = (over: Partial<SettingsDraft> = {}): SettingsDraft => ({
   name: "Study Bot",
@@ -87,5 +90,30 @@ describe("validateSettingsDraft", () => {
       validateSettingsDraft(draft({ temperature: "999", maxTokens: "999999" }))
         ?.title,
     ).toBe("Invalid temperature");
+  });
+});
+
+describe("settingsFromChatbot", () => {
+  const base = {
+    name: "Bio 101",
+    description: null,
+    systemPrompt: "Be helpful",
+    temperature: 70,
+    maxTokens: 2000,
+    shareToken: null,
+    sharingEnabled: false,
+  };
+
+  it("shows a retired model as the model the bot actually runs on", () => {
+    expect(
+      settingsFromChatbot({ ...base, model: "mistralai/mistral-large-2512" })
+        .model,
+    ).toBe("qwen/qwen3-235b-a22b-2507");
+  });
+
+  it("leaves a live model unchanged", () => {
+    expect(
+      settingsFromChatbot({ ...base, model: "openai/gpt-oss-120b" }).model,
+    ).toBe("openai/gpt-oss-120b");
   });
 });
