@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.34.18](https://github.com/akhileshrangani4/teachanything/compare/v1.34.17...v1.34.18) (2026-09-23)
+
+
+### Bug Fixes
+
+* **chat:** drop the trigram retriever and OR the full-text query ([#516](https://github.com/akhileshrangani4/teachanything/issues/516)) ([ab1ddfd](https://github.com/akhileshrangani4/teachanything/commit/ab1ddfdef6ba0945739e37e492e777563f11ac5e))
+* **crawler:** keep attach/detach pending until the source list refetch lands ([#496](https://github.com/akhileshrangani4/teachanything/issues/496)) ([d9de680](https://github.com/akhileshrangani4/teachanything/commit/d9de6804faae03aef65931e4ccb98b533236fc5c))
+
 ## [1.34.17](https://github.com/akhileshrangani4/teachanything/compare/v1.34.16...v1.34.17) (2026-09-16)
 
 
