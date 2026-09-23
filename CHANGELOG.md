@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.34.19](https://github.com/akhileshrangani4/teachanything/compare/v1.34.18...v1.34.19) (2026-09-23)
+
+
+### Bug Fixes
+
+* **ai:** move Mistral chatbots to Qwen 3 after Mistral Large 3 was pulled ([#521](https://github.com/akhileshrangani4/teachanything/issues/521)) ([24ed596](https://github.com/akhileshrangani4/teachanything/commit/24ed596a782237096d22d3b002f80d9515645364))
+* **chat:** record which model answered on each assistant message ([#520](https://github.com/akhileshrangani4/teachanything/issues/520)) ([32fb9fa](https://github.com/akhileshrangani4/teachanything/commit/32fb9faee7d7385641f3c7e61251c1aa820e87e7))
+* **chat:** turn on HNSW iterative scan so big chatbots get full results ([#522](https://github.com/akhileshrangani4/teachanything/issues/522)) ([2522721](https://github.com/akhileshrangani4/teachanything/commit/25227211767705d12ceffd7fe3335ebeb276898d))
+* **db:** fail migrations on invalid indexes, drop the unused trigram index ([#519](https://github.com/akhileshrangani4/teachanything/issues/519)) ([76da424](https://github.com/akhileshrangani4/teachanything/commit/76da424d65f6f0afaeb16e5d064ad6d2f57cf8d9))
+
 ## [1.34.18](https://github.com/akhileshrangani4/teachanything/compare/v1.34.17...v1.34.18) (2026-09-23)
 
 
