@@ -9,9 +9,11 @@
  * Mapping (kept in sync with DEPRECATED_MODEL_MAP in packages/ai/src/models.ts):
  *   qwen/qwen3-235b-a22b          -> qwen/qwen3-235b-a22b-2507
  *   qwen/qwen-2.5-72b-instruct    -> qwen/qwen3-235b-a22b-2507
- *   mistralai/mistral-large       -> meta-llama/llama-3.3-70b-instruct
- *   mistralai/mistral-large-2411  -> meta-llama/llama-3.3-70b-instruct  (retired from OpenRouter)
+ *   mistralai/mistral-large       -> qwen/qwen3-235b-a22b-2507
+ *   mistralai/mistral-large-2411  -> qwen/qwen3-235b-a22b-2507  (retired from OpenRouter)
+ *   mistralai/mistral-large-2512  -> qwen/qwen3-235b-a22b-2507  (pulled from OpenRouter 2026-09)
  *   google/gemma-4-31b-it         -> meta-llama/llama-3.3-70b-instruct  (unreliable tool-calling)
+ *   nvidia/nemotron-3-super-120b-a12b -> qwen/qwen3-235b-a22b-2507  (tool choice never fires)
  *
  * Usage:
  *   npx tsx packages/db/scripts/migrate-model-ids.ts
@@ -45,9 +47,11 @@ if (!databaseUrl) {
 const MODEL_MIGRATIONS: Record<string, string> = {
   "qwen/qwen3-235b-a22b": "qwen/qwen3-235b-a22b-2507",
   "qwen/qwen-2.5-72b-instruct": "qwen/qwen3-235b-a22b-2507",
-  "mistralai/mistral-large": "meta-llama/llama-3.3-70b-instruct",
-  "mistralai/mistral-large-2411": "meta-llama/llama-3.3-70b-instruct",
+  "mistralai/mistral-large": "qwen/qwen3-235b-a22b-2507",
+  "mistralai/mistral-large-2411": "qwen/qwen3-235b-a22b-2507",
+  "mistralai/mistral-large-2512": "qwen/qwen3-235b-a22b-2507",
   "google/gemma-4-31b-it": "meta-llama/llama-3.3-70b-instruct",
+  "nvidia/nemotron-3-super-120b-a12b": "qwen/qwen3-235b-a22b-2507",
 };
 
 async function migrate() {
