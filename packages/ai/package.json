@@ -14,25 +14,25 @@
     "./token-budget": "./src/token-budget.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.112",
+    "@ai-sdk/openai": "^4.0.69",
     "@teachanything/logger": "*",
     "@langchain/community": "^1.1.29",
     "@langchain/core": "^1.2.11",
     "@langchain/textsplitters": "^1.0.0",
     "@mozilla/readability": "^0.6.0",
-    "@openrouter/ai-sdk-provider": "^1.5.4",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "@types/pdf-parse": "^1.1.4",
-    "ai": "^6.0.283",
+    "ai": "^7.0.104",
     "cheerio": "^1.2.0",
     "js-tiktoken": "^1.0.12",
-    "jsdom": "^26.1.0",
+    "jsdom": "^30.0.1",
     "langchain": "^1.5.11",
     "mammoth": "^1.12.3",
-    "nanoid": "^5.1.11",
-    "officeparser": "^6.1.0",
-    "pdf-parse": "^1.1.1",
+    "nanoid": "^6.0.1",
+    "officeparser": "^7.8.0",
+    "pdf-parse": "^2.4.5",
     "robots-parser": "^3.0.1",
-    "@types/jsdom": "^21.1.7"
+    "@types/jsdom": "^30.0.0"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
@@ -40,7 +40,7 @@
     "test:cov": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.5.1",
+    "typescript": "^7.0.2"
   }
 }
