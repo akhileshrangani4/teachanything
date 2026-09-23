@@ -18,7 +18,15 @@ export interface InvalidIndex {
   definition: string;
 }
 
-/** Only `public`: the Supabase-managed schemas are not ours to fix. */
+/**
+ * Only `public`: the Supabase-managed schemas are not ours to fix.
+ *
+ * An index is also invalid while `CREATE`/`REINDEX INDEX CONCURRENTLY` is
+ * still building it, so tables with a build in progress are skipped rather
+ * than blocking a release on a rebuild someone is running right now. The
+ * match is per table because REINDEX CONCURRENTLY reports progress against
+ * the original index, not its invalid `_ccnew` copy.
+ */
 export const INVALID_INDEXES_QUERY = `
   SELECT n.nspname AS "schema",
          t.relname AS "table",
@@ -28,7 +36,11 @@ export const INVALID_INDEXES_QUERY = `
   JOIN pg_class c ON c.oid = i.indexrelid
   JOIN pg_class t ON t.oid = i.indrelid
   JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE NOT i.indisvalid AND n.nspname = 'public'
+  WHERE NOT i.indisvalid
+    AND n.nspname = 'public'
+    AND NOT EXISTS (
+      SELECT 1 FROM pg_stat_progress_create_index p WHERE p.relid = i.indrelid
+    )
   ORDER BY 1, 2, 3
 `;
 
@@ -41,18 +53,37 @@ export function toConcurrentDefinition(definition: string): string {
   );
 }
 
+/**
+ * A failed REINDEX CONCURRENTLY leaves an invalid `<name>_ccnew` (or
+ * `_ccold`) copy beside the original, which is still valid. Rebuilding the
+ * copy would leave two identical indexes, so it only needs dropping.
+ */
+export function isReindexLeftover(index: string): boolean {
+  return /_cc(new|old)\d*$/.test(index);
+}
+
+function fixFor(ix: InvalidIndex): string {
+  const drop = `  DROP INDEX CONCURRENTLY ${ix.schema}.${ix.index};`;
+  if (isReindexLeftover(ix.index)) {
+    return (
+      `  -- ${ix.table}.${ix.index}: leftover from a failed REINDEX CONCURRENTLY, the original is intact\n` +
+      drop
+    );
+  }
+  return (
+    `  -- ${ix.table}.${ix.index}\n` +
+    `${drop}\n` +
+    `  ${toConcurrentDefinition(ix.definition)};`
+  );
+}
+
 /** Human-readable failure report, or null when every index is valid. */
 export function formatInvalidIndexReport(
   indexes: InvalidIndex[],
 ): string | null {
   if (indexes.length === 0) return null;
 
-  const fixes = indexes.map(
-    (ix) =>
-      `  -- ${ix.table}.${ix.index}\n` +
-      `  DROP INDEX CONCURRENTLY ${ix.schema}.${ix.index};\n` +
-      `  ${toConcurrentDefinition(ix.definition)};`,
-  );
+  const fixes = indexes.map(fixFor);
 
   return [
     `Found ${indexes.length} invalid index(es). Postgres ignores these, so the queries that need them seq-scan.`,

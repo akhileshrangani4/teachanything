@@ -2,6 +2,7 @@ import { describe, it, expect } from "@jest/globals";
 import {
   formatInvalidIndexReport,
   toConcurrentDefinition,
+  isReindexLeftover,
   INVALID_INDEXES_QUERY,
 } from "../index-health";
 
@@ -64,9 +65,40 @@ describe("formatInvalidIndexReport", () => {
   });
 });
 
+describe("REINDEX CONCURRENTLY leftovers", () => {
+  it("recognises _ccnew / _ccold copies", () => {
+    expect(isReindexLeftover("file_chunks_embedding_idx_ccnew")).toBe(true);
+    expect(isReindexLeftover("file_chunks_embedding_idx_ccnew1")).toBe(true);
+    expect(isReindexLeftover("file_chunks_embedding_idx_ccold")).toBe(true);
+    expect(isReindexLeftover("file_chunks_embedding_idx")).toBe(false);
+  });
+
+  it("only drops a leftover copy instead of rebuilding a duplicate", () => {
+    const report = formatInvalidIndexReport([
+      {
+        ...hnsw,
+        index: "file_chunks_embedding_idx_ccnew",
+        definition: hnsw.definition.replace(
+          "file_chunks_embedding_idx",
+          "file_chunks_embedding_idx_ccnew",
+        ),
+      },
+    ]);
+    expect(report).toContain(
+      "DROP INDEX CONCURRENTLY public.file_chunks_embedding_idx_ccnew;",
+    );
+    expect(report).toContain("the original is intact");
+    expect(report).not.toContain("CREATE INDEX CONCURRENTLY");
+  });
+});
+
 describe("INVALID_INDEXES_QUERY", () => {
   it("only looks at invalid indexes in the public schema", () => {
     expect(INVALID_INDEXES_QUERY).toContain("NOT i.indisvalid");
     expect(INVALID_INDEXES_QUERY).toContain("n.nspname = 'public'");
+  });
+
+  it("skips tables with an index build in progress", () => {
+    expect(INVALID_INDEXES_QUERY).toContain("pg_stat_progress_create_index");
   });
 });
