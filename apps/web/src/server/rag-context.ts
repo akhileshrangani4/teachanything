@@ -50,7 +50,7 @@ export interface RAGContextResult {
  *
  * Queries completed files, builds a file manifest with anti-hallucination
  * instructions, generates a query embedding, runs the same hybrid search
- * (vector + full-text + trigram, RRF-fused) the agentic tools use, and formats
+ * (vector + full-text, RRF-fused) the agentic tools use, and formats
  * chunk context with source attribution.
  *
  * Returns fileManifest even when embedding fails (file awareness without RAG).
@@ -191,7 +191,7 @@ export async function buildRAGContext(
     };
   }
 
-  // 5. Hybrid retrieval (vector + FTS + trigram, RRF-fused). Same retriever
+  // 5. Hybrid retrieval (vector + FTS, RRF-fused). Same retriever
   // the agentic search_documents tool uses, so both chat paths share one
   // embedding and one search implementation.
   const effectiveChunkLimit =
@@ -230,7 +230,7 @@ export async function buildRAGContext(
           fileName: sourceDisplayName(chunk.fileName, chunk.storagePath),
           chunkIndex: chunk.chunkIndex,
           // D-05: real similarity in metadata only. Chunks surfaced by the
-          // lexical retrievers (FTS/trigram) but outside the vector top-k have
+          // lexical retriever (FTS) but outside the vector top-k have
           // no vector similarity -- record 0 rather than a fake score.
           similarity: chunk.vectorSimilarity ?? 0,
           pageNumber: chunk.pageNumber,
