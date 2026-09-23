@@ -73,6 +73,8 @@ export async function persistTurn(args: {
   truncated: boolean;
   responseTime: number;
   startTime: number;
+  /** Resolved registry id the turn actually ran on (primary and fallback). */
+  modelId: string;
 }): Promise<void> {
   // Strip retrieval-tool parts (raw chunk outputs) before persisting: the
   // professor dashboard viewer only needs text + study-tool parts.
@@ -134,6 +136,7 @@ export async function persistTurn(args: {
             partsVersion: PARTS_VERSION,
             sources: args.finalSources,
             responseTime: finalResponseTime,
+            model: args.modelId,
             ragUsed: args.ragUsedFlag,
             truncated: args.truncated || undefined,
             interrupted: interrupted || undefined,

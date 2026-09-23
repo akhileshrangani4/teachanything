@@ -46,6 +46,48 @@ export function lexicalTsQuery(query: string) {
     : sql`replace(plainto_tsquery('english', ${query})::text, '&', '|')::tsquery`;
 }
 
+/** Highest similarity first. */
+export function bySimilarityDesc<T extends { similarity: number }>(
+  rows: T[],
+): T[] {
+  return [...rows].sort((a, b) => b.similarity - a.similarity);
+}
+
+/**
+ * Vector retriever.
+ *
+ * The HNSW index only looks at its `ef_search` (40) nearest candidates from
+ * the whole table, then applies the file filter, so a chatbot holding a small
+ * share of all chunks got far fewer rows than it asked for: 21 of 60 on the
+ * largest chatbot in Sep 2026. pgvector 0.8's iterative scan keeps walking the
+ * graph until LIMIT rows pass the filter (bounded by hnsw.max_scan_tuples).
+ * `relaxed_order` read 3-10x fewer blocks than an exact scan at similar
+ * latency, but can return rows slightly out of distance order, so they are
+ * re-sorted here. SET LOCAL lasts only for this transaction, so it is safe
+ * through the transaction pooler.
+ */
+async function vectorCandidates(
+  db: typeof DbType,
+  where: ReturnType<typeof and>,
+  embeddingLiteral: string,
+  limit: number,
+) {
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(sql`SET LOCAL hnsw.iterative_scan = relaxed_order`);
+    return tx
+      .select({
+        chunkId: fileChunks.id,
+        similarity: sql<number>`1 - (${fileChunks.embedding} <=> ${embeddingLiteral})`,
+      })
+      .from(fileChunks)
+      .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
+      .where(where)
+      .orderBy(sql`${fileChunks.embedding} <=> ${embeddingLiteral}`)
+      .limit(limit);
+  });
+  return bySimilarityDesc(rows);
+}
+
 /**
  * Chatbot-scoped hybrid search over file chunks.
  *
@@ -92,16 +134,7 @@ export async function hybridSearch(
   // wall-clock cost is the slower one rather than the sum.
   const [vectorRows, ftsRows] = await Promise.all([
     // 1. Vector candidates (HNSW, distance ascending)
-    db
-      .select({
-        chunkId: fileChunks.id,
-        similarity: sql<number>`1 - (${fileChunks.embedding} <=> ${embeddingLiteral})`,
-      })
-      .from(fileChunks)
-      .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
-      .where(baseWhere)
-      .orderBy(sql`${fileChunks.embedding} <=> ${embeddingLiteral}`)
-      .limit(overfetch),
+    vectorCandidates(db, baseWhere, embeddingLiteral, overfetch),
 
     // 2. Full-text candidates (see lexicalTsQuery + ts_rank_cd)
     db

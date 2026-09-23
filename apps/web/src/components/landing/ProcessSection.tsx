@@ -15,7 +15,7 @@ export default function ProcessSection() {
       number: "01",
       title: "Create",
       description:
-        "Sign up and create your first chatbot in minutes. No technical skills needed. Select from open-source LLMs such as Mistral, Llama 3.3, and Qwen.",
+        "Sign up and create your first chatbot in minutes. No technical skills needed. Select from open-source LLMs such as Llama 3.3, Qwen 3, and GPT-OSS.",
     },
     {
       number: "02",

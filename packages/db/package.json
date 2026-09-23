@@ -9,10 +9,11 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "npm run db:setup-extensions && drizzle-kit migrate",
+    "db:migrate": "npm run db:setup-extensions && drizzle-kit migrate && npm run db:check-indexes",
     "db:setup-extensions": "tsx scripts/setup-extensions.ts",
+    "db:check-indexes": "tsx scripts/check-index-health.ts",
     "db:setup-rls": "tsx scripts/setup-rls-policies.ts",
-    "db:push": "npm run db:setup-extensions && drizzle-kit push --force",
+    "db:push": "npm run db:setup-extensions && drizzle-kit push --force && npm run db:check-indexes",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",

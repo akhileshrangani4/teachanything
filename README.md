@@ -21,7 +21,7 @@ Teach Anything is a production-ready platform for creating AI chatbots that answ
 
 ## Features
 
-- **7 Open-Source Models** — Llama 3.3 70B, Llama 4 Maverick, Mistral Large 2411, Qwen 3 235B, GPT-OSS 120B, NVIDIA Nemotron 3 Super, Gemma 4 31B
+- **5 Open-Source Models** — Llama 3.3 70B, Llama 4 Maverick, Qwen 3 235B, GPT-OSS 120B, DeepSeek V3.2
 - **RAG Pipeline** — HNSW-indexed semantic search with source attribution, file manifest, and token budgeting so answers cite the exact file and chunk they came from
 - **File Ingestion** — PDF, Word, PowerPoint (with slide boundaries and speaker notes), and Markdown, processed asynchronously via QStash
 - **Web Crawler** — Auto-discover and index pages from a root URL with depth/page limits, include/exclude patterns, re-crawl detection via content hashing, and JSON export

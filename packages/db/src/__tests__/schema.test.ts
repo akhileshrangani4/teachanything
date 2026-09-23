@@ -6,6 +6,7 @@ import {
   chatbots,
   fileChunks,
   chatbotFileAssociations,
+  userFiles,
   userStatusEnum,
   userRoleEnum,
   processingStatusEnum,
@@ -89,6 +90,13 @@ describe("Database Schema", () => {
         (u) => u.name === "file_chunks_file_id_chunk_index_unique",
       );
       expect(chunkUnique).toBeDefined();
+    });
+
+    it("defines B-tree index on userFiles.userId", () => {
+      const userIdIndex = getTableConfig(userFiles).indexes.find(
+        (i) => i.config.name === "user_files_user_id_idx",
+      );
+      expect(userIdIndex).toBeDefined();
     });
 
     it("defines unique index on chatbotFileAssociations(chatbotId, fileId)", () => {
