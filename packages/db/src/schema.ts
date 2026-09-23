@@ -198,38 +198,47 @@ export const chatbots = pgTable("chatbots", {
 });
 
 // User files table (centralized file storage)
-export const userFiles = pgTable("user_files", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: text("user_id")
-    .references(() => user.id, { onDelete: "cascade" })
-    .notNull(),
-  fileName: text("file_name").notNull(),
-  fileType: text("file_type").notNull(),
-  fileSize: integer("file_size").notNull(), // in bytes
-  storagePath: text("storage_path").notNull(), // Supabase Storage path
-  processingStatus: processingStatusEnum("processing_status")
-    .default("pending")
-    .notNull(),
-  metadata: jsonb("metadata")
-    .$type<{
-      processingVersion?: number;
-      error?: string;
-      chunkCount?: number;
-      processedAt?: string;
-      // Processing progress tracking
-      processingProgress?: {
-        stage:
-          "downloading" | "extracting" | "chunking" | "embedding" | "storing";
-        percentage: number; // 0-100
-        currentChunk?: number;
-        totalChunks?: number;
-        startedAt?: string;
-        lastUpdatedAt?: string;
-      };
-    }>()
-    .default({}),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const userFiles = pgTable(
+  "user_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    fileName: text("file_name").notNull(),
+    fileType: text("file_type").notNull(),
+    fileSize: integer("file_size").notNull(), // in bytes
+    storagePath: text("storage_path").notNull(), // Supabase Storage path
+    processingStatus: processingStatusEnum("processing_status")
+      .default("pending")
+      .notNull(),
+    metadata: jsonb("metadata")
+      .$type<{
+        processingVersion?: number;
+        error?: string;
+        chunkCount?: number;
+        processedAt?: string;
+        // Processing progress tracking
+        processingProgress?: {
+          stage:
+            "downloading" | "extracting" | "chunking" | "embedding" | "storing";
+          percentage: number; // 0-100
+          currentChunk?: number;
+          totalChunks?: number;
+          startedAt?: string;
+          lastUpdatedAt?: string;
+        };
+      }>()
+      .default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // B-tree on the owner for the per-user file list and ownership checks.
+    // Without it every files.list was a seq scan (95k scans, 172M rows read
+    // by Sep 2026). Flagged by the Supabase unindexed-foreign-key lint.
+    index("user_files_user_id_idx").on(table.userId),
+  ],
+);
 
 // Junction table: Associates files with chatbots (many-to-many)
 export const chatbotFileAssociations = pgTable(
