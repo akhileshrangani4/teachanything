@@ -380,7 +380,7 @@ Chatbots can ingest websites directly via the built-in web crawler — add a roo
 - **Overlap**: 200 characters
 - **Similarity search**: pgvector cosine distance
 - **Top K**: dynamic, derived from the token budget via `calculateChunkLimit` in `packages/ai/src/token-budget.ts` (priority: system prompt > file manifest > chunks > history)
-- **Models**: Llama 3.3 70B, Llama 4 Maverick, Mistral Large 2411, Qwen 3 235B, GPT-OSS 120B, NVIDIA Nemotron 3 Super, Gemma 4 31B
+- **Models**: Llama 3.3 70B, Llama 4 Maverick, Qwen 3 235B, GPT-OSS 120B, DeepSeek V3.2
 
 ---
 

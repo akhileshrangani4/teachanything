@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
       <main className="max-w-3xl mx-auto px-6 py-12">
         <article className={s.prose}>
           <h1>Privacy Policy</h1>
-          <p data-legal-meta>Last updated April 17, 2026</p>
+          <p data-legal-meta>Last updated September 22, 2026</p>
 
           <p>
             This Privacy Notice for <BrandName /> (&ldquo;we,&rdquo;
@@ -546,9 +546,9 @@ export default function PrivacyPolicyPage() {
               <strong>OpenRouter</strong> (openrouter.ai) -- Routes chat
               messages, conversation history, system prompts, and relevant file
               content excerpts to large language model providers (such as
-              Meta/Llama, Mistral, and Qwen) to generate AI responses.
-              OpenRouter acts as an intermediary and may relay your data to the
-              underlying model provider.
+              Meta/Llama, Qwen, OpenAI/GPT-OSS, and DeepSeek) to generate AI
+              responses. OpenRouter acts as an intermediary and may relay your
+              data to the underlying model provider.
             </li>
             <li>
               <strong>OpenAI</strong> (openai.com) -- Processes text excerpts
