@@ -25,15 +25,23 @@ export const STORAGE_MISSING_ERROR =
  */
 export function sanitizeProcessingError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
+  if (msg === STORAGE_MISSING_ERROR) return STORAGE_MISSING_ERROR;
   if (msg.includes("timed out")) return "File processing timed out";
+  if (
+    msg.includes("Split it into smaller files") ||
+    msg.includes("Resize it or split the source material")
+  ) {
+    return msg;
+  }
+  if (msg.includes("Animated GIF") || msg.includes("Animated WebP")) {
+    return msg;
+  }
+  if (msg.includes("vision model") && msg.includes("unavailable")) {
+    return "The configured image-reading model is unavailable or incompatible. An administrator must change OPENAI_VISION_MODEL before retrying.";
+  }
   if (msg.includes("Unsupported file type")) return msg;
-  if (msg.includes("no readable text")) {
-    // Overwhelmingly a scan or an image-only export: there is no text layer to
-    // extract, and no amount of retrying will create one.
-    return (
-      "No readable text found. If this is a scanned document, it needs to be " +
-      "run through OCR (or re-exported as a text PDF) before it can be used."
-    );
+  if (msg.includes("no readable text") || msg.includes("no readable content")) {
+    return "No readable text or supported images were found in this file.";
   }
   // Both thrown by `assertFileSignature`, before any parser runs. Named ahead of
   // the PDF branch because the message for a mislabelled PDF matches both.

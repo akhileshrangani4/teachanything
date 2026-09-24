@@ -18,7 +18,8 @@ export function useFileActions<T extends BaseFile>(file: T) {
   const canRetry =
     file.processingStatus === "failed" ||
     file.processingStatus === "pending" ||
-    file.processingStatus === "processing";
+    file.processingStatus === "processing" ||
+    Boolean(file.metadata?.refreshWarning);
 
   const canView = file.processingStatus === "completed";
   const isViewable = file.fileType === "application/pdf";

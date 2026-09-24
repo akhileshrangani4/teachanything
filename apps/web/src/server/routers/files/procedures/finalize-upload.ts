@@ -13,7 +13,16 @@ import {
 import { publishQStashJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
-import { processFile } from "@/server/file-processor";
+import {
+  CURRENT_PROCESSING_VERSION,
+  processFile,
+} from "@/server/file-processor";
+import {
+  validateExtensionMatchesMimeType,
+  validateFileName,
+  validateFileSize,
+  validateFileType,
+} from "../validation";
 
 /**
  * Finalize upload after client has uploaded to storage.
@@ -47,6 +56,11 @@ export const finalizeUploadProcedure = protectedProcedure
     }
 
     try {
+      validateFileName(input.fileName);
+      validateFileSize(input.fileSize);
+      validateFileType(input.fileType);
+      validateExtensionMatchesMimeType(input.fileName, input.fileType);
+
       // Validate storage path matches expected pattern: {userId}/{fileId}
       const expectedPath = `${ctx.session.user.id}/${input.fileId}`;
       if (input.storagePath !== expectedPath) {
@@ -162,6 +176,7 @@ export const finalizeUploadProcedure = protectedProcedure
         // Process in background (don't await) to return response quickly
         processFile({
           fileId: fileRecord.id,
+          targetProcessingVersion: CURRENT_PROCESSING_VERSION,
         }).catch((error) => {
           logError(error, "Inline file processing failed", {
             fileId: fileRecord.id,
@@ -174,6 +189,7 @@ export const finalizeUploadProcedure = protectedProcedure
           url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
           body: {
             fileId: fileRecord.id,
+            targetProcessingVersion: CURRENT_PROCESSING_VERSION,
           },
         });
 

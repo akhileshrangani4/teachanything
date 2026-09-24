@@ -7,11 +7,17 @@ export type BaseFile = {
   processingStatus: string;
   metadata?: {
     error?: string;
+    refreshWarning?: string;
     chunkCount?: number;
     processedAt?: string;
     processingProgress?: {
       stage:
-        "downloading" | "extracting" | "chunking" | "embedding" | "storing";
+        | "downloading"
+        | "extracting"
+        | "analyzing"
+        | "chunking"
+        | "embedding"
+        | "storing";
       percentage: number;
       currentChunk?: number;
       totalChunks?: number;
