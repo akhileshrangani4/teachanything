@@ -551,13 +551,14 @@ export default function PrivacyPolicyPage() {
               data to the underlying model provider.
             </li>
             <li>
-              <strong>OpenAI</strong> (openai.com) -- Processes text excerpts
-              from uploaded files and user chat messages to generate vector
-              embeddings used for semantic search (retrieval-augmented
+              <strong>OpenAI</strong> (openai.com) -- Processes uploaded PDF
+              pages and images for visual understanding, and processes text
+              excerpts from uploaded files and user chat messages to generate
+              vector embeddings used for semantic search (retrieval-augmented
               generation). When you send a message to a chatbot that has
               uploaded files, your message is also sent to OpenAI to find
-              relevant document excerpts. Only text content is sent; no personal
-              account information is included.
+              relevant document excerpts. No personal account information is
+              included.
             </li>
             <li>
               <strong>OpenAI (voice input)</strong> -- If you use the microphone
@@ -663,10 +664,12 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Retrieval-Augmented Generation (RAG)</strong> -- When
-              files are uploaded, the platform extracts text content, splits it
-              into smaller chunks, and generates vector embeddings. When a user
-              asks a question, relevant chunks are retrieved and included in the
-              AI prompt to provide informed, context-aware responses.
+              files are uploaded, the platform extracts text, uses visual
+              analysis for supported document pages and images, splits the
+              resulting content into smaller chunks, and generates vector
+              embeddings. When a user asks a question, relevant chunks are
+              retrieved and included in the AI prompt to provide informed,
+              context-aware responses.
             </li>
           </ul>
 
@@ -696,13 +699,15 @@ export default function PrivacyPolicyPage() {
           <ol>
             <li>The file is stored in Supabase cloud storage.</li>
             <li>
-              Text is extracted from the file on our servers (no third-party
-              processing for extraction).
+              Text is extracted from the file on our servers. Supported PDF
+              pages and images are also sent to OpenAI for visual analysis,
+              including optical character recognition and descriptions of
+              diagrams, tables, and other instructional visuals.
             </li>
             <li>
-              The extracted text is split into chunks, and each chunk is sent to
-              OpenAI to generate a vector embedding for semantic search
-              purposes.
+              The extracted and visually analyzed text is split into chunks, and
+              each chunk is sent to OpenAI to generate a vector embedding for
+              semantic search purposes.
             </li>
             <li>
               The embeddings are stored in our database for future retrieval.

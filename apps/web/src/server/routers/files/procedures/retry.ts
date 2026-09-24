@@ -2,11 +2,14 @@ import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { userFiles, fileChunks } from "@teachanything/db/schema";
+import { userFiles } from "@teachanything/db/schema";
 import { publishQStashJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
-import { processFile } from "@/server/file-processor";
+import {
+  CURRENT_PROCESSING_VERSION,
+  processFile,
+} from "@/server/file-processor";
 
 export const retryProcedure = protectedProcedure
   .input(
@@ -35,28 +38,20 @@ export const retryProcedure = protectedProcedure
         });
       }
 
-      // Allow retry for failed, stuck, pending, or processing files
+      // Allow retry for failed, stuck, pending, processing, or a completed file
+      // whose lazy visual refresh failed while its old index stayed available.
       // For processing files, this acts as a cancel + restart
       if (
         file.processingStatus !== "failed" &&
         file.processingStatus !== "pending" &&
-        file.processingStatus !== "processing"
+        file.processingStatus !== "processing" &&
+        !file.metadata?.refreshWarning
       ) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Can only retry failed, stuck, or processing files",
         });
       }
-
-      // Delete existing chunks before retry to prevent stale accumulation
-      await ctx.db
-        .delete(fileChunks)
-        .where(eq(fileChunks.fileId, input.fileId));
-
-      logInfo("Cleared existing chunks for file retry", {
-        fileId: input.fileId,
-        userId: ctx.session.user.id,
-      });
 
       // Reset file status to pending and clear error metadata.
       //
@@ -72,6 +67,11 @@ export const retryProcedure = protectedProcedure
         .set({
           processingStatus: "pending",
           metadata: {
+            ...file.metadata,
+            error: undefined,
+            refreshWarning: undefined,
+            refreshFailedAt: undefined,
+            reprocessQueuedAt: undefined,
             processingProgress: {
               stage: "downloading",
               percentage: 0,
@@ -93,6 +93,8 @@ export const retryProcedure = protectedProcedure
         // Process in background (don't await) to return response quickly
         processFile({
           fileId: input.fileId,
+          targetProcessingVersion: CURRENT_PROCESSING_VERSION,
+          force: true,
         }).catch((error) => {
           logError(error, "Retry file processing failed", {
             fileId: input.fileId,
@@ -105,6 +107,8 @@ export const retryProcedure = protectedProcedure
           url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
           body: {
             fileId: input.fileId,
+            targetProcessingVersion: CURRENT_PROCESSING_VERSION,
+            force: true,
           },
         });
 

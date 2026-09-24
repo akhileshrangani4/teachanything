@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { qstashReceiver, verifyQStashSignature } from "@/server/qstash";
 import { logError } from "@/lib/logger";
-import { processFile } from "@/server/file-processor";
+import {
+  CURRENT_PROCESSING_VERSION,
+  processFile,
+} from "@/server/file-processor";
 
 /**
  * Embedding a document is the slowest stage of the pipeline and the one that
@@ -14,7 +17,15 @@ import { processFile } from "@/server/file-processor";
  */
 export const maxDuration = 300;
 
-const payloadSchema = z.object({ fileId: z.string().uuid() });
+const payloadSchema = z.object({
+  fileId: z.string().uuid(),
+  targetProcessingVersion: z
+    .number()
+    .int()
+    .positive()
+    .default(CURRENT_PROCESSING_VERSION),
+  force: z.boolean().optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -61,10 +72,14 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
-    const { fileId } = parsed.data;
+    const { fileId, targetProcessingVersion, force } = parsed.data;
 
     // Process the file using shared function
-    const result = await processFile({ fileId });
+    const result = await processFile({
+      fileId,
+      targetProcessingVersion,
+      force,
+    });
 
     return NextResponse.json({
       success: result.success,

@@ -10,6 +10,16 @@ interface OfficeparserNode {
   children?: OfficeparserNode[];
 }
 
+export interface ExtractedChunk {
+  content: string;
+  pageNumber?: number;
+}
+
+export interface ExtractedFileContent {
+  chunks: ExtractedChunk[];
+  pageCount?: number;
+}
+
 /**
  * RAG Service for file processing, chunking, and semantic search
  */
@@ -125,6 +135,19 @@ export class RAGService {
    * Extract text from PDF files
    */
   private async extractPDF(buffer: Buffer): Promise<string> {
+    const { text } = await this.extractPDFData(buffer);
+    if (!text) {
+      throw new Error(
+        "Failed to extract PDF content: PDF contains no readable text content",
+      );
+    }
+    return text;
+  }
+
+  /** Parse a PDF once and retain its page count even when it has no text layer. */
+  private async extractPDFData(
+    buffer: Buffer,
+  ): Promise<{ text: string; pageCount: number }> {
     try {
       // Ensure we have a valid Buffer instance
       if (!Buffer.isBuffer(buffer)) {
@@ -169,19 +192,16 @@ export class RAGService {
       // Pass the buffer directly - pdf-parse accepts Buffer instances
       const data = await pdfParse(buffer);
 
-      if (!data || !data.text) {
-        throw new Error("PDF parsing returned no text content");
+      if (!data || typeof data.text !== "string") {
+        throw new Error("PDF parsing returned an invalid result");
       }
 
       // Sanitize the text to remove null bytes and other problematic characters,
       // but preserve form-feed (\f) page boundaries for page-aware chunking (#271)
-      const sanitizedText = this.sanitizeTextPreservingFormFeed(data.text);
-
-      if (!sanitizedText) {
-        throw new Error("PDF contains no readable text content");
-      }
-
-      return sanitizedText;
+      return {
+        text: this.sanitizeTextPreservingFormFeed(data.text),
+        pageCount: data.numpages,
+      };
     } catch (error) {
       logError(error, "PDF extraction error");
       throw new Error(
@@ -353,17 +373,31 @@ export class RAGService {
   async extractAndChunk(
     buffer: Buffer,
     mimeType: string,
-  ): Promise<Array<{ content: string; pageNumber?: number }>> {
+  ): Promise<ExtractedChunk[]> {
+    const result = await this.extractAndChunkWithMetadata(buffer, mimeType);
+    return result.chunks;
+  }
+
+  /** Extract chunks plus format metadata needed by visual-material processing. */
+  async extractAndChunkWithMetadata(
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<ExtractedFileContent> {
     if (mimeType === "application/pdf") {
-      const text = await this.extractPDF(buffer);
+      assertFileSignature(buffer, mimeType);
+      const { text, pageCount } = await this.extractPDFData(buffer);
+      if (!text) return { chunks: [], pageCount };
       const paged = await this.chunkPagedText(text);
-      if (paged.length > 0) return paged;
+      if (paged.length > 0) return { chunks: paged, pageCount };
       const flat = await this.chunkText(text);
-      return flat.map((content) => ({ content, pageNumber: 1 }));
+      return {
+        chunks: flat.map((content) => ({ content, pageNumber: 1 })),
+        pageCount,
+      };
     }
     const content = await this.extractContent(buffer, mimeType);
     const chunks = await this.chunkText(content);
-    return chunks.map((c) => ({ content: c }));
+    return { chunks: chunks.map((c) => ({ content: c })) };
   }
 
   /**

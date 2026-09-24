@@ -31,6 +31,7 @@ const envSchema = z.object({
   BETTER_AUTH_URL: z.string().url(),
   OPENROUTER_API_KEY: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
+  OPENAI_VISION_MODEL: z.string().trim().min(1).default("gpt-6-sol"),
   RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -68,6 +69,7 @@ describe("env schema validation", () => {
 
     expect(result.ALLOWED_EMAIL_DOMAINS).toBe(".edu,.ac.in,.edu.in");
     expect(result.NEXT_PUBLIC_MAX_FILE_SIZE_MB).toBe("50");
+    expect(result.OPENAI_VISION_MODEL).toBe("gpt-6-sol");
     expect(result.PORT).toBe(3000);
   });
 
@@ -131,6 +133,20 @@ describe("env schema validation", () => {
   it("rejects invalid email format for optional email fields", () => {
     const badEnv = { ...VALID_ENV, RESEND_FROM_EMAIL: "not-an-email" };
     expect(() => envSchema.parse(badEnv)).toThrow();
+  });
+
+  it("accepts a deployment-wide vision model override", () => {
+    const result = envSchema.parse({
+      ...VALID_ENV,
+      OPENAI_VISION_MODEL: "gpt-6-luna",
+    });
+    expect(result.OPENAI_VISION_MODEL).toBe("gpt-6-luna");
+  });
+
+  it("rejects an empty vision model override", () => {
+    expect(() =>
+      envSchema.parse({ ...VALID_ENV, OPENAI_VISION_MODEL: "  " }),
+    ).toThrow();
   });
 });
 

@@ -63,8 +63,8 @@ export function UploadFileDialog({
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
           <DialogDescription>
-            Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, or
-            CSV files (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
+            Upload PDFs, Word, PowerPoint, images, TXT, Markdown, JSON, or CSV
+            files (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
           </DialogDescription>
         </DialogHeader>
 
@@ -94,7 +94,7 @@ export function UploadFileDialog({
               type="file"
               ref={fileInputRef}
               onChange={handleInputChange}
-              accept=".pdf,.doc,.docx,.pptx,.txt,.md,.json,.csv"
+              accept=".pdf,.doc,.docx,.pptx,.png,.jpg,.jpeg,.webp,.gif,.txt,.md,.json,.csv"
               multiple
               className="hidden"
             />
@@ -120,8 +120,8 @@ export function UploadFileDialog({
                   or drag and drop
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV (max{" "}
-                  {MAX_FILE_SIZE / 1024 / 1024}MB each)
+                  PDF, Word, PowerPoint, images, TXT, Markdown, JSON, or CSV
+                  (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   You can select multiple files

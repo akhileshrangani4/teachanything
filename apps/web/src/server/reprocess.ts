@@ -30,6 +30,13 @@ export async function maybeEnqueueReprocess(
         and(
           eq(chatbotFileAssociations.chatbotId, chatbotId),
           eq(userFiles.processingStatus, "completed"),
+          // A failed paid refresh keeps the old index usable and waits for an
+          // explicit retry instead of charging again on every chat access.
+          isNull(sql`${userFiles.metadata} ->> 'refreshFailedAt'`),
+          or(
+            isNull(sql`${userFiles.metadata} ->> 'reprocessQueuedAt'`),
+            sql`(${userFiles.metadata} ->> 'reprocessQueuedAt')::timestamptz < now() - interval '15 minutes'`,
+          ),
           or(
             isNull(sql`${userFiles.metadata} ->> 'processingVersion'`),
             sql`(${userFiles.metadata} ->> 'processingVersion')::int < ${CURRENT_PROCESSING_VERSION}`,
@@ -51,18 +58,48 @@ export async function maybeEnqueueReprocess(
     // isolated so one failure doesn't abort the rest of the batch.
     const inlineDev = env.NODE_ENV === "development";
     for (const { fileId } of stale) {
+      const queuedAt = new Date().toISOString();
+      const claimed = await db
+        .update(userFiles)
+        .set({
+          metadata: sql`coalesce(${userFiles.metadata}, '{}'::jsonb) || jsonb_build_object('reprocessQueuedAt', ${queuedAt})`,
+        })
+        .where(
+          and(
+            eq(userFiles.id, fileId),
+            eq(userFiles.processingStatus, "completed"),
+            isNull(sql`${userFiles.metadata} ->> 'refreshFailedAt'`),
+            or(
+              isNull(sql`${userFiles.metadata} ->> 'reprocessQueuedAt'`),
+              sql`(${userFiles.metadata} ->> 'reprocessQueuedAt')::timestamptz < now() - interval '15 minutes'`,
+            ),
+          ),
+        )
+        .returning({ id: userFiles.id });
+      if (claimed.length === 0) continue;
+
       if (inlineDev) {
-        void processFile({ fileId }).catch((e) =>
-          logError(e, "Inline reprocess failed", { fileId }),
-        );
+        void processFile({
+          fileId,
+          targetProcessingVersion: CURRENT_PROCESSING_VERSION,
+        }).catch((e) => logError(e, "Inline reprocess failed", { fileId }));
       } else {
         try {
           await publishQStashJob({
             url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-            body: { fileId },
+            body: {
+              fileId,
+              targetProcessingVersion: CURRENT_PROCESSING_VERSION,
+            },
           });
         } catch (e) {
           logError(e, "Failed to enqueue reprocess job", { fileId });
+          await db
+            .update(userFiles)
+            .set({
+              metadata: sql`${userFiles.metadata} - 'reprocessQueuedAt'`,
+            })
+            .where(eq(userFiles.id, fileId));
         }
       }
     }

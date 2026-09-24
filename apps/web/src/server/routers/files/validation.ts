@@ -13,6 +13,10 @@ export const SUPPORTED_FILE_TYPES = [
   "text/markdown",
   "application/json",
   "text/csv",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
 ] as const;
 
 /**
@@ -32,6 +36,11 @@ export const EXTENSION_MIME_MAP: Record<string, string[]> = {
   markdown: ["text/markdown"],
   json: ["application/json"],
   csv: ["text/csv"],
+  png: ["image/png"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  webp: ["image/webp"],
+  gif: ["image/gif"],
 } as const;
 
 /**
@@ -48,6 +57,10 @@ export const FILE_TYPE_DISPLAY_NAMES: Record<string, string> = {
   "text/markdown": "Markdown",
   "application/json": "JSON",
   "text/csv": "CSV",
+  "image/png": "PNG image",
+  "image/jpeg": "JPEG image",
+  "image/webp": "WebP image",
+  "image/gif": "GIF image",
 };
 
 /**
@@ -111,7 +124,7 @@ export function validateFileType(fileType: string): void {
     const displayName = FILE_TYPE_DISPLAY_NAMES[fileType] || fileType;
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: `Unsupported file type: ${displayName}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV`,
+      message: `Unsupported file type: ${displayName}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), images (PNG, JPEG, WebP, non-animated GIF), Text, Markdown, JSON, CSV`,
     });
   }
 }
@@ -125,10 +138,18 @@ export function validateExtensionMatchesMimeType(
   fileType: string,
 ): void {
   const fileNameLower = fileName.toLowerCase();
-  const extension = fileNameLower.substring(fileNameLower.lastIndexOf(".") + 1);
+  const lastDot = fileNameLower.lastIndexOf(".");
+  const extension = lastDot >= 0 ? fileNameLower.substring(lastDot + 1) : "";
   const validMimeTypes = EXTENSION_MIME_MAP[extension];
 
-  if (extension && validMimeTypes && !validMimeTypes.includes(fileType)) {
+  if (!extension || !validMimeTypes) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Unsupported file extension${extension ? `: .${extension}` : ""}`,
+    });
+  }
+
+  if (!validMimeTypes.includes(fileType)) {
     const displayName = FILE_TYPE_DISPLAY_NAMES[fileType] || fileType;
     throw new TRPCError({
       code: "BAD_REQUEST",

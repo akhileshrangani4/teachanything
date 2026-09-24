@@ -15,7 +15,7 @@ describe("sanitizeProcessingError", () => {
     [
       "scanned / image-only PDF",
       "PDF contains no readable text content",
-      "OCR",
+      "No readable text or supported images",
     ],
     [
       "empty upload",
@@ -78,7 +78,7 @@ describe("sanitizeProcessingError", () => {
     [
       "word with no text",
       "Word document contains no readable text content",
-      "OCR",
+      "No readable text or supported images",
     ],
     [
       "password protected",
@@ -132,6 +132,22 @@ describe("sanitizeProcessingError", () => {
   it("keeps the unsupported-type message the extractor already wrote", () => {
     const raw = "Unsupported file type: application/zip";
     expect(sanitizeProcessingError(new Error(raw))).toBe(raw);
+  });
+
+  it("keeps actionable split-file limits", () => {
+    const raw =
+      "This PDF has 80 pages; visual processing supports at most 50. Split it into smaller files and upload them separately.";
+    expect(sanitizeProcessingError(new Error(raw))).toBe(raw);
+  });
+
+  it("turns a bad vision model into an administrator action", () => {
+    expect(
+      sanitizeProcessingError(
+        new Error(
+          'OpenAI vision model "cheap-model" is unavailable or incompatible',
+        ),
+      ),
+    ).toContain("OPENAI_VISION_MODEL");
   });
 
   it("still has a generic fallback for genuinely unknown failures", () => {

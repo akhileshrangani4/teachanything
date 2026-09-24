@@ -50,7 +50,8 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/teachanything
 BETTER_AUTH_SECRET=your_random_32_char_secret  # Generate: openssl rand -base64 32
 BETTER_AUTH_URL=http://localhost:3000
 OPENROUTER_API_KEY=sk-or-v1-...               # Get from openrouter.ai
-OPENAI_API_KEY=sk-...                         # Get from platform.openai.com (for embeddings)
+OPENAI_API_KEY=sk-...                         # Embeddings + visual material analysis
+OPENAI_VISION_MODEL=gpt-6-sol                 # Optional; use gpt-6-luna to reduce cost
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ADMIN_EMAILS=admin@example.com
 ```
@@ -86,7 +87,7 @@ Create accounts and obtain API keys from:
 
 - **Supabase** (https://supabase.com/) - PostgreSQL + Storage
 - **OpenRouter** (https://openrouter.ai/) - AI models
-- **OpenAI** (https://platform.openai.com/) - Embeddings API
+- **OpenAI** (https://platform.openai.com/) - Embeddings and visual material analysis
 - **Resend** (https://resend.com/) - Email service
 - **Upstash** (https://upstash.com/) - Redis + QStash
 
@@ -109,7 +110,8 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # AI/OpenRouter
 OPENROUTER_API_KEY=sk-or-v1-...
-OPENAI_API_KEY=sk-...  # For embeddings
+OPENAI_API_KEY=sk-...          # Embeddings + visual material analysis
+OPENAI_VISION_MODEL=gpt-6-sol  # Optional; deployment-wide vision model
 
 # Better Auth
 BETTER_AUTH_SECRET=your_random_32_char_secret  # Generate: openssl rand -base64 32
@@ -338,24 +340,31 @@ locks out an existing user.
 
 ### Upload Flow
 
-1. User uploads file (PDF, Word, TXT, etc.)
+1. User uploads a document or image
 2. File stored in Supabase Storage
 3. Metadata saved to database
 4. QStash job triggered
-5. File extracted and chunked
-6. Embeddings generated (OpenAI)
-7. Stored in database with pgvector
-8. Status updated to 'completed'
+5. Native text is extracted and PDFs/embedded images are visually analyzed (OpenAI)
+6. Combined content is chunked and embeddings are generated (OpenAI)
+7. Chunks are atomically replaced in the database with pgvector
+8. Status is updated to `completed`
 
 ### Supported Types
 
-- PDF (pdf-parse)
-- Word Documents (mammoth)
-- PowerPoint (PPTX, with slide boundaries + speaker notes)
+- PDF, including scanned PDFs and page visuals
+- Word Documents (DOCX text plus embedded raster images)
+- PowerPoint (PPTX text, slide boundaries, speaker notes, and embedded raster images)
+- Images (PNG, JPEG, WebP, non-animated GIF)
 - Plain Text
 - Markdown
 - JSON
 - CSV
+
+Visual processing defaults to `gpt-6-sol`. Set `OPENAI_VISION_MODEL` and
+redeploy to switch to another compatible OpenAI vision model without changing
+code. The change applies to new and queued jobs; completed v3 files are not
+automatically reprocessed. Office-native charts and shapes that are not stored
+as raster images require exporting the document to PDF for full visual fidelity.
 
 ### Web Crawler
 
@@ -566,8 +575,8 @@ In Vercel:
 **Solution**:
 
 1. Check `OPENROUTER_API_KEY`
-2. Check `OPENAI_API_KEY` for embeddings
-3. Verify model name in config
+2. Check `OPENAI_API_KEY` for embeddings and visual material analysis
+3. Verify the chat model name and `OPENAI_VISION_MODEL` configuration
 4. Check file chunks have embeddings
 
 ### Emails Not Sending
