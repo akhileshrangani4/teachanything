@@ -20,6 +20,9 @@ This is where your assistant actually learns. Upload the documents you want it t
   <Card title="PowerPoint" icon="presentation">
     `.pptx` slide decks, including your speaker notes.
   </Card>
+  <Card title="Images" icon="image">
+    `.png`, `.jpg`, `.jpeg`, `.webp`, and non-animated `.gif` course visuals.
+  </Card>
   <Card title="Text & Markdown" icon="file-code">
     Plain `.txt` and `.md` notes.
   </Card>
@@ -30,9 +33,11 @@ This is where your assistant actually learns. Upload the documents you want it t
 
 :::note[File size and format notes]
 
-- Each file can be up to **100 MB**.
+- Each file can be up to **50 MB** by default.
 - Word and PowerPoint must be the newer `.docx` / `.pptx` formats. If you have an older `.doc` or `.ppt` file, open it and choose **Save As → .docx** (or **.pptx**) first.
-- Scanned PDFs that are just images of text do not work. Please put them through the OCR (Optical Character Recognition) process first.
+- Scanned PDFs and meaningful images embedded in `.docx` and `.pptx` files are read with AI visual analysis.
+- Visual processing supports up to 50 PDF pages or 40 embedded Office images (25 MB combined). Split larger materials into smaller files.
+- PowerPoint and Word charts or shapes that are not stored as images may be missed. Export to PDF when exact visual fidelity matters.
   :::
 
 ## How to upload
@@ -60,9 +65,9 @@ Processing happens in the background, so you can upload a batch and come back la
 You don't need to understand this to use it, but here's the gist:
 
 <Steps>
-  <Step title="It reads the text">
-    The assistant pulls the readable text out of your document — including slide
-    boundaries and speaker notes for PowerPoint.
+  <Step title="It reads text and visuals">
+    The assistant pulls out readable text, analyzes scanned pages and images,
+    and preserves slide boundaries and speaker notes for PowerPoint.
   </Step>
   <Step title="It breaks it into pieces">
     Long documents are split into smaller passages so the assistant can pinpoint
