@@ -79,7 +79,14 @@ export default function PendingPage() {
 
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                Questions? Contact your institution&apos;s administrator.
+                Questions? Email us at{" "}
+                <a
+                  href="mailto:admin@teachanything.ai"
+                  className="text-primary hover:underline"
+                >
+                  admin@teachanything.ai
+                </a>
+                .
               </p>
             </div>
           </div>

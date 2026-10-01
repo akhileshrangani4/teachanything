@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.1](https://github.com/akhileshrangani4/teachanything/compare/v1.35.0...v1.35.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **auth:** point the pending page at our support email ([#531](https://github.com/akhileshrangani4/teachanything/issues/531)) ([5ee1d8d](https://github.com/akhileshrangani4/teachanything/commit/5ee1d8d10e1888c6227afd1705d7821b51a48f08))
+
 ## [1.35.0](https://github.com/akhileshrangani4/teachanything/compare/v1.34.19...v1.35.0) (2026-10-01)
 
 
