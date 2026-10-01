@@ -8,6 +8,7 @@ import {
 } from "@teachanything/ai";
 import { buildRAGContext, type RAGContextResult } from "@/server/rag-context";
 import { logWarn } from "@/lib/logger";
+import type { RagTiming } from "./turn-timing";
 
 export type HistoryRow = typeof messages.$inferSelect;
 
@@ -37,6 +38,7 @@ export async function fetchTurnContext(args: {
   openrouterApiKey: string;
   openaiApiKey: string;
   aiClient: OpenRouterClient;
+  ragTiming?: RagTiming;
 }): Promise<TurnContext> {
   // History + RAG + prior study-tool responses in parallel (bounded by the
   // slowest of the three).
@@ -55,6 +57,7 @@ export async function fetchTurnContext(args: {
       openaiApiKey: args.openaiApiKey,
       chunkLimit: args.chunkLimit,
       aiClient: args.aiClient,
+      timing: args.ragTiming,
     }),
     // Student responses to study tools shown earlier, so the model can be told
     // scores / unfinished quizzes. Small per conversation; ordered oldest-first

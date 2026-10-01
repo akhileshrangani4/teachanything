@@ -349,6 +349,18 @@ export const messages = pgTable(
         }>;
         responseTime?: number;
         model?: string;
+        // Where the turn's time went, in ms. Mirrors TurnTiming in
+        // apps/web/src/server/chat/turn-timing.ts (duplicated because this
+        // package must not import app code). responseTime above starts at the
+        // stream, so totalMs is the real server-side wait.
+        timing?: {
+          preStreamMs: number;
+          contextMs: number;
+          embeddingMs?: number;
+          searchMs?: number;
+          firstTokenMs?: number;
+          totalMs: number;
+        };
         ragUsed?: boolean;
         // Structured study-tool payloads: the assistant UIMessage `parts`
         // (incl. tool-call parts). Typed `unknown[]` here because this package
