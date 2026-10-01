@@ -55,6 +55,13 @@ function args(overrides: Partial<PersistArgs> = {}): PersistArgs {
     responseTime: 4200,
     startTime: Date.now() - 4200,
     modelId: "openai/gpt-oss-120b",
+    timing: {
+      preStreamMs: 900,
+      contextMs: 700,
+      embeddingMs: 250,
+      searchMs: 300,
+      firstTokenMs: 1800,
+    },
     ...overrides,
   };
 }
@@ -71,6 +78,28 @@ describe("persistTurn", () => {
         model: "openai/gpt-oss-120b",
         responseTime: 4200,
         ragUsed: true,
+      }),
+    );
+  });
+
+  it("records where the turn's time went, including the pre-stream part", async () => {
+    const { database, inserts } = fakeDatabase();
+    await persistTurn(args({ database }));
+
+    const message = inserts.find((i) => i.table === messages);
+    expect(message?.values.metadata).toEqual(
+      expect.objectContaining({
+        // responseTime still starts at the stream (dashboard semantics).
+        responseTime: 4200,
+        timing: {
+          preStreamMs: 900,
+          contextMs: 700,
+          embeddingMs: 250,
+          searchMs: 300,
+          firstTokenMs: 1800,
+          // pre-stream + stream: the real server-side wait.
+          totalMs: 5100,
+        },
       }),
     );
   });

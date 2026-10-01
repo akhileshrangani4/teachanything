@@ -9,6 +9,7 @@ import {
   type StudyMessageMetadata,
   type StudyUIMessage,
 } from "./study-tools";
+import { withFirstTextTimer } from "./turn-timing";
 import {
   runPrimaryTurn,
   runFallbackTurn,
@@ -28,6 +29,8 @@ export type TurnState = {
   responseTime: number;
   truncated: boolean;
   executeErrored: boolean;
+  /** Stream start to the first answer text (see turn-timing.ts). */
+  firstTokenMs?: number;
 };
 
 /**
@@ -82,6 +85,10 @@ export async function executeTurn(args: {
   // `steps` empty, so this is the only record of what the model wrote.
   const partialQuizInput = new Map<string, string>();
 
+  const writer = withFirstTextTimer(args.writer, () => {
+    args.state.firstTokenMs = Date.now() - args.startTime;
+  });
+
   // Primary turn: retrieval + study tools (or study-only / none).
   const primaryOutcome = await runPrimaryTurn({
     aiClient: args.aiClient,
@@ -96,7 +103,7 @@ export async function executeTurn(args: {
     partialQuizInput,
     modelCanUseTools: args.modelCanUseTools,
     onStreamError: args.onStreamError,
-    writer: args.writer,
+    writer,
   });
   if (!primaryOutcome.ok) {
     failTurn(args, primaryOutcome.error);
@@ -132,7 +139,7 @@ export async function executeTurn(args: {
   const salvagedTruncatedQuiz = salvageTruncatedQuizzes(
     partialQuizInput,
     allToolCalls,
-    args.writer,
+    writer,
     {
       chatbotId: args.chatbotId,
       modelId: args.modelId,
@@ -140,7 +147,7 @@ export async function executeTurn(args: {
     },
   );
 
-  writeDoneAnswerAsText(args.writer, primaryText, doneAnswer);
+  writeDoneAnswerAsText(writer, primaryText, doneAnswer);
 
   const hasVisibleAnswer =
     Boolean(turnText.trim()) ||
@@ -173,7 +180,7 @@ export async function executeTurn(args: {
       abortSignal: args.abortSignal,
       chatbotId: args.chatbotId,
       onStreamError: args.onStreamError,
-      writer: args.writer,
+      writer,
     });
     if (!fallback.ok) {
       failTurn(args, fallback.error);
@@ -224,7 +231,7 @@ export async function executeTurn(args: {
     responseTime: args.state.responseTime,
     truncated: args.state.truncated || undefined,
   };
-  args.writer.write({
+  writer.write({
     type: "finish",
     finishReason,
     messageMetadata: metadata,

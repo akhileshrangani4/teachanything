@@ -15,6 +15,7 @@ import {
 } from "@teachanything/ai";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import type { db as dbType } from "@teachanything/db";
+import type { RagTiming } from "@/server/chat/turn-timing";
 
 export interface BuildRAGContextParams {
   chatbotId: string;
@@ -26,6 +27,8 @@ export interface BuildRAGContextParams {
   chunkLimit?: number;
   /** Reuse an existing client instead of creating a new one per call. */
   aiClient?: OpenRouterClient;
+  /** Receives per-step durations as they finish (see turn-timing.ts). */
+  timing?: RagTiming;
 }
 
 export interface RAGContextResult {
@@ -140,6 +143,7 @@ export async function buildRAGContext(
     params.aiClient ??
     createOpenRouterClient(params.openrouterApiKey, params.openaiApiKey);
 
+  const embeddingStart = Date.now();
   const queryEmbedding = await aiClient
     .generateEmbedding(params.message)
     .catch((error) => {
@@ -150,6 +154,7 @@ export async function buildRAGContext(
       );
       return null;
     });
+  if (params.timing) params.timing.embeddingMs = Date.now() - embeddingStart;
   let ragFailureNote = "";
 
   if (!queryEmbedding) {
@@ -197,6 +202,7 @@ export async function buildRAGContext(
   const effectiveChunkLimit =
     params.chunkLimit ?? Math.min(fileIds.length * 2, 30);
 
+  const searchStart = Date.now();
   const relevantChunks = await hybridSearch({
     db: params.db,
     fileIds,
@@ -204,6 +210,7 @@ export async function buildRAGContext(
     queryEmbedding,
     limit: effectiveChunkLimit,
   });
+  if (params.timing) params.timing.searchMs = Date.now() - searchStart;
 
   // 6. Format chunks with source attribution (D-04)
   const sources: RAGContextResult["sources"] = [];
