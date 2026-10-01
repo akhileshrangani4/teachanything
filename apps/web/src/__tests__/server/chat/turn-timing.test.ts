@@ -43,6 +43,21 @@ describe("withFirstTextTimer", () => {
     ]);
   });
 
+  it("ignores whitespace-only deltas, which are not a visible answer", () => {
+    const { writer } = fakeWriter();
+    const onFirstText = jest.fn();
+    const timed = withFirstTextTimer(writer, onFirstText);
+
+    // A primary step that streams blank lines and then answers nothing; the
+    // fallback writes the real text later.
+    timed.write({ type: "text-delta", id: "t", delta: "\n\n" });
+    timed.write({ type: "text-delta", id: "t", delta: "  " });
+    expect(onFirstText).not.toHaveBeenCalled();
+
+    timed.write({ type: "text-delta", id: "fb", delta: "Here is the answer" });
+    expect(onFirstText).toHaveBeenCalledTimes(1);
+  });
+
   it("does not fire for a turn with no text (e.g. quiz only)", () => {
     const { writer } = fakeWriter();
     const onFirstText = jest.fn();

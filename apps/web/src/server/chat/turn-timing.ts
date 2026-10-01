@@ -32,9 +32,12 @@ export type RagTiming = {
 };
 
 /**
- * Wraps the stream writer so `onFirstText` fires once, on the first non-empty
- * text delta. Every answer path (primary, done-answer, fallback) writes through
- * `write`, so one wrapper covers them all.
+ * Wraps the stream writer so `onFirstText` fires once, on the first text delta
+ * with visible characters. Whitespace-only deltas don't count: a primary step
+ * can stream "\n\n" and still end with no answer, leaving the real text to the
+ * fallback (the same `trim()` test `hasVisibleAnswer` uses). Every answer path
+ * (primary, done-answer, fallback) writes through `write`, so one wrapper
+ * covers them all.
  */
 export function withFirstTextTimer(
   writer: UIMessageStreamWriter<StudyUIMessage>,
@@ -43,7 +46,7 @@ export function withFirstTextTimer(
   let seen = false;
   return {
     write(part) {
-      if (!seen && part.type === "text-delta" && part.delta.length > 0) {
+      if (!seen && part.type === "text-delta" && part.delta.trim().length > 0) {
         seen = true;
         onFirstText();
       }
