@@ -218,10 +218,20 @@ export const userFiles = pgTable(
         error?: string;
         chunkCount?: number;
         processedAt?: string;
+        visualCount?: number;
+        visionModel?: string;
+        refreshWarning?: string;
+        refreshFailedAt?: string;
+        reprocessQueuedAt?: string;
         // Processing progress tracking
         processingProgress?: {
           stage:
-            "downloading" | "extracting" | "chunking" | "embedding" | "storing";
+            | "downloading"
+            | "extracting"
+            | "analyzing"
+            | "chunking"
+            | "embedding"
+            | "storing";
           percentage: number; // 0-100
           currentChunk?: number;
           totalChunks?: number;

@@ -20,8 +20,9 @@ const envSchema = z.object({
   // OpenRouter
   OPENROUTER_API_KEY: z.string().min(1),
 
-  // OpenAI (for embeddings - OpenRouter doesn't support embeddings)
+  // OpenAI (embeddings and visual material analysis)
   OPENAI_API_KEY: z.string().min(1),
+  OPENAI_VISION_MODEL: z.string().trim().min(1).default("gpt-6-sol"),
 
   // Resend (optional — emails logged to console without these)
   RESEND_API_KEY: z.string().min(1).optional(),
@@ -73,6 +74,7 @@ function validateEnv(): Env {
         if (prop === "NODE_ENV") return "production";
         if (prop === "ALLOWED_EMAIL_DOMAINS") return ".edu,.ac.in,.edu.in";
         if (prop === "NEXT_PUBLIC_MAX_FILE_SIZE_MB") return "50";
+        if (prop === "OPENAI_VISION_MODEL") return "gpt-6-sol";
         if (prop.includes("URL")) return "http://localhost:3000";
         if (prop.includes("EMAIL")) return "ci@localhost";
         if (

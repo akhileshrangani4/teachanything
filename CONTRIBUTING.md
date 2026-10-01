@@ -35,7 +35,8 @@ cp apps/web/.env.example apps/web/.env
 Edit `apps/web/.env` and add your API keys:
 
 - `OPENROUTER_API_KEY` — get from [openrouter.ai](https://openrouter.ai/)
-- `OPENAI_API_KEY` — get from [platform.openai.com](https://platform.openai.com/) (required for embeddings/RAG)
+- `OPENAI_API_KEY` — get from [platform.openai.com](https://platform.openai.com/) (required for embeddings and visual material analysis)
+- `OPENAI_VISION_MODEL` — optional vision model override (defaults to `gpt-6-sol`)
 
 The other required values (DATABASE_URL, BETTER_AUTH_SECRET, etc.) already have working defaults for local Docker. See [SETUP.md](./SETUP.md) for details.
 

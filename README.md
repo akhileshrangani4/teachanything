@@ -23,7 +23,7 @@ Teach Anything is a production-ready platform for creating AI chatbots that answ
 
 - **5 Open-Source Models** — Llama 3.3 70B, Llama 4 Maverick, Qwen 3 235B, GPT-OSS 120B, DeepSeek V3.2
 - **RAG Pipeline** — HNSW-indexed semantic search with source attribution, file manifest, and token budgeting so answers cite the exact file and chunk they came from
-- **File Ingestion** — PDF, Word, PowerPoint (with slide boundaries and speaker notes), and Markdown, processed asynchronously via QStash
+- **File Ingestion** — PDF, scanned PDF, Word, PowerPoint, images, and Markdown with visual OCR/diagram understanding, processed asynchronously via QStash
 - **Web Crawler** — Auto-discover and index pages from a root URL with depth/page limits, include/exclude patterns, re-crawl detection via content hashing, and JSON export
 - **Conversation Analytics** — Professors can browse, search, and replay every student conversation with sort, pagination, and cited sources
 - **Embeddable Widget** — Drop a chatbot into any website with a single script tag
@@ -46,7 +46,7 @@ npm run dev                              # Start development server
 
 Visit http://localhost:3000 and login with the credentials printed by `db:seed`.
 
-Only Docker, an [OpenRouter API key](https://openrouter.ai/), and an [OpenAI API key](https://platform.openai.com/) (for embeddings) are required to get started. See [SETUP.md](./SETUP.md) for detailed configuration.
+Only Docker, an [OpenRouter API key](https://openrouter.ai/), and an [OpenAI API key](https://platform.openai.com/) (for embeddings and visual material analysis) are required to get started. See [SETUP.md](./SETUP.md) for detailed configuration.
 
 ## Documentation
 

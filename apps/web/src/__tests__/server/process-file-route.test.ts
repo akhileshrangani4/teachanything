@@ -27,6 +27,7 @@ jest.unstable_mockModule("@/lib/logger", () => ({
   logWarn: jest.fn(),
 }));
 jest.unstable_mockModule("@/server/file-processor", () => ({
+  CURRENT_PROCESSING_VERSION: 3,
   processFile: jest.fn(),
 }));
 

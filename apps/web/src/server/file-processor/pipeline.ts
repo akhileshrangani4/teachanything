@@ -1,5 +1,5 @@
 import { db } from "@teachanything/db";
-import { userFiles, fileChunks } from "@teachanything/db/schema";
+import { userFiles } from "@teachanything/db/schema";
 import { eq, ne, and } from "drizzle-orm";
 import { createOpenRouterClient, createRAGService } from "@teachanything/ai";
 import { env } from "@/lib/env";
@@ -8,15 +8,13 @@ import {
   sanitizeProcessingError,
   STORAGE_MISSING_ERROR,
 } from "@/lib/processing-error";
-import {
-  abandonProcessing,
-  updateProgress,
-  CURRENT_PROCESSING_VERSION,
-} from "./file-status";
+import { updateProgress, CURRENT_PROCESSING_VERSION } from "./file-status";
 import { downloadFileBuffer } from "./storage-download";
 import { embedChunksInBatches } from "./embedding";
+import { extractMaterialContent } from "./material-content";
+import { replaceFileIndex } from "./file-index-storage";
 
-const EXTRACTION_TIMEOUT_MS = 60_000;
+const MATERIAL_EXTRACTION_TIMEOUT_MS = 180_000;
 
 function withTimeout<T>(
   promise: Promise<T>,
@@ -32,25 +30,66 @@ function withTimeout<T>(
   );
 }
 
-/**
- * Process a file: extract content, chunk, generate embeddings, and store
- * This function is used both by the QStash job handler (production) and inline processing (development)
- */
+/** Download, understand, embed, and atomically replace one file's index. */
 export async function processFile(params: {
   fileId: string;
+  targetProcessingVersion?: number;
+  force?: boolean;
 }): Promise<{ success: boolean; chunkCount: number }> {
   const { fileId } = params;
+  const targetVersion =
+    params.targetProcessingVersion ?? CURRENT_PROCESSING_VERSION;
+  let previousFile: typeof userFiles.$inferSelect | undefined;
 
   try {
-    const startTime = new Date().toISOString();
-    logInfo("File processing started", { fileId });
+    const [file] = await db
+      .select()
+      .from(userFiles)
+      .where(eq(userFiles.id, fileId))
+      .limit(1);
+    if (!file) {
+      logInfo("File not found (likely deleted), skipping processing", {
+        fileId,
+      });
+      return { success: false, chunkCount: 0 };
+    }
+    previousFile = file;
 
-    // Atomic status guard: only proceed if not already processing (per D-04, D-05)
+    const completedVersion = file.metadata?.processingVersion ?? 0;
+    if (
+      !params.force &&
+      file.processingStatus === "completed" &&
+      completedVersion >= targetVersion
+    ) {
+      logInfo("File already has the requested processing version, skipping", {
+        fileId,
+        completedVersion,
+        targetVersion,
+      });
+      return {
+        success: true,
+        chunkCount: file.metadata?.chunkCount ?? 0,
+      };
+    }
+
+    const startTime = new Date().toISOString();
+    const preservedMetadata = Object.fromEntries(
+      Object.entries(file.metadata ?? {}).filter(
+        ([key]) =>
+          ![
+            "error",
+            "refreshWarning",
+            "refreshFailedAt",
+            "reprocessQueuedAt",
+          ].includes(key),
+      ),
+    ) as typeof file.metadata;
     const guardResult = await db
       .update(userFiles)
       .set({
         processingStatus: "processing",
         metadata: {
+          ...preservedMetadata,
           processingProgress: {
             stage: "downloading",
             percentage: 0,
@@ -68,74 +107,50 @@ export async function processFile(params: {
       .returning({ id: userFiles.id });
 
     if (guardResult.length === 0) {
-      // Another job is already processing this file -- exit early
       logInfo("File already being processed by another job, skipping", {
         fileId,
       });
       return { success: false, chunkCount: 0 };
     }
 
-    // Safety net: delete any existing chunks before reprocessing
-    // This catches QStash retries and any other processing path
-    await db.delete(fileChunks).where(eq(fileChunks.fileId, fileId));
-
-    logInfo("Cleared existing chunks before processing", { fileId });
-
-    // Get file from database
-    const [file] = await db
-      .select()
-      .from(userFiles)
-      .where(eq(userFiles.id, fileId))
-      .limit(1);
-
-    if (!file) {
-      // File was deleted while job was queued - exit gracefully
-      logInfo("File not found (likely deleted), skipping processing", {
-        fileId,
-      });
-      return {
-        success: false,
-        chunkCount: 0,
-      };
-    }
-
-    // Stage 1: Download file from storage (0-10%)
+    logInfo("File processing started", {
+      fileId,
+      targetVersion,
+      visionModel: env.OPENAI_VISION_MODEL,
+    });
     await updateProgress(fileId, "downloading", 5);
-
     const downloaded = await downloadFileBuffer({
       fileId,
       storagePath: file.storagePath,
     });
-    if (!downloaded.ok) {
-      return abandonProcessing(fileId, STORAGE_MISSING_ERROR);
-    }
-    const buffer = downloaded.buffer;
-
+    if (!downloaded.ok) throw new Error(STORAGE_MISSING_ERROR);
     await updateProgress(fileId, "downloading", 10);
 
-    // Stage 2: Extract text content (10-30%)
     await updateProgress(fileId, "extracting", 10);
     const ragService = createRAGService();
-    const pagedChunks = await withTimeout(
-      ragService.extractAndChunk(buffer, file.fileType),
-      EXTRACTION_TIMEOUT_MS,
-      `File extraction timed out after ${EXTRACTION_TIMEOUT_MS / 1000}s`,
+    const material = await withTimeout(
+      extractMaterialContent({
+        ragService,
+        buffer: downloaded.buffer,
+        mimeType: file.fileType,
+        fileName: file.fileName,
+        apiKey: env.OPENAI_API_KEY,
+        visionModel: env.OPENAI_VISION_MODEL,
+        onVisualAnalysis: () => updateProgress(fileId, "analyzing", 25),
+      }),
+      MATERIAL_EXTRACTION_TIMEOUT_MS,
+      `File extraction timed out after ${MATERIAL_EXTRACTION_TIMEOUT_MS / 1000}s`,
     );
-    await updateProgress(fileId, "extracting", 30);
+    if (material.chunks.length === 0) {
+      throw new Error("File contains no readable content");
+    }
 
-    // Stage 3: Chunk text (30-40%)
-    await updateProgress(fileId, "chunking", 30);
-    const chunks = pagedChunks.map((c) => c.content);
-    await updateProgress(fileId, "chunking", 40, 0, pagedChunks.length);
-
-    // Stage 4: Generate embeddings (40-90%)
-    // This is the slowest part, so batch process and report progress
-    await updateProgress(fileId, "embedding", 40, 0, chunks.length);
+    await updateProgress(fileId, "chunking", 40, 0, material.chunks.length);
+    const chunks = material.chunks.map((chunk) => chunk.content);
     const openrouterClient = createOpenRouterClient(
       env.OPENROUTER_API_KEY,
       env.OPENAI_API_KEY,
     );
-
     const embeddings = await embedChunksInBatches({
       fileId,
       chunks,
@@ -143,100 +158,90 @@ export async function processFile(params: {
       openrouterClient,
     });
 
-    // Stage 5: Store chunks with embeddings in database (90-100%)
     await updateProgress(fileId, "storing", 90, chunks.length, chunks.length);
     const chunkRecords = await Promise.all(
-      chunks.map(async (chunk, index) => {
+      material.chunks.map(async (chunk, index) => {
         const embedding = embeddings[index];
-        if (!embedding) {
-          throw new Error(`Missing embedding for chunk ${index}`);
-        }
+        if (!embedding) throw new Error(`Missing embedding for chunk ${index}`);
         return {
           fileId,
           chunkIndex: index,
-          content: chunk,
+          content: chunk.content,
           embedding,
-          tokenCount: await ragService.countTokens(chunk),
-          metadata:
-            pagedChunks[index]?.pageNumber != null
-              ? { pageNumber: pagedChunks[index]!.pageNumber }
-              : {},
+          tokenCount: await ragService.countTokens(chunk.content),
+          metadata: {
+            ...(chunk.pageNumber == null
+              ? {}
+              : { pageNumber: chunk.pageNumber }),
+            ...(chunk.section == null ? {} : { section: chunk.section }),
+          },
         };
       }),
     );
 
-    await db.insert(fileChunks).values(chunkRecords).onConflictDoNothing();
-    await updateProgress(fileId, "storing", 95, chunks.length, chunks.length);
-
-    // Update file status to completed
-    await db
-      .update(userFiles)
-      .set({
-        processingStatus: "completed",
-        metadata: {
-          chunkCount: chunks.length,
-          processedAt: new Date().toISOString(),
-          processingVersion: CURRENT_PROCESSING_VERSION,
-          processingProgress: {
-            stage: "storing",
-            percentage: 100,
-            currentChunk: chunks.length,
-            totalChunks: chunks.length,
-            startedAt: startTime,
-            lastUpdatedAt: new Date().toISOString(),
-          },
+    const completedAt = new Date().toISOString();
+    await replaceFileIndex({
+      fileId,
+      chunks: chunkRecords,
+      metadata: {
+        chunkCount: chunks.length,
+        processedAt: completedAt,
+        processingVersion: targetVersion,
+        visualCount: material.visualCount,
+        ...(material.visionModel ? { visionModel: material.visionModel } : {}),
+        processingProgress: {
+          stage: "storing",
+          percentage: 100,
+          currentChunk: chunks.length,
+          totalChunks: chunks.length,
+          startedAt: startTime,
+          lastUpdatedAt: completedAt,
         },
-      })
-      .where(eq(userFiles.id, fileId));
+      },
+    });
 
     logInfo("File processing completed", {
       fileId,
       chunkCount: chunks.length,
+      visualCount: material.visualCount,
+      visionModel: material.visionModel,
     });
-
-    return {
-      success: true,
-      chunkCount: chunks.length,
-    };
+    return { success: true, chunkCount: chunks.length };
   } catch (error) {
     logError(error, "File processing failed", { fileId });
+    const ownerMessage = sanitizeProcessingError(error);
+    const hadUsableIndex =
+      previousFile?.processingStatus === "completed" ||
+      (previousFile?.metadata?.chunkCount ?? 0) > 0;
 
-    // Clean up any orphaned chunks from partial processing (per D-02)
-    // Wrapped in its own try/catch so cleanup failure doesn't mask the original error (per D-03)
-    try {
-      await db.delete(fileChunks).where(eq(fileChunks.fileId, fileId));
-    } catch (cleanupError) {
-      logError(
-        cleanupError,
-        "Failed to clean up chunks after processing error",
-        {
-          fileId,
-        },
-      );
-    }
-
-    // Mark file as failed -- wrapped in try/catch so status update failure
-    // doesn't mask the original processing error
     try {
       await db
         .update(userFiles)
-        .set({
-          processingStatus: "failed",
-          metadata: {
-            error: sanitizeProcessingError(error),
-          },
-        })
+        .set(
+          hadUsableIndex
+            ? {
+                processingStatus: "completed",
+                metadata: {
+                  ...Object.fromEntries(
+                    Object.entries(previousFile!.metadata ?? {}).filter(
+                      ([key]) => key !== "reprocessQueuedAt",
+                    ),
+                  ),
+                  refreshWarning: ownerMessage,
+                  refreshFailedAt: new Date().toISOString(),
+                },
+              }
+            : {
+                processingStatus: "failed",
+                metadata: { error: ownerMessage },
+              },
+        )
         .where(eq(userFiles.id, fileId));
     } catch (statusError) {
-      logError(
-        statusError,
-        "Failed to mark file as failed after processing error",
-        {
-          fileId,
-        },
-      );
+      logError(statusError, "Failed to settle file after processing error", {
+        fileId,
+      });
     }
-
     throw error;
   }
 }

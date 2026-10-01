@@ -16,7 +16,13 @@ import {
 } from "@/components/ui/tooltip";
 
 interface ProcessingProgress {
-  stage: "downloading" | "extracting" | "chunking" | "embedding" | "storing";
+  stage:
+    | "downloading"
+    | "extracting"
+    | "analyzing"
+    | "chunking"
+    | "embedding"
+    | "storing";
   percentage: number;
   currentChunk?: number;
   totalChunks?: number;
@@ -30,6 +36,7 @@ interface FileStatusBadgeProps {
     error?: string;
     chunkCount?: number;
     processedAt?: string;
+    refreshWarning?: string;
     processingProgress?: ProcessingProgress;
   };
   showProgress?: boolean;
@@ -39,6 +46,7 @@ interface FileStatusBadgeProps {
 const STAGE_LABELS: Record<ProcessingProgress["stage"], string> = {
   downloading: "Downloading",
   extracting: "Extracting content",
+  analyzing: "Reading images",
   chunking: "Chunking text",
   embedding: "Generating embeddings",
   storing: "Storing data",
@@ -63,7 +71,11 @@ export function FileStatusBadge({
   const stuck = status === "processing" && isStuck(progress);
 
   // If file is stuck, show warning status
-  const displayStatus = stuck ? "stuck" : status;
+  const displayStatus = stuck
+    ? "stuck"
+    : status === "completed" && metadata?.refreshWarning
+      ? "refresh-warning"
+      : status;
 
   const getStatusConfig = () => {
     switch (displayStatus) {
@@ -87,6 +99,14 @@ export function FileStatusBadge({
         return {
           icon: AlertTriangle,
           label: "Stuck",
+          color: "text-amber-600",
+          bgColor: "bg-amber-50",
+          borderColor: "border-amber-200",
+        };
+      case "refresh-warning":
+        return {
+          icon: AlertTriangle,
+          label: "Ready (update failed)",
           color: "text-amber-600",
           bgColor: "bg-amber-50",
           borderColor: "border-amber-200",
@@ -145,6 +165,18 @@ export function FileStatusBadge({
         <div className="space-y-1">
           <p className="font-medium">Processing failed</p>
           <p className="text-xs">{metadata.error}</p>
+        </div>
+      );
+    }
+
+    if (displayStatus === "refresh-warning" && metadata?.refreshWarning) {
+      return (
+        <div className="space-y-1">
+          <p className="font-medium">The existing index is still available</p>
+          <p className="text-xs">{metadata.refreshWarning}</p>
+          <p className="text-xs text-amber-200">
+            Retry to update image reading
+          </p>
         </div>
       );
     }

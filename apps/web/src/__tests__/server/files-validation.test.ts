@@ -49,10 +49,14 @@ describe("SUPPORTED_FILE_TYPES", () => {
     expect(SUPPORTED_FILE_TYPES).toContain("text/markdown");
     expect(SUPPORTED_FILE_TYPES).toContain("application/json");
     expect(SUPPORTED_FILE_TYPES).toContain("text/csv");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/png");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/jpeg");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/webp");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/gif");
   });
 
-  it("has exactly 8 supported types", () => {
-    expect(SUPPORTED_FILE_TYPES).toHaveLength(8);
+  it("has exactly 12 supported types", () => {
+    expect(SUPPORTED_FILE_TYPES).toHaveLength(12);
   });
 });
 
@@ -87,6 +91,14 @@ describe("EXTENSION_MIME_MAP", () => {
   it("maps csv to text/csv", () => {
     expect(EXTENSION_MIME_MAP["csv"]).toEqual(["text/csv"]);
   });
+
+  it("maps supported image extensions", () => {
+    expect(EXTENSION_MIME_MAP["png"]).toEqual(["image/png"]);
+    expect(EXTENSION_MIME_MAP["jpg"]).toEqual(["image/jpeg"]);
+    expect(EXTENSION_MIME_MAP["jpeg"]).toEqual(["image/jpeg"]);
+    expect(EXTENSION_MIME_MAP["webp"]).toEqual(["image/webp"]);
+    expect(EXTENSION_MIME_MAP["gif"]).toEqual(["image/gif"]);
+  });
 });
 
 describe("FILE_TYPE_DISPLAY_NAMES", () => {
@@ -102,6 +114,8 @@ describe("FILE_TYPE_DISPLAY_NAMES", () => {
     expect(FILE_TYPE_DISPLAY_NAMES["text/markdown"]).toBe("Markdown");
     expect(FILE_TYPE_DISPLAY_NAMES["application/json"]).toBe("JSON");
     expect(FILE_TYPE_DISPLAY_NAMES["text/csv"]).toBe("CSV");
+    expect(FILE_TYPE_DISPLAY_NAMES["image/png"]).toBe("PNG image");
+    expect(FILE_TYPE_DISPLAY_NAMES["image/jpeg"]).toBe("JPEG image");
   });
 });
 
@@ -376,12 +390,15 @@ describe("validateFileType", () => {
   });
 
   describe("unsupported types", () => {
-    it("rejects image/png", () => {
-      expectTRPCError(
-        () => validateFileType("image/png"),
-        "BAD_REQUEST",
-        "Unsupported file type",
-      );
+    it("accepts supported image types", () => {
+      for (const type of [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+      ]) {
+        expect(() => validateFileType(type)).not.toThrow();
+      }
     });
 
     it("rejects application/zip", () => {
@@ -418,18 +435,17 @@ describe("validateFileType", () => {
 
     it("includes display name for known unsupported types in error", () => {
       try {
-        validateFileType("image/png");
+        validateFileType("application/octet-stream");
         throw new Error("Expected to throw");
       } catch (error) {
         const trpcError = error as TRPCError;
-        // image/png is not in FILE_TYPE_DISPLAY_NAMES, so the raw type is used
-        expect(trpcError.message).toContain("image/png");
+        expect(trpcError.message).toContain("application/octet-stream");
       }
     });
 
     it("lists supported types in error message", () => {
       try {
-        validateFileType("image/png");
+        validateFileType("application/octet-stream");
         throw new Error("Expected to throw");
       } catch (error) {
         const trpcError = error as TRPCError;
@@ -494,6 +510,18 @@ describe("validateExtensionMatchesMimeType", () => {
     it("accepts .csv with text/csv", () => {
       expect(() =>
         validateExtensionMatchesMimeType("data.csv", "text/csv"),
+      ).not.toThrow();
+    });
+
+    it("accepts image extensions with their MIME types", () => {
+      expect(() =>
+        validateExtensionMatchesMimeType("diagram.png", "image/png"),
+      ).not.toThrow();
+      expect(() =>
+        validateExtensionMatchesMimeType("photo.jpeg", "image/jpeg"),
+      ).not.toThrow();
+      expect(() =>
+        validateExtensionMatchesMimeType("photo.jpg", "image/jpeg"),
       ).not.toThrow();
     });
   });
@@ -566,18 +594,22 @@ describe("validateExtensionMatchesMimeType", () => {
   });
 
   describe("unknown extensions", () => {
-    it("does not throw for unknown extension with any MIME type", () => {
-      // Unknown extension means validMimeTypes is undefined, so the check is skipped
-      expect(() =>
-        validateExtensionMatchesMimeType("document.xyz", "application/pdf"),
-      ).not.toThrow();
+    it("rejects an unknown extension", () => {
+      expectTRPCError(
+        () =>
+          validateExtensionMatchesMimeType("document.xyz", "application/pdf"),
+        "BAD_REQUEST",
+        "Unsupported file extension",
+      );
     });
 
-    it("does not throw for file without extension", () => {
-      // lastIndexOf(".") + 1 gets the full filename as "extension", which is unknown
-      expect(() =>
-        validateExtensionMatchesMimeType("noextension", "application/pdf"),
-      ).not.toThrow();
+    it("rejects a file without an extension", () => {
+      expectTRPCError(
+        () =>
+          validateExtensionMatchesMimeType("noextension", "application/pdf"),
+        "BAD_REQUEST",
+        "Unsupported file extension",
+      );
     });
   });
 
