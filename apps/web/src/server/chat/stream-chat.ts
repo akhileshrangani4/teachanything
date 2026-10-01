@@ -30,6 +30,7 @@ import {
 import { buildTurnPrompts } from "./prompt-assembly";
 import { executeTurn, type TurnState } from "./turn-execution";
 import { beginUserMessageInsert, persistTurn } from "./turn-persistence";
+import type { RagTiming } from "./turn-timing";
 
 /**
  * Cap a single chat turn's generation. Kept below `maxDuration` (300s) so the
@@ -68,6 +69,9 @@ export async function streamChat(params: {
   signal?: AbortSignal;
 }): Promise<Response> {
   const { chatbot, userMessage, sessionId, db: database, eventType } = params;
+  // Turn clock. `startTime` below only starts at the stream, after retrieval,
+  // so everything before it is measured from here (see turn-timing.ts).
+  const turnStart = Date.now();
 
   // Stop the LLM when the client disconnects/aborts OR the turn runs too long.
   // Without this, an aborted request keeps the model generating server-side
@@ -110,6 +114,8 @@ export async function streamChat(params: {
     env.OPENAI_API_KEY,
   );
 
+  const ragTiming: RagTiming = {};
+  const contextStart = Date.now();
   const { historyRows, ragResult, studyResponseRows } = await fetchTurnContext({
     database,
     chatbotId: chatbot.id,
@@ -119,7 +125,9 @@ export async function streamChat(params: {
     openrouterApiKey: env.OPENROUTER_API_KEY,
     openaiApiKey: env.OPENAI_API_KEY,
     aiClient,
+    ragTiming,
   });
+  const contextMs = Date.now() - contextStart;
   historyRows.reverse();
 
   const studyResponsesByToolCallId =
@@ -199,6 +207,7 @@ export async function streamChat(params: {
   });
 
   const startTime = Date.now();
+  const preStreamMs = startTime - turnStart;
 
   // Metadata computed during `execute`, read in `onFinish` for persistence.
   const turnState: TurnState = {
@@ -257,6 +266,12 @@ export async function streamChat(params: {
         responseTime: turnState.responseTime,
         startTime,
         modelId,
+        timing: {
+          preStreamMs,
+          contextMs,
+          ...ragTiming,
+          firstTokenMs: turnState.firstTokenMs,
+        },
       }),
   });
 

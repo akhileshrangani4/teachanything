@@ -9,6 +9,7 @@ import * as bcrypt from "bcryptjs";
 import { enforceAllowedDomain } from "./domain-check";
 import { registerPendingUserAndNotify } from "./registration";
 import { gateSessionCreation } from "./session-gate";
+import { rejectDuplicateSignUp } from "./sign-up-guard";
 import { userAdditionalFields } from "./user-fields";
 
 export const auth = betterAuth({
@@ -24,6 +25,20 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // We're using approval instead
+    /**
+     * New users are always pending, so sign-up must not try to create a session.
+     *
+     * Since Better Auth 1.7 (upstream PR #7345), `databaseHooks.user.create.after`
+     * is queued until the sign-up transaction finishes, and dropped if the
+     * request errors. With auto sign-in on, `session.create.before` rejects the
+     * pending user with ACCOUNT_PENDING, the request errors, and the admin
+     * notification in `registerPendingUserAndNotify` never runs.
+     *
+     * This also turns on Better Auth's enumeration protection (a fake 200 for
+     * an already-registered email); `rejectDuplicateSignUp` below restores the
+     * "already exists" error.
+     */
+    autoSignIn: false,
     password: {
       hash: async (password: string) => {
         return await bcrypt.hash(password, 12);
@@ -84,6 +99,10 @@ export const auth = betterAuth({
   user: {
     // Include custom fields in session
     additionalFields: userAdditionalFields,
+  },
+
+  hooks: {
+    before: rejectDuplicateSignUp,
   },
 
   // Database hooks for approval workflow

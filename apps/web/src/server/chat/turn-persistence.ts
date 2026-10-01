@@ -5,6 +5,7 @@ import { parseQuizFromText } from "@/lib/quiz";
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 import type { RAGContextResult } from "@/server/rag-context";
 import type { StudyUIMessage } from "./study-tools";
+import type { TurnTiming } from "./turn-timing";
 import {
   assistantMessageForDb,
   hasPersistableStudyPart,
@@ -75,6 +76,8 @@ export async function persistTurn(args: {
   startTime: number;
   /** Resolved registry id the turn actually ran on (primary and fallback). */
   modelId: string;
+  /** Everything except `totalMs`, which needs the final response time. */
+  timing: Omit<TurnTiming, "totalMs">;
 }): Promise<void> {
   // Strip retrieval-tool parts (raw chunk outputs) before persisting: the
   // professor dashboard viewer only needs text + study-tool parts.
@@ -113,6 +116,10 @@ export async function persistTurn(args: {
   // If `execute` errored before setting responseTime, fall back to elapsed
   // time so we never persist/report a misleading 0.
   const finalResponseTime = args.responseTime || Date.now() - args.startTime;
+  const timing: TurnTiming = {
+    ...args.timing,
+    totalMs: args.timing.preStreamMs + finalResponseTime,
+  };
 
   try {
     await args.userMessageInsert.promise;
@@ -137,6 +144,7 @@ export async function persistTurn(args: {
             sources: args.finalSources,
             responseTime: finalResponseTime,
             model: args.modelId,
+            timing,
             ragUsed: args.ragUsedFlag,
             truncated: args.truncated || undefined,
             interrupted: interrupted || undefined,
@@ -180,6 +188,8 @@ export async function persistTurn(args: {
         sessionId: args.sessionId,
         responseTime: finalResponseTime,
         eventType: args.eventType,
+        model: args.modelId,
+        ...timing,
       });
     }
   } catch (err) {
