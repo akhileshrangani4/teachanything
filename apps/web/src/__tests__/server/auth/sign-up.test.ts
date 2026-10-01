@@ -5,17 +5,22 @@ import { jest, describe, it, expect } from "@jest/globals";
 import { betterAuth, APIError } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
 
+import { rejectDuplicateSignUp } from "@/server/auth/sign-up-guard";
+
 /**
- * Pins the Better Auth behavior behind `autoSignIn: false` in `config.ts`.
+ * Pins the Better Auth behavior behind the sign-up settings in `config.ts`.
  *
  * Since 1.7 (upstream PR #7345), `databaseHooks.*.after` is queued until the
  * surrounding transaction finishes, and dropped if it errors. Sign-up runs
  * inside one. With auto sign-in on, our session gate rejects every new
  * (pending) user, the sign-up request errors, and the `user.create.after` hook
- * that emails the admins is silently dropped.
- * That broke admin notifications from 1.34.13 (2026-09-16) until this fix.
+ * that emails the admins is silently dropped. That broke admin notifications
+ * from 1.34.13 (2026-09-16) until `autoSignIn: false`.
  *
- * This drives a real sign-up through Better Auth with the same shape of hooks
+ * Auto sign-in off makes Better Auth answer duplicate sign-ups with a fake
+ * 200, so `rejectDuplicateSignUp` restores the "already exists" error.
+ *
+ * This drives real sign-ups through Better Auth with the same shape of hooks
  * as `config.ts`. If a Better Auth bump changes the outcome, revisit the config.
  */
 function createAuth(autoSignIn: boolean) {
@@ -31,7 +36,9 @@ function createAuth(autoSignIn: boolean) {
     database: memoryAdapter(db),
     secret: "test-secret-at-least-32-characters-long",
     baseURL: "http://localhost:3000",
+    logger: { disabled: true },
     emailAndPassword: { enabled: true, autoSignIn },
+    hooks: { before: rejectDuplicateSignUp },
     databaseHooks: {
       user: { create: { after: notifyAdmins } },
       session: {
@@ -45,11 +52,11 @@ function createAuth(autoSignIn: boolean) {
     },
   });
 
-  const signUp = () =>
+  const signUp = (email = "new.professor@example.edu") =>
     auth.api.signUpEmail({
       body: {
         name: "New Professor",
-        email: "new.professor@example.edu",
+        email,
         password: "a-long-enough-password",
       },
     });
@@ -78,5 +85,37 @@ describe("sign-up admin notification", () => {
     expect(db.user).toHaveLength(1);
     expect(db.session).toHaveLength(0);
     expect(notifyAdmins).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("rejectDuplicateSignUp", () => {
+  it.each(["new.professor@example.edu", "New.Professor@Example.EDU"])(
+    "rejects a second sign-up for %s with USER_ALREADY_EXISTS",
+    async (duplicateEmail) => {
+      const { db, notifyAdmins, signUp } = createAuth(false);
+      await signUp();
+
+      await expect(signUp(duplicateEmail)).rejects.toMatchObject({
+        statusCode: 422,
+        body: {
+          code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+          message: "User already exists. Use another email.",
+        },
+      });
+
+      // No second account and no second admin email.
+      expect(db.user).toHaveLength(1);
+      expect(notifyAdmins).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("lets a different email through", async () => {
+    const { db, notifyAdmins, signUp } = createAuth(false);
+    await signUp();
+
+    await signUp("another.professor@example.edu");
+
+    expect(db.user).toHaveLength(2);
+    expect(notifyAdmins).toHaveBeenCalledTimes(2);
   });
 });

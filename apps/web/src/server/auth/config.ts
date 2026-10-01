@@ -9,6 +9,7 @@ import * as bcrypt from "bcryptjs";
 import { enforceAllowedDomain } from "./domain-check";
 import { registerPendingUserAndNotify } from "./registration";
 import { gateSessionCreation } from "./session-gate";
+import { rejectDuplicateSignUp } from "./sign-up-guard";
 import { userAdditionalFields } from "./user-fields";
 
 export const auth = betterAuth({
@@ -33,8 +34,9 @@ export const auth = betterAuth({
      * pending user with ACCOUNT_PENDING, the request errors, and the admin
      * notification in `registerPendingUserAndNotify` never runs.
      *
-     * Side effect: sign-up returns the same 200 for an already-registered email
-     * (Better Auth's enumeration protection) instead of USER_ALREADY_EXISTS.
+     * This also turns on Better Auth's enumeration protection (a fake 200 for
+     * an already-registered email); `rejectDuplicateSignUp` below restores the
+     * "already exists" error.
      */
     autoSignIn: false,
     password: {
@@ -97,6 +99,10 @@ export const auth = betterAuth({
   user: {
     // Include custom fields in session
     additionalFields: userAdditionalFields,
+  },
+
+  hooks: {
+    before: rejectDuplicateSignUp,
   },
 
   // Database hooks for approval workflow
