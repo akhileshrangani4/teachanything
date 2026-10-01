@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.35.0](https://github.com/akhileshrangani4/teachanything/compare/v1.34.19...v1.35.0) (2026-10-01)
+
+
+### Features
+
+* **chat:** record where each chat turn's time goes ([#528](https://github.com/akhileshrangani4/teachanything/issues/528)) ([e9505d6](https://github.com/akhileshrangani4/teachanything/commit/e9505d62b6df9860c85a713beee9ffba8da8a784))
+
+
+### Bug Fixes
+
+* **auth:** send the admin registration email again by turning off sign-up auto sign-in ([#529](https://github.com/akhileshrangani4/teachanything/issues/529)) ([71a49c0](https://github.com/akhileshrangani4/teachanything/commit/71a49c0a2689b47955b73dd7dc23a9de70fbeaea))
+
 ## [1.34.19](https://github.com/akhileshrangani4/teachanything/compare/v1.34.18...v1.34.19) (2026-09-23)
 
 
