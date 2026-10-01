@@ -10,14 +10,12 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { getSupportEmail } from "@/lib/constants/support-email";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function PendingPage() {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const supportEmail = getSupportEmail();
 
   const handleBackToLogin = async () => {
     setIsRedirecting(true);
@@ -83,10 +81,10 @@ export default function PendingPage() {
               <p className="text-sm text-muted-foreground">
                 Questions? Email us at{" "}
                 <a
-                  href={`mailto:${supportEmail}`}
+                  href="mailto:admin@teachanything.ai"
                   className="text-primary hover:underline"
                 >
-                  {supportEmail}
+                  admin@teachanything.ai
                 </a>
                 .
               </p>
