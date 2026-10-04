@@ -10,7 +10,10 @@ const envSchema = z.object({
 
   // Supabase (optional — file uploads disabled without these)
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  // Server-only. Storage is never called from the browser: uploads go to
+  // signed URLs the server creates, downloads to signed URLs it hands out.
+  // So there is deliberately no anon key here -- nothing needs one, and the
+  // bucket grants the public nothing.
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 
   // Better Auth
@@ -114,7 +117,6 @@ function clientEnvValues(): Partial<Record<keyof Env, string | undefined>> {
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_MAX_FILE_SIZE_MB: process.env.NEXT_PUBLIC_MAX_FILE_SIZE_MB,
     NEXT_PUBLIC_VOICE_INPUT_ENABLED:
       process.env.NEXT_PUBLIC_VOICE_INPUT_ENABLED,
