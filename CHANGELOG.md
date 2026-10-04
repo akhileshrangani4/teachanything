@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.35.2](https://github.com/akhileshrangani4/teachanything/compare/v1.35.1...v1.35.2) (2026-10-04)
+
+
+### Bug Fixes
+
+* **files:** cap concurrent processing jobs and retry finalize's database step ([#534](https://github.com/akhileshrangani4/teachanything/issues/534)) ([8ed5d02](https://github.com/akhileshrangani4/teachanything/commit/8ed5d0217b1690188194355a2960c47c996ce5a2))
+* **files:** stop leaving uploaded files in Storage with no row pointing at them ([#533](https://github.com/akhileshrangani4/teachanything/issues/533)) ([725bcd0](https://github.com/akhileshrangani4/teachanything/commit/725bcd076704a6e404da8dbac429623406cd8355))
+
 ## [1.35.1](https://github.com/akhileshrangani4/teachanything/compare/v1.35.0...v1.35.1) (2026-10-01)
 
 
