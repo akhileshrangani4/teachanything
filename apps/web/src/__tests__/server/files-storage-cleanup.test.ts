@@ -46,8 +46,9 @@ jest.unstable_mockModule("@/server/local-storage", () => ({
   localFileExists: jest.fn(),
   getLocalFileSize: jest.fn(),
 }));
+const mockPublish = jest.fn<() => Promise<{ messageId: string }>>();
 jest.unstable_mockModule("@/server/qstash", () => ({
-  publishFileProcessingJob: jest.fn(),
+  publishFileProcessingJob: mockPublish,
 }));
 jest.unstable_mockModule("@/server/file-processor", () => ({
   processFile: jest.fn(),
@@ -108,6 +109,7 @@ const finalizeInput = {
 };
 
 beforeEach(() => {
+  mockPublish.mockReset().mockResolvedValue({ messageId: "m-1" });
   mockRemove.mockReset().mockResolvedValue({ data: [], error: null });
   mockList.mockReset().mockResolvedValue({
     data: [{ name: FILE_ID, metadata: { size: 1000 } }],
@@ -143,7 +145,9 @@ describe("files.delete", () => {
 });
 
 describe("files.finalizeUpload", () => {
-  it("deletes the uploaded file once every insert attempt has failed", async () => {
+  it("leaves the upload for the sweep when the database step never finished", async () => {
+    // A timed-out attempt may still commit; deleting the file now could leave
+    // that row pointing at nothing.
     jest.useFakeTimers();
     try {
       const db = createMockDb([], new Error("connection lost"));
@@ -152,18 +156,71 @@ describe("files.finalizeUpload", () => {
       const settled = expect(finalize).rejects.toThrow(
         "Failed to finalize file upload",
       );
-      // Run through the retry backoff without waiting for it.
-      await jest.advanceTimersByTimeAsync(10_000);
+      // Run through the retry backoff and attempt timeouts without waiting.
+      await jest.advanceTimersByTimeAsync(120_000);
       await settled;
-      expect(mockRemove).toHaveBeenCalledWith([OWN_PATH]);
+      expect(mockRemove).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();
     }
   });
 
+  it("deletes the upload when it fails a check before the database step", async () => {
+    mockList.mockResolvedValue({
+      data: [{ name: FILE_ID, metadata: { size: 5000 } }],
+      error: null,
+    });
+    const db = createMockDb([]);
+
+    await expect(callerFor(db).finalize(finalizeInput)).rejects.toThrow(
+      "File size mismatch",
+    );
+    expect(mockRemove).toHaveBeenCalledWith([OWN_PATH]);
+  });
+
+  it("never deletes the file behind a row that already exists", async () => {
+    // A repeated finalize for a live file, failing its size check.
+    mockList.mockResolvedValue({
+      data: [{ name: FILE_ID, metadata: { size: 5000 } }],
+      error: null,
+    });
+    const db = createMockDb([[{ id: FILE_ID, processingStatus: "completed" }]]);
+
+    await expect(callerFor(db).finalize(finalizeInput)).rejects.toThrow(
+      "File size mismatch",
+    );
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it("queues processing for a new upload", async () => {
+    // Own row: none, name: free, insert: id conflict, own row: the new one.
+    const row = { id: FILE_ID, processingStatus: "pending" };
+    const db = createMockDb([[], [], [row]]);
+
+    await expect(callerFor(db).finalize(finalizeInput)).resolves.toEqual({
+      fileId: FILE_ID,
+      status: "pending",
+    });
+    expect(mockPublish).toHaveBeenCalledWith({
+      fileId: FILE_ID,
+      userId: USER_ID,
+    });
+  });
+
+  it("does not queue a second job when finalize repeats for a processed file", async () => {
+    const db = createMockDb([[{ id: FILE_ID, processingStatus: "completed" }]]);
+
+    await expect(callerFor(db).finalize(finalizeInput)).resolves.toEqual({
+      fileId: FILE_ID,
+      status: "completed",
+    });
+    expect(mockPublish).not.toHaveBeenCalled();
+  });
+
   it("deletes the uploaded file when the name is already taken", async () => {
-    // No row of its own yet, then another file with the same name.
-    const db = createMockDb([[], [{ id: "existing" }]]);
+    // No row of its own yet, then another file with the same name, then
+    // (before cleanup) still no row of its own.
+    const db = createMockDb([[], [{ id: "existing" }], []]);
 
     await expect(callerFor(db).finalize(finalizeInput)).rejects.toThrow(
       "already exists",

@@ -23,11 +23,26 @@ export const qstashReceiver = isServiceAvailable("qstash")
  * out waiting for one (Oct 1 2026: a SCRAM timeout on the pooler, then a
  * finalize that never wrote its row). Extra jobs wait in QStash, not in the
  * pooler.
+ *
+ * Keyed per owner, not globally: with one shared line, a 500-page crawl would
+ * hold every other crawl's pages in the queue long enough for the 30-minute
+ * crawl stale check to fail them. Separate owners rarely overlap, so the
+ * database still sees a handful of jobs at a time.
  */
-export const FILE_PROCESSING_FLOW = { key: "process-file", parallelism: 3 };
-export const CRAWL_PAGE_FLOW = { key: "crawl-process-page", parallelism: 3 };
+const JOBS_AT_ONCE = 3;
 
 type FlowControl = { key: string; parallelism: number };
+
+export function fileProcessingFlow(userId: string): FlowControl {
+  return { key: `process-file-${userId}`, parallelism: JOBS_AT_ONCE };
+}
+
+export function crawlPageFlow(crawlSourceId: string): FlowControl {
+  return {
+    key: `crawl-process-page-${crawlSourceId}`,
+    parallelism: JOBS_AT_ONCE,
+  };
+}
 
 /**
  * Publish a QStash job.
@@ -71,14 +86,15 @@ export async function publishQStashJob(params: {
   }
 }
 
-/** Queue processing for one uploaded file, under the file-processing cap. */
-export async function publishFileProcessingJob(
-  fileId: string,
-): Promise<{ messageId: string }> {
+/** Queue processing for one uploaded file, in line behind its owner's others. */
+export async function publishFileProcessingJob(params: {
+  fileId: string;
+  userId: string;
+}): Promise<{ messageId: string }> {
   return publishQStashJob({
     url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-    body: { fileId },
-    flowControl: FILE_PROCESSING_FLOW,
+    body: { fileId: params.fileId },
+    flowControl: fileProcessingFlow(params.userId),
   });
 }
 

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import type { db as database } from "@teachanything/db";
 import { userFiles } from "@teachanything/db/schema";
 import { logWarn } from "@/lib/logger";
@@ -81,6 +81,8 @@ async function createOnce(
       and(
         eq(userFiles.userId, file.userId),
         eq(userFiles.fileName, file.fileName),
+        // An earlier attempt's row has this name too, and is not a duplicate.
+        ne(userFiles.id, file.id),
       ),
     )
     .limit(1);
@@ -106,9 +108,10 @@ async function createOnce(
   throw new Error("Failed to create file record");
 }
 
-async function findOwnRecord(
+/** The upload's own row, if any attempt (or an earlier finalize) wrote it. */
+export async function findOwnRecord(
   db: Database,
-  file: NewFileRecord,
+  file: Pick<NewFileRecord, "id" | "userId">,
 ): Promise<UserFile | undefined> {
   const [own] = await db
     .select()

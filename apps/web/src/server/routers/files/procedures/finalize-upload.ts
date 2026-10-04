@@ -9,7 +9,7 @@ import {
   deleteLocalFile,
 } from "@/server/local-storage";
 import { publishFileProcessingJob } from "@/server/qstash";
-import { createFileRecord } from "./create-file-record";
+import { createFileRecord, findOwnRecord } from "./create-file-record";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/server/file-processor";
@@ -51,7 +51,26 @@ export const finalizeUploadProcedure = protectedProcedure
     // Set once the path is proven to be the caller's own, so the catch block
     // never deletes an object it was merely handed a path to.
     let isPathOwned = false;
+    let isRecordStepStarted = false;
     let isRecordCreated = false;
+
+    /**
+     * Delete the uploaded object, but only when nothing can point at it.
+     *
+     * - The database step started and did not finish cleanly: an attempt that
+     *   timed out may still commit, and deleting now would leave that row with
+     *   no file. The orphan sweep removes the object later if no row appears.
+     * - A row already exists: this is a repeated finalize for a live file.
+     */
+    async function removeUnclaimedUpload(failure: unknown): Promise<void> {
+      if (isRecordStepStarted && !(failure instanceof TRPCError)) return;
+      const existing = await findOwnRecord(ctx.db, {
+        id: input.fileId,
+        userId: ctx.session.user.id,
+      });
+      if (existing) return;
+      await cleanupFile(input.storagePath);
+    }
 
     try {
       // Validate storage path matches expected pattern: {userId}/{fileId}
@@ -114,6 +133,7 @@ export const finalizeUploadProcedure = protectedProcedure
         }
       }
 
+      isRecordStepStarted = true;
       const fileRecord = await createFileRecord(ctx.db, {
         id: input.fileId,
         userId: ctx.session.user.id,
@@ -123,6 +143,13 @@ export const finalizeUploadProcedure = protectedProcedure
         storagePath: input.storagePath,
       });
       isRecordCreated = true;
+
+      // Only a row still waiting for its first job needs one. A repeated
+      // finalize for a file already processing or processed must not queue a
+      // second job, which would wipe and re-embed it.
+      if (fileRecord.processingStatus !== "pending") {
+        return { fileId: fileRecord.id, status: fileRecord.processingStatus };
+      }
 
       // Process file
       if (env.NODE_ENV === "development") {
@@ -143,7 +170,10 @@ export const finalizeUploadProcedure = protectedProcedure
         });
       } else {
         // Publish QStash job for async processing in production
-        await publishFileProcessingJob(fileRecord.id);
+        await publishFileProcessingJob({
+          fileId: fileRecord.id,
+          userId: ctx.session.user.id,
+        });
 
         logInfo("File uploaded and processing job published", {
           fileId: fileRecord.id,
@@ -166,7 +196,7 @@ export const finalizeUploadProcedure = protectedProcedure
       // No user_files row points at the uploaded object, so nothing would
       // ever delete it. Remove it here rather than leave it orphaned.
       if (isPathOwned && !isRecordCreated) {
-        await cleanupFile(input.storagePath).catch((cleanupError) => {
+        await removeUnclaimedUpload(error).catch((cleanupError) => {
           logError(cleanupError, "Failed to clean up unfinalized upload", {
             fileId: input.fileId,
             storagePath: input.storagePath,

@@ -101,7 +101,10 @@ export const retryProcedure = protectedProcedure
         });
       } else {
         // Publish QStash job for async processing in production
-        await publishFileProcessingJob(input.fileId);
+        await publishFileProcessingJob({
+          fileId: input.fileId,
+          userId: ctx.session.user.id,
+        });
 
         logInfo("File retry job published", {
           fileId: input.fileId,
