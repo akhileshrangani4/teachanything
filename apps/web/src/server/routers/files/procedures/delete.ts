@@ -40,15 +40,26 @@ export const deleteProcedure = protectedProcedure
     try {
       // Delete from storage
       if (isServiceAvailable("supabase-storage")) {
-        const supabase = createSupabaseClient();
-        const { error: storageError } = await supabase.storage
-          .from("chatbot-files")
-          .remove([file.storagePath]);
+        const bucket = createSupabaseClient().storage.from("chatbot-files");
+        const { data: removed, error: storageError } = await bucket.remove([
+          file.storagePath,
+        ]);
 
         // Stop before touching the database: deleting the row anyway would
         // leave the stored object with nothing pointing at it.
         if (storageError) {
           throw storageError;
+        }
+
+        // Storage reports success with nothing removed when the key lacks
+        // delete rights, and every delete orphaned its file that way until
+        // Oct 2026. Nothing removed is fine only if the file was already gone.
+        if (removed.length === 0) {
+          // Resolves false for a missing file; throws on any other failure.
+          const { data: stillThere } = await bucket.exists(file.storagePath);
+          if (stillThere) {
+            throw new Error("Storage did not delete the file");
+          }
         }
       } else {
         await deleteLocalFile(file.storagePath);
