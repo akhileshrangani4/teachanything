@@ -14,7 +14,8 @@ export interface UploadProgress {
 
 export interface DirectUploadResult {
   fileId: string;
-  status: "pending";
+  /** "pending" for a new upload; a repeated finalize reports where the file is. */
+  status: "pending" | "processing" | "completed" | "failed";
 }
 
 /**

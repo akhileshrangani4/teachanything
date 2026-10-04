@@ -1,8 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { userFiles } from "@teachanything/db/schema";
 import { createSupabaseClient } from "@/server/supabase";
 import { isServiceAvailable } from "@/lib/env";
 import {
@@ -10,7 +8,8 @@ import {
   getLocalFileSize,
   deleteLocalFile,
 } from "@/server/local-storage";
-import { publishQStashJob } from "@/server/qstash";
+import { publishFileProcessingJob } from "@/server/qstash";
+import { createFileRecord, findOwnRecord } from "./create-file-record";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/server/file-processor";
@@ -42,8 +41,35 @@ export const finalizeUploadProcedure = protectedProcedure
         await deleteLocalFile(storagePath);
       } else {
         const supabase = createSupabaseClient();
-        await supabase.storage.from("chatbot-files").remove([storagePath]);
+        const { error } = await supabase.storage
+          .from("chatbot-files")
+          .remove([storagePath]);
+        if (error) throw error;
       }
+    }
+
+    // Set once the path is proven to be the caller's own, so the catch block
+    // never deletes an object it was merely handed a path to.
+    let isPathOwned = false;
+    let isRecordStepStarted = false;
+    let isRecordCreated = false;
+
+    /**
+     * Delete the uploaded object, but only when nothing can point at it.
+     *
+     * - The database step started and did not finish cleanly: an attempt that
+     *   timed out may still commit, and deleting now would leave that row with
+     *   no file. The orphan sweep removes the object later if no row appears.
+     * - A row already exists: this is a repeated finalize for a live file.
+     */
+    async function removeUnclaimedUpload(failure: unknown): Promise<void> {
+      if (isRecordStepStarted && !(failure instanceof TRPCError)) return;
+      const existing = await findOwnRecord(ctx.db, {
+        id: input.fileId,
+        userId: ctx.session.user.id,
+      });
+      if (existing) return;
+      await cleanupFile(input.storagePath);
     }
 
     try {
@@ -55,6 +81,7 @@ export const finalizeUploadProcedure = protectedProcedure
           message: "Invalid storage path",
         });
       }
+      isPathOwned = true;
 
       if (isLocal) {
         // Verify file exists on local filesystem
@@ -70,7 +97,6 @@ export const finalizeUploadProcedure = protectedProcedure
         const actualSize = await getLocalFileSize(input.storagePath);
         const tolerance = input.fileSize * 0.01;
         if (Math.abs(actualSize - input.fileSize) > tolerance) {
-          await cleanupFile(input.storagePath);
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
@@ -99,7 +125,6 @@ export const finalizeUploadProcedure = protectedProcedure
           const actualSize = uploadedFile.metadata.size;
           const tolerance = input.fileSize * 0.01;
           if (Math.abs(actualSize - input.fileSize) > tolerance) {
-            await cleanupFile(input.storagePath);
             throw new TRPCError({
               code: "BAD_REQUEST",
               message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
@@ -108,47 +133,22 @@ export const finalizeUploadProcedure = protectedProcedure
         }
       }
 
-      // Check for duplicate file name
-      const existingFiles = await ctx.db
-        .select()
-        .from(userFiles)
-        .where(
-          and(
-            eq(userFiles.userId, ctx.session.user.id),
-            eq(userFiles.fileName, input.fileName),
-          ),
-        )
-        .limit(1);
+      isRecordStepStarted = true;
+      const fileRecord = await createFileRecord(ctx.db, {
+        id: input.fileId,
+        userId: ctx.session.user.id,
+        fileName: input.fileName,
+        fileType: input.fileType,
+        fileSize: input.fileSize,
+        storagePath: input.storagePath,
+      });
+      isRecordCreated = true;
 
-      if (existingFiles.length > 0) {
-        await cleanupFile(input.storagePath);
-
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: `A file with the name "${input.fileName}" already exists. Please rename your file or delete the existing one.`,
-        });
-      }
-
-      // Create file record in database
-      const fileRecords = await ctx.db
-        .insert(userFiles)
-        .values({
-          id: input.fileId,
-          userId: ctx.session.user.id,
-          fileName: input.fileName,
-          fileType: input.fileType,
-          fileSize: input.fileSize,
-          storagePath: input.storagePath,
-          processingStatus: "pending",
-          metadata: {},
-        })
-        .returning();
-
-      const fileRecord = fileRecords[0];
-
-      if (!fileRecord) {
-        await cleanupFile(input.storagePath);
-        throw new Error("Failed to create file record");
+      // Only a row still waiting for its first job needs one. A repeated
+      // finalize for a file already processing or processed must not queue a
+      // second job, which would wipe and re-embed it.
+      if (fileRecord.processingStatus !== "pending") {
+        return { fileId: fileRecord.id, status: fileRecord.processingStatus };
       }
 
       // Process file
@@ -170,11 +170,9 @@ export const finalizeUploadProcedure = protectedProcedure
         });
       } else {
         // Publish QStash job for async processing in production
-        await publishQStashJob({
-          url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-          body: {
-            fileId: fileRecord.id,
-          },
+        await publishFileProcessingJob({
+          fileId: fileRecord.id,
+          userId: ctx.session.user.id,
         });
 
         logInfo("File uploaded and processing job published", {
@@ -194,6 +192,17 @@ export const finalizeUploadProcedure = protectedProcedure
         fileName: input.fileName,
         fileId: input.fileId,
       });
+
+      // No user_files row points at the uploaded object, so nothing would
+      // ever delete it. Remove it here rather than leave it orphaned.
+      if (isPathOwned && !isRecordCreated) {
+        await removeUnclaimedUpload(error).catch((cleanupError) => {
+          logError(cleanupError, "Failed to clean up unfinalized upload", {
+            fileId: input.fileId,
+            storagePath: input.storagePath,
+          });
+        });
+      }
 
       if (error instanceof TRPCError) {
         throw error;

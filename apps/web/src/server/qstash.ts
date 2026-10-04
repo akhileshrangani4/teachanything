@@ -15,12 +15,43 @@ export const qstashReceiver = isServiceAvailable("qstash")
   : null;
 
 /**
+ * How many jobs of one kind QStash runs at once.
+ *
+ * Every processing job writes embeddings into one Micro database. Unlimited, a
+ * 20-file upload or a 100-page crawl started that many jobs together; they took
+ * every pooler connection, and the uploads still finalizing behind them timed
+ * out waiting for one (Oct 1 2026: a SCRAM timeout on the pooler, then a
+ * finalize that never wrote its row). Extra jobs wait in QStash, not in the
+ * pooler.
+ *
+ * Keyed per owner, not globally: with one shared line, a 500-page crawl would
+ * hold every other crawl's pages in the queue long enough for the 30-minute
+ * crawl stale check to fail them. Separate owners rarely overlap, so the
+ * database still sees a handful of jobs at a time.
+ */
+const JOBS_AT_ONCE = 3;
+
+type FlowControl = { key: string; parallelism: number };
+
+export function fileProcessingFlow(userId: string): FlowControl {
+  return { key: `process-file-${userId}`, parallelism: JOBS_AT_ONCE };
+}
+
+export function crawlPageFlow(crawlSourceId: string): FlowControl {
+  return {
+    key: `crawl-process-page-${crawlSourceId}`,
+    parallelism: JOBS_AT_ONCE,
+  };
+}
+
+/**
  * Publish a QStash job.
  * When QStash is not configured, logs to console and returns a fake messageId.
  */
 export async function publishQStashJob(params: {
   url: string;
   body: Record<string, unknown>;
+  flowControl?: FlowControl;
 }): Promise<{ messageId: string }> {
   if (!qstash) {
     logInfo("[dev] QStash not configured — job skipped", {
@@ -35,6 +66,7 @@ export async function publishQStashJob(params: {
       url: params.url,
       body: params.body,
       retries: 3,
+      flowControl: params.flowControl,
       headers: {
         "Content-Type": "application/json",
       },
@@ -52,6 +84,18 @@ export async function publishQStashJob(params: {
     });
     throw error;
   }
+}
+
+/** Queue processing for one uploaded file, in line behind its owner's others. */
+export async function publishFileProcessingJob(params: {
+  fileId: string;
+  userId: string;
+}): Promise<{ messageId: string }> {
+  return publishQStashJob({
+    url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
+    body: { fileId: params.fileId },
+    flowControl: fileProcessingFlow(params.userId),
+  });
 }
 
 /**
