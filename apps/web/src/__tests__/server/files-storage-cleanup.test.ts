@@ -19,6 +19,7 @@ const OWN_PATH = `${USER_ID}/${FILE_ID}`;
 type StorageResult = { data: unknown; error: unknown };
 const mockRemove = jest.fn<(paths: string[]) => Promise<StorageResult>>();
 const mockList = jest.fn<() => Promise<StorageResult>>();
+const mockExists = jest.fn<() => Promise<{ data: boolean; error: unknown }>>();
 
 // Stand-in for the real procedures, minus the session/approval middleware,
 // which is not what these tests are about.
@@ -37,6 +38,7 @@ jest.unstable_mockModule("@/server/supabase", () => ({
       from: () => ({
         remove: (paths: string[]) => mockRemove(paths),
         list: () => mockList(),
+        exists: () => mockExists(),
       }),
     },
   }),
@@ -110,7 +112,10 @@ const finalizeInput = {
 
 beforeEach(() => {
   mockPublish.mockReset().mockResolvedValue({ messageId: "m-1" });
-  mockRemove.mockReset().mockResolvedValue({ data: [], error: null });
+  mockRemove
+    .mockReset()
+    .mockResolvedValue({ data: [{ name: FILE_ID }], error: null });
+  mockExists.mockReset().mockResolvedValue({ data: false, error: null });
   mockList.mockReset().mockResolvedValue({
     data: [{ name: FILE_ID, metadata: { size: 1000 } }],
     error: null,
@@ -131,6 +136,29 @@ describe("files.delete", () => {
       "Failed to delete file",
     );
     expect(db.delete).not.toHaveBeenCalled();
+  });
+
+  it("keeps the row when Storage removes nothing but the file is still there", async () => {
+    // What a key without delete rights gets back: success, zero removed.
+    mockRemove.mockResolvedValue({ data: [], error: null });
+    mockExists.mockResolvedValue({ data: true, error: null });
+    const db = createMockDb([[file]]);
+
+    await expect(callerFor(db).delete({ fileId: FILE_ID })).rejects.toThrow(
+      "Failed to delete file",
+    );
+    expect(db.delete).not.toHaveBeenCalled();
+  });
+
+  it("deletes the row when Storage removes nothing because the file was already gone", async () => {
+    mockRemove.mockResolvedValue({ data: [], error: null });
+    mockExists.mockResolvedValue({ data: false, error: new Error("404") });
+    const db = createMockDb([[file]]);
+
+    await expect(callerFor(db).delete({ fileId: FILE_ID })).resolves.toEqual({
+      success: true,
+    });
+    expect(db.delete).toHaveBeenCalled();
   });
 
   it("deletes the database row once Storage has deleted the file", async () => {

@@ -104,7 +104,6 @@ Create `apps/web/.env`:
 # Database (Supabase PostgreSQL)
 DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST].supabase.co:5432/postgres
 NEXT_PUBLIC_SUPABASE_URL=https://[PROJECT].supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # AI/OpenRouter

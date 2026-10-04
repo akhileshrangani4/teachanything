@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.3](https://github.com/akhileshrangani4/teachanything/compare/v1.35.2...v1.35.3) (2026-10-04)
+
+
+### Bug Fixes
+
+* **files:** drop the unused anon key and catch deletes that remove nothing ([#537](https://github.com/akhileshrangani4/teachanything/issues/537)) ([9c22093](https://github.com/akhileshrangani4/teachanything/commit/9c2209374594fda8ef0717e90f14da553803bd17))
+
 ## [1.35.2](https://github.com/akhileshrangani4/teachanything/compare/v1.35.1...v1.35.2) (2026-10-04)
 
 
