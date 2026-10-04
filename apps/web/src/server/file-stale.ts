@@ -8,11 +8,16 @@ import { logInfo, logError } from "@/lib/logger";
  * A file sitting in `pending` this long never had its job picked up -- the
  * QStash publish failed silently, or every delivery attempt was rejected.
  *
+ * Generous because `pending` now includes waiting in line: processing runs
+ * three files at a time (FILE_PROCESSING_FLOW), a file takes ~40 s at the
+ * median and ~3.5 min at p90, so the tail of a large batch can legitimately
+ * wait well past the old 15 minutes.
+ *
  * Measured from the last recorded activity, not from `createdAt`: `files.retry`
  * re-queues an existing file by setting it back to `pending`, and an upload
  * from last week is not stale just because it is being retried today.
  */
-export const STALE_PENDING_MS = 15 * 60 * 1000;
+export const STALE_PENDING_MS = 60 * 60 * 1000;
 
 /**
  * A file in `processing` is judged by progress activity, not by when it
