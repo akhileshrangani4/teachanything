@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { userFiles, fileChunks } from "@teachanything/db/schema";
-import { publishQStashJob } from "@/server/qstash";
+import { publishFileProcessingJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/server/file-processor";
@@ -101,12 +101,7 @@ export const retryProcedure = protectedProcedure
         });
       } else {
         // Publish QStash job for async processing in production
-        await publishQStashJob({
-          url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-          body: {
-            fileId: input.fileId,
-          },
-        });
+        await publishFileProcessingJob(input.fileId);
 
         logInfo("File retry job published", {
           fileId: input.fileId,

@@ -15,12 +15,28 @@ export const qstashReceiver = isServiceAvailable("qstash")
   : null;
 
 /**
+ * How many jobs of one kind QStash runs at once.
+ *
+ * Every processing job writes embeddings into one Micro database. Unlimited, a
+ * 20-file upload or a 100-page crawl started that many jobs together; they took
+ * every pooler connection, and the uploads still finalizing behind them timed
+ * out waiting for one (Oct 1 2026: a SCRAM timeout on the pooler, then a
+ * finalize that never wrote its row). Extra jobs wait in QStash, not in the
+ * pooler.
+ */
+export const FILE_PROCESSING_FLOW = { key: "process-file", parallelism: 3 };
+export const CRAWL_PAGE_FLOW = { key: "crawl-process-page", parallelism: 3 };
+
+type FlowControl = { key: string; parallelism: number };
+
+/**
  * Publish a QStash job.
  * When QStash is not configured, logs to console and returns a fake messageId.
  */
 export async function publishQStashJob(params: {
   url: string;
   body: Record<string, unknown>;
+  flowControl?: FlowControl;
 }): Promise<{ messageId: string }> {
   if (!qstash) {
     logInfo("[dev] QStash not configured — job skipped", {
@@ -35,6 +51,7 @@ export async function publishQStashJob(params: {
       url: params.url,
       body: params.body,
       retries: 3,
+      flowControl: params.flowControl,
       headers: {
         "Content-Type": "application/json",
       },
@@ -52,6 +69,17 @@ export async function publishQStashJob(params: {
     });
     throw error;
   }
+}
+
+/** Queue processing for one uploaded file, under the file-processing cap. */
+export async function publishFileProcessingJob(
+  fileId: string,
+): Promise<{ messageId: string }> {
+  return publishQStashJob({
+    url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
+    body: { fileId },
+    flowControl: FILE_PROCESSING_FLOW,
+  });
 }
 
 /**

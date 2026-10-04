@@ -3,7 +3,7 @@ import { crawlSources, crawledPages } from "@teachanything/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { discoverPages, fetchRobotsText } from "@teachanything/ai/crawler";
 import { env } from "@/lib/env";
-import { publishQStashJob } from "../qstash";
+import { CRAWL_PAGE_FLOW, publishQStashJob } from "../qstash";
 import { logInfo, logError } from "@/lib/logger";
 import { mergeCrawlSourceMetadata } from "../crawler-metadata-sql";
 import { CrawlNoLongerRunningError, getFriendlyErrorMessage } from "./errors";
@@ -228,6 +228,7 @@ export async function processCrawlDiscovery(params: {
             publishQStashJob({
               url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/crawl-process-page`,
               body: { crawledPageId: page.id },
+              flowControl: CRAWL_PAGE_FLOW,
             }),
           ),
         );

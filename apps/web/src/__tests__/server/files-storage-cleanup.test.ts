@@ -47,7 +47,7 @@ jest.unstable_mockModule("@/server/local-storage", () => ({
   getLocalFileSize: jest.fn(),
 }));
 jest.unstable_mockModule("@/server/qstash", () => ({
-  publishQStashJob: jest.fn(),
+  publishFileProcessingJob: jest.fn(),
 }));
 jest.unstable_mockModule("@/server/file-processor", () => ({
   processFile: jest.fn(),
@@ -67,20 +67,28 @@ const createCaller = t.createCallerFactory(
   t.router({ delete: deleteProcedure, finalize: finalizeUploadProcedure }),
 );
 
-/** A db whose select returns `selectRows` and whose insert throws `insertError`. */
-function createMockDb(selectRows: unknown[], insertError?: Error) {
+/**
+ * A db whose selects return `selects` in call order (then nothing), and whose
+ * insert throws `insertError`.
+ */
+function createMockDb(selects: unknown[][], insertError?: Error) {
+  const pending = [...selects];
   const deleteWhere = jest.fn<() => Promise<void>>().mockResolvedValue();
   const db = {
     select: () => ({
       from: () => ({
-        where: () => ({ limit: () => Promise.resolve(selectRows) }),
+        where: () => ({
+          limit: () => Promise.resolve(pending.shift() ?? []),
+        }),
       }),
     }),
     delete: jest.fn(() => ({ where: deleteWhere })),
     insert: () => ({
       values: () => ({
-        returning: () =>
-          insertError ? Promise.reject(insertError) : Promise.resolve([]),
+        onConflictDoNothing: () => ({
+          returning: () =>
+            insertError ? Promise.reject(insertError) : Promise.resolve([]),
+        }),
       }),
     }),
   };
@@ -115,7 +123,7 @@ describe("files.delete", () => {
       data: null,
       error: new Error("storage down"),
     });
-    const db = createMockDb([file]);
+    const db = createMockDb([[file]]);
 
     await expect(callerFor(db).delete({ fileId: FILE_ID })).rejects.toThrow(
       "Failed to delete file",
@@ -124,7 +132,7 @@ describe("files.delete", () => {
   });
 
   it("deletes the database row once Storage has deleted the file", async () => {
-    const db = createMockDb([file]);
+    const db = createMockDb([[file]]);
 
     await expect(callerFor(db).delete({ fileId: FILE_ID })).resolves.toEqual({
       success: true,
@@ -135,17 +143,27 @@ describe("files.delete", () => {
 });
 
 describe("files.finalizeUpload", () => {
-  it("deletes the uploaded file when the database insert throws", async () => {
-    const db = createMockDb([], new Error("unique violation"));
+  it("deletes the uploaded file once every insert attempt has failed", async () => {
+    jest.useFakeTimers();
+    try {
+      const db = createMockDb([], new Error("connection lost"));
 
-    await expect(callerFor(db).finalize(finalizeInput)).rejects.toThrow(
-      "Failed to finalize file upload",
-    );
-    expect(mockRemove).toHaveBeenCalledWith([OWN_PATH]);
+      const finalize = callerFor(db).finalize(finalizeInput);
+      const settled = expect(finalize).rejects.toThrow(
+        "Failed to finalize file upload",
+      );
+      // Run through the retry backoff without waiting for it.
+      await jest.advanceTimersByTimeAsync(10_000);
+      await settled;
+      expect(mockRemove).toHaveBeenCalledWith([OWN_PATH]);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("deletes the uploaded file when the name is already taken", async () => {
-    const db = createMockDb([{ id: "existing" }]);
+    // No row of its own yet, then another file with the same name.
+    const db = createMockDb([[], [{ id: "existing" }]]);
 
     await expect(callerFor(db).finalize(finalizeInput)).rejects.toThrow(
       "already exists",

@@ -4,7 +4,7 @@ import {
   CURRENT_PROCESSING_VERSION,
   processFile,
 } from "@/server/file-processor";
-import { publishQStashJob } from "@/server/qstash";
+import { publishFileProcessingJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logError, logInfo } from "@/lib/logger";
 import type { db as DbType } from "@teachanything/db";
@@ -57,10 +57,7 @@ export async function maybeEnqueueReprocess(
         );
       } else {
         try {
-          await publishQStashJob({
-            url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-            body: { fileId },
-          });
+          await publishFileProcessingJob(fileId);
         } catch (e) {
           logError(e, "Failed to enqueue reprocess job", { fileId });
         }

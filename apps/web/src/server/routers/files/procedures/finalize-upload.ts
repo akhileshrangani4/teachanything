@@ -1,8 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { userFiles } from "@teachanything/db/schema";
 import { createSupabaseClient } from "@/server/supabase";
 import { isServiceAvailable } from "@/lib/env";
 import {
@@ -10,7 +8,8 @@ import {
   getLocalFileSize,
   deleteLocalFile,
 } from "@/server/local-storage";
-import { publishQStashJob } from "@/server/qstash";
+import { publishFileProcessingJob } from "@/server/qstash";
+import { createFileRecord } from "./create-file-record";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/server/file-processor";
@@ -115,45 +114,14 @@ export const finalizeUploadProcedure = protectedProcedure
         }
       }
 
-      // Check for duplicate file name
-      const existingFiles = await ctx.db
-        .select()
-        .from(userFiles)
-        .where(
-          and(
-            eq(userFiles.userId, ctx.session.user.id),
-            eq(userFiles.fileName, input.fileName),
-          ),
-        )
-        .limit(1);
-
-      if (existingFiles.length > 0) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: `A file with the name "${input.fileName}" already exists. Please rename your file or delete the existing one.`,
-        });
-      }
-
-      // Create file record in database
-      const fileRecords = await ctx.db
-        .insert(userFiles)
-        .values({
-          id: input.fileId,
-          userId: ctx.session.user.id,
-          fileName: input.fileName,
-          fileType: input.fileType,
-          fileSize: input.fileSize,
-          storagePath: input.storagePath,
-          processingStatus: "pending",
-          metadata: {},
-        })
-        .returning();
-
-      const fileRecord = fileRecords[0];
-
-      if (!fileRecord) {
-        throw new Error("Failed to create file record");
-      }
+      const fileRecord = await createFileRecord(ctx.db, {
+        id: input.fileId,
+        userId: ctx.session.user.id,
+        fileName: input.fileName,
+        fileType: input.fileType,
+        fileSize: input.fileSize,
+        storagePath: input.storagePath,
+      });
       isRecordCreated = true;
 
       // Process file
@@ -175,12 +143,7 @@ export const finalizeUploadProcedure = protectedProcedure
         });
       } else {
         // Publish QStash job for async processing in production
-        await publishQStashJob({
-          url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-          body: {
-            fileId: fileRecord.id,
-          },
-        });
+        await publishFileProcessingJob(fileRecord.id);
 
         logInfo("File uploaded and processing job published", {
           fileId: fileRecord.id,
