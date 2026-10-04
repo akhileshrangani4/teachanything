@@ -13,6 +13,7 @@
     "db:setup-extensions": "tsx scripts/setup-extensions.ts",
     "db:check-indexes": "tsx scripts/check-index-health.ts",
     "db:setup-rls": "tsx scripts/setup-rls-policies.ts",
+    "db:sweep-orphaned-uploads": "tsx scripts/sweep-orphaned-uploads.ts",
     "db:push": "npm run db:setup-extensions && drizzle-kit push --force && npm run db:check-indexes",
     "db:seed": "tsx scripts/seed.ts",
     "db:studio": "drizzle-kit studio",

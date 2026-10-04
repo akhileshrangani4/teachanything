@@ -42,9 +42,17 @@ export const finalizeUploadProcedure = protectedProcedure
         await deleteLocalFile(storagePath);
       } else {
         const supabase = createSupabaseClient();
-        await supabase.storage.from("chatbot-files").remove([storagePath]);
+        const { error } = await supabase.storage
+          .from("chatbot-files")
+          .remove([storagePath]);
+        if (error) throw error;
       }
     }
+
+    // Set once the path is proven to be the caller's own, so the catch block
+    // never deletes an object it was merely handed a path to.
+    let isPathOwned = false;
+    let isRecordCreated = false;
 
     try {
       // Validate storage path matches expected pattern: {userId}/{fileId}
@@ -55,6 +63,7 @@ export const finalizeUploadProcedure = protectedProcedure
           message: "Invalid storage path",
         });
       }
+      isPathOwned = true;
 
       if (isLocal) {
         // Verify file exists on local filesystem
@@ -70,7 +79,6 @@ export const finalizeUploadProcedure = protectedProcedure
         const actualSize = await getLocalFileSize(input.storagePath);
         const tolerance = input.fileSize * 0.01;
         if (Math.abs(actualSize - input.fileSize) > tolerance) {
-          await cleanupFile(input.storagePath);
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
@@ -99,7 +107,6 @@ export const finalizeUploadProcedure = protectedProcedure
           const actualSize = uploadedFile.metadata.size;
           const tolerance = input.fileSize * 0.01;
           if (Math.abs(actualSize - input.fileSize) > tolerance) {
-            await cleanupFile(input.storagePath);
             throw new TRPCError({
               code: "BAD_REQUEST",
               message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
@@ -121,8 +128,6 @@ export const finalizeUploadProcedure = protectedProcedure
         .limit(1);
 
       if (existingFiles.length > 0) {
-        await cleanupFile(input.storagePath);
-
         throw new TRPCError({
           code: "CONFLICT",
           message: `A file with the name "${input.fileName}" already exists. Please rename your file or delete the existing one.`,
@@ -147,9 +152,9 @@ export const finalizeUploadProcedure = protectedProcedure
       const fileRecord = fileRecords[0];
 
       if (!fileRecord) {
-        await cleanupFile(input.storagePath);
         throw new Error("Failed to create file record");
       }
+      isRecordCreated = true;
 
       // Process file
       if (env.NODE_ENV === "development") {
@@ -194,6 +199,17 @@ export const finalizeUploadProcedure = protectedProcedure
         fileName: input.fileName,
         fileId: input.fileId,
       });
+
+      // No user_files row points at the uploaded object, so nothing would
+      // ever delete it. Remove it here rather than leave it orphaned.
+      if (isPathOwned && !isRecordCreated) {
+        await cleanupFile(input.storagePath).catch((cleanupError) => {
+          logError(cleanupError, "Failed to clean up unfinalized upload", {
+            fileId: input.fileId,
+            storagePath: input.storagePath,
+          });
+        });
+      }
 
       if (error instanceof TRPCError) {
         throw error;

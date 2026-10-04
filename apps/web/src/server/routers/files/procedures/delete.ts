@@ -45,11 +45,10 @@ export const deleteProcedure = protectedProcedure
           .from("chatbot-files")
           .remove([file.storagePath]);
 
+        // Stop before touching the database: deleting the row anyway would
+        // leave the stored object with nothing pointing at it.
         if (storageError) {
-          logError(storageError, "Failed to delete file from storage", {
-            fileId: input.fileId,
-            storagePath: file.storagePath,
-          });
+          throw storageError;
         }
       } else {
         await deleteLocalFile(file.storagePath);
