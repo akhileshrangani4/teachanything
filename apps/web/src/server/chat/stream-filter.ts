@@ -37,3 +37,31 @@ export function stripRetrievalOutputs(): TransformStream<
     },
   });
 }
+
+/**
+ * Hold `error` chunks back from the client, recording the first one's text in
+ * `held` instead.
+ *
+ * The browser's chat client stops reading the stream at the first `error`
+ * chunk, so anything written after it -- the fallback answer, the finish chunk
+ * that carries sources -- never renders. A provider failure midway through the
+ * agentic loop used to leave the student with just the model's "Let me
+ * search..." preamble and an error toast. Holding the error lets the caller
+ * try the fallback turn first and write the error only when nothing recovers.
+ */
+export function holdErrors(held: {
+  errorText?: string;
+}): TransformStream<
+  InferUIMessageChunk<StudyUIMessage>,
+  InferUIMessageChunk<StudyUIMessage>
+> {
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (chunk.type !== "error") {
+        controller.enqueue(chunk);
+        return;
+      }
+      held.errorText ??= chunk.errorText;
+    },
+  });
+}

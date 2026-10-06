@@ -16,6 +16,7 @@ import {
   salvageTruncatedQuizzes,
   writeDoneAnswerAsText,
 } from "./primary-turn";
+import { MAX_AGENT_STEPS } from "./final-step";
 
 type SourceList = RAGContextResult["sources"];
 
@@ -113,16 +114,17 @@ export async function executeTurn(args: {
     primaryText,
     primarySteps,
     finishReason: primaryFinishReason,
+    streamError,
   } = primaryOutcome;
 
   // The turn's text, across every step. `primary.text` resolves to the LAST
   // step's text only, and this turn is deliberately multi-step
-  // (`stopWhen` above), so a model that answers in an earlier step and ends
-  // on a retrieval call -- or on the step cap -- reads as having produced
-  // nothing. That false negative fired the empty-response fallback below,
-  // appending a second, independently generated answer to a turn the
-  // student had already seen answered. Fall back to `primaryText` so a
-  // provider that leaves `step.text` unset can't regress this.
+  // (`stopWhen` above), so a model that answers in an earlier step and then
+  // searches once more reads as having produced nothing. That false negative
+  // fired the empty-response fallback below, appending a second,
+  // independently generated answer to a turn the student had already seen
+  // answered. Fall back to `primaryText` so a provider that leaves
+  // `step.text` unset can't regress this.
   const stepsText = primarySteps.map((step) => step.text ?? "").join("");
   const turnText = stepsText.trim() ? stepsText : primaryText;
 
@@ -149,8 +151,20 @@ export async function executeTurn(args: {
 
   writeDoneAnswerAsText(writer, primaryText, doneAnswer);
 
+  // The loop stopped before the model could read what it last asked for: the
+  // provider failed mid-loop, or the capped step searched anyway (the final
+  // step is meant to answer, see finalStepSettings). Text from such a turn is
+  // the line a model writes before calling a tool -- "Let me search more
+  // specifically for..." -- and counting it as the answer left students with
+  // only that line, turn after turn.
+  const lastStep = primarySteps[primarySteps.length - 1];
+  const cutOffMidSearch =
+    streamError !== undefined ||
+    (primarySteps.length >= MAX_AGENT_STEPS &&
+      lastStep?.finishReason === "tool-calls");
+
   const hasVisibleAnswer =
-    Boolean(turnText.trim()) ||
+    (Boolean(turnText.trim()) && !cutOffMidSearch) ||
     Boolean(doneAnswer?.trim()) ||
     producedQuiz ||
     salvagedTruncatedQuiz;
@@ -159,16 +173,22 @@ export async function executeTurn(args: {
 
   if (!hasVisibleAnswer && args.modelCanUseTools && !args.abortSignal.aborted) {
     // Empty-response safety net (#357): a tool-capable turn produced no
-    // user-visible content in ANY step (searched then hit the step cap,
-    // `done` with an empty answer, an invalid-only quiz, or a study-only
-    // bot that emitted neither text nor a valid quiz). Gated on
-    // `modelCanUseTools` -- not `useRetrievalTools` -- so the study-only
-    // path (zero files, or RAG unhealthy) is covered too. Fall back to a
-    // static, no-tools turn so the user always gets an answer instead of a
-    // stuck, empty stream.
+    // user-visible answer in ANY step (cut off mid-search as above, `done`
+    // with an empty answer, an invalid-only quiz, or a study-only bot that
+    // emitted neither text nor a valid quiz). Gated on `modelCanUseTools` --
+    // not `useRetrievalTools` -- so the study-only path (zero files, or RAG
+    // unhealthy) is covered too. Fall back to a static, no-tools turn so the
+    // user always gets an answer instead of a stuck, empty stream. A held
+    // primary error is dropped here: the fallback either answers or fails
+    // with its own error.
     logWarn(
       "Agentic path produced no text response; falling back to static RAG",
-      { chatbotId: args.chatbotId, modelId: args.modelId },
+      {
+        chatbotId: args.chatbotId,
+        modelId: args.modelId,
+        cutOffMidSearch,
+        primaryErrored: streamError !== undefined,
+      },
     );
     const fallback = await runFallbackTurn({
       aiClient: args.aiClient,
@@ -203,6 +223,10 @@ export async function executeTurn(args: {
     args.state.finalSources = args.ragResult.sources;
     args.state.ragUsedFlag = args.ragResult.ragUsed;
   } else {
+    // No fallback ran, so the held error is the student's only notice.
+    if (streamError !== undefined) {
+      writer.write({ type: "error", errorText: streamError });
+    }
     args.state.finalSources = args.useRetrievalTools
       ? mergeSources(args.ragResult.sources, args.toolSources)
       : args.ragResult.sources;

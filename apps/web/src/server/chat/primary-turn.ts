@@ -14,7 +14,8 @@ import { logError, logWarn } from "@/lib/logger";
 import { repairQuiz } from "@/lib/quiz";
 import type { StudyUIMessage } from "./study-tools";
 import type { Chunk } from "./ui-chunks";
-import { stripRetrievalOutputs } from "./stream-filter";
+import { holdErrors, stripRetrievalOutputs } from "./stream-filter";
+import { MAX_AGENT_STEPS, finalStepSettings } from "./final-step";
 import { recoverLeakedQuiz } from "./recover-quiz";
 import {
   repairQuizToolParts,
@@ -72,7 +73,10 @@ async function forward(
  * Streams every visible chunk into `writer` (drained via `forward`), then
  * resolves with the turn's final text and steps. The unawaited `finishReason`
  * promise is returned as-is so the caller can await it at its original point in
- * the sequence. `{ ok: false }` means the turn failed after streaming.
+ * the sequence. `streamError` is the text of an `error` chunk the model stream
+ * produced, held back from `writer` (see `holdErrors`) so the caller decides
+ * whether to recover or surface it. `{ ok: false }` means the turn failed after
+ * streaming.
  */
 export async function runPrimaryTurn(args: {
   aiClient: OpenRouterClient;
@@ -94,9 +98,11 @@ export async function runPrimaryTurn(args: {
       primaryText: string;
       primarySteps: Array<StepResult<ToolSet>>;
       finishReason: PromiseLike<FinishReason>;
+      streamError?: string;
     }
   | { ok: false; error: unknown }
 > {
+  const held: { errorText?: string } = {};
   const primary = streamText({
     model: args.aiClient.getModel(args.modelId),
     system: args.systemPrompt,
@@ -105,7 +111,10 @@ export async function runPrimaryTurn(args: {
     // stepCountIs caps the agentic retrieval loop; hasToolCall("done") ends
     // it early when the model delivers a final answer via the `done` tool.
     // Harmless when `done` isn't in the toolset (never fires).
-    stopWhen: [stepCountIs(5), hasToolCall("done")],
+    stopWhen: [stepCountIs(MAX_AGENT_STEPS), hasToolCall("done")],
+    // The capped step must answer rather than search (see final-step.ts).
+    prepareStep: ({ stepNumber }) =>
+      finalStepSettings(args.tools, args.systemPrompt, stepNumber),
     temperature: args.temperature,
     maxOutputTokens: args.maxOutputTokens,
     abortSignal: args.abortSignal,
@@ -145,7 +154,8 @@ export async function runPrimaryTurn(args: {
     // Salvage a quiz the SDK rejected (input cut off at maxTokens, too many
     // questions, one botched question) into the questions that do render,
     // instead of showing the student an error. See repairQuizToolParts.
-    .pipeThrough(repairQuizToolParts());
+    .pipeThrough(repairQuizToolParts())
+    .pipeThrough(holdErrors(held));
   // Study-tool-capable turns: reconstruct a quiz the model leaked as a text
   // JSON blob (instead of a native showQuiz call) into a real tool part, so
   // it renders as the widget rather than raw JSON. Only quiz-shaped text is
@@ -171,6 +181,7 @@ export async function runPrimaryTurn(args: {
       primaryText,
       primarySteps,
       finishReason: primary.finishReason,
+      streamError: held.errorText,
     };
   } catch (error) {
     logError(error, "primary turn failed", { chatbotId: args.chatbotId });
