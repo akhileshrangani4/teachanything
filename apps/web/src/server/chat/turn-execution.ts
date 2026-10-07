@@ -16,7 +16,7 @@ import {
   salvageTruncatedQuizzes,
   writeDoneAnswerAsText,
 } from "./primary-turn";
-import { MAX_AGENT_STEPS } from "./final-step";
+import { cutOffMidSearch } from "./final-step";
 
 type SourceList = RAGContextResult["sources"];
 
@@ -151,20 +151,15 @@ export async function executeTurn(args: {
 
   writeDoneAnswerAsText(writer, primaryText, doneAnswer);
 
-  // The loop stopped before the model could read what it last asked for: the
-  // provider failed mid-loop, or the capped step searched anyway (the final
-  // step is meant to answer, see finalStepSettings). Text from such a turn is
-  // the line a model writes before calling a tool -- "Let me search more
-  // specifically for..." -- and counting it as the answer left students with
-  // only that line, turn after turn.
-  const lastStep = primarySteps[primarySteps.length - 1];
-  const cutOffMidSearch =
-    streamError !== undefined ||
-    (primarySteps.length >= MAX_AGENT_STEPS &&
-      lastStep?.finishReason === "tool-calls");
+  // Text from a turn cut off mid-search is the model's preamble to a tool
+  // call, not an answer (see cutOffMidSearch).
+  const cutOff = cutOffMidSearch(
+    primarySteps[primarySteps.length - 1],
+    streamError !== undefined,
+  );
 
   const hasVisibleAnswer =
-    (Boolean(turnText.trim()) && !cutOffMidSearch) ||
+    (Boolean(turnText.trim()) && !cutOff) ||
     Boolean(doneAnswer?.trim()) ||
     producedQuiz ||
     salvagedTruncatedQuiz;
@@ -181,15 +176,12 @@ export async function executeTurn(args: {
     // user always gets an answer instead of a stuck, empty stream. A held
     // primary error is dropped here: the fallback either answers or fails
     // with its own error.
-    logWarn(
-      "Agentic path produced no text response; falling back to static RAG",
-      {
-        chatbotId: args.chatbotId,
-        modelId: args.modelId,
-        cutOffMidSearch,
-        primaryErrored: streamError !== undefined,
-      },
-    );
+    logWarn("Agentic path produced no answer; falling back to static RAG", {
+      chatbotId: args.chatbotId,
+      modelId: args.modelId,
+      cutOffMidSearch: cutOff,
+      primaryErrored: streamError !== undefined,
+    });
     const fallback = await runFallbackTurn({
       aiClient: args.aiClient,
       modelId: args.modelId,
@@ -223,9 +215,13 @@ export async function executeTurn(args: {
     args.state.finalSources = args.ragResult.sources;
     args.state.ragUsedFlag = args.ragResult.ragUsed;
   } else {
-    // No fallback ran, so the held error is the student's only notice.
     if (streamError !== undefined) {
+      // No fallback ran, so the turn failed and the held error is the
+      // student's only notice. failTurn's two halves, minus its logging:
+      // onStreamError already logged this error when the stream produced it.
+      args.state.executeErrored = true;
       writer.write({ type: "error", errorText: streamError });
+      return;
     }
     args.state.finalSources = args.useRetrievalTools
       ? mergeSources(args.ragResult.sources, args.toolSources)

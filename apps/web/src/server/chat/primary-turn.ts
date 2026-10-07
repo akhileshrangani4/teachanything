@@ -229,9 +229,10 @@ export function salvageTruncatedQuizzes(
  * invisible unless written out here. A model that narrates in an earlier
  * step ("Let me check the readings.") and then answers via `done` has a
  * non-empty `turnText` but an empty final step -- gating on `turnText`
- * there would swallow the answer entirely. `hasVisibleAnswer` below is
- * the opposite question ("did the turn produce anything at all?") and
- * correctly spans every step.
+ * there would swallow the answer entirely. `hasVisibleAnswer` in
+ * turn-execution.ts is the opposite question ("did the turn answer at
+ * all?") and spans every step, discounting only the preamble of a turn cut
+ * off mid-search.
  */
 export function writeDoneAnswerAsText(
   writer: UIMessageStreamWriter<StudyUIMessage>,

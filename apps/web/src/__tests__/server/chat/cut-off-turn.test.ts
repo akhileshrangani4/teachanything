@@ -9,7 +9,12 @@
  * the sources never arrived either. A professor's export showed exactly that,
  * four turns running, until she told the bot to stop searching.
  *
+ * The other half matters as much: a turn that DID answer must not get a second,
+ * fallback answer stacked under it just because something failed nearby.
+ *
  * These run the real `executeTurn` over the real AI SDK with a scripted model.
+ * `cutOffMidSearch` and `finalStepSettings` are unit-tested in
+ * final-step.test.ts.
  */
 import { jest, describe, it, expect } from "@jest/globals";
 import { createUIMessageStream, tool, type InferUIMessageChunk } from "ai";
@@ -23,47 +28,61 @@ jest.unstable_mockModule("@/lib/logger", () => ({
 }));
 
 const { executeTurn } = await import("@/server/chat/turn-execution");
-const { finalStepSettings, MAX_AGENT_STEPS } =
-  await import("@/server/chat/final-step");
+const { MAX_AGENT_STEPS } = await import("@/server/chat/final-step");
 const { studyTools } = await import("@/server/chat/study-tools");
 type StudyUIMessage = import("@/server/chat/study-tools").StudyUIMessage;
 type TurnState = import("@/server/chat/turn-execution").TurnState;
 type Chunk = InferUIMessageChunk<StudyUIMessage>;
 
 type Step =
-  | { text?: string; search?: string; failMidStream?: boolean; finish: string }
+  | {
+      text?: string;
+      /** Emit a provider `error` chunk after the text. */
+      errorChunk?: boolean;
+      /** Shorthand for a `search_documents` call with this query. */
+      search?: string;
+      call?: { name: string; args: unknown };
+      finish: string;
+    }
   | { providerFails: true };
 
 const PRIMARY_SYSTEM = "primary system prompt";
 const FALLBACK_SYSTEM = "fallback system prompt";
 const NARRATION = "Let me search more specifically for unit of analysis.";
+const FALLBACK_ANSWER = "Fallback answer from the passages.";
 const RAG_SOURCES = [
   { fileName: "Gordis Chapter 3.pdf", chunkIndex: 4, similarity: 0.35 },
 ];
 
+/** Replays `script` one step per model call, then stops cleanly. */
 function scriptedModel(script: Step[]) {
-  return new MockLanguageModelV3({
+  const scripted = new MockLanguageModelV3({
     doStream: async () => {
-      const step = script[model.doStreamCalls.length - 1] ?? {
-        finish: "stop",
-      };
+      // The mock records each call before running it.
+      const n = scripted.doStreamCalls.length;
+      const step = script[n - 1] ?? { finish: "stop" };
       if ("providerFails" in step) throw new Error("Provider returned error");
-      const id = `s${model.doStreamCalls.length}`;
+      const id = `s${n}`;
       const parts: unknown[] = [{ type: "stream-start", warnings: [] }];
       if (step.text) {
         parts.push({ type: "text-start", id });
         parts.push({ type: "text-delta", id, delta: step.text });
         parts.push({ type: "text-end", id });
       }
-      if (step.failMidStream) {
-        parts.push({ type: "error", error: new Error("upstream cut off") });
+      if (step.errorChunk) {
+        parts.push({ type: "error", error: new Error("upstream error") });
       }
-      if (step.search) {
+      const call =
+        step.call ??
+        (step.search === undefined
+          ? undefined
+          : { name: "search_documents", args: { query: step.search } });
+      if (call) {
         parts.push({
           type: "tool-call",
           toolCallId: `c-${id}`,
-          toolName: "search_documents",
-          input: JSON.stringify({ query: step.search }),
+          toolName: call.name,
+          input: JSON.stringify(call.args),
         });
       }
       parts.push({
@@ -74,8 +93,8 @@ function scriptedModel(script: Step[]) {
       return { stream: convertArrayToReadableStream(parts as never) };
     },
   });
+  return scripted;
 }
-let model = scriptedModel([]);
 
 const retrievalTools = {
   search_documents: tool({
@@ -85,12 +104,20 @@ const retrievalTools = {
   }),
 };
 
+/** Four searches that each end in a tool call, filling every step but the last. */
+const SEARCHES_UNTIL_LAST_STEP: Step[] = [
+  { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
+  { search: "unit of analysis definition", finish: "tool-calls" },
+  { search: "level of analysis", finish: "tool-calls" },
+  { search: "ecological studies", finish: "tool-calls" },
+];
+
 async function runTurn(
   script: Step[],
   options: { modelCanUseTools?: boolean } = {},
 ) {
   const modelCanUseTools = options.modelCanUseTools ?? true;
-  model = scriptedModel(script);
+  const model = scriptedModel(script);
   const state: TurnState = {
     finalSources: [],
     ragUsedFlag: false,
@@ -158,20 +185,21 @@ async function runTurn(
   };
 }
 
-const systemOf = (call: {
-  prompt: Array<{ role: string; content: unknown }>;
-}) => call.prompt.find((m) => m.role === "system")?.content;
-const toolNamesOf = (call: { tools?: Array<{ name: string }> }) =>
-  (call.tools ?? []).map((t) => t.name);
+type ModelCall = (typeof MockLanguageModelV3.prototype.doStreamCalls)[number];
+const systemOf = (call: ModelCall | undefined) =>
+  call?.prompt.find((m) => m.role === "system")?.content;
+const toolNamesOf = (call: ModelCall | undefined) =>
+  (call?.tools ?? []).map((t) => t.name);
+
+/** streamText's default onError logs scripted failures to the console. */
+const silenceStreamErrors = () =>
+  jest.spyOn(console, "error").mockImplementation(() => {});
 
 describe("a turn cut off mid-search", () => {
   it("makes the capped step answer, without the search tools", async () => {
     const answer = "The unit of analysis is who or what is being studied.";
     const r = await runTurn([
-      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
-      { search: "unit of analysis definition", finish: "tool-calls" },
-      { search: "level of analysis", finish: "tool-calls" },
-      { search: "ecological studies", finish: "tool-calls" },
+      ...SEARCHES_UNTIL_LAST_STEP,
       { text: answer, finish: "stop" },
     ]);
 
@@ -187,12 +215,9 @@ describe("a turn cut off mid-search", () => {
 
   it("falls back to a no-tools answer when the capped step searches anyway", async () => {
     const r = await runTurn([
-      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
-      { search: "a", finish: "tool-calls" },
-      { search: "b", finish: "tool-calls" },
-      { search: "c", finish: "tool-calls" },
-      { search: "d", finish: "tool-calls" },
-      { text: "Fallback answer from the passages.", finish: "stop" },
+      ...SEARCHES_UNTIL_LAST_STEP,
+      { search: "one more", finish: "tool-calls" },
+      { text: FALLBACK_ANSWER, finish: "stop" },
     ]);
 
     expect(r.calls).toHaveLength(MAX_AGENT_STEPS + 1);
@@ -200,41 +225,57 @@ describe("a turn cut off mid-search", () => {
     expect(systemOf(fallback)).toBe(FALLBACK_SYSTEM);
     expect(toolNamesOf(fallback)).toEqual([]);
     expect(r.shownText).toContain(NARRATION);
-    expect(r.shownText).toContain("Fallback answer from the passages.");
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
     expect(r.sawError).toBe(false);
     expect(r.shownSources).toEqual(RAG_SOURCES);
   });
 
+  it("falls back when the capped step searches but reports `stop`", async () => {
+    // OpenRouter passes upstream finish reasons through; some report `stop`
+    // beside a tool call.
+    const r = await runTurn([
+      ...SEARCHES_UNTIL_LAST_STEP,
+      { search: "one more", finish: "stop" },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(MAX_AGENT_STEPS + 1);
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
+  });
+
   it("answers through the fallback when the provider fails after the narration", async () => {
-    // streamText's default onError logs the scripted failure to the console.
-    jest.spyOn(console, "error").mockImplementation(() => {});
+    silenceStreamErrors();
     const r = await runTurn([
       { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
       { providerFails: true },
-      { text: "Fallback answer from the passages.", finish: "stop" },
+      { text: FALLBACK_ANSWER, finish: "stop" },
     ]);
 
     expect(r.calls).toHaveLength(3);
     expect(systemOf(r.calls[2])).toBe(FALLBACK_SYSTEM);
     // No error chunk ahead of the answer, or the browser would never render it.
     expect(r.sawError).toBe(false);
-    expect(r.shownText).toContain("Fallback answer from the passages.");
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
     expect(r.shownSources).toEqual(RAG_SOURCES);
     expect(r.state.executeErrored).toBe(false);
   });
 
-  it("still reports a failure that no fallback can recover", async () => {
-    jest.spyOn(console, "error").mockImplementation(() => {});
-    const r = await runTurn(
-      [{ text: "A partial answer", failMidStream: true, finish: "error" }],
-      { modelCanUseTools: false },
-    );
+  it("answers through the fallback when the step reading the search fails before writing", async () => {
+    silenceStreamErrors();
+    const r = await runTurn([
+      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
+      { errorChunk: true, finish: "error" },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
 
-    expect(r.calls).toHaveLength(1);
-    expect(r.sawError).toBe(true);
-    expect(r.shownText).toBe("A partial answer");
+    expect(r.calls).toHaveLength(3);
+    expect(r.sawError).toBe(false);
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
+    expect(r.state.executeErrored).toBe(false);
   });
+});
 
+describe("a turn that answered", () => {
   it("does not append a fallback when the model answered and then stopped", async () => {
     const answer = "Ecological studies use groups as the unit of analysis.";
     const r = await runTurn([
@@ -246,27 +287,68 @@ describe("a turn cut off mid-search", () => {
     expect(r.shownText).toBe(answer);
     expect(r.sawError).toBe(false);
   });
-});
 
-describe("finalStepSettings", () => {
-  const tools = { ...retrievalTools, ...studyTools };
+  it("does not answer twice when the loop got past an error and answered", async () => {
+    silenceStreamErrors();
+    const answer = "The unit of analysis is the population.";
+    const r = await runTurn([
+      {
+        text: NARRATION,
+        errorChunk: true,
+        search: "unit of analysis",
+        finish: "tool-calls",
+      },
+      { text: answer, finish: "stop" },
+    ]);
 
-  it("leaves every step before the last alone", () => {
-    for (let step = 0; step < MAX_AGENT_STEPS - 1; step++) {
-      expect(finalStepSettings(tools, "sys", step)).toBeUndefined();
-    }
+    expect(r.calls).toHaveLength(2);
+    // The answer renders; the held error is still reported, after it.
+    expect(r.shownText).toContain(answer);
+    expect(r.shownText).not.toContain(FALLBACK_ANSWER);
+    expect(r.sawError).toBe(true);
+    expect(r.state.executeErrored).toBe(true);
   });
 
-  it("drops the retrieval tools and says why on the last step", () => {
-    const settings = finalStepSettings(tools, "sys", MAX_AGENT_STEPS - 1);
-    expect(settings?.activeTools).toEqual(["showQuiz"]);
-    expect(settings?.system.startsWith("sys")).toBe(true);
-    expect(settings?.system).toContain("could not find it");
+  it("keeps a partial answer and reports the failure rather than answering twice", async () => {
+    silenceStreamErrors();
+    const r = await runTurn([
+      { text: "The unit of analysis is", errorChunk: true, finish: "error" },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(1);
+    expect(r.shownText).toBe("The unit of analysis is");
+    expect(r.sawError).toBe(true);
+    expect(r.state.executeErrored).toBe(true);
   });
 
-  it("is a no-op for a turn without retrieval tools", () => {
-    expect(
-      finalStepSettings(studyTools, "sys", MAX_AGENT_STEPS - 1),
-    ).toBeUndefined();
+  it("does not answer again over an earlier answer when the capped step's quiz is unusable", async () => {
+    const answer = "The unit of analysis is who or what is being studied.";
+    const r = await runTurn([
+      { text: answer, search: "unit of analysis", finish: "tool-calls" },
+      ...SEARCHES_UNTIL_LAST_STEP.slice(1),
+      {
+        call: { name: "showQuiz", args: { quiz_title: "No questions" } },
+        finish: "tool-calls",
+      },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(MAX_AGENT_STEPS);
+    expect(r.shownText).toContain(answer);
+    expect(r.shownText).not.toContain(FALLBACK_ANSWER);
+  });
+
+  it("still reports a failure that no fallback can recover", async () => {
+    silenceStreamErrors();
+    const r = await runTurn(
+      [{ text: "A partial answer", errorChunk: true, finish: "error" }],
+      { modelCanUseTools: false },
+    );
+
+    expect(r.calls).toHaveLength(1);
+    expect(r.sawError).toBe(true);
+    expect(r.shownText).toBe("A partial answer");
+    expect(r.state.executeErrored).toBe(true);
   });
 });
