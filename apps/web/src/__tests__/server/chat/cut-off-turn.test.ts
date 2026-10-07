@@ -348,6 +348,33 @@ describe("a turn cut off mid-search", () => {
     ]);
   });
 
+  it("answers through the fallback when the first request fails", async () => {
+    silenceStreamErrors();
+    const r = await runTurn([
+      { providerFails: true },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(2);
+    expect(systemOf(r.calls[1])).toContain(FALLBACK_SYSTEM);
+    expect(r.sawError).toBe(false);
+    expect(r.shownText).toBe(FALLBACK_ANSWER);
+    expect(r.state.executeErrored).toBe(false);
+  });
+
+  it("falls back when a search the model began never became a call", async () => {
+    // OpenRouter drops a call whose arguments never parse when the step
+    // finishes with `stop`, so the step records no tool call at all.
+    const r = await runTurn([
+      { text: NARRATION, startSearch: true, finish: "stop" },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(2);
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
+    expect(r.sawError).toBe(false);
+  });
+
   it("answers through the fallback when the step reading the search fails before writing", async () => {
     silenceStreamErrors();
     const r = await runTurn([

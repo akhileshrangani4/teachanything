@@ -46,7 +46,12 @@ export function finalStepSettings(
   };
 }
 
-/** Tools whose call is itself the reply, so the loop ends on them by design. */
+/**
+ * Tools whose call is itself the reply, so the loop ends on them by design:
+ * `done` stops it by name, and study tools are render-only (no `execute`), so
+ * there is no result to continue with. A study tool that gets an `execute`
+ * would have to leave this set.
+ */
 const TURN_ENDING_TOOLS: ReadonlySet<string> = new Set([
   "done",
   ...Object.keys(studyTools),
@@ -70,19 +75,29 @@ export type TurnEnd = {
   streamFailed: boolean;
 };
 
+/** The step called a tool whose result the model was meant to read next. */
+function leftResultsUnread(step: TurnEnd["lastStep"]): boolean {
+  return (step?.toolCalls ?? []).some(
+    (tc) => !TURN_ENDING_TOOLS.has(tc.toolName),
+  );
+}
+
 /**
  * Whether a failure ended the turn, as opposed to one the loop got past.
  *
  * Providers can send an `error` chunk and keep streaming (OpenRouter does for a
  * chunk it cannot parse), and the AI SDK moves on to the next step whenever the
  * step's tool calls ran. Only a failure in the last step, or one after it,
- * ended the turn.
+ * ended the turn. An error after the last step only counts when that step left
+ * results to read: otherwise no further request was coming, and the step that
+ * finished cleanly is the answer.
  */
 export function primaryTurnFailed(end: TurnEnd): boolean {
   return (
     end.streamFailed ||
-    end.tail.errorAfterLastStep ||
-    end.lastStep?.finishReason === "error"
+    end.lastStep?.finishReason === "error" ||
+    (end.tail.errorAfterLastStep &&
+      (!end.lastStep || leftResultsUnread(end.lastStep)))
   );
 }
 
@@ -102,7 +117,9 @@ export function primaryTurnFailed(end: TurnEnd): boolean {
  * model never read, which means the capped step searched though it was told to
  * answer. That reads the step's tool calls, not its finish reason: OpenRouter
  * passes upstream finish reasons through, and some upstreams report `stop`
- * beside a tool call.
+ * beside a tool call. A search the step began but never completed counts too:
+ * OpenRouter emits a call only once its arguments parse, and drops one that
+ * never does when the finish reason is `stop`, so it appears in no step.
  *
  * One trade-off is deliberate. A model that answered in full and then searched
  * again before the loop stopped also lands here, and gets a second answer.
@@ -112,16 +129,9 @@ export function primaryTurnFailed(end: TurnEnd): boolean {
  */
 export function cutOffMidSearch(end: TurnEnd): boolean {
   if (primaryTurnFailed(end)) {
-    const failedBetweenSteps =
-      end.tail.errorAfterLastStep ||
-      (end.streamFailed && end.tail.stepFinished);
-    return (
-      failedBetweenSteps ||
-      !end.tail.stepText.trim() ||
-      end.tail.stepStartedSearch
-    );
+    // The request that failed never streamed, so it wrote nothing.
+    if (end.tail.errorAfterLastStep) return true;
+    return !end.tail.stepText.trim() || end.tail.stepStartedSearch;
   }
-  return (end.lastStep?.toolCalls ?? []).some(
-    (tc) => !TURN_ENDING_TOOLS.has(tc.toolName),
-  );
+  return leftResultsUnread(end.lastStep) || end.tail.stepStartedSearch;
 }

@@ -78,12 +78,30 @@ describe("primaryTurnFailed", () => {
     expect(primaryTurnFailed(ended(step({ finishReason: "error" })))).toBe(
       true,
     );
+    const searched = step({ toolCalls: calling("search_documents") });
     expect(
-      primaryTurnFailed(ended(step(), { tail: { errorAfterLastStep: true } })),
+      primaryTurnFailed(
+        ended(searched, { tail: { errorAfterLastStep: true } }),
+      ),
     ).toBe(true);
     expect(primaryTurnFailed(ended(undefined, { streamFailed: true }))).toBe(
       true,
     );
+  });
+});
+
+describe("primaryTurnFailed after the last step", () => {
+  it("ignores an error after a step that answered and left nothing to read", () => {
+    // No further request was coming, so the clean step is the answer.
+    const answered = step({ text: "An answer." });
+    expect(
+      primaryTurnFailed(
+        ended(answered, { tail: { errorAfterLastStep: true } }),
+      ),
+    ).toBe(false);
+    expect(
+      cutOffMidSearch(ended(answered, { tail: { errorAfterLastStep: true } })),
+    ).toBe(false);
   });
 });
 
@@ -122,6 +140,13 @@ describe("cutOffMidSearch", () => {
     ).toBe(false);
   });
 
+  it("is true when the last step began a search that never became a call", () => {
+    const end = ended(step({ text: "Let me search." }), {
+      tail: { stepStartedSearch: true },
+    });
+    expect(cutOffMidSearch(end)).toBe(true);
+  });
+
   it("ignores an earlier error the loop got past", () => {
     // Answered, searched, then read the result and said nothing more.
     const end = ended(step(), { tail: { errorText: "boom" } });
@@ -156,6 +181,26 @@ describe("cutOffMidSearch", () => {
       tail: { stepText: "The unit of analysis is", stepFinished: false },
     });
     expect(cutOffMidSearch(dropped)).toBe(false);
+  });
+
+  it("treats a step that answered as the answer when the connection drops after it", () => {
+    const dropped = ended(undefined, {
+      streamFailed: true,
+      tail: { stepText: "A full answer.", stepFinished: true },
+    });
+    expect(cutOffMidSearch(dropped)).toBe(false);
+  });
+
+  it("is true when the connection drops after a step that searched", () => {
+    const dropped = ended(undefined, {
+      streamFailed: true,
+      tail: {
+        stepText: "Let me search.",
+        stepStartedSearch: true,
+        stepFinished: true,
+      },
+    });
+    expect(cutOffMidSearch(dropped)).toBe(true);
   });
 
   it("is true when the connection dropped before the step wrote anything", () => {
