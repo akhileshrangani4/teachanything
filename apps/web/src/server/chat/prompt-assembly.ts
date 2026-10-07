@@ -1,5 +1,6 @@
 import type { messages } from "@teachanything/db/schema";
 import type { RAGContextResult } from "@/server/rag-context";
+import type { RetrievedPassage } from "@/server/retrieval-tools";
 import {
   buildStudyResultsNote,
   type StoredStudyResponse,
@@ -24,6 +25,41 @@ function buildGroundingRule(hasInjectedContext: boolean): string {
     "Do NOT put inline citations, source tags, page numbers, bracketed reference markers, or JSON anchors " +
     '(e.g. "(file.pdf, p. 2)" or "【…】") in your answer text -- the app shows the user the sources ' +
     "separately. Reply in clean prose."
+  );
+}
+
+/**
+ * Add the passages this turn's own searches found to the fallback's system
+ * prompt, skipping any it already carries.
+ *
+ * The fallback runs without tools on the turn's original messages, so the
+ * agentic loop's search results never reach it on their own. When the passage
+ * that answers the question came from one of those searches -- the injected
+ * context missed it -- dropping it left the fallback unable to answer, and
+ * took its source off the list as well.
+ */
+export function withSearchedPassages(
+  systemPrompt: string,
+  passages: ReadonlyArray<RetrievedPassage>,
+  alreadyIncluded: ReadonlyArray<{ fileName: string; chunkIndex: number }>,
+): string {
+  const key = (p: { fileName: string; chunkIndex: number }) =>
+    `${p.fileName}\u0000${p.chunkIndex}`;
+  const seen = new Set(alreadyIncluded.map(key));
+  const fresh = passages.filter((p) => {
+    if (seen.has(key(p))) return false;
+    seen.add(key(p));
+    return true;
+  });
+  if (fresh.length === 0) return systemPrompt;
+  return (
+    systemPrompt +
+    "\n\nMore passages found by searching the documents for this message:\n\n" +
+    fresh
+      .map(
+        (p) => `[Source: ${p.rawName}, Part ${p.chunkIndex + 1}]\n${p.content}`,
+      )
+      .join("\n\n")
   );
 }
 

@@ -133,13 +133,39 @@ function scriptedModel(script: Step[]) {
   return scripted;
 }
 
-const retrievalTools = {
-  search_documents: tool({
+type TurnArgs = Parameters<typeof executeTurn>[0];
+const SEARCHED_FILE = "Lecture 4.pptx";
+const foundFor = (query: string) => `Passage the search found for ${query}.`;
+
+/**
+ * A search tool that records what it returns the way createRetrievalTools
+ * does: one source and one passage per result.
+ */
+function searchTool(
+  toolSources: TurnArgs["toolSources"],
+  toolPassages: TurnArgs["toolPassages"],
+) {
+  return tool({
     description: "search",
     inputSchema: z.object({ query: z.string() }),
-    execute: async () => [{ content: "a passage" }],
-  }),
-};
+    execute: async ({ query }) => {
+      const chunkIndex = toolSources.length;
+      toolSources.push({
+        fileName: SEARCHED_FILE,
+        chunkIndex,
+        pageNumber: null,
+        similarity: 0.3,
+      });
+      toolPassages.push({
+        fileName: SEARCHED_FILE,
+        rawName: SEARCHED_FILE,
+        chunkIndex,
+        content: foundFor(query),
+      });
+      return [{ content: foundFor(query) }];
+    },
+  });
+}
 
 /** Four searches that each end in a tool call, filling every step but the last. */
 const SEARCHES_UNTIL_LAST_STEP: Step[] = [
@@ -155,6 +181,11 @@ async function runTurn(
 ) {
   const modelCanUseTools = options.modelCanUseTools ?? true;
   const model = scriptedModel(script);
+  const toolSources: TurnArgs["toolSources"] = [];
+  const toolPassages: TurnArgs["toolPassages"] = [];
+  const retrievalTools = {
+    search_documents: searchTool(toolSources, toolPassages),
+  };
   const state: TurnState = {
     finalSources: [],
     ragUsedFlag: false,
@@ -192,7 +223,8 @@ async function runTurn(
           ragFailureNote: "",
           fileIds: ["f1"],
         },
-        toolSources: [],
+        toolSources,
+        toolPassages,
         onStreamError,
         startTime: Date.now(),
       }),
@@ -247,7 +279,7 @@ describe("a turn cut off mid-search", () => {
     expect(systemOf(last)).toContain(PRIMARY_SYSTEM);
     expect(systemOf(last)).toContain("last step");
     expect(r.shownText).toContain(answer);
-    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
   });
 
   it("falls back to a no-tools answer when the capped step searches anyway", async () => {
@@ -259,12 +291,12 @@ describe("a turn cut off mid-search", () => {
 
     expect(r.calls).toHaveLength(MAX_AGENT_STEPS + 1);
     const fallback = r.calls[MAX_AGENT_STEPS];
-    expect(systemOf(fallback)).toBe(FALLBACK_SYSTEM);
+    expect(systemOf(fallback)).toContain(FALLBACK_SYSTEM);
     expect(toolNamesOf(fallback)).toEqual([]);
     expect(r.shownText).toContain(NARRATION);
     expect(r.shownText).toContain(FALLBACK_ANSWER);
     expect(r.sawError).toBe(false);
-    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
   });
 
   it("falls back when the capped step searches but reports `stop`", async () => {
@@ -289,12 +321,31 @@ describe("a turn cut off mid-search", () => {
     ]);
 
     expect(r.calls).toHaveLength(3);
-    expect(systemOf(r.calls[2])).toBe(FALLBACK_SYSTEM);
+    expect(systemOf(r.calls[2])).toContain(FALLBACK_SYSTEM);
     // No error chunk ahead of the answer, or the browser would never render it.
     expect(r.sawError).toBe(false);
     expect(r.shownText).toContain(FALLBACK_ANSWER);
-    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
     expect(r.state.executeErrored).toBe(false);
+  });
+
+  it("gives the fallback the passages and sources the turn's searches found", async () => {
+    silenceStreamErrors();
+    const r = await runTurn([
+      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
+      { providerFails: true },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    // The injected context missed this passage; only the search found it.
+    expect(systemOf(r.calls[2])).toContain(foundFor("unit of analysis"));
+    expect(systemOf(r.calls[2])).toContain(
+      `[Source: ${SEARCHED_FILE}, Part 1]`,
+    );
+    expect(r.shownSources).toEqual([
+      ...RAG_SOURCES,
+      expect.objectContaining({ fileName: SEARCHED_FILE, chunkIndex: 0 }),
+    ]);
   });
 
   it("answers through the fallback when the step reading the search fails before writing", async () => {
@@ -338,10 +389,10 @@ describe("a turn cut off mid-search", () => {
     ]);
 
     expect(r.calls).toHaveLength(3);
-    expect(systemOf(r.calls[2])).toBe(FALLBACK_SYSTEM);
+    expect(systemOf(r.calls[2])).toContain(FALLBACK_SYSTEM);
     expect(r.sawError).toBe(false);
     expect(r.shownText).toContain(FALLBACK_ANSWER);
-    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
     expect(r.state.executeErrored).toBe(false);
   });
 });
@@ -377,7 +428,7 @@ describe("a turn that answered", () => {
     expect(r.shownText).not.toContain(FALLBACK_ANSWER);
     // No toast over an answer, the sources arrive, and it counts as a turn.
     expect(r.sawError).toBe(false);
-    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
     expect(r.state.executeErrored).toBe(false);
   });
 
@@ -389,7 +440,7 @@ describe("a turn that answered", () => {
 
     expect(r.calls).toHaveLength(1);
     expect(r.sawError).toBe(false);
-    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
     expect(r.state.executeErrored).toBe(false);
   });
 

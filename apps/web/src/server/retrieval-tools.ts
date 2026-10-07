@@ -25,17 +25,40 @@ export interface RetrievalSource {
   similarity: number | null;
 }
 
+/**
+ * A passage a retrieval tool handed the model, one per entry in `sources`.
+ *
+ * Raw document text: it goes back into a prompt (the fallback turn's) and
+ * never to the client, like the tool results themselves.
+ */
+export interface RetrievedPassage {
+  /** The display name `sources` uses, so the two dedupe together. */
+  fileName: string;
+  /** The stored file name, as the model was shown it. */
+  rawName: string;
+  chunkIndex: number;
+  content: string;
+}
+
 export function createRetrievalTools(ctx: RetrievalToolContext) {
   const sources: RetrievalSource[] = [];
+  const passages: RetrievedPassage[] = [];
   const record = (chunks: HybridChunk[]) => {
     for (const c of chunks) {
+      // Same display normalization as the static path (Web: <hostname> for
+      // crawled pages) so merged source lists dedupe on matching names.
+      const fileName = sourceDisplayName(c.fileName, c.storagePath);
       sources.push({
-        // Same display normalization as the static path (Web: <hostname> for
-        // crawled pages) so merged source lists dedupe on matching names.
-        fileName: sourceDisplayName(c.fileName, c.storagePath),
+        fileName,
         chunkIndex: c.chunkIndex,
         pageNumber: c.pageNumber,
         similarity: c.vectorSimilarity,
+      });
+      passages.push({
+        fileName,
+        rawName: c.fileName,
+        chunkIndex: c.chunkIndex,
+        content: c.content,
       });
     }
   };
@@ -261,5 +284,5 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
     }),
   };
 
-  return { tools, sources };
+  return { tools, sources, passages };
 }

@@ -146,6 +146,7 @@ describe("executeTurn timing (real turn, mock model)", () => {
         fileIds: [],
       },
       toolSources: [],
+      toolPassages: [],
       onStreamError: () => "err",
       startTime: Date.now(),
     });

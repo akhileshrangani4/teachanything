@@ -22,6 +22,7 @@ import {
   writeDoneAnswerAsText,
 } from "./primary-turn";
 import { cutOffMidSearch, primaryTurnFailed, type TurnEnd } from "./final-step";
+import { withSearchedPassages } from "./prompt-assembly";
 
 type SourceList = RAGContextResult["sources"];
 
@@ -77,6 +78,7 @@ type TurnArgs = {
   useRetrievalTools: boolean;
   ragResult: RAGContextResult;
   toolSources: ReturnType<typeof createRetrievalTools>["sources"];
+  toolPassages: ReturnType<typeof createRetrievalTools>["passages"];
   onStreamError: (error: unknown) => string;
   startTime: number;
 };
@@ -212,15 +214,24 @@ export async function executeTurn(args: TurnArgs): Promise<void> {
         modelId: args.modelId,
       });
     }
-    args.state.finalSources = args.useRetrievalTools
-      ? mergeSources(args.ragResult.sources, args.toolSources)
-      : args.ragResult.sources;
-    args.state.ragUsedFlag = args.useRetrievalTools
-      ? args.state.finalSources.length > 0
-      : args.ragResult.ragUsed;
+    recordSources(args);
   }
 
   finishTurn(args, writer, finishReason);
+}
+
+/**
+ * The turn's sources: the injected context's, plus whatever the retrieval
+ * tools fetched. The fallback answers from both (see withSearchedPassages),
+ * so both branches publish the same list.
+ */
+function recordSources(args: TurnArgs): void {
+  args.state.finalSources = args.useRetrievalTools
+    ? mergeSources(args.ragResult.sources, args.toolSources)
+    : args.ragResult.sources;
+  args.state.ragUsedFlag = args.useRetrievalTools
+    ? args.state.finalSources.length > 0
+    : args.ragResult.ragUsed;
 }
 
 /**
@@ -250,7 +261,14 @@ async function answerWithFallback(
   const fallback = await runFallbackTurn({
     aiClient: args.aiClient,
     modelId: args.modelId,
-    systemPrompt: args.fallbackSystemPrompt,
+    // The passages the agentic searches found, which the injected context
+    // may have missed: without them the fallback cannot use them, even when
+    // one of them is what the student needed.
+    systemPrompt: withSearchedPassages(
+      args.fallbackSystemPrompt,
+      args.toolPassages,
+      args.ragResult.sources,
+    ),
     messages: args.modelMessages,
     temperature: args.temperature,
     maxOutputTokens: args.maxOutputTokens,
@@ -276,8 +294,7 @@ async function answerWithFallback(
     failTurn(args, new Error("Model produced no response text"));
     return undefined;
   }
-  args.state.finalSources = args.ragResult.sources;
-  args.state.ragUsedFlag = args.ragResult.ragUsed;
+  recordSources(args);
   return fallback.finishReason;
 }
 

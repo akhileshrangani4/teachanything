@@ -157,11 +157,13 @@ export async function streamChat(params: {
     ragResult.fileIds.length > 0 &&
     !ragResult.ragFailureNote;
 
-  // Build retrieval tools once. `toolSources` accumulates as the tools run and
-  // is read after streaming to merge into the final source list.
+  // Build retrieval tools once. `toolSources` and `toolPassages` accumulate as
+  // the tools run: the sources merge into the final source list, and the
+  // passages reach the fallback turn if one runs.
   let retrievalTools:
     ReturnType<typeof createRetrievalTools>["tools"] | undefined;
   let toolSources: ReturnType<typeof createRetrievalTools>["sources"] = [];
+  let toolPassages: ReturnType<typeof createRetrievalTools>["passages"] = [];
   if (useRetrievalTools) {
     const rt = createRetrievalTools({
       db: database,
@@ -170,6 +172,7 @@ export async function streamChat(params: {
     });
     retrievalTools = rt.tools;
     toolSources = rt.sources;
+    toolPassages = rt.passages;
   }
 
   // Study tools stay gated on tool capability (the doc contract above);
@@ -244,6 +247,7 @@ export async function streamChat(params: {
         useRetrievalTools,
         ragResult,
         toolSources,
+        toolPassages,
         onStreamError,
         startTime,
       }),

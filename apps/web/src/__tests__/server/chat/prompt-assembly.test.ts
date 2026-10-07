@@ -2,7 +2,10 @@
  * @jest-environment node
  */
 import { describe, it, expect } from "@jest/globals";
-import { buildTurnPrompts } from "@/server/chat/prompt-assembly";
+import {
+  buildTurnPrompts,
+  withSearchedPassages,
+} from "@/server/chat/prompt-assembly";
 import type { HistoryRow } from "@/server/chat/turn-context";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { PARTS_VERSION } from "@/lib/chat/ui-messages";
@@ -135,5 +138,40 @@ describe("buildTurnPrompts", () => {
     });
     expect(r.uiMessages).toHaveLength(2);
     expect(r.uiMessages[r.uiMessages.length - 1]).toBe(userMessage);
+  });
+});
+
+describe("withSearchedPassages", () => {
+  const passage = (chunkIndex: number, content: string) => ({
+    fileName: "Lecture 4.pptx",
+    rawName: "Lecture 4.pptx",
+    chunkIndex,
+    content,
+  });
+
+  it("adds the passages the turn's searches found, labelled like the injected ones", () => {
+    const prompt = withSearchedPassages(
+      "SYSTEM",
+      [passage(2, "The unit of analysis is the group studied.")],
+      [],
+    );
+    expect(prompt.startsWith("SYSTEM")).toBe(true);
+    expect(prompt).toContain(
+      "[Source: Lecture 4.pptx, Part 3]\nThe unit of analysis is the group studied.",
+    );
+  });
+
+  it("skips passages the prompt already carries, and repeats", () => {
+    const prompt = withSearchedPassages(
+      "SYSTEM",
+      [passage(1, "ALREADY INJECTED"), passage(5, "NEW"), passage(5, "NEW")],
+      [{ fileName: "Lecture 4.pptx", chunkIndex: 1 }],
+    );
+    expect(prompt).not.toContain("ALREADY INJECTED");
+    expect(prompt.match(/NEW/g)).toHaveLength(1);
+  });
+
+  it("leaves the prompt alone when the searches found nothing new", () => {
+    expect(withSearchedPassages("SYSTEM", [], [])).toBe("SYSTEM");
   });
 });
