@@ -42,9 +42,13 @@ type Step =
       /** Shorthand for a `search_documents` call with this query. */
       search?: string;
       call?: { name: string; args: unknown };
+      /** Begin a search call whose arguments never finish streaming. */
+      startSearch?: boolean;
       finish: string;
     }
-  | { providerFails: true };
+  | { providerFails: true }
+  /** The connection drops after `text` (if any) streams. */
+  | { connectionDrops: true; text?: string };
 
 const PRIMARY_SYSTEM = "primary system prompt";
 const FALLBACK_SYSTEM = "fallback system prompt";
@@ -63,6 +67,31 @@ function scriptedModel(script: Step[]) {
       const step = script[n - 1] ?? { finish: "stop" };
       if ("providerFails" in step) throw new Error("Provider returned error");
       const id = `s${n}`;
+      if ("connectionDrops" in step) {
+        const sent: unknown[] = [{ type: "stream-start", warnings: [] }];
+        if (step.text) {
+          // Word by word, as a model streams: a single delta is still held
+          // by recoverLeakedQuiz when the stream fails, so the student never
+          // sees it.
+          sent.push({ type: "text-start", id });
+          for (const word of step.text.split(/(?<= )/)) {
+            sent.push({ type: "text-delta", id, delta: word });
+          }
+        }
+        // Fail only after the sent chunks have had time to reach the client.
+        // Erroring at once discards whatever is still queued anywhere in the
+        // pipeline, which a real connection would already have delivered.
+        return {
+          stream: new ReadableStream({
+            async pull(controller) {
+              const next = sent.shift();
+              if (next) return controller.enqueue(next);
+              await new Promise((resolve) => setTimeout(resolve, 20));
+              controller.error(new TypeError("terminated"));
+            },
+          }) as never,
+        };
+      }
       const parts: unknown[] = [{ type: "stream-start", warnings: [] }];
       if (step.text) {
         parts.push({ type: "text-start", id });
@@ -77,6 +106,14 @@ function scriptedModel(script: Step[]) {
         (step.search === undefined
           ? undefined
           : { name: "search_documents", args: { query: step.search } });
+      if (step.startSearch) {
+        parts.push({
+          type: "tool-input-start",
+          id: `c-${id}`,
+          toolName: "search_documents",
+        });
+        parts.push({ type: "tool-input-delta", id: `c-${id}`, delta: '{"qu' });
+      }
       if (call) {
         parts.push({
           type: "tool-call",
@@ -273,6 +310,40 @@ describe("a turn cut off mid-search", () => {
     expect(r.shownText).toContain(FALLBACK_ANSWER);
     expect(r.state.executeErrored).toBe(false);
   });
+
+  it("answers through the fallback when the provider fails while the model starts another search", async () => {
+    silenceStreamErrors();
+    const r = await runTurn([
+      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
+      {
+        text: "Let me search more specifically for ecological studies.",
+        startSearch: true,
+        errorChunk: true,
+        finish: "error",
+      },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(3);
+    expect(r.sawError).toBe(false);
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
+  });
+
+  it("answers through the fallback when the connection drops after the narration", async () => {
+    silenceStreamErrors();
+    const r = await runTurn([
+      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
+      { connectionDrops: true },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(3);
+    expect(systemOf(r.calls[2])).toBe(FALLBACK_SYSTEM);
+    expect(r.sawError).toBe(false);
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
+    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.state.executeErrored).toBe(false);
+  });
 });
 
 describe("a turn that answered", () => {
@@ -288,7 +359,7 @@ describe("a turn that answered", () => {
     expect(r.sawError).toBe(false);
   });
 
-  it("does not answer twice when the loop got past an error and answered", async () => {
+  it("finishes normally when the loop got past an error and answered", async () => {
     silenceStreamErrors();
     const answer = "The unit of analysis is the population.";
     const r = await runTurn([
@@ -302,8 +373,58 @@ describe("a turn that answered", () => {
     ]);
 
     expect(r.calls).toHaveLength(2);
-    // The answer renders; the held error is still reported, after it.
     expect(r.shownText).toContain(answer);
+    expect(r.shownText).not.toContain(FALLBACK_ANSWER);
+    // No toast over an answer, the sources arrive, and it counts as a turn.
+    expect(r.sawError).toBe(false);
+    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.state.executeErrored).toBe(false);
+  });
+
+  it("finishes normally when a step got past an error in its own answer", async () => {
+    silenceStreamErrors();
+    const r = await runTurn([
+      { text: "A full answer.", errorChunk: true, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(1);
+    expect(r.sawError).toBe(false);
+    expect(r.shownSources).toEqual(RAG_SOURCES);
+    expect(r.state.executeErrored).toBe(false);
+  });
+
+  it("does not add a fallback over an answer because an earlier step had an error", async () => {
+    silenceStreamErrors();
+    const answer = "The unit of analysis is the population.";
+    const r = await runTurn([
+      {
+        text: answer,
+        errorChunk: true,
+        search: "unit of analysis",
+        finish: "tool-calls",
+      },
+      { finish: "stop" },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(2);
+    expect(r.shownText).toBe(answer);
+    expect(r.sawError).toBe(false);
+  });
+
+  it("keeps a partial answer when the connection drops mid-answer", async () => {
+    silenceStreamErrors();
+    const partial =
+      "The unit of analysis is who or what a study measures and compares. " +
+      "In an ecological study it is a group, such as a county, rather than";
+    const r = await runTurn([
+      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
+      { connectionDrops: true, text: partial },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(2);
+    expect(r.shownText).toContain("The unit of analysis is who or what");
     expect(r.shownText).not.toContain(FALLBACK_ANSWER);
     expect(r.sawError).toBe(true);
     expect(r.state.executeErrored).toBe(true);

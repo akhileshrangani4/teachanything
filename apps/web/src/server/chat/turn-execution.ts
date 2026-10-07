@@ -1,4 +1,9 @@
-import type { ModelMessage, ToolSet, UIMessageStreamWriter } from "ai";
+import type {
+  FinishReason,
+  ModelMessage,
+  ToolSet,
+  UIMessageStreamWriter,
+} from "ai";
 import { resolveModel, type OpenRouterClient } from "@teachanything/ai";
 import type { RAGContextResult } from "@/server/rag-context";
 import { mergeSources } from "@/lib/chat/helpers";
@@ -16,7 +21,7 @@ import {
   salvageTruncatedQuizzes,
   writeDoneAnswerAsText,
 } from "./primary-turn";
-import { cutOffMidSearch } from "./final-step";
+import { cutOffMidSearch, primaryTurnFailed, type TurnEnd } from "./final-step";
 
 type SourceList = RAGContextResult["sources"];
 
@@ -55,12 +60,7 @@ export function failTurn(
   args.writer.write({ type: "error", errorText: args.onStreamError(error) });
 }
 
-/**
- * Run the streaming part of a chat turn against `writer`: the primary agentic
- * / study-tool generation, its quiz salvage paths, the empty-response
- * fallback, and the closing finish chunk.
- */
-export async function executeTurn(args: {
+type TurnArgs = {
   state: TurnState;
   writer: UIMessageStreamWriter<StudyUIMessage>;
   aiClient: OpenRouterClient;
@@ -79,7 +79,14 @@ export async function executeTurn(args: {
   toolSources: ReturnType<typeof createRetrievalTools>["sources"];
   onStreamError: (error: unknown) => string;
   startTime: number;
-}): Promise<void> {
+};
+
+/**
+ * Run the streaming part of a chat turn against `writer`: the primary agentic
+ * / study-tool generation, its quiz salvage paths, the empty-response
+ * fallback, and the closing finish chunk.
+ */
+export async function executeTurn(args: TurnArgs): Promise<void> {
   // Partial `showQuiz` input, accumulated per tool call id. `maxTokens` caps
   // the whole turn, so a low setting can cut the model off mid-input; when
   // the args were streamed the SDK then forms no tool call at all, leaving
@@ -106,7 +113,21 @@ export async function executeTurn(args: {
     onStreamError: args.onStreamError,
     writer,
   });
+  const tail = primaryOutcome.tail;
   if (!primaryOutcome.ok) {
+    // The stream itself failed. One that never got past a preamble still gets
+    // the fallback; one that broke off mid-answer leaves that partial answer
+    // and the error.
+    const end = { lastStep: undefined, tail, streamFailed: true };
+    if (
+      args.modelCanUseTools &&
+      !args.abortSignal.aborted &&
+      cutOffMidSearch(end)
+    ) {
+      const finishReason = await answerWithFallback(args, writer, end);
+      if (finishReason) finishTurn(args, writer, finishReason);
+      return;
+    }
     failTurn(args, primaryOutcome.error);
     return;
   }
@@ -114,7 +135,6 @@ export async function executeTurn(args: {
     primaryText,
     primarySteps,
     finishReason: primaryFinishReason,
-    streamError,
   } = primaryOutcome;
 
   // The turn's text, across every step. `primary.text` resolves to the LAST
@@ -153,13 +173,13 @@ export async function executeTurn(args: {
 
   // Text from a turn cut off mid-search is the model's preamble to a tool
   // call, not an answer (see cutOffMidSearch).
-  const cutOff = cutOffMidSearch(
-    primarySteps[primarySteps.length - 1],
-    streamError !== undefined,
-  );
-
+  const end = {
+    lastStep: primarySteps[primarySteps.length - 1],
+    tail,
+    streamFailed: false,
+  };
   const hasVisibleAnswer =
-    (Boolean(turnText.trim()) && !cutOff) ||
+    (Boolean(turnText.trim()) && !cutOffMidSearch(end)) ||
     Boolean(doneAnswer?.trim()) ||
     producedQuiz ||
     salvagedTruncatedQuiz;
@@ -167,61 +187,30 @@ export async function executeTurn(args: {
   let finishReason = await primaryFinishReason;
 
   if (!hasVisibleAnswer && args.modelCanUseTools && !args.abortSignal.aborted) {
-    // Empty-response safety net (#357): a tool-capable turn produced no
-    // user-visible answer in ANY step (cut off mid-search as above, `done`
-    // with an empty answer, an invalid-only quiz, or a study-only bot that
-    // emitted neither text nor a valid quiz). Gated on `modelCanUseTools` --
-    // not `useRetrievalTools` -- so the study-only path (zero files, or RAG
-    // unhealthy) is covered too. Fall back to a static, no-tools turn so the
-    // user always gets an answer instead of a stuck, empty stream. A held
-    // primary error is dropped here: the fallback either answers or fails
-    // with its own error.
-    logWarn("Agentic path produced no answer; falling back to static RAG", {
-      chatbotId: args.chatbotId,
-      modelId: args.modelId,
-      cutOffMidSearch: cutOff,
-      primaryErrored: streamError !== undefined,
-    });
-    const fallback = await runFallbackTurn({
-      aiClient: args.aiClient,
-      modelId: args.modelId,
-      systemPrompt: args.fallbackSystemPrompt,
-      messages: args.modelMessages,
-      temperature: args.temperature,
-      maxOutputTokens: args.maxOutputTokens,
-      abortSignal: args.abortSignal,
-      chatbotId: args.chatbotId,
-      onStreamError: args.onStreamError,
-      writer,
-    });
-    if (!fallback.ok) {
-      failTurn(args, fallback.error);
-      return;
-    }
-    // Both turns produced nothing user-visible. Ending with a normal
-    // finish here would leave the student a silently dead turn — the
-    // exact UX the fallback exists to prevent. Surface an error part
-    // instead (mirrors the failed-primary path: no success finish).
-    if (!fallback.text.trim()) {
-      logError(
-        new Error("Fallback turn also produced no text"),
-        "empty response after fallback",
-        { chatbotId: args.chatbotId, modelId: args.modelId },
-      );
-      failTurn(args, new Error("Model produced no response text"));
-      return;
-    }
-    finishReason = fallback.finishReason;
-    args.state.finalSources = args.ragResult.sources;
-    args.state.ragUsedFlag = args.ragResult.ragUsed;
+    const fallbackFinish = await answerWithFallback(args, writer, end);
+    if (!fallbackFinish) return;
+    finishReason = fallbackFinish;
   } else {
-    if (streamError !== undefined) {
-      // No fallback ran, so the turn failed and the held error is the
-      // student's only notice. failTurn's two halves, minus its logging:
-      // onStreamError already logged this error when the stream produced it.
+    if (primaryTurnFailed(end)) {
+      // No fallback ran, so the held error is the student's only notice.
+      // failTurn's two halves, minus its logging: onStreamError already
+      // logged this error when the stream produced it.
       args.state.executeErrored = true;
-      writer.write({ type: "error", errorText: streamError });
+      writer.write({
+        type: "error",
+        errorText:
+          tail.errorText ??
+          args.onStreamError(new Error("Model stream ended in an error")),
+      });
       return;
+    }
+    if (tail.errorText !== undefined) {
+      // The loop got past the error and answered; it was logged when the
+      // stream produced it, and the student needs no toast over an answer.
+      logWarn("Agentic turn answered after a model stream error", {
+        chatbotId: args.chatbotId,
+        modelId: args.modelId,
+      });
     }
     args.state.finalSources = args.useRetrievalTools
       ? mergeSources(args.ragResult.sources, args.toolSources)
@@ -231,6 +220,73 @@ export async function executeTurn(args: {
       : args.ragResult.ragUsed;
   }
 
+  finishTurn(args, writer, finishReason);
+}
+
+/**
+ * Empty-response safety net (#357): a tool-capable turn produced no
+ * user-visible answer in ANY step (cut off mid-search, `done` with an empty
+ * answer, an invalid-only quiz, or a study-only bot that emitted neither text
+ * nor a valid quiz). Gated by the caller on `modelCanUseTools` -- not
+ * `useRetrievalTools` -- so the study-only path (zero files, or RAG unhealthy)
+ * is covered too. Answer with a static, no-tools turn so the user always gets
+ * an answer instead of a stuck, empty stream. A held primary error is dropped
+ * here: the fallback either answers or fails with its own error.
+ *
+ * Resolves to the fallback's finish reason, or undefined when the turn failed
+ * (already marked and reported).
+ */
+async function answerWithFallback(
+  args: TurnArgs,
+  writer: UIMessageStreamWriter<StudyUIMessage>,
+  end: TurnEnd,
+): Promise<FinishReason | undefined> {
+  logWarn("Agentic path produced no answer; falling back to static RAG", {
+    chatbotId: args.chatbotId,
+    modelId: args.modelId,
+    cutOffMidSearch: cutOffMidSearch(end),
+    primaryFailed: primaryTurnFailed(end),
+  });
+  const fallback = await runFallbackTurn({
+    aiClient: args.aiClient,
+    modelId: args.modelId,
+    systemPrompt: args.fallbackSystemPrompt,
+    messages: args.modelMessages,
+    temperature: args.temperature,
+    maxOutputTokens: args.maxOutputTokens,
+    abortSignal: args.abortSignal,
+    chatbotId: args.chatbotId,
+    onStreamError: args.onStreamError,
+    writer,
+  });
+  if (!fallback.ok) {
+    failTurn(args, fallback.error);
+    return undefined;
+  }
+  // Both turns produced nothing user-visible. Ending with a normal
+  // finish here would leave the student a silently dead turn — the
+  // exact UX the fallback exists to prevent. Surface an error part
+  // instead (mirrors the failed-primary path: no success finish).
+  if (!fallback.text.trim()) {
+    logError(
+      new Error("Fallback turn also produced no text"),
+      "empty response after fallback",
+      { chatbotId: args.chatbotId, modelId: args.modelId },
+    );
+    failTurn(args, new Error("Model produced no response text"));
+    return undefined;
+  }
+  args.state.finalSources = args.ragResult.sources;
+  args.state.ragUsedFlag = args.ragResult.ragUsed;
+  return fallback.finishReason;
+}
+
+/** Record the turn's timing and close the message with its one finish chunk. */
+function finishTurn(
+  args: TurnArgs,
+  writer: UIMessageStreamWriter<StudyUIMessage>,
+  finishReason: FinishReason,
+): void {
   args.state.responseTime = Date.now() - args.startTime;
   args.state.truncated = finishReason === "length";
   if (args.state.truncated) {

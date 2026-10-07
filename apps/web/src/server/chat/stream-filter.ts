@@ -39,8 +39,37 @@ export function stripRetrievalOutputs(): TransformStream<
 }
 
 /**
- * Hold `error` chunks back from the client, recording the first one's text in
- * `held` instead.
+ * What the primary stream's chunks said about how the turn ended, filled in by
+ * `recordTurnChunk` as the chunks are written.
+ */
+export type StreamTail = {
+  /** The first `error` chunk's text, held back from the client. */
+  errorText?: string;
+  /**
+   * An error arrived after the last step had finished: the step that failed
+   * never started streaming (its request was rejected), so it is not recorded.
+   */
+  errorAfterLastStep: boolean;
+  /** Text the most recent step streamed. */
+  stepText: string;
+  /** The most recent step began a retrieval call (`done` aside). */
+  stepStartedSearch: boolean;
+  /** The most recent step reached `finish-step`. */
+  stepFinished: boolean;
+};
+
+export function newStreamTail(): StreamTail {
+  return {
+    errorAfterLastStep: false,
+    stepText: "",
+    stepStartedSearch: false,
+    stepFinished: true,
+  };
+}
+
+/**
+ * Record `chunk` in `tail` on its way to the client, and say whether to write
+ * it: `error` chunks are held back.
  *
  * The browser's chat client stops reading the stream at the first `error`
  * chunk, so anything written after it -- the fallback answer, the finish chunk
@@ -48,20 +77,41 @@ export function stripRetrievalOutputs(): TransformStream<
  * agentic loop used to leave the student with just the model's "Let me
  * search..." preamble and an error toast. Holding the error lets the caller
  * try the fallback turn first and write the error only when nothing recovers.
+ *
+ * The step bookkeeping is what tells a failure that ended the turn from one the
+ * loop got past, and whether the step that failed had begun another search.
+ * Tool calls a step never finished writing appear nowhere else: a provider
+ * emits the call only once its arguments are complete. Call this at the point
+ * of writing, after every transform: text a transform was still buffering when
+ * the stream failed never reached the student, and must not count as written.
  */
-export function holdErrors(held: {
-  errorText?: string;
-}): TransformStream<
-  InferUIMessageChunk<StudyUIMessage>,
-  InferUIMessageChunk<StudyUIMessage>
-> {
-  return new TransformStream({
-    transform(chunk, controller) {
-      if (chunk.type !== "error") {
-        controller.enqueue(chunk);
-        return;
+export function recordTurnChunk(
+  tail: StreamTail,
+  chunk: InferUIMessageChunk<StudyUIMessage>,
+): boolean {
+  switch (chunk.type) {
+    case "start-step":
+      tail.stepText = "";
+      tail.stepStartedSearch = false;
+      tail.stepFinished = false;
+      tail.errorAfterLastStep = false;
+      break;
+    case "text-delta":
+      tail.stepText += chunk.delta;
+      break;
+    case "tool-input-start":
+    case "tool-input-available":
+      if (isRetrievalToolName(chunk.toolName) && chunk.toolName !== "done") {
+        tail.stepStartedSearch = true;
       }
-      held.errorText ??= chunk.errorText;
-    },
-  });
+      break;
+    case "finish-step":
+      tail.stepFinished = true;
+      break;
+    case "error":
+      tail.errorText ??= chunk.errorText;
+      if (tail.stepFinished) tail.errorAfterLastStep = true;
+      return false;
+  }
+  return true;
 }

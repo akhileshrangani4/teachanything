@@ -42,7 +42,7 @@ type Step = {
  *
  * Not replicated: production also discounts the text of a turn cut off
  * mid-search, and holds back the stream's error chunks (`cutOffMidSearch`,
- * `holdErrors`). cut-off-turn.test.ts pins those against the real
+ * `recordTurnChunk`). cut-off-turn.test.ts pins those against the real
  * `executeTurn`.
  */
 async function runTurn(script: Step[]) {

@@ -1,6 +1,7 @@
 import type { FinishReason, ToolSet } from "ai";
 import { isRetrievalToolName } from "@/lib/retrieval-tool-names";
 import { studyTools } from "./study-tools";
+import type { StreamTail } from "./stream-filter";
 
 /** Steps the agentic loop may take; the last one must answer (see below). */
 export const MAX_AGENT_STEPS = 5;
@@ -51,45 +52,76 @@ const TURN_ENDING_TOOLS: ReadonlySet<string> = new Set([
   ...Object.keys(studyTools),
 ]);
 
-/**
- * Whether the agentic loop stopped before the model could answer from what it
- * last asked for. That happens two ways:
- *
- * - The last recorded step called a tool whose result the model never read:
- *   the capped step searched though it was told to answer, or the provider
- *   failed on the next step, which is then never recorded. This reads the
- *   step's tool calls, not its finish reason: OpenRouter passes upstream finish
- *   reasons through, and some upstreams report `stop` beside a tool call.
- * - The stream failed, and the last step wrote nothing before it did.
- *
- * Any text such a turn has is the line a model writes before calling a tool
- * ("Let me search more specifically for..."), and counting it as the answer
- * left students with only that line, turn after turn. A step that wrote text
- * and then failed is not cut off: that text is a partial answer, and a
- * fallback would put a second answer under it.
- *
- * One trade-off is deliberate. A model that answered in full early and then
- * searched until the cap also lands here, and gets a second answer. Telling
- * that apart from a one-line preamble is not reliable, a duplicate answer is a
- * smaller failure than no answer, and the final step's tool restriction makes
- * it rare.
- */
-export function cutOffMidSearch(
+/** How the primary turn ended, as read by the two functions below. */
+export type TurnEnd = {
+  /** The last recorded step, or undefined when the stream itself failed. */
   lastStep:
     | {
         toolCalls: ReadonlyArray<{ toolName: string }>;
         text: string;
         finishReason: FinishReason;
       }
-    | undefined,
-  streamErrored: boolean,
-): boolean {
-  if (!lastStep) return false;
-  const unreadResult = lastStep.toolCalls.some(
+    | undefined;
+  tail: StreamTail;
+  /**
+   * The stream failed outright (a dropped connection) rather than sending an
+   * `error` chunk.
+   */
+  streamFailed: boolean;
+};
+
+/**
+ * Whether a failure ended the turn, as opposed to one the loop got past.
+ *
+ * Providers can send an `error` chunk and keep streaming (OpenRouter does for a
+ * chunk it cannot parse), and the AI SDK moves on to the next step whenever the
+ * step's tool calls ran. Only a failure in the last step, or one after it,
+ * ended the turn.
+ */
+export function primaryTurnFailed(end: TurnEnd): boolean {
+  return (
+    end.streamFailed ||
+    end.tail.errorAfterLastStep ||
+    end.lastStep?.finishReason === "error"
+  );
+}
+
+/**
+ * Whether the agentic loop stopped before the model could answer from what it
+ * last asked for. Any text such a turn has is the line a model writes before
+ * calling a tool ("Let me search more specifically for..."), and counting it as
+ * the answer left students with only that line, turn after turn.
+ *
+ * When a failure ended the turn, it was cut off if the step that failed wrote
+ * nothing, or had started another search. A step that failed before it
+ * streamed anything is never recorded, so that case is read off the stream. A
+ * step that failed partway through writing text is a partial answer instead:
+ * a fallback would put a second answer under it.
+ *
+ * Otherwise it was cut off if the last step called a tool whose result the
+ * model never read, which means the capped step searched though it was told to
+ * answer. That reads the step's tool calls, not its finish reason: OpenRouter
+ * passes upstream finish reasons through, and some upstreams report `stop`
+ * beside a tool call.
+ *
+ * One trade-off is deliberate. A model that answered in full and then searched
+ * again before the loop stopped also lands here, and gets a second answer.
+ * Telling that apart from a one-line preamble is not reliable, a duplicate
+ * answer is a smaller failure than no answer, and the final step's tool
+ * restriction makes it rare.
+ */
+export function cutOffMidSearch(end: TurnEnd): boolean {
+  if (primaryTurnFailed(end)) {
+    const failedBetweenSteps =
+      end.tail.errorAfterLastStep ||
+      (end.streamFailed && end.tail.stepFinished);
+    return (
+      failedBetweenSteps ||
+      !end.tail.stepText.trim() ||
+      end.tail.stepStartedSearch
+    );
+  }
+  return (end.lastStep?.toolCalls ?? []).some(
     (tc) => !TURN_ENDING_TOOLS.has(tc.toolName),
   );
-  const failedSilently =
-    (streamErrored || lastStep.finishReason === "error") &&
-    !lastStep.text.trim();
-  return unreadResult || failedSilently;
 }

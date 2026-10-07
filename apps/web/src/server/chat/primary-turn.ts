@@ -14,7 +14,12 @@ import { logError, logWarn } from "@/lib/logger";
 import { repairQuiz } from "@/lib/quiz";
 import type { StudyUIMessage } from "./study-tools";
 import type { Chunk } from "./ui-chunks";
-import { holdErrors, stripRetrievalOutputs } from "./stream-filter";
+import {
+  newStreamTail,
+  recordTurnChunk,
+  stripRetrievalOutputs,
+  type StreamTail,
+} from "./stream-filter";
 import { MAX_AGENT_STEPS, finalStepSettings } from "./final-step";
 import { recoverLeakedQuiz } from "./recover-quiz";
 import {
@@ -39,6 +44,8 @@ import {
 async function forward(
   writer: UIMessageStreamWriter<StudyUIMessage>,
   source: ReadableStream<Chunk>,
+  /** Sees each chunk as it is written; returning false holds it back. */
+  keep?: (chunk: Chunk) => boolean,
 ): Promise<void> {
   const reader = source.getReader();
   let drained = false;
@@ -49,7 +56,7 @@ async function forward(
         drained = true;
         return;
       }
-      writer.write(value);
+      if (!keep || keep(value)) writer.write(value);
     }
   } finally {
     // Leaving early means a transform threw, or the source stream errored.
@@ -59,7 +66,8 @@ async function forward(
     // only cancels its source once BOTH branches are cancelled. `abortSignal`
     // is what actually ends generation. Cancelling also skips the transform's
     // `flush()`, which drops a buffered leaked quiz -- harmless here, because
-    // this path ends the turn with an error part instead of an answer.
+    // the student never saw it, and this path ends the turn with the fallback
+    // answer or an error part.
     if (!drained) {
       await reader.cancel().catch(() => {});
     }
@@ -73,10 +81,11 @@ async function forward(
  * Streams every visible chunk into `writer` (drained via `forward`), then
  * resolves with the turn's final text and steps. The unawaited `finishReason`
  * promise is returned as-is so the caller can await it at its original point in
- * the sequence. `streamError` is the text of an `error` chunk the model stream
- * produced, held back from `writer` (see `holdErrors`) so the caller decides
- * whether to recover or surface it. `{ ok: false }` means the turn failed after
- * streaming.
+ * the sequence. `tail` records how the stream ended, including any `error`
+ * chunk, held back from `writer` (see `recordTurnChunk`) so the caller decides
+ * whether to recover or surface it. `{ ok: false }` means the stream itself
+ * failed (a dropped connection, a broken transform); `tail` still says how far
+ * it got.
  */
 export async function runPrimaryTurn(args: {
   aiClient: OpenRouterClient;
@@ -98,11 +107,11 @@ export async function runPrimaryTurn(args: {
       primaryText: string;
       primarySteps: Array<StepResult<ToolSet>>;
       finishReason: PromiseLike<FinishReason>;
-      streamError?: string;
+      tail: StreamTail;
     }
-  | { ok: false; error: unknown }
+  | { ok: false; error: unknown; tail: StreamTail }
 > {
-  const held: { errorText?: string } = {};
+  const tail = newStreamTail();
   const primary = streamText({
     model: args.aiClient.getModel(args.modelId),
     system: args.systemPrompt,
@@ -154,8 +163,7 @@ export async function runPrimaryTurn(args: {
     // Salvage a quiz the SDK rejected (input cut off at maxTokens, too many
     // questions, one botched question) into the questions that do render,
     // instead of showing the student an error. See repairQuizToolParts.
-    .pipeThrough(repairQuizToolParts())
-    .pipeThrough(holdErrors(held));
+    .pipeThrough(repairQuizToolParts());
   // Study-tool-capable turns: reconstruct a quiz the model leaked as a text
   // JSON blob (instead of a native showQuiz call) into a real tool part, so
   // it renders as the widget rather than raw JSON. Only quiz-shaped text is
@@ -170,6 +178,7 @@ export async function runPrimaryTurn(args: {
       args.modelCanUseTools
         ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
         : primaryUiStream,
+      (chunk) => recordTurnChunk(tail, chunk),
     );
 
     const [primaryText, primarySteps] = await Promise.all([
@@ -181,11 +190,11 @@ export async function runPrimaryTurn(args: {
       primaryText,
       primarySteps,
       finishReason: primary.finishReason,
-      streamError: held.errorText,
+      tail,
     };
   } catch (error) {
     logError(error, "primary turn failed", { chatbotId: args.chatbotId });
-    return { ok: false, error };
+    return { ok: false, error, tail };
   }
 }
 
