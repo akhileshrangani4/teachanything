@@ -173,6 +173,7 @@ function searchTool(
         rawName: SEARCHED_FILE,
         chunkIndex,
         content: foundFor(query),
+        rank: 0,
       });
       return [{ content: foundFor(query) }];
     },
@@ -189,7 +190,7 @@ const SEARCHES_UNTIL_LAST_STEP: Step[] = [
 
 async function runTurn(
   script: Step[],
-  options: { modelCanUseTools?: boolean } = {},
+  options: { modelCanUseTools?: boolean; searchedPassageTokens?: number } = {},
 ) {
   const modelCanUseTools = options.modelCanUseTools ?? true;
   const model = scriptedModel(script);
@@ -241,6 +242,8 @@ async function runTurn(
         },
         toolSources,
         toolPassages,
+        searchedPassageTokens: options.searchedPassageTokens ?? 100_000,
+        countTokens: (text: string) => Math.ceil(text.length / 4),
         onStreamError,
         startTime: Date.now(),
       }),
@@ -429,6 +432,28 @@ describe("a turn cut off mid-search", () => {
     expect(r.calls).toHaveLength(2);
     expect(r.shownText).toContain(FALLBACK_ANSWER);
     expect(r.sawError).toBe(false);
+  });
+
+  it("gives the fallback only the searched passages that fit, and lists only their sources", async () => {
+    silenceStreamErrors();
+    // The fence costs 80 tokens here and each passage about 22, so 110 holds
+    // the first search's passage and not the second's.
+    const r = await runTurn(
+      [
+        ...SEARCHES_UNTIL_LAST_STEP.slice(0, 2),
+        { connectionDrops: true },
+        { text: FALLBACK_ANSWER, finish: "stop" },
+      ],
+      { searchedPassageTokens: 110 },
+    );
+
+    const system = String(systemOf(r.calls[3]));
+    expect(system).toContain(foundFor("unit of analysis"));
+    expect(system).not.toContain(foundFor("unit of analysis definition"));
+    expect(r.shownSources).toEqual([
+      ...RAG_SOURCES,
+      expect.objectContaining({ fileName: SEARCHED_FILE, chunkIndex: 0 }),
+    ]);
   });
 
   it("answers through the fallback when the step reading the search fails before writing", async () => {

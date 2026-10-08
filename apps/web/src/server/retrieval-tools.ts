@@ -38,13 +38,23 @@ export interface RetrievedPassage {
   rawName: string;
   chunkIndex: number;
   content: string;
+  /**
+   * Where the call that returned it ranked it, 0 being best: search order for
+   * a search, distance from the asked-for chunk for its neighbours, and 0 for
+   * every chunk of a page asked for by number. The fallback keeps the best
+   * ranked first when they do not all fit.
+   */
+  rank: number;
 }
 
 export function createRetrievalTools(ctx: RetrievalToolContext) {
   const sources: RetrievalSource[] = [];
   const passages: RetrievedPassage[] = [];
-  const record = (chunks: HybridChunk[]) => {
-    for (const c of chunks) {
+  const record = (
+    chunks: HybridChunk[],
+    rankOf: (chunk: HybridChunk, index: number) => number = (_, i) => i,
+  ) => {
+    for (const [index, c] of chunks.entries()) {
       // Same display normalization as the static path (Web: <hostname> for
       // crawled pages) so merged source lists dedupe on matching names.
       const fileName = sourceDisplayName(c.fileName, c.storagePath);
@@ -59,6 +69,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         rawName: c.fileName,
         chunkIndex: c.chunkIndex,
         content: c.content,
+        rank: rankOf(c, index),
       });
     }
   };
@@ -171,9 +182,11 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         }
         const rows = await ctx.db
           .select({
+            chunkId: fileChunks.id,
             content: fileChunks.content,
             chunkIndex: fileChunks.chunkIndex,
             fileName: userFiles.fileName,
+            storagePath: userFiles.storagePath,
           })
           .from(fileChunks)
           .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
@@ -184,6 +197,21 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
             ),
           )
           .orderBy(asc(fileChunks.chunkIndex));
+        // A page read by number is a source like any search hit, and the
+        // fallback needs its text if the turn is cut off after reading it.
+        record(
+          rows.map((r) => ({
+            chunkId: r.chunkId,
+            fileId: resolved.fileId,
+            storagePath: r.storagePath,
+            fileName: r.fileName,
+            chunkIndex: r.chunkIndex,
+            pageNumber,
+            content: r.content,
+            vectorSimilarity: null,
+          })),
+          () => 0,
+        );
         return {
           pageNumber,
           fileName: rows[0]?.fileName ?? null,
@@ -234,6 +262,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
             content: r.content,
             vectorSimilarity: null,
           })),
+          (chunk) => Math.abs(chunk.chunkIndex - chunkIndex),
         );
         return {
           fileName: rows[0]?.fileName ?? null,

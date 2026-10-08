@@ -79,6 +79,9 @@ type TurnArgs = {
   ragResult: RAGContextResult;
   toolSources: ReturnType<typeof createRetrievalTools>["sources"];
   toolPassages: ReturnType<typeof createRetrievalTools>["passages"];
+  /** Tokens the fallback may spend on `toolPassages` (see withSearchedPassages). */
+  searchedPassageTokens: number;
+  countTokens: (text: string) => number;
   onStreamError: (error: unknown) => string;
   startTime: number;
 };
@@ -220,14 +223,20 @@ export async function executeTurn(args: TurnArgs): Promise<void> {
   finishTurn(args, writer, finishReason);
 }
 
+const sourceKey = (s: { fileName: string; chunkIndex: number }) =>
+  `${s.fileName}\u0000${s.chunkIndex}`;
+
 /**
- * The turn's sources: the injected context's, plus whatever the retrieval
- * tools fetched. The fallback answers from both (see withSearchedPassages),
- * so both branches publish the same list.
+ * The turn's sources: the injected context's, plus what the retrieval tools
+ * fetched -- all of it for the primary answer, and only the passages that fit
+ * in the fallback's prompt for a fallback answer (see withSearchedPassages).
  */
-function recordSources(args: TurnArgs): void {
+function recordSources(
+  args: TurnArgs,
+  toolSources: TurnArgs["toolSources"] = args.toolSources,
+): void {
   args.state.finalSources = args.useRetrievalTools
-    ? mergeSources(args.ragResult.sources, args.toolSources)
+    ? mergeSources(args.ragResult.sources, toolSources)
     : args.ragResult.sources;
   args.state.ragUsedFlag = args.useRetrievalTools
     ? args.state.finalSources.length > 0
@@ -258,17 +267,19 @@ async function answerWithFallback(
     cutOffMidSearch: cutOffMidSearch(end),
     primaryFailed: primaryTurnFailed(end),
   });
+  // The passages the agentic searches found, which the injected context may
+  // have missed: without them the fallback cannot use them, even when one of
+  // them is what the student needed.
+  const { prompt, included } = withSearchedPassages(
+    args.fallbackSystemPrompt,
+    args.toolPassages,
+    args.ragResult.sources,
+    { maxTokens: args.searchedPassageTokens, countTokens: args.countTokens },
+  );
   const fallback = await runFallbackTurn({
     aiClient: args.aiClient,
     modelId: args.modelId,
-    // The passages the agentic searches found, which the injected context
-    // may have missed: without them the fallback cannot use them, even when
-    // one of them is what the student needed.
-    systemPrompt: withSearchedPassages(
-      args.fallbackSystemPrompt,
-      args.toolPassages,
-      args.ragResult.sources,
-    ),
+    systemPrompt: prompt,
     messages: args.modelMessages,
     temperature: args.temperature,
     maxOutputTokens: args.maxOutputTokens,
@@ -294,7 +305,11 @@ async function answerWithFallback(
     failTurn(args, new Error("Model produced no response text"));
     return undefined;
   }
-  recordSources(args);
+  const fitted = new Set(included.map(sourceKey));
+  recordSources(
+    args,
+    args.toolSources.filter((s) => fitted.has(sourceKey(s))),
+  );
   return fallback.finishReason;
 }
 

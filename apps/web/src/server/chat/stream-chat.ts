@@ -27,7 +27,7 @@ import {
   groupStudyResponsesByToolCallId,
   computeTrimmedHistory,
 } from "./turn-context";
-import { buildTurnPrompts } from "./prompt-assembly";
+import { buildTurnPrompts, searchedPassageBudget } from "./prompt-assembly";
 import { executeTurn, type TurnState } from "./turn-execution";
 import { beginUserMessageInsert, persistTurn } from "./turn-persistence";
 import type { RagTiming } from "./turn-timing";
@@ -195,6 +195,16 @@ export async function streamChat(params: {
       studyResponsesByToolCallId,
     });
 
+  // Room for the passages the agentic searches find, should the fallback
+  // need them: they arrive after the budget above was spent.
+  const searchedPassageTokens = searchedPassageBudget({
+    contextWindow,
+    maxOutputTokens,
+    fallbackSystemPrompt,
+    messageTexts: [...trimmedHistory.map((row) => row.content), messageText],
+    countTokens,
+  });
+
   const modelMessages = await convertToModelMessages(uiMessages, {
     tools,
     ignoreIncompleteToolCalls: true,
@@ -248,6 +258,8 @@ export async function streamChat(params: {
         ragResult,
         toolSources,
         toolPassages,
+        searchedPassageTokens,
+        countTokens,
         onStreamError,
         startTime,
       }),

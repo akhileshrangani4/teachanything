@@ -262,7 +262,39 @@ describe("retrieval tools recovering from a model's mistakes", () => {
         rawName: "Week 3 Notes.docx",
         chunkIndex: 4,
         content: "Ecological studies compare groups.",
+        rank: 0,
       },
+    ]);
+  });
+
+  it("records a page read by number as sources and passages", async () => {
+    const page = [
+      {
+        chunkId: "k7",
+        content: "Unit of analysis: who or what is studied.",
+        chunkIndex: 7,
+        fileName: "Week 3 Notes.docx",
+        storagePath: "u/notes.docx",
+      },
+      {
+        chunkId: "k8",
+        content: "In ecological studies it is a group.",
+        chunkIndex: 8,
+        fileName: "Week 3 Notes.docx",
+        storagePath: "u/notes.docx",
+      },
+    ];
+    const { tools, sources, passages } = makeTools(page);
+
+    await run(tools.get_page, { fileId: NOTES_ID, pageNumber: 3 });
+
+    expect(sources).toEqual([
+      expect.objectContaining({ chunkIndex: 7, pageNumber: 3 }),
+      expect.objectContaining({ chunkIndex: 8, pageNumber: 3 }),
+    ]);
+    expect(passages.map((p) => [p.chunkIndex, p.content, p.rank])).toEqual([
+      [7, "Unit of analysis: who or what is studied.", 0],
+      [8, "In ecological studies it is a group.", 0],
     ]);
   });
 });
