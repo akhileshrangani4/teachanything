@@ -149,6 +149,9 @@ export async function runPrimaryTurn(args: {
         if (written !== undefined) {
           args.partialQuizInput.set(chunk.id, written + chunk.delta);
         }
+      } else if (chunk.type === "tool-call") {
+        // Complete: no longer a quiz the turn could leave half-written.
+        args.partialQuizInput.delete(chunk.toolCallId);
       }
     },
   });

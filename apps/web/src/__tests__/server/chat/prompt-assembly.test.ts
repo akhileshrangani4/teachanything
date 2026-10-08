@@ -144,6 +144,7 @@ describe("buildTurnPrompts", () => {
 
 describe("withSearchedPassages", () => {
   const passage = (chunkIndex: number, content: string, rank = 0) => ({
+    chunkId: `chunk-${chunkIndex}`,
     fileName: "Lecture 4.pptx",
     rawName: "Lecture 4.pptx",
     chunkIndex,
@@ -171,12 +172,36 @@ describe("withSearchedPassages", () => {
     const { prompt, included } = withSearchedPassages(
       "SYSTEM",
       [passage(1, "ALREADY INJECTED"), passage(5, "NEW"), passage(5, "NEW")],
-      [{ fileName: "Lecture 4.pptx", chunkIndex: 1 }],
+      ["chunk-1"],
       roomy,
     );
     expect(prompt).not.toContain("ALREADY INJECTED");
     expect(prompt.match(/NEW/g)).toHaveLength(1);
     expect(included.map((p) => p.chunkIndex)).toEqual([5]);
+  });
+
+  it("keeps two crawled pages of one site apart, though they share a display name", () => {
+    // Both are chunk 0 of a short page on the same site, so both display as
+    // "Web: cdc.gov"; only one of them was in the injected context.
+    const page = (chunkId: string, content: string) => ({
+      chunkId,
+      fileName: "Web: cdc.gov",
+      rawName: content,
+      chunkIndex: 0,
+      content,
+      rank: 0,
+    });
+    const { prompt, included } = withSearchedPassages(
+      "SYSTEM",
+      [
+        page("syllabus-0", "Syllabus page"),
+        page("hours-0", "Office hours page"),
+      ],
+      ["syllabus-0"],
+      roomy,
+    );
+    expect(included.map((p) => p.chunkId)).toEqual(["hours-0"]);
+    expect(prompt).toContain("Office hours page");
   });
 
   it("fences the passages as reference text, not instructions", () => {

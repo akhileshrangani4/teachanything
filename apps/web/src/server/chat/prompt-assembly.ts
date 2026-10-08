@@ -57,15 +57,14 @@ const PASSAGE_FENCE = /<\s*\/?\s*searched_passages\s*>/gi;
 export function withSearchedPassages(
   systemPrompt: string,
   passages: ReadonlyArray<RetrievedPassage>,
-  alreadyIncluded: ReadonlyArray<{ fileName: string; chunkIndex: number }>,
+  /** Chunks the prompt already carries: the injected context's. */
+  alreadyIncluded: ReadonlyArray<string>,
   budget: { maxTokens: number; countTokens: (text: string) => number },
 ): { prompt: string; included: RetrievedPassage[] } {
-  const key = (p: { fileName: string; chunkIndex: number }) =>
-    `${p.fileName}\u0000${p.chunkIndex}`;
-  const seen = new Set(alreadyIncluded.map(key));
+  const seen = new Set(alreadyIncluded);
   const fresh = passages.filter((p) => {
-    if (seen.has(key(p))) return false;
-    seen.add(key(p));
+    if (seen.has(p.chunkId)) return false;
+    seen.add(p.chunkId);
     return true;
   });
   // Stable, so passages of equal rank keep the order the searches ran in.

@@ -47,11 +47,13 @@ type Step =
       finish: string;
     }
   | { providerFails: true }
-  /** The connection drops after `text` and `call` (if any) stream. */
+  /** The connection drops after `text`, `call` and `quizInput` (if any) stream. */
   | {
       connectionDrops: true;
       text?: string;
       call?: { name: string; args: unknown };
+      /** The start of a showQuiz call's arguments, still streaming. */
+      quizInput?: string;
     };
 
 const PRIMARY_SYSTEM = "primary system prompt";
@@ -88,6 +90,18 @@ function scriptedModel(script: Step[]) {
             toolCallId: `c-${id}`,
             toolName: step.call.name,
             input: JSON.stringify(step.call.args),
+          });
+        }
+        if (step.quizInput) {
+          sent.push({
+            type: "tool-input-start",
+            id: `q-${id}`,
+            toolName: "showQuiz",
+          });
+          sent.push({
+            type: "tool-input-delta",
+            id: `q-${id}`,
+            delta: step.quizInput,
           });
         }
         // Fail only after the sent chunks have had time to reach the client.
@@ -163,12 +177,14 @@ function searchTool(
     execute: async ({ query }) => {
       const chunkIndex = toolSources.length;
       toolSources.push({
+        chunkId: `searched-${chunkIndex}`,
         fileName: SEARCHED_FILE,
         chunkIndex,
         pageNumber: null,
         similarity: 0.3,
       });
       toolPassages.push({
+        chunkId: `searched-${chunkIndex}`,
         fileName: SEARCHED_FILE,
         rawName: SEARCHED_FILE,
         chunkIndex,
@@ -239,6 +255,7 @@ async function runTurn(
           fileManifest: "",
           ragFailureNote: "",
           fileIds: ["f1"],
+          chunkIds: ["rag-chunk"],
         },
         toolSources,
         toolPassages,
@@ -265,6 +282,7 @@ async function runTurn(
   const finish = seen.find((c) => c.type === "finish");
   return {
     calls: model.doStreamCalls,
+    chunks,
     shownText,
     sawError: errorAt !== -1,
     shownSources:
@@ -506,6 +524,29 @@ describe("a turn cut off mid-search", () => {
 });
 
 describe("a turn that answered", () => {
+  it("closes out a quiz the connection cut off and reports it, rather than answering in prose", async () => {
+    silenceStreamErrors();
+    const oneQuestion =
+      '{"quiz_title":"Units of analysis","questions":[{"question":"What is the unit of analysis in an ecological study?",' +
+      '"options":["A group","A person"],"correct_index":0,"explanation":"Ecological studies compare groups."},{"question":"Wh';
+    const r = await runTurn([
+      { connectionDrops: true, quizInput: oneQuestion },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(1);
+    // The skeleton resolves to the question that finished.
+    expect(r.chunks).toContainEqual(
+      expect.objectContaining({
+        type: "tool-input-available",
+        toolName: "showQuiz",
+      }),
+    );
+    expect(r.shownText).not.toContain(FALLBACK_ANSWER);
+    expect(r.sawError).toBe(true);
+    expect(r.state.executeErrored).toBe(true);
+  });
+
   it("does not append a fallback when the model answered and then stopped", async () => {
     const answer = "Ecological studies use groups as the unit of analysis.";
     const r = await runTurn([

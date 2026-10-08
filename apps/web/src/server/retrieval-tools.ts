@@ -19,6 +19,8 @@ export interface RetrievalToolContext {
 }
 
 export interface RetrievalSource {
+  /** Server-side only: `mergeSources` copies the display fields, not this. */
+  chunkId: string;
   fileName: string;
   chunkIndex: number;
   pageNumber: number | null;
@@ -32,7 +34,12 @@ export interface RetrievalSource {
  * never to the client, like the tool results themselves.
  */
 export interface RetrievedPassage {
-  /** The display name `sources` uses, so the two dedupe together. */
+  /**
+   * What tells passages apart. Not the display name: every crawled page of a
+   * site shares one (`Web: <hostname>`), and short pages are all chunk 0.
+   */
+  chunkId: string;
+  /** The display name `sources` uses. */
   fileName: string;
   /** The stored file name, as the model was shown it. */
   rawName: string;
@@ -59,12 +66,14 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
       // crawled pages) so merged source lists dedupe on matching names.
       const fileName = sourceDisplayName(c.fileName, c.storagePath);
       sources.push({
+        chunkId: c.chunkId,
         fileName,
         chunkIndex: c.chunkIndex,
         pageNumber: c.pageNumber,
         similarity: c.vectorSimilarity,
       });
       passages.push({
+        chunkId: c.chunkId,
         fileName,
         rawName: c.fileName,
         chunkIndex: c.chunkIndex,

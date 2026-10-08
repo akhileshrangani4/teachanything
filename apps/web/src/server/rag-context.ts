@@ -46,6 +46,9 @@ export interface RAGContextResult {
   // File IDs the chat router needs to build retrieval tools for the agentic
   // path. Empty when the chatbot has no completed (enabled) files.
   fileIds: string[];
+  // Ids of the chunks in `contextText`. `sources` cannot stand in for these:
+  // every crawled page of a site shares one display name there.
+  chunkIds: string[];
 }
 
 /**
@@ -135,6 +138,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote: "",
       fileIds: [],
+      chunkIds: [],
     };
   }
 
@@ -173,6 +177,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote,
       fileIds,
+      chunkIds: [],
     };
   }
 
@@ -193,6 +198,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote: "",
       fileIds,
+      chunkIds: [],
     };
   }
 
@@ -223,6 +229,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote: "",
       fileIds,
+      chunkIds: [],
     };
   }
 
@@ -266,5 +273,6 @@ export async function buildRAGContext(
     fileManifest,
     ragFailureNote: "",
     fileIds,
+    chunkIds: relevantChunks.map((chunk) => chunk.chunkId),
   };
 }

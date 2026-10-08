@@ -258,6 +258,7 @@ describe("retrieval tools recovering from a model's mistakes", () => {
     ]);
     expect(passages).toEqual([
       {
+        chunkId: "k1",
         fileName: "Week 3 Notes.docx",
         rawName: "Week 3 Notes.docx",
         chunkIndex: 4,

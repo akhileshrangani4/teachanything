@@ -144,6 +144,7 @@ describe("executeTurn timing (real turn, mock model)", () => {
         fileManifest: "",
         ragFailureNote: "",
         fileIds: [],
+        chunkIds: [],
       },
       toolSources: [],
       toolPassages: [],

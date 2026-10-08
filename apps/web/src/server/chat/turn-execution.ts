@@ -92,10 +92,11 @@ type TurnArgs = {
  * fallback, and the closing finish chunk.
  */
 export async function executeTurn(args: TurnArgs): Promise<void> {
-  // Partial `showQuiz` input, accumulated per tool call id. `maxTokens` caps
-  // the whole turn, so a low setting can cut the model off mid-input; when
-  // the args were streamed the SDK then forms no tool call at all, leaving
-  // `steps` empty, so this is the only record of what the model wrote.
+  // Partial `showQuiz` input, accumulated per tool call id until the call
+  // completes. `maxTokens` caps the whole turn, so a low setting can cut the
+  // model off mid-input; when the args were streamed the SDK then forms no
+  // tool call at all, leaving `steps` empty, so this is the only record of
+  // what the model wrote.
   const partialQuizInput = new Map<string, string>();
 
   const writer = withFirstTextTimer(args.writer, () => {
@@ -120,9 +121,21 @@ export async function executeTurn(args: TurnArgs): Promise<void> {
   });
   const tail = primaryOutcome.tail;
   if (!primaryOutcome.ok) {
-    // The stream itself failed. One that never got past a preamble still gets
-    // the fallback; one that broke off mid-answer leaves that partial answer
-    // and the error.
+    // The stream itself failed while a quiz was still being written: close
+    // it out, or the client shows "Building your quiz..." forever, and report
+    // the failure. The fallback has no study tools, so for a quiz request it
+    // would write the questions and answers out as prose.
+    if (partialQuizInput.size > 0) {
+      salvageTruncatedQuizzes(partialQuizInput, [], writer, {
+        chatbotId: args.chatbotId,
+        modelId: args.modelId,
+        maxOutputTokens: args.maxOutputTokens,
+      });
+      failTurn(args, primaryOutcome.error);
+      return;
+    }
+    // Otherwise one that never got past a preamble still gets the fallback;
+    // one that broke off mid-answer leaves that partial answer and the error.
     const end = { lastStep: undefined, tail, streamFailed: true };
     if (
       args.modelCanUseTools &&
@@ -223,9 +236,6 @@ export async function executeTurn(args: TurnArgs): Promise<void> {
   finishTurn(args, writer, finishReason);
 }
 
-const sourceKey = (s: { fileName: string; chunkIndex: number }) =>
-  `${s.fileName}\u0000${s.chunkIndex}`;
-
 /**
  * The turn's sources: the injected context's, plus what the retrieval tools
  * fetched -- all of it for the primary answer, and only the passages that fit
@@ -273,7 +283,7 @@ async function answerWithFallback(
   const { prompt, included } = withSearchedPassages(
     args.fallbackSystemPrompt,
     args.toolPassages,
-    args.ragResult.sources,
+    args.ragResult.chunkIds,
     { maxTokens: args.searchedPassageTokens, countTokens: args.countTokens },
   );
   const fallback = await runFallbackTurn({
@@ -305,10 +315,10 @@ async function answerWithFallback(
     failTurn(args, new Error("Model produced no response text"));
     return undefined;
   }
-  const fitted = new Set(included.map(sourceKey));
+  const fitted = new Set(included.map((p) => p.chunkId));
   recordSources(
     args,
-    args.toolSources.filter((s) => fitted.has(sourceKey(s))),
+    args.toolSources.filter((s) => fitted.has(s.chunkId)),
   );
   return fallback.finishReason;
 }
