@@ -47,8 +47,12 @@ type Step =
       finish: string;
     }
   | { providerFails: true }
-  /** The connection drops after `text` (if any) streams. */
-  | { connectionDrops: true; text?: string };
+  /** The connection drops after `text` and `call` (if any) stream. */
+  | {
+      connectionDrops: true;
+      text?: string;
+      call?: { name: string; args: unknown };
+    };
 
 const PRIMARY_SYSTEM = "primary system prompt";
 const FALLBACK_SYSTEM = "fallback system prompt";
@@ -77,6 +81,14 @@ function scriptedModel(script: Step[]) {
           for (const word of step.text.split(/(?<= )/)) {
             sent.push({ type: "text-delta", id, delta: word });
           }
+        }
+        if (step.call) {
+          sent.push({
+            type: "tool-call",
+            toolCallId: `c-${id}`,
+            toolName: step.call.name,
+            input: JSON.stringify(step.call.args),
+          });
         }
         // Fail only after the sent chunks have had time to reach the client.
         // Erroring at once discards whatever is still queued anywhere in the
@@ -185,6 +197,10 @@ async function runTurn(
   const toolPassages: TurnArgs["toolPassages"] = [];
   const retrievalTools = {
     search_documents: searchTool(toolSources, toolPassages),
+    done: tool({
+      description: "final answer",
+      inputSchema: z.object({ answer: z.string() }),
+    }),
   };
   const state: TurnState = {
     finalSources: [],
@@ -282,6 +298,27 @@ describe("a turn cut off mid-search", () => {
     expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
   });
 
+  it("answers in plain text on the capped step, where `done` is gone too", async () => {
+    const answer = "The unit of analysis is who or what is being studied.";
+    const r = await runTurn([
+      ...SEARCHES_UNTIL_LAST_STEP,
+      { text: answer, finish: "stop" },
+    ]);
+
+    expect(toolNamesOf(r.calls[0])).toContain("done");
+    expect(toolNamesOf(r.calls[MAX_AGENT_STEPS - 1])).not.toContain("done");
+    // One answer, no fallback, and the searches' sources kept.
+    expect(r.calls).toHaveLength(MAX_AGENT_STEPS);
+    expect(r.shownText.split(answer)).toHaveLength(2);
+    expect(r.shownText).not.toContain(FALLBACK_ANSWER);
+    expect(r.shownSources).toEqual([
+      ...RAG_SOURCES,
+      ...[0, 1, 2, 3].map((chunkIndex) =>
+        expect.objectContaining({ fileName: SEARCHED_FILE, chunkIndex }),
+      ),
+    ]);
+  });
+
   it("falls back to a no-tools answer when the capped step searches anyway", async () => {
     const r = await runTurn([
       ...SEARCHES_UNTIL_LAST_STEP,
@@ -346,6 +383,25 @@ describe("a turn cut off mid-search", () => {
       ...RAG_SOURCES,
       expect.objectContaining({ fileName: SEARCHED_FILE, chunkIndex: 0 }),
     ]);
+  });
+
+  it("falls back when the connection drops after a malformed search call", async () => {
+    // Sent whole with unusable input, the call shows up only as a
+    // tool-input-error before the connection goes.
+    silenceStreamErrors();
+    const r = await runTurn([
+      { text: NARRATION, search: "unit of analysis", finish: "tool-calls" },
+      {
+        connectionDrops: true,
+        text: "Let me search more specifically for ecological studies.",
+        call: { name: "search_documents", args: {} },
+      },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(3);
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
+    expect(r.sawError).toBe(false);
   });
 
   it("answers through the fallback when the first request fails", async () => {

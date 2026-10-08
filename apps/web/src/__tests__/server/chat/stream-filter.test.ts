@@ -147,6 +147,19 @@ describe("recordTurnChunk", () => {
     expect(tail.stepFinished).toBe(true);
   });
 
+  it("counts a search sent whole with unusable input", () => {
+    const { tail } = record(
+      step({
+        type: "tool-input-error",
+        toolCallId: "c1",
+        toolName: "search_documents",
+        input: {},
+        errorText: "Invalid input",
+      }),
+    );
+    expect(tail.stepStartedSearch).toBe(true);
+  });
+
   it("does not count `done` as a search", () => {
     const { tail } = record(
       step({ type: "tool-input-start", toolCallId: "c1", toolName: "done" }),

@@ -99,8 +99,11 @@ export function recordTurnChunk(
     case "text-delta":
       tail.stepText += chunk.delta;
       break;
+    // A provider that sends a call whole skips `tool-input-start`, and one
+    // with unusable input then arrives only as `tool-input-error`.
     case "tool-input-start":
     case "tool-input-available":
+    case "tool-input-error":
       if (isRetrievalToolName(chunk.toolName) && chunk.toolName !== "done") {
         tail.stepStartedSearch = true;
       }

@@ -31,6 +31,11 @@ const FINAL_STEP_NOTE =
  * Per-step settings for the agentic loop: the final step drops the retrieval
  * tools (study tools stay, so a quiz request can still be answered) and adds
  * FINAL_STEP_NOTE. A no-op for turns without retrieval tools.
+ *
+ * `done` goes too, since it is in the retrieval set: the last step answers in
+ * plain text. That is deliberate. A `done` answer written in the same step as
+ * any text is dropped (see writeDoneAnswerAsText), and a model told it is on
+ * its last step tends to write both.
  */
 export function finalStepSettings(
   tools: ToolSet,
