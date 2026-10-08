@@ -127,10 +127,12 @@ export function primaryTurnFailed(end: TurnEnd): boolean {
  * never does when the finish reason is `stop`, so it appears in no step.
  *
  * One trade-off is deliberate. A model that answered in full and then searched
- * again before the loop stopped also lands here, and gets a second answer.
- * Telling that apart from a one-line preamble is not reliable, a duplicate
- * answer is a smaller failure than no answer, and the final step's tool
- * restriction makes it rare.
+ * again also lands here when the loop stops before it reads that search --
+ * at the step cap, or because a later request fails or the connection drops
+ * -- and gets a second answer. Telling that apart from a one-line preamble is
+ * not reliable, and a duplicate answer is a smaller failure than no answer.
+ * The final step's tool restriction makes the step-cap case rare; the failure
+ * cases are as common as the failures.
  */
 export function cutOffMidSearch(end: TurnEnd): boolean {
   if (primaryTurnFailed(end)) {

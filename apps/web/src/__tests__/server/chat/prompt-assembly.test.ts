@@ -241,6 +241,19 @@ describe("withSearchedPassages", () => {
     );
   });
 
+  it("skips a single passage too big for the budget, and keeps going", () => {
+    const { included } = withSearchedPassages(
+      "SYSTEM",
+      [
+        passage(1, "x".repeat(40_000), 0), // ~10k tokens on its own
+        passage(2, "A short passage that fits.", 1),
+      ],
+      [],
+      { maxTokens: 500, countTokens },
+    );
+    expect(included.map((p) => p.chunkIndex)).toEqual([2]);
+  });
+
   it("leaves the prompt alone when nothing fits or nothing is new", () => {
     expect(withSearchedPassages("SYSTEM", [], [], roomy)).toEqual({
       prompt: "SYSTEM",

@@ -524,6 +524,25 @@ describe("a turn cut off mid-search", () => {
 });
 
 describe("a turn that answered", () => {
+  it("answers again when a later request fails after an early full answer (accepted trade-off)", async () => {
+    // Deliberate, see cutOffMidSearch: text written before a search cannot be
+    // told apart from a "Let me search..." preamble, and a duplicate answer
+    // beats none. Pinned so a change to it is a decision, not an accident.
+    silenceStreamErrors();
+    const answer = "The unit of analysis is who or what is being studied.";
+    const r = await runTurn([
+      { text: answer, search: "unit of analysis", finish: "tool-calls" },
+      { search: "ecological studies", finish: "tool-calls" },
+      { providerFails: true },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(4);
+    expect(r.shownText).toContain(answer);
+    expect(r.shownText).toContain(FALLBACK_ANSWER);
+    expect(r.sawError).toBe(false);
+  });
+
   it("closes out a quiz the connection cut off and reports it, rather than answering in prose", async () => {
     silenceStreamErrors();
     const oneQuestion =
