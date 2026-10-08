@@ -8,6 +8,7 @@ const logWarn = jest.fn();
 jest.unstable_mockModule("@/lib/logger", () => ({ logWarn }));
 
 const { guardTextSequence } = await import("@/server/chat/text-sequence-guard");
+const { recoverLeakedQuiz } = await import("@/server/chat/recover-quiz");
 
 type Chunk = Record<string, unknown>;
 
@@ -135,5 +136,112 @@ describe("guardTextSequence", () => {
     );
     expect(textOf(await assemble(guarded(chunks)))).toEqual(["Orphan"]);
     expect(logWarn).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes a part that is opened again before it ended", async () => {
+    const chunks = [
+      { type: "start" },
+      ...step(
+        { type: "text-start", id: "t1" },
+        { type: "text-delta", id: "t1", delta: "First" },
+        { type: "text-start", id: "t1" },
+        { type: "text-delta", id: "t1", delta: "Second" },
+        { type: "text-end", id: "t1" },
+      ),
+      { type: "finish" },
+    ];
+    const message = await assemble(guarded(chunks));
+    expect(
+      message?.parts.flatMap((p) => (p.type === "text" ? [p.state] : [])),
+    ).toEqual(["done", "done"]);
+    expect(logWarn).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * DeepSeek V3.2 via OpenRouter starts a tool call while its text block is still
+ * open and sends that block's `text-end` only after the call. By then
+ * `recoverLeakedQuiz` has closed the block on the tool chunk, so the late
+ * `text-end` is orphaned. These run both transforms in pipeline order.
+ */
+describe("a text block the provider ends after a tool call", () => {
+  beforeEach(() => logWarn.mockClear());
+
+  const searchCall: Chunk[] = [
+    {
+      type: "tool-input-start",
+      toolCallId: "c1",
+      toolName: "search_documents",
+    },
+    {
+      type: "tool-input-available",
+      toolCallId: "c1",
+      toolName: "search_documents",
+      input: { query: "unit of analysis" },
+    },
+  ];
+
+  function pipeline(chunks: Chunk[]): ReadableStream<Chunk> {
+    return streamOf(chunks)
+      .pipeThrough(recoverLeakedQuiz() as never)
+      .pipeThrough(guardTextSequence({ chatbotId: "bot" }) as never);
+  }
+
+  it("crashes the turn without the guard", async () => {
+    const chunks = [
+      { type: "start" },
+      ...step(
+        { type: "text-start", id: "t1" },
+        { type: "text-delta", id: "t1", delta: "Searching." },
+        ...searchCall,
+        { type: "text-end", id: "t1" },
+      ),
+      { type: "finish" },
+    ];
+    await expect(
+      assemble(streamOf(chunks).pipeThrough(recoverLeakedQuiz() as never)),
+    ).rejects.toThrow(/text-end for missing text part/);
+  });
+
+  it("drops the late text-end and carries on to the answer", async () => {
+    const message = await assemble(
+      pipeline([
+        { type: "start" },
+        ...step(
+          { type: "text-start", id: "t1" },
+          { type: "text-delta", id: "t1", delta: "Searching." },
+          ...searchCall,
+          { type: "text-end", id: "t1" },
+        ),
+        ...step(
+          { type: "text-start", id: "t2" },
+          { type: "text-delta", id: "t2", delta: "The unit of analysis is..." },
+          { type: "text-end", id: "t2" },
+        ),
+        { type: "finish" },
+      ]),
+    );
+    expect(textOf(message)).toEqual([
+      "Searching.",
+      "The unit of analysis is...",
+    ]);
+    expect(logWarn).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps text the provider sends after the tool call", async () => {
+    const message = await assemble(
+      pipeline([
+        { type: "start" },
+        ...step(
+          { type: "text-start", id: "t1" },
+          { type: "text-delta", id: "t1", delta: "Searching." },
+          ...searchCall,
+          { type: "text-delta", id: "t1", delta: " More." },
+          { type: "text-end", id: "t1" },
+        ),
+        { type: "finish" },
+      ]),
+    );
+    expect(textOf(message)).toEqual(["Searching.", " More."]);
   });
 });

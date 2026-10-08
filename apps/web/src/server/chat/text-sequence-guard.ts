@@ -10,11 +10,14 @@ import type { Chunk } from "./ui-chunks";
  * the response message, outside anything `runPrimaryTurn` can catch. The turn
  * dies with only what streamed so far and no error recorded. A provider that
  * orders its chunks differently from what our transforms expect is enough to
- * trigger it (DeepSeek V3.2 ending its text after a tool call did, see
- * `recoverLeakedQuiz`), so this repairs the sequence instead: an orphaned end
- * is dropped, an orphaned delta gets the start it was missing. Each repair is
- * logged so a new model's ordering shows up in the logs rather than as a
- * stuck reply.
+ * trigger it. DeepSeek V3.2 (via OpenRouter) sends a text block's `text-end`
+ * after a tool call, by which point `recoverLeakedQuiz` has already closed the
+ * block, and that cut its turns off after "Let me search...". So this repairs
+ * the sequence instead: an orphaned end is dropped, an orphaned delta gets the
+ * start it was missing (its text is kept as a new part), and a part opened
+ * twice is closed before it reopens, since the SDK would otherwise leave the
+ * first copy streaming forever. Each repair is logged so a new model's ordering
+ * shows up in the logs rather than as a stuck reply.
  *
  * Reasoning chunks are not guarded: every turn streams with
  * `sendReasoning: false`.
@@ -28,6 +31,13 @@ export function guardTextSequence(logContext: {
     transform(chunk, controller) {
       switch (chunk.type) {
         case "text-start":
+          if (open.has(chunk.id)) {
+            logWarn("Closed a text part the provider opened again", {
+              ...logContext,
+              partId: chunk.id,
+            });
+            controller.enqueue({ type: "text-end", id: chunk.id });
+          }
           open.add(chunk.id);
           break;
         case "text-delta":
