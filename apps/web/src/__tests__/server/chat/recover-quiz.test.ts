@@ -1,4 +1,8 @@
+/**
+ * @jest-environment node
+ */
 import { describe, it, expect } from "@jest/globals";
+import { readUIMessageStream, type UIMessage } from "ai";
 import { recoverLeakedQuiz } from "@/server/chat/recover-quiz";
 
 type Chunk = Record<string, unknown>;
@@ -542,5 +546,111 @@ describe("placeholder while a leaked quiz is buffering", () => {
     const available = out.find((c) => c.type === "tool-input-available");
     const input = available?.input as { questions: unknown[] };
     expect(input.questions.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * DeepSeek V3.2 via OpenRouter starts a tool call while its text block is still
+ * open and only sends that block's `text-end` after the call. The transform
+ * closes the block when the tool chunk arrives, so the provider's own
+ * `text-end` comes in for a part the client already closed. The AI SDK throws on
+ * that ("Received text-end for missing text part"), which killed the whole turn
+ * after its "I'll search the course materials..." line (Oct 2026 report).
+ */
+describe("text block the provider ends after a tool call", () => {
+  const searchCall: Chunk[] = [
+    {
+      type: "tool-input-start",
+      toolCallId: "c1",
+      toolName: "search_documents",
+    },
+    {
+      type: "tool-input-available",
+      toolCallId: "c1",
+      toolName: "search_documents",
+      input: { query: "unit of analysis" },
+    },
+  ];
+
+  /** Run chunks through the SDK's own message assembly, as the client does. */
+  async function assemble(chunks: Chunk[]) {
+    const stream = new ReadableStream({
+      start(controller) {
+        for (const chunk of [
+          { type: "start" },
+          { type: "start-step" },
+          ...chunks,
+          { type: "finish-step" },
+          { type: "finish" },
+        ]) {
+          controller.enqueue(chunk);
+        }
+        controller.close();
+      },
+    });
+    let last: UIMessage | undefined;
+    for await (const message of readUIMessageStream({
+      stream: stream as never,
+      terminateOnError: true,
+    })) {
+      last = message;
+    }
+    return last;
+  }
+
+  it("closes the block once and drops the provider's late text-end", async () => {
+    const out = await pump([
+      { type: "text-start", id: "t1" },
+      {
+        type: "text-delta",
+        id: "t1",
+        delta: "I'll search the course materials.",
+      },
+      ...searchCall,
+      { type: "text-end", id: "t1" },
+    ]);
+
+    expect(out.map((c) => c.type)).toEqual([
+      "text-start",
+      "text-delta",
+      "text-end",
+      "tool-input-start",
+      "tool-input-available",
+    ]);
+    const message = await assemble(out);
+    expect(message?.parts.map((p) => p.type)).toEqual([
+      "step-start",
+      "text",
+      "tool-search_documents",
+    ]);
+  });
+
+  it("drops text the provider sends for a block it already had closed", async () => {
+    const out = await pump([
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "Searching." },
+      ...searchCall,
+      { type: "text-delta", id: "t1", delta: " More." },
+      { type: "text-end", id: "t1" },
+    ]);
+
+    expect(out.filter((c) => c.type === "text-delta")).toHaveLength(1);
+    await expect(assemble(out)).resolves.toBeDefined();
+  });
+
+  it("lets the turn carry on to the answer after the search", async () => {
+    const out = await pump([
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "Searching." },
+      ...searchCall,
+      { type: "text-end", id: "t1" },
+      ...textBlock("t2", ["The unit of analysis is..."]),
+    ]);
+
+    const message = await assemble(out);
+    const text = message?.parts
+      .filter((p) => p.type === "text")
+      .map((p) => (p as { text: string }).text);
+    expect(text).toEqual(["Searching.", "The unit of analysis is..."]);
   });
 });

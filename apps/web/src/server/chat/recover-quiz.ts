@@ -64,6 +64,14 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
    * transform exists to prevent.
    */
   let placeholderCallId: string | null = null;
+  /**
+   * Blocks `endBlock` closed before the provider did. DeepSeek V3.2 (via
+   * OpenRouter) opens a tool call while its text block is still open and sends
+   * the block's `text-end` only after the call. Passing that late `text-end`
+   * through makes the AI SDK throw ("text-end for missing text part"), which
+   * kills the whole turn, so chunks for these ids are dropped.
+   */
+  const closedEarly = new Set<string>();
 
   const reset = () => {
     blockId = null;
@@ -221,14 +229,25 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     // emit a stray `text-end`.
     const textPartOpen = placeholderCallId === null;
     flushPending(controller);
-    if (id !== null && textPartOpen) {
-      controller.enqueue({ type: "text-end", id });
-    }
+    if (id === null) return;
+    if (textPartOpen) controller.enqueue({ type: "text-end", id });
+    closedEarly.add(id);
   };
 
   return new TransformStream<Chunk, Chunk>({
     transform(chunk, controller) {
+      if (
+        (chunk.type === "text-delta" || chunk.type === "text-end") &&
+        closedEarly.has(chunk.id)
+      ) {
+        // Text after the close has no part left to land in. Only the late
+        // `text-end` has been seen in practice.
+        if (chunk.type === "text-end") closedEarly.delete(chunk.id);
+        return;
+      }
+
       if (chunk.type === "text-start") {
+        closedEarly.delete(chunk.id);
         // Defensive: a well-formed stream closes a block before opening another.
         if (blockId !== null) endBlock(controller);
         reset();
