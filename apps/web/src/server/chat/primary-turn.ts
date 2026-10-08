@@ -22,6 +22,7 @@ import {
 } from "./stream-filter";
 import { MAX_AGENT_STEPS, finalStepSettings } from "./final-step";
 import { recoverLeakedQuiz } from "./recover-quiz";
+import { guardTextSequence } from "./text-sequence-guard";
 import {
   repairQuizToolParts,
   closeTruncatedQuizInputs,
@@ -40,14 +41,20 @@ import {
  * which re-opens the very "Building your quiz..." skeleton it exists to resolve.
  * The same inversion applies to the trailing `finish` chunk that carries sources
  * and the truncation notice. Draining here makes those writes strictly last.
+ *
+ * Every chunk passes `guardTextSequence` on the way out, so a provider's
+ * unexpected text ordering is repaired here instead of crashing the turn.
  */
 async function forward(
   writer: UIMessageStreamWriter<StudyUIMessage>,
   source: ReadableStream<Chunk>,
+  chatbotId: string,
   /** Sees each chunk as it is written; returning false holds it back. */
   keep?: (chunk: Chunk) => boolean,
 ): Promise<void> {
-  const reader = source.getReader();
+  const reader = source
+    .pipeThrough(guardTextSequence({ chatbotId }))
+    .getReader();
   let drained = false;
   try {
     for (;;) {
@@ -181,6 +188,7 @@ export async function runPrimaryTurn(args: {
       args.modelCanUseTools
         ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
         : primaryUiStream,
+      args.chatbotId,
       (chunk) => recordTurnChunk(tail, chunk),
     );
 
@@ -297,6 +305,7 @@ export async function runFallbackTurn(args: {
         sendFinish: false,
         onError: args.onStreamError,
       }),
+      args.chatbotId,
     );
     const text = await fallback.text;
     return { ok: true, finishReason: await fallback.finishReason, text };
