@@ -236,32 +236,55 @@ export function salvageTruncatedQuizzes(
   return salvagedTruncatedQuiz;
 }
 
+/** How much of the `done` answer's opening must appear to count as written. */
+const OPENING_CHARS = 60;
+
+/** Lowercase with whitespace collapsed, for comparing text loosely. */
+function normalizeForCompare(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 /**
- * If the model answered only through the `done` tool (no free text), surface
- * that answer as a text part so it renders and persists as text.
+ * Whether `text` already holds the `done` answer: its opening, matched at word
+ * boundaries so a one-letter answer ("C") is not found inside "check". The end
+ * boundary only applies when the opening is the whole answer; a cut-off
+ * opening usually ends mid-word.
+ */
+function containsDoneAnswer(text: string, doneAnswer: string): boolean {
+  const answer = normalizeForCompare(doneAnswer);
+  const opening = answer.slice(0, OPENING_CHARS);
+  const escaped = opening.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const end = opening === answer ? "(?![\\p{L}\\p{N}])" : "";
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}${end}`, "u").test(
+    normalizeForCompare(text),
+  );
+}
+
+/**
+ * If the model answered through the `done` tool, surface that answer as a text
+ * part so it renders and persists as text -- unless the turn already wrote it.
  *
- * This gate deliberately reads `primaryText` (the LAST step's text), not
- * `turnText`. `done` is a retrieval tool: its part is stripped from the
- * stream and from `persistedParts`, so an answer delivered through it is
- * invisible unless written out here. A model that narrates in an earlier
- * step ("Let me check the readings.") and then answers via `done` has a
- * non-empty `turnText` but an empty final step -- gating on `turnText`
- * there would swallow the answer entirely. `hasVisibleAnswer` in
- * turn-execution.ts is the opposite question ("did the turn answer at
- * all?") and spans every step, discounting only the preamble of a turn cut
- * off mid-search.
+ * `done` is a retrieval tool: its part is stripped from the stream and from
+ * `persistedParts`, so an answer delivered through it is invisible unless
+ * written out here. Models often do both, answering in text and passing the
+ * same answer to `done`, and writing it again would show it twice. But any
+ * text is not enough to skip it: a step that wrote only a preamble ("I found
+ * it in the course materials. Let me provide you with the") and put the answer
+ * in `done` left the student with that line and nothing after it. So the
+ * answer is skipped only when the turn's text, across every step, already
+ * holds it. An answer the model paraphrased in text is shown twice; that is
+ * the smaller failure.
  */
 export function writeDoneAnswerAsText(
   writer: UIMessageStreamWriter<StudyUIMessage>,
-  primaryText: string,
+  turnText: string,
   doneAnswer: string | undefined,
 ): void {
-  if (doneAnswer && doneAnswer.trim() && !primaryText.trim()) {
-    const id = nanoid();
-    writer.write({ type: "text-start", id });
-    writer.write({ type: "text-delta", id, delta: doneAnswer });
-    writer.write({ type: "text-end", id });
-  }
+  if (!doneAnswer?.trim() || containsDoneAnswer(turnText, doneAnswer)) return;
+  const id = nanoid();
+  writer.write({ type: "text-start", id });
+  writer.write({ type: "text-delta", id, delta: doneAnswer });
+  writer.write({ type: "text-end", id });
 }
 
 /**
