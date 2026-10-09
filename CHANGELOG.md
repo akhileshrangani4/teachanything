@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.35.5](https://github.com/akhileshrangani4/teachanything/compare/v1.35.4...v1.35.5) (2026-10-09)
+
+
+### Bug Fixes
+
+* **chat:** show a done answer written after a preamble in the same step ([#543](https://github.com/akhileshrangani4/teachanything/issues/543)) ([d3ded2c](https://github.com/akhileshrangani4/teachanything/commit/d3ded2c15eaaba61514102d287d036f2fc5786a6))
+
+
+### Continuous Integration
+
+* validate PR titles without pulling a Docker image ([#545](https://github.com/akhileshrangani4/teachanything/issues/545)) ([6a73525](https://github.com/akhileshrangani4/teachanything/commit/6a735250c8d81f0da38dc8621111d8ac3d2b9b84))
+
 ## [1.35.4](https://github.com/akhileshrangani4/teachanything/compare/v1.35.3...v1.35.4) (2026-10-09)
 
 
