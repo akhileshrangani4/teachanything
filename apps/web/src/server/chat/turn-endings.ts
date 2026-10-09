@@ -11,7 +11,7 @@ import { createRetrievalTools } from "@/server/retrieval-tools";
 import { logError, logWarn } from "@/lib/logger";
 import type { StudyMessageMetadata, StudyUIMessage } from "./study-tools";
 import { runFallbackTurn, salvageTruncatedQuizzes } from "./primary-turn";
-import { cutOffMidSearch, primaryTurnFailed, type TurnEnd } from "./final-step";
+import { cutOffMidSearch, primaryTurnFailed, type TurnEnd } from "./turn-end";
 import { withSearchedPassages } from "./prompt-assembly";
 import type { StreamTail } from "./stream-filter";
 

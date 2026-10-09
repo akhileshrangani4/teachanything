@@ -1,42 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import { tool } from "ai";
-import { z } from "zod";
-import {
-  cutOffMidSearch,
-  finalStepSettings,
-  MAX_AGENT_STEPS,
-  primaryTurnFailed,
-} from "@/server/chat/final-step";
-import { studyTools } from "@/server/chat/study-tools";
-
-const searchTool = tool({
-  description: "search",
-  inputSchema: z.object({ query: z.string() }),
-  execute: async () => [],
-});
-
-describe("finalStepSettings", () => {
-  const tools = { search_documents: searchTool, ...studyTools };
-
-  it("leaves every step before the last alone", () => {
-    for (let step = 0; step < MAX_AGENT_STEPS - 1; step++) {
-      expect(finalStepSettings(tools, "sys", step)).toBeUndefined();
-    }
-  });
-
-  it("drops the retrieval tools and says why on the last step", () => {
-    const settings = finalStepSettings(tools, "sys", MAX_AGENT_STEPS - 1);
-    expect(settings?.activeTools).toEqual(["showQuiz"]);
-    expect(settings?.system.startsWith("sys")).toBe(true);
-    expect(settings?.system).toContain("could not find it");
-  });
-
-  it("is a no-op for a turn without retrieval tools", () => {
-    expect(
-      finalStepSettings(studyTools, "sys", MAX_AGENT_STEPS - 1),
-    ).toBeUndefined();
-  });
-});
+import { cutOffMidSearch, primaryTurnFailed } from "@/server/chat/turn-end";
 
 type TurnEnd = Parameters<typeof cutOffMidSearch>[0];
 type LastStep = NonNullable<TurnEnd["lastStep"]>;

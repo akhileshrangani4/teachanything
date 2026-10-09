@@ -20,7 +20,7 @@ import {
   stripRetrievalOutputs,
   type StreamTail,
 } from "./stream-filter";
-import { MAX_AGENT_STEPS, finalStepSettings } from "./final-step";
+import { MAX_AGENT_STEPS } from "./turn-end";
 import { recoverLeakedQuiz } from "./recover-quiz";
 import { guardTextSequence } from "./text-sequence-guard";
 import {
@@ -128,9 +128,6 @@ export async function runPrimaryTurn(args: {
     // it early when the model delivers a final answer via the `done` tool.
     // Harmless when `done` isn't in the toolset (never fires).
     stopWhen: [stepCountIs(MAX_AGENT_STEPS), hasToolCall("done")],
-    // The capped step must answer rather than search (see final-step.ts).
-    prepareStep: ({ stepNumber }) =>
-      finalStepSettings(args.tools, args.systemPrompt, stepNumber),
     temperature: args.temperature,
     maxOutputTokens: args.maxOutputTokens,
     abortSignal: args.abortSignal,

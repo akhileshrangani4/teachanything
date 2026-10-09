@@ -15,7 +15,7 @@ import { repairQuizToolParts } from "@/server/chat/repair-quiz-parts";
 import { recoverLeakedQuiz } from "@/server/chat/recover-quiz";
 import { assistantMessageForDb } from "@/lib/chat/ui-messages";
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
-import { MAX_AGENT_STEPS } from "@/server/chat/final-step";
+import { MAX_AGENT_STEPS } from "@/server/chat/turn-end";
 
 type Chunk = InferUIMessageChunk<StudyUIMessage>;
 type Step = {

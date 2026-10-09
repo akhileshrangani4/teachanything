@@ -13,8 +13,7 @@
  * fallback answer stacked under it just because something failed nearby.
  *
  * These run the real `executeTurn` over the real AI SDK with a scripted model.
- * `cutOffMidSearch` and `finalStepSettings` are unit-tested in
- * final-step.test.ts.
+ * `cutOffMidSearch` is unit-tested in turn-end.test.ts.
  */
 import { jest, describe, it, expect } from "@jest/globals";
 import { createUIMessageStream, tool, type InferUIMessageChunk } from "ai";
@@ -28,7 +27,7 @@ jest.unstable_mockModule("@/lib/logger", () => ({
 }));
 
 const { executeTurn } = await import("@/server/chat/turn-execution");
-const { MAX_AGENT_STEPS } = await import("@/server/chat/final-step");
+const { MAX_AGENT_STEPS } = await import("@/server/chat/turn-end");
 const { studyTools } = await import("@/server/chat/study-tools");
 type StudyUIMessage = import("@/server/chat/study-tools").StudyUIMessage;
 type TurnState = import("@/server/chat/turn-execution").TurnState;
@@ -302,7 +301,7 @@ const silenceStreamErrors = () =>
   jest.spyOn(console, "error").mockImplementation(() => {});
 
 describe("a turn cut off mid-search", () => {
-  it("makes the capped step answer, without the search tools", async () => {
+  it("keeps every tool on the capped step, and answers there when the model does", async () => {
     const answer = "The unit of analysis is who or what is being studied.";
     const r = await runTurn([
       ...SEARCHES_UNTIL_LAST_STEP,
@@ -310,37 +309,14 @@ describe("a turn cut off mid-search", () => {
     ]);
 
     expect(r.calls).toHaveLength(MAX_AGENT_STEPS);
-    expect(toolNamesOf(r.calls[0])).toContain("search_documents");
     const last = r.calls[MAX_AGENT_STEPS - 1];
-    expect(toolNamesOf(last)).toEqual(["showQuiz"]);
-    expect(systemOf(last)).toContain(PRIMARY_SYSTEM);
-    expect(systemOf(last)).toContain("last step");
+    expect(toolNamesOf(last)).toEqual(toolNamesOf(r.calls[0]));
+    expect(systemOf(last)).toBe(PRIMARY_SYSTEM);
     expect(r.shownText).toContain(answer);
-    expect(r.shownSources).toEqual(expect.arrayContaining(RAG_SOURCES));
-  });
-
-  it("answers in plain text on the capped step, where `done` is gone too", async () => {
-    const answer = "The unit of analysis is who or what is being studied.";
-    const r = await runTurn([
-      ...SEARCHES_UNTIL_LAST_STEP,
-      { text: answer, finish: "stop" },
-    ]);
-
-    expect(toolNamesOf(r.calls[0])).toContain("done");
-    expect(toolNamesOf(r.calls[MAX_AGENT_STEPS - 1])).not.toContain("done");
-    // One answer, no fallback, and the searches' sources kept.
-    expect(r.calls).toHaveLength(MAX_AGENT_STEPS);
-    expect(r.shownText.split(answer)).toHaveLength(2);
     expect(r.shownText).not.toContain(FALLBACK_ANSWER);
-    expect(r.shownSources).toEqual([
-      ...RAG_SOURCES,
-      ...[0, 1, 2, 3].map((chunkIndex) =>
-        expect.objectContaining({ fileName: SEARCHED_FILE, chunkIndex }),
-      ),
-    ]);
   });
 
-  it("falls back to a no-tools answer when the capped step searches anyway", async () => {
+  it("falls back to a no-tools answer when the capped step is still searching", async () => {
     const r = await runTurn([
       ...SEARCHES_UNTIL_LAST_STEP,
       { search: "one more", finish: "tool-calls" },

@@ -6,7 +6,7 @@ import {
   salvageTruncatedQuizzes,
   writeDoneAnswerAsText,
 } from "./primary-turn";
-import { cutOffMidSearch, primaryTurnFailed } from "./final-step";
+import { cutOffMidSearch, primaryTurnFailed } from "./turn-end";
 import {
   answerWithFallback,
   endFailedStream,
