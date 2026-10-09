@@ -94,7 +94,7 @@ export async function executeTurn(args: TurnArgs): Promise<void> {
     },
   );
 
-  writeDoneAnswerAsText(writer, primaryText, doneAnswer);
+  writeDoneAnswerAsText(writer, turnText, doneAnswer);
 
   // Text from a turn cut off mid-search is the model's preamble to a tool
   // call, not an answer (see cutOffMidSearch).
