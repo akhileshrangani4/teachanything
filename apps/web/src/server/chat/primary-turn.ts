@@ -236,9 +236,34 @@ export function salvageTruncatedQuizzes(
   return salvagedTruncatedQuiz;
 }
 
+/** Text at least this long is an answer in its own right, not a preamble. */
+const ANSWER_LENGTH_CHARS = 300;
+/** How much of the `done` answer's opening must appear to count as repeated. */
+const OPENING_CHARS = 60;
+
+const normalize = (text: string) =>
+  text.replace(/\s+/g, " ").trim().toLowerCase();
+
+function stepWroteDoneAnswer(stepText: string, doneAnswer: string): boolean {
+  const text = normalize(stepText);
+  return (
+    text.length >= ANSWER_LENGTH_CHARS ||
+    text.includes(normalize(doneAnswer).slice(0, OPENING_CHARS))
+  );
+}
+
 /**
- * If the model answered only through the `done` tool (no free text), surface
- * that answer as a text part so it renders and persists as text.
+ * If the model answered through the `done` tool, surface that answer as a text
+ * part so it renders and persists as text -- unless the step already wrote it.
+ *
+ * Models often do both: answer in text and pass the same answer to `done`, and
+ * writing it again would show the answer twice. But a step can also write only
+ * a preamble ("I found it in the course materials. Let me provide you with
+ * the") and put the answer in `done` alone; skipping it there left the student
+ * with that line and nothing after it. So the step counts as having written
+ * the answer only when its text holds the answer's opening, or is long enough
+ * to be an answer of its own (see stepWroteDoneAnswer); a sentence or two is a
+ * preamble.
  *
  * This gate deliberately reads `primaryText` (the LAST step's text), not
  * `turnText`. `done` is a retrieval tool: its part is stripped from the
@@ -256,7 +281,8 @@ export function writeDoneAnswerAsText(
   primaryText: string,
   doneAnswer: string | undefined,
 ): void {
-  if (doneAnswer && doneAnswer.trim() && !primaryText.trim()) {
+  if (!doneAnswer?.trim()) return;
+  if (!stepWroteDoneAnswer(primaryText, doneAnswer)) {
     const id = nanoid();
     writer.write({ type: "text-start", id });
     writer.write({ type: "text-delta", id, delta: doneAnswer });

@@ -16,6 +16,7 @@ import { recoverLeakedQuiz } from "@/server/chat/recover-quiz";
 import { assistantMessageForDb } from "@/lib/chat/ui-messages";
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
 import { MAX_AGENT_STEPS } from "@/server/chat/turn-end";
+import { writeDoneAnswerAsText } from "@/server/chat/primary-turn";
 
 type Chunk = InferUIMessageChunk<StudyUIMessage>;
 type Step = {
@@ -129,16 +130,8 @@ async function runTurn(script: Step[]) {
         typeof doneInput?.answer === "string" ? doneInput.answer : undefined;
       const producedQuiz = calls.some((c) => c.toolName === "showQuiz");
 
-      // Gate 1: last-step text.
-      if (doneAnswer && doneAnswer.trim() && !primaryText.trim()) {
-        writer.write({ type: "text-start", id: "done" } as Chunk);
-        writer.write({
-          type: "text-delta",
-          id: "done",
-          delta: doneAnswer,
-        } as Chunk);
-        writer.write({ type: "text-end", id: "done" } as Chunk);
-      }
+      // Gate 1: last-step text (the real function).
+      writeDoneAnswerAsText(writer, primaryText, doneAnswer);
 
       // Gate 2: whole-turn text.
       const hasVisibleAnswer =
@@ -194,6 +187,33 @@ describe("streamChat turn semantics", () => {
       "Butler argues gender precedes sex assignment.",
     );
     expect(r.fallbackRan).toBe(false);
+  });
+
+  it("surfaces a done answer written in the same step as a preamble", async () => {
+    const answer =
+      "The unit of analysis is the entity whose characteristics are measured and compared.";
+    const r = await runTurn([
+      {
+        text: "I found it in the course materials. Let me provide you with the",
+        call: { name: "done", args: { answer } },
+        finish: "tool-calls",
+      },
+    ]);
+    expect(r.content).toContain(answer);
+    expect(r.fallbackRan).toBe(false);
+  });
+
+  it("does not repeat a done answer the step already wrote as text", async () => {
+    const answer =
+      "The unit of analysis is the entity whose characteristics are measured and compared.";
+    const r = await runTurn([
+      {
+        text: answer,
+        call: { name: "done", args: { answer } },
+        finish: "tool-calls",
+      },
+    ]);
+    expect(r.content.split(answer)).toHaveLength(2);
   });
 
   it("does not append a fallback answer when an earlier step already answered", async () => {
