@@ -131,7 +131,7 @@ async function runTurn(script: Step[]) {
       const producedQuiz = calls.some((c) => c.toolName === "showQuiz");
 
       // Gate 1: last-step text (the real function).
-      writeDoneAnswerAsText(writer, primaryText, doneAnswer);
+      writeDoneAnswerAsText(writer, turnText, doneAnswer);
 
       // Gate 2: whole-turn text.
       const hasVisibleAnswer =
@@ -216,6 +216,24 @@ describe("streamChat turn semantics", () => {
     expect(r.content.split(answer)).toHaveLength(2);
   });
 
+  it("does not repeat a done answer an earlier step already wrote", async () => {
+    const answer =
+      "The unit of analysis is the entity whose characteristics are measured and compared.";
+    const r = await runTurn([
+      {
+        text: answer,
+        call: { name: "search_documents", args: { query: "unit" } },
+        finish: "tool-calls",
+      },
+      {
+        text: "Hope that helps!",
+        call: { name: "done", args: { answer } },
+        finish: "tool-calls",
+      },
+    ]);
+    expect(r.content.split(answer)).toHaveLength(2);
+  });
+
   it("does not append a fallback answer when an earlier step already answered", async () => {
     const r = await runTurn([
       {
@@ -254,5 +272,40 @@ describe("streamChat turn semantics", () => {
     expect(r.content).not.toContain("showQuiz(");
     expect(r.content).not.toContain("explanation");
     expect(r.fallbackRan).toBe(false);
+  });
+});
+
+describe("writeDoneAnswerAsText", () => {
+  function written(turnText: string, doneAnswer: string): string {
+    const deltas: string[] = [];
+    const writer = {
+      write: (chunk: Chunk) => {
+        if (chunk.type === "text-delta") deltas.push(chunk.delta);
+      },
+    } as Parameters<typeof writeDoneAnswerAsText>[0];
+    writeDoneAnswerAsText(writer, turnText, doneAnswer);
+    return deltas.join("");
+  }
+  const answer =
+    "The unit of analysis is the entity whose characteristics are measured and compared in a study.";
+
+  it("writes the answer when the turn wrote no text", () => {
+    expect(written("", answer)).toBe(answer);
+  });
+
+  it("writes the answer after a preamble of any length", () => {
+    const narration = `I searched the readings and found several passages. ${"More narration. ".repeat(30)}`;
+    expect(narration.length).toBeGreaterThan(300);
+    expect(written(narration, answer)).toBe(answer);
+  });
+
+  it("skips an answer the turn already wrote, ignoring case and spacing", () => {
+    const text = `Here you go.\n\n${answer.toUpperCase().replace(/ /g, "  ")}`;
+    expect(written(text, answer)).toBe("");
+  });
+
+  it("does not find a short answer inside a longer word", () => {
+    expect(written("Let me check the course materials.", "C")).toBe("C");
+    expect(written("The correct option is C.", "C")).toBe("");
   });
 });
