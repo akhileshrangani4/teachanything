@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.35.4](https://github.com/akhileshrangani4/teachanything/compare/v1.35.3...v1.35.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* **chat:** answer turns the agentic loop cut off mid search ([#539](https://github.com/akhileshrangani4/teachanything/issues/539)) ([3046c85](https://github.com/akhileshrangani4/teachanything/commit/3046c85f4e93fa266da35e3753eb1994eb3fe427))
+* **chat:** repair out-of-order text chunks so DeepSeek turns that search don't die ([#541](https://github.com/akhileshrangani4/teachanything/issues/541)) ([4d47dcd](https://github.com/akhileshrangani4/teachanything/commit/4d47dcda88ad713d6fe5019f22c9d28e4df13407))
+
 ## [1.35.3](https://github.com/akhileshrangani4/teachanything/compare/v1.35.2...v1.35.3) (2026-10-04)
 
 
