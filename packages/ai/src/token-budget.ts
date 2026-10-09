@@ -8,6 +8,17 @@
 /** 80% of context window reserved for input (D-02). */
 export const BUDGET_RATIO = 0.8;
 
+/**
+ * Tokens a request may spend on input: the input share of the context window,
+ * less room for the reply.
+ */
+export function inputTokenBudget(
+  contextWindow: number,
+  maxOutputTokens: number,
+): number {
+  return Math.floor(contextWindow * BUDGET_RATIO) - maxOutputTokens;
+}
+
 /** 60% of remaining budget for RAG chunks, 40% for history (D-05). */
 export const CHUNK_SHARE = 0.6;
 
@@ -70,8 +81,10 @@ export function calculateChunkLimit(input: {
   fileManifestTokens: number;
   userMessageTokens: number;
 }): number {
-  const inputBudget =
-    Math.floor(input.contextWindow * BUDGET_RATIO) - input.maxOutputTokens;
+  const inputBudget = inputTokenBudget(
+    input.contextWindow,
+    input.maxOutputTokens,
+  );
   const fixedTokens =
     input.systemPromptTokens +
     input.fileManifestTokens +
@@ -99,8 +112,10 @@ export function allocateTokenBudget(
   input: TokenBudgetInput,
 ): TokenBudgetResult {
   const warnings: string[] = [];
-  const inputBudget =
-    Math.floor(input.contextWindow * BUDGET_RATIO) - input.maxOutputTokens;
+  const inputBudget = inputTokenBudget(
+    input.contextWindow,
+    input.maxOutputTokens,
+  );
 
   const fixedTokens =
     input.systemPromptTokens +

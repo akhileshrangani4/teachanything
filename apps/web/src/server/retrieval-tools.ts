@@ -19,23 +19,67 @@ export interface RetrievalToolContext {
 }
 
 export interface RetrievalSource {
+  /** Server-side only: `mergeSources` copies the display fields, not this. */
+  chunkId: string;
   fileName: string;
   chunkIndex: number;
   pageNumber: number | null;
   similarity: number | null;
 }
 
+/**
+ * A passage a retrieval tool handed the model, one per entry in `sources`.
+ *
+ * Raw document text: it goes back into a prompt (the fallback turn's) and
+ * never to the client, like the tool results themselves.
+ */
+export interface RetrievedPassage {
+  /**
+   * What tells passages apart. Not the display name: every crawled page of a
+   * site shares one (`Web: <hostname>`), and short pages are all chunk 0.
+   */
+  chunkId: string;
+  /** The display name `sources` uses. */
+  fileName: string;
+  /** The stored file name, as the model was shown it. */
+  rawName: string;
+  chunkIndex: number;
+  content: string;
+  /**
+   * Where the call that returned it ranked it, 0 being best: search order for
+   * a search, distance from the asked-for chunk for its neighbours, and
+   * position on the page for a page asked for by number (so a long page ties
+   * with a search's top hits only at its opening chunk). The fallback keeps
+   * the best ranked first when they do not all fit.
+   */
+  rank: number;
+}
+
 export function createRetrievalTools(ctx: RetrievalToolContext) {
   const sources: RetrievalSource[] = [];
-  const record = (chunks: HybridChunk[]) => {
-    for (const c of chunks) {
+  const passages: RetrievedPassage[] = [];
+  const record = (
+    chunks: HybridChunk[],
+    rankOf: (chunk: HybridChunk, index: number) => number = (_, i) => i,
+  ) => {
+    for (const [index, c] of chunks.entries()) {
+      // Same display normalization as the static path (Web: <hostname> for
+      // crawled pages) so merged source lists dedupe on matching names.
+      const fileName = sourceDisplayName(c.fileName, c.storagePath);
       sources.push({
-        // Same display normalization as the static path (Web: <hostname> for
-        // crawled pages) so merged source lists dedupe on matching names.
-        fileName: sourceDisplayName(c.fileName, c.storagePath),
+        chunkId: c.chunkId,
+        fileName,
         chunkIndex: c.chunkIndex,
         pageNumber: c.pageNumber,
         similarity: c.vectorSimilarity,
+      });
+      passages.push({
+        chunkId: c.chunkId,
+        fileName,
+        rawName: c.fileName,
+        chunkIndex: c.chunkIndex,
+        content: c.content,
+        rank: rankOf(c, index),
       });
     }
   };
@@ -148,9 +192,11 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
         }
         const rows = await ctx.db
           .select({
+            chunkId: fileChunks.id,
             content: fileChunks.content,
             chunkIndex: fileChunks.chunkIndex,
             fileName: userFiles.fileName,
+            storagePath: userFiles.storagePath,
           })
           .from(fileChunks)
           .innerJoin(userFiles, eq(fileChunks.fileId, userFiles.id))
@@ -161,6 +207,20 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
             ),
           )
           .orderBy(asc(fileChunks.chunkIndex));
+        // A page read by number is a source like any search hit, and the
+        // fallback needs its text if the turn is cut off after reading it.
+        record(
+          rows.map((r) => ({
+            chunkId: r.chunkId,
+            fileId: resolved.fileId,
+            storagePath: r.storagePath,
+            fileName: r.fileName,
+            chunkIndex: r.chunkIndex,
+            pageNumber,
+            content: r.content,
+            vectorSimilarity: null,
+          })),
+        );
         return {
           pageNumber,
           fileName: rows[0]?.fileName ?? null,
@@ -211,6 +271,7 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
             content: r.content,
             vectorSimilarity: null,
           })),
+          (chunk) => Math.abs(chunk.chunkIndex - chunkIndex),
         );
         return {
           fileName: rows[0]?.fileName ?? null,
@@ -261,5 +322,5 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
     }),
   };
 
-  return { tools, sources };
+  return { tools, sources, passages };
 }

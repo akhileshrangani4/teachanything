@@ -24,7 +24,7 @@ jest.unstable_mockModule("@/lib/logger", () => ({
   logInfo: jest.fn(),
 }));
 
-const { failTurn } = await import("@/server/chat/turn-execution");
+const { failTurn } = await import("@/server/chat/turn-endings");
 const { runPrimaryTurn } = await import("@/server/chat/primary-turn");
 type TurnState = import("@/server/chat/turn-execution").TurnState;
 
@@ -74,6 +74,24 @@ describe("failTurn", () => {
       cause,
     );
     expect(onStreamError).toHaveBeenCalledWith(cause);
+  });
+
+  it("writes an error the stream already reported without logging it again", () => {
+    const written: unknown[] = [];
+    const onStreamError = jest.fn(() => "x");
+    failTurn(
+      {
+        state: emptyState(),
+        writer: { write: (part: unknown) => written.push(part) } as Writer,
+        onStreamError,
+      },
+      new Error("Model stream ended in an error"),
+      "Failed to generate a response.",
+    );
+    expect(written).toEqual([
+      { type: "error", errorText: "Failed to generate a response." },
+    ]);
+    expect(onStreamError).not.toHaveBeenCalled();
   });
 });
 

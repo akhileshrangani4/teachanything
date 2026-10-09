@@ -8,6 +8,7 @@ import {
 } from "@teachanything/db/schema";
 import { hybridSearch } from "./hybrid-search";
 import { sourceDisplayName } from "@/lib/message-sources";
+import { formatPassage } from "./format-passage";
 import {
   createOpenRouterClient,
   EMBEDDING_MODEL,
@@ -46,6 +47,9 @@ export interface RAGContextResult {
   // File IDs the chat router needs to build retrieval tools for the agentic
   // path. Empty when the chatbot has no completed (enabled) files.
   fileIds: string[];
+  // Ids of the chunks in `contextText`. `sources` cannot stand in for these:
+  // every crawled page of a site shares one display name there.
+  chunkIds: string[];
 }
 
 /**
@@ -135,6 +139,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote: "",
       fileIds: [],
+      chunkIds: [],
     };
   }
 
@@ -173,6 +178,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote,
       fileIds,
+      chunkIds: [],
     };
   }
 
@@ -193,6 +199,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote: "",
       fileIds,
+      chunkIds: [],
     };
   }
 
@@ -223,6 +230,7 @@ export async function buildRAGContext(
       fileManifest,
       ragFailureNote: "",
       fileIds,
+      chunkIds: [],
     };
   }
 
@@ -243,7 +251,7 @@ export async function buildRAGContext(
           pageNumber: chunk.pageNumber,
         });
         // D-04: give the LLM the actual page title/URL for accurate citations
-        return `[Source: ${rawName}, Part ${chunk.chunkIndex + 1}]\n${chunk.content}`;
+        return formatPassage(rawName, chunk.chunkIndex, chunk.content);
       })
       .join("\n\n");
 
@@ -266,5 +274,6 @@ export async function buildRAGContext(
     fileManifest,
     ragFailureNote: "",
     fileIds,
+    chunkIds: relevantChunks.map((chunk) => chunk.chunkId),
   };
 }
