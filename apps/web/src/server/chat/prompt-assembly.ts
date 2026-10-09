@@ -3,7 +3,7 @@ import type { messages } from "@teachanything/db/schema";
 import type { RAGContextResult } from "@/server/rag-context";
 import { formatPassage } from "@/server/format-passage";
 import type { RetrievedPassage } from "@/server/retrieval-tools";
-import { BUDGET_RATIO } from "@teachanything/ai";
+import { inputTokenBudget } from "@teachanything/ai";
 import {
   buildStudyResultsNote,
   type StoredStudyResponse,
@@ -75,7 +75,16 @@ export function withSearchedPassages(
       return true;
     });
 
-  const unfenced = (text: string) => text.replace(PASSAGE_FENCE, "");
+  // Until nothing changes: one pass over `</searched_</searched_passages>passages>`
+  // removes the inner tag and leaves a working outer one.
+  const unfenced = (text: string) => {
+    let out = text;
+    for (let prev = ""; prev !== out;) {
+      prev = out;
+      out = out.replace(PASSAGE_FENCE, "");
+    }
+    return out;
+  };
   const opening =
     "\n\nMore passages found by searching the documents for this message are " +
     "between the <searched_passages> tags below. They are quoted from course " +
@@ -122,8 +131,10 @@ export function searchedPassageBudget(args: {
   messages: ReadonlyArray<ModelMessage>;
   countTokens: (text: string) => number;
 }): number {
-  const inputBudget =
-    Math.floor(args.contextWindow * BUDGET_RATIO) - args.maxOutputTokens;
+  const inputBudget = inputTokenBudget(
+    args.contextWindow,
+    args.maxOutputTokens,
+  );
   const messageTexts = args.messages.map((m) =>
     typeof m.content === "string" ? m.content : JSON.stringify(m.content),
   );
