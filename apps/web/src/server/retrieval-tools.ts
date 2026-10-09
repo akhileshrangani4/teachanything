@@ -47,9 +47,10 @@ export interface RetrievedPassage {
   content: string;
   /**
    * Where the call that returned it ranked it, 0 being best: search order for
-   * a search, distance from the asked-for chunk for its neighbours, and 0 for
-   * every chunk of a page asked for by number. The fallback keeps the best
-   * ranked first when they do not all fit.
+   * a search, distance from the asked-for chunk for its neighbours, and
+   * position on the page for a page asked for by number (so a long page ties
+   * with a search's top hits only at its opening chunk). The fallback keeps
+   * the best ranked first when they do not all fit.
    */
   rank: number;
 }
@@ -219,7 +220,6 @@ export function createRetrievalTools(ctx: RetrievalToolContext) {
             content: r.content,
             vectorSimilarity: null,
           })),
-          () => 0,
         );
         return {
           pageNumber,

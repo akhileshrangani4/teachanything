@@ -1,6 +1,6 @@
 import type { InferUIMessageChunk } from "ai";
 import { isRetrievalToolName } from "@/lib/retrieval-tool-names";
-import type { StudyUIMessage } from "./study-tools";
+import { studyTools, type StudyUIMessage } from "./study-tools";
 
 /**
  * Filter retrieval-tool RESULT chunks out of a UI message stream while letting
@@ -56,6 +56,8 @@ export type StreamTail = {
   stepStartedSearch: boolean;
   /** The most recent step reached `finish-step`. */
   stepFinished: boolean;
+  /** A study tool (a quiz) reached the client complete, in any step. */
+  shownStudyTool: boolean;
 };
 
 export function newStreamTail(): StreamTail {
@@ -64,6 +66,7 @@ export function newStreamTail(): StreamTail {
     stepText: "",
     stepStartedSearch: false,
     stepFinished: true,
+    shownStudyTool: false,
   };
 }
 
@@ -106,6 +109,12 @@ export function recordTurnChunk(
     case "tool-input-error":
       if (isRetrievalToolName(chunk.toolName) && chunk.toolName !== "done") {
         tail.stepStartedSearch = true;
+      }
+      if (
+        chunk.type === "tool-input-available" &&
+        Object.hasOwn(studyTools, chunk.toolName)
+      ) {
+        tail.shownStudyTool = true;
       }
       break;
     case "finish-step":

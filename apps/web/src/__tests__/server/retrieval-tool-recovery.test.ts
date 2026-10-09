@@ -294,8 +294,10 @@ describe("retrieval tools recovering from a model's mistakes", () => {
       expect.objectContaining({ chunkIndex: 8, pageNumber: 3 }),
     ]);
     expect(passages.map((p) => [p.chunkIndex, p.content, p.rank])).toEqual([
+      // Ranked by position on the page, so only its opening chunk ties with a
+      // search's top hit.
       [7, "Unit of analysis: who or what is studied.", 0],
-      [8, "In ecological studies it is a group.", 0],
+      [8, "In ecological studies it is a group.", 1],
     ]);
   });
 });

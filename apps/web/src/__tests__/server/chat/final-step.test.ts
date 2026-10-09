@@ -55,6 +55,7 @@ const tail = (overrides: Partial<Tail> = {}): Tail => ({
   stepText: "",
   stepStartedSearch: false,
   stepFinished: true,
+  shownStudyTool: false,
   ...overrides,
 });
 const ended = (
@@ -201,6 +202,28 @@ describe("cutOffMidSearch", () => {
       },
     });
     expect(cutOffMidSearch(dropped)).toBe(true);
+  });
+
+  it("treats a step that answered as the answer when an error after it breaks the stream", () => {
+    // The error came after the step finished, but a step that answered
+    // without searching ended the turn there: no request was cut off.
+    const dropped = ended(undefined, {
+      streamFailed: true,
+      tail: {
+        errorAfterLastStep: true,
+        stepText: "A full answer.",
+        stepFinished: true,
+      },
+    });
+    expect(cutOffMidSearch(dropped)).toBe(false);
+  });
+
+  it("is false when a quiz already reached the student before the stream broke", () => {
+    const dropped = ended(undefined, {
+      streamFailed: true,
+      tail: { shownStudyTool: true, stepFinished: false },
+    });
+    expect(cutOffMidSearch(dropped)).toBe(false);
   });
 
   it("is true when the connection dropped before the step wrote anything", () => {

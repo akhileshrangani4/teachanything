@@ -1,5 +1,7 @@
+import type { ModelMessage } from "ai";
 import type { messages } from "@teachanything/db/schema";
 import type { RAGContextResult } from "@/server/rag-context";
+import { formatPassage } from "@/server/format-passage";
 import type { RetrievedPassage } from "@/server/retrieval-tools";
 import { BUDGET_RATIO } from "@teachanything/ai";
 import {
@@ -61,14 +63,17 @@ export function withSearchedPassages(
   alreadyIncluded: ReadonlyArray<string>,
   budget: { maxTokens: number; countTokens: (text: string) => number },
 ): { prompt: string; included: RetrievedPassage[] } {
+  // Sorted before deduplicating, so a chunk several searches returned keeps
+  // its best rank. Stable, so passages of equal rank keep the order the
+  // searches ran in.
   const seen = new Set(alreadyIncluded);
-  const fresh = passages.filter((p) => {
-    if (seen.has(p.chunkId)) return false;
-    seen.add(p.chunkId);
-    return true;
-  });
-  // Stable, so passages of equal rank keep the order the searches ran in.
-  const byRank = [...fresh].sort((a, b) => a.rank - b.rank);
+  const byRank = [...passages]
+    .sort((a, b) => a.rank - b.rank)
+    .filter((p) => {
+      if (seen.has(p.chunkId)) return false;
+      seen.add(p.chunkId);
+      return true;
+    });
 
   const unfenced = (text: string) => text.replace(PASSAGE_FENCE, "");
   const opening =
@@ -82,7 +87,11 @@ export function withSearchedPassages(
   const included: RetrievedPassage[] = [];
   const blocks: string[] = [];
   for (const p of byRank) {
-    const block = `[Source: ${unfenced(p.rawName)}, Part ${p.chunkIndex + 1}]\n${unfenced(p.content)}`;
+    const block = formatPassage(
+      unfenced(p.rawName),
+      p.chunkIndex,
+      unfenced(p.content),
+    );
     const cost = budget.countTokens(block + "\n\n");
     if (used + cost > budget.maxTokens) continue;
     used += cost;
@@ -99,18 +108,26 @@ export function withSearchedPassages(
 /**
  * Tokens left for searched passages in the fallback's prompt: the same input
  * budget the injected context is held to (see token-budget.ts), less the
- * fallback's own system prompt, the history and the message it is sent with.
+ * fallback's own system prompt and the messages it is sent with.
+ *
+ * The messages are counted as sent, not as their stored text: history carries
+ * study-tool calls (a quiz's full JSON) that the text alone leaves out.
+ * Structured content is counted as its JSON, which runs a little over what
+ * the model sees, the safe side for a budget.
  */
 export function searchedPassageBudget(args: {
   contextWindow: number;
   maxOutputTokens: number;
   fallbackSystemPrompt: string;
-  messageTexts: ReadonlyArray<string>;
+  messages: ReadonlyArray<ModelMessage>;
   countTokens: (text: string) => number;
 }): number {
   const inputBudget =
     Math.floor(args.contextWindow * BUDGET_RATIO) - args.maxOutputTokens;
-  const spent = [args.fallbackSystemPrompt, ...args.messageTexts].reduce(
+  const messageTexts = args.messages.map((m) =>
+    typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+  );
+  const spent = [args.fallbackSystemPrompt, ...messageTexts].reduce(
     (total, text) => total + args.countTokens(text),
     0,
   );

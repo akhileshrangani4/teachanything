@@ -148,7 +148,7 @@ describe("executeTurn timing (real turn, mock model)", () => {
       },
       toolSources: [],
       toolPassages: [],
-      searchedPassageTokens: 0,
+      searchedPassageTokens: () => 0,
       countTokens: (text: string) => text.length,
       onStreamError: () => "err",
       startTime: Date.now(),

@@ -195,20 +195,22 @@ export async function streamChat(params: {
       studyResponsesByToolCallId,
     });
 
-  // Room for the passages the agentic searches find, should the fallback
-  // need them: they arrive after the budget above was spent.
-  const searchedPassageTokens = searchedPassageBudget({
-    contextWindow,
-    maxOutputTokens,
-    fallbackSystemPrompt,
-    messageTexts: [...trimmedHistory.map((row) => row.content), messageText],
-    countTokens,
-  });
-
   const modelMessages = await convertToModelMessages(uiMessages, {
     tools,
     ignoreIncompleteToolCalls: true,
   });
+
+  // Room for the passages the agentic searches find, should the fallback
+  // need them: they arrive after the budget above was spent. Only measured
+  // when the fallback runs.
+  const searchedPassageTokens = () =>
+    searchedPassageBudget({
+      contextWindow,
+      maxOutputTokens,
+      fallbackSystemPrompt,
+      messages: modelMessages,
+      countTokens,
+    });
 
   const temperature = (chatbot.temperature ?? 70) / 100;
 

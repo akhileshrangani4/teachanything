@@ -8,6 +8,7 @@ import {
 } from "@teachanything/db/schema";
 import { hybridSearch } from "./hybrid-search";
 import { sourceDisplayName } from "@/lib/message-sources";
+import { formatPassage } from "./format-passage";
 import {
   createOpenRouterClient,
   EMBEDDING_MODEL,
@@ -250,7 +251,7 @@ export async function buildRAGContext(
           pageNumber: chunk.pageNumber,
         });
         // D-04: give the LLM the actual page title/URL for accurate citations
-        return `[Source: ${rawName}, Part ${chunk.chunkIndex + 1}]\n${chunk.content}`;
+        return formatPassage(rawName, chunk.chunkIndex, chunk.content);
       })
       .join("\n\n");
 

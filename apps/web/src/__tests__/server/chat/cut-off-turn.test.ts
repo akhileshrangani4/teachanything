@@ -259,7 +259,7 @@ async function runTurn(
         },
         toolSources,
         toolPassages,
-        searchedPassageTokens: options.searchedPassageTokens ?? 100_000,
+        searchedPassageTokens: () => options.searchedPassageTokens ?? 100_000,
         countTokens: (text: string) => Math.ceil(text.length / 4),
         onStreamError,
         startTime: Date.now(),
@@ -563,6 +563,35 @@ describe("a turn that answered", () => {
     );
     expect(r.shownText).not.toContain(FALLBACK_ANSWER);
     expect(r.sawError).toBe(true);
+    expect(r.state.executeErrored).toBe(true);
+  });
+
+  it("keeps a finished quiz, and adds no prose answer, when the connection drops after it", async () => {
+    silenceStreamErrors();
+    const quiz = {
+      quiz_title: "Units of analysis",
+      questions: [
+        {
+          question: "What is the unit of analysis in an ecological study?",
+          options: ["A group", "A person", "A cell", "A gene"],
+          correct_index: 0,
+          explanation: "Ecological studies compare groups.",
+        },
+      ],
+    };
+    const r = await runTurn([
+      { connectionDrops: true, call: { name: "showQuiz", args: quiz } },
+      { text: FALLBACK_ANSWER, finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(1);
+    expect(r.chunks).toContainEqual(
+      expect.objectContaining({
+        type: "tool-input-available",
+        toolName: "showQuiz",
+      }),
+    );
+    expect(r.shownText).not.toContain(FALLBACK_ANSWER);
     expect(r.state.executeErrored).toBe(true);
   });
 

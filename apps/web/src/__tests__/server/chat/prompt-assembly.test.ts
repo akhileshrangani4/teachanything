@@ -241,6 +241,23 @@ describe("withSearchedPassages", () => {
     );
   });
 
+  it("keeps a passage several searches returned at its best rank", () => {
+    // A later, sharper search ranked chunk 9 first; an earlier one ranked it
+    // last. With room for one passage, it is the one that goes in.
+    const block = (chunkIndex: number) => `x`.repeat(200) + chunkIndex;
+    const { included } = withSearchedPassages(
+      "SYSTEM",
+      [
+        passage(9, block(9), 7),
+        passage(3, block(3), 1),
+        passage(9, block(9), 0),
+      ],
+      [],
+      { maxTokens: 140, countTokens },
+    );
+    expect(included.map((p) => [p.chunkIndex, p.rank])).toEqual([[9, 0]]);
+  });
+
   it("skips a single passage too big for the budget, and keeps going", () => {
     const { included } = withSearchedPassages(
       "SYSTEM",
@@ -278,10 +295,37 @@ describe("searchedPassageBudget", () => {
         contextWindow: 1000,
         maxOutputTokens: 100,
         fallbackSystemPrompt: "s".repeat(50),
-        messageTexts: ["h".repeat(30), "m".repeat(20)],
+        messages: [
+          { role: "assistant", content: "h".repeat(30) },
+          { role: "user", content: "m".repeat(20) },
+        ],
         countTokens,
       }),
     ).toBe(600);
+  });
+
+  it("counts a history quiz as the tool call the fallback is sent, not its text", () => {
+    const quizInput = { quiz_title: "Q", questions: ["x".repeat(300)] };
+    const budget = searchedPassageBudget({
+      contextWindow: 1000,
+      maxOutputTokens: 100,
+      fallbackSystemPrompt: "",
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "q1",
+              toolName: "showQuiz",
+              input: quizInput,
+            },
+          ],
+        },
+      ],
+      countTokens,
+    });
+    expect(budget).toBeLessThan(700 - 300);
   });
 
   it("never goes below zero", () => {
@@ -290,7 +334,7 @@ describe("searchedPassageBudget", () => {
         contextWindow: 100,
         maxOutputTokens: 100,
         fallbackSystemPrompt: "s".repeat(50),
-        messageTexts: [],
+        messages: [],
         countTokens,
       }),
     ).toBe(0);

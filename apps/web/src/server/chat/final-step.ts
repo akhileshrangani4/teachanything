@@ -112,11 +112,16 @@ export function primaryTurnFailed(end: TurnEnd): boolean {
  * calling a tool ("Let me search more specifically for..."), and counting it as
  * the answer left students with only that line, turn after turn.
  *
- * When a failure ended the turn, it was cut off if the step that failed wrote
- * nothing, or had started another search. A step that failed before it
- * streamed anything is never recorded, so that case is read off the stream. A
- * step that failed partway through writing text is a partial answer instead:
- * a fallback would put a second answer under it.
+ * When a failure ended the turn, it was cut off if the last step the stream
+ * wrote has no text, or had started another search. A step that failed
+ * before it streamed anything is never recorded, so that case is read off the
+ * stream: when the error came after a finished step, `tail` still describes
+ * that step, and a step that answered in text without searching ended the
+ * turn there, so the failed request after it was not a cut-off. A step that
+ * failed partway through writing text is a partial answer instead: a fallback
+ * would put a second answer under it. So is a study tool already on screen (a
+ * finished quiz is the reply); the fallback has no study tools and would write
+ * the quiz out as prose beneath it.
  *
  * Otherwise it was cut off if the last step called a tool whose result the
  * model never read, which means the capped step searched though it was told to
@@ -136,8 +141,12 @@ export function primaryTurnFailed(end: TurnEnd): boolean {
  */
 export function cutOffMidSearch(end: TurnEnd): boolean {
   if (primaryTurnFailed(end)) {
-    // The request that failed never streamed, so it wrote nothing.
-    if (end.tail.errorAfterLastStep) return true;
+    if (end.tail.shownStudyTool) return false;
+    // The request after a finished step failed before streaming: a cut-off
+    // only if that step left something to read. Its own record says so best.
+    if (end.tail.errorAfterLastStep && end.lastStep) {
+      return leftResultsUnread(end.lastStep);
+    }
     return !end.tail.stepText.trim() || end.tail.stepStartedSearch;
   }
   return leftResultsUnread(end.lastStep) || end.tail.stepStartedSearch;
