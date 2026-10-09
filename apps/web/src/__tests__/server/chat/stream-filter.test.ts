@@ -1,5 +1,9 @@
 import { describe, it, expect } from "@jest/globals";
-import { stripRetrievalOutputs } from "@/server/chat/stream-filter";
+import {
+  newStreamTail,
+  recordTurnChunk,
+  stripRetrievalOutputs,
+} from "@/server/chat/stream-filter";
 
 type Chunk = Record<string, unknown>;
 
@@ -98,5 +102,79 @@ describe("stripRetrievalOutputs", () => {
       { type: "finish" },
     ];
     expect(await pump(chunks)).toEqual(chunks);
+  });
+});
+
+describe("recordTurnChunk", () => {
+  const step = (...inner: Chunk[]): Chunk[] => [
+    { type: "start-step" },
+    ...inner,
+    { type: "finish-step" },
+  ];
+  const text = (delta: string): Chunk => ({
+    type: "text-delta",
+    id: "t",
+    delta,
+  });
+  const error: Chunk = { type: "error", errorText: "Failed to generate." };
+  /** Record every chunk; return the tail and the chunks kept for the client. */
+  const record = (chunks: Chunk[]) => {
+    const tail = newStreamTail();
+    const kept = chunks.filter((c) => recordTurnChunk(tail, c as never));
+    return { tail, kept };
+  };
+
+  it("holds error chunks back and keeps the first one's text", () => {
+    const { tail, kept } = record(
+      step(text("Hi"), error, { ...error, errorText: "second" }),
+    );
+    expect(kept.some((c) => c.type === "error")).toBe(false);
+    expect(tail.errorText).toBe("Failed to generate.");
+    expect(tail.errorAfterLastStep).toBe(false);
+  });
+
+  it("tracks only the latest step's text and searches", () => {
+    const { tail } = record([
+      ...step(text("Let me search."), {
+        type: "tool-input-start",
+        toolCallId: "c1",
+        toolName: "search_documents",
+      }),
+      ...step(text("The answer.")),
+    ]);
+    expect(tail.stepText).toBe("The answer.");
+    expect(tail.stepStartedSearch).toBe(false);
+    expect(tail.stepFinished).toBe(true);
+  });
+
+  it("counts a search sent whole with unusable input", () => {
+    const { tail } = record(
+      step({
+        type: "tool-input-error",
+        toolCallId: "c1",
+        toolName: "search_documents",
+        input: {},
+        errorText: "Invalid input",
+      }),
+    );
+    expect(tail.stepStartedSearch).toBe(true);
+  });
+
+  it("does not count `done` as a search", () => {
+    const { tail } = record(
+      step({ type: "tool-input-start", toolCallId: "c1", toolName: "done" }),
+    );
+    expect(tail.stepStartedSearch).toBe(false);
+  });
+
+  it("flags an error that arrives after the last step finished", () => {
+    const { tail } = record([...step(text("Let me search.")), error]);
+    expect(tail.errorAfterLastStep).toBe(true);
+  });
+
+  it("leaves a step that never finished marked unfinished", () => {
+    const { tail } = record([{ type: "start-step" }, text("The unit of")]);
+    expect(tail.stepFinished).toBe(false);
+    expect(tail.stepText).toBe("The unit of");
   });
 });

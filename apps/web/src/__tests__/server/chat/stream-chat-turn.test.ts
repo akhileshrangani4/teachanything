@@ -15,6 +15,7 @@ import { repairQuizToolParts } from "@/server/chat/repair-quiz-parts";
 import { recoverLeakedQuiz } from "@/server/chat/recover-quiz";
 import { assistantMessageForDb } from "@/lib/chat/ui-messages";
 import { isRetrievalToolPart } from "@/lib/retrieval-tool-names";
+import { MAX_AGENT_STEPS } from "@/server/chat/turn-end";
 
 type Chunk = InferUIMessageChunk<StudyUIMessage>;
 type Step = {
@@ -38,6 +39,11 @@ type Step = {
  *   independently generated answer.
  *
  * Getting either backwards produced a shipped bug, so both are pinned here.
+ *
+ * Not replicated: production also discounts the text of a turn cut off
+ * mid-search, and holds back the stream's error chunks (`cutOffMidSearch`,
+ * `recordTurnChunk`). cut-off-turn.test.ts pins those against the real
+ * `executeTurn`.
  */
 async function runTurn(script: Step[]) {
   let call = 0;
@@ -91,7 +97,7 @@ async function runTurn(script: Step[]) {
         model: model(),
         prompt: "quiz me on the gender theory chapter",
         tools,
-        stopWhen: [stepCountIs(5), hasToolCall("done")],
+        stopWhen: [stepCountIs(MAX_AGENT_STEPS), hasToolCall("done")],
       });
 
       const source = primary
