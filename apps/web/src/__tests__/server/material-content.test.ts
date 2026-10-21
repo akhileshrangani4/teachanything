@@ -226,6 +226,29 @@ const png = (marker = 0) =>
   new Uint8Array([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10, marker]);
 const bytes = (value: string) => new TextEncoder().encode(value);
 
+describe("extractMaterialContent PDF errors", () => {
+  it("rethrows extraction errors a PDF cannot recover from", async () => {
+    // Only office formats get the empty-content swallow; a corrupt PDF must
+    // surface as itself so the owner sees the real failure.
+    await expect(
+      extractMaterialContent({
+        ragService: {
+          extractAndChunkWithMetadata: async () => {
+            throw new Error(
+              "Failed to extract PDF content: Invalid PDF file: the contents do not match the file type",
+            );
+          },
+        } as unknown as RAGService,
+        buffer: Buffer.from("%PDF-1.4 corrupt"),
+        mimeType: "application/pdf",
+        fileName: "broken.pdf",
+        apiKey: "sk-test",
+        visionModel: "gpt-6-sol",
+      }),
+    ).rejects.toThrow(/contents do not match the file type/);
+  });
+});
+
 describe("extractMaterialContent standalone images", () => {
   it("analyzes a standalone image and attributes the chunk to it", async () => {
     const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue(

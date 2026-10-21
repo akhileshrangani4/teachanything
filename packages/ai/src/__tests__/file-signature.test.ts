@@ -176,6 +176,19 @@ describe("assertFileSignature", () => {
     expect(() =>
       assertFileSignature(withExtensionBlock, "image/gif"),
     ).not.toThrow();
+
+    // A frame's own descriptor can carry a local color table; its 12 bytes
+    // sit between the descriptor and the image data and must be skipped too.
+    const withLocalColorTable = Buffer.concat([
+      Buffer.from("GIF89a"),
+      Buffer.from([1, 0, 1, 0, 0, 0, 0]),
+      Buffer.from([0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0x81]),
+      Buffer.alloc(12),
+      Buffer.from([2, 1, 0, 0x3b]),
+    ]);
+    expect(() =>
+      assertFileSignature(withLocalColorTable, "image/gif"),
+    ).not.toThrow();
   });
 
   it("accepts a GIF too short to carry frames", () => {

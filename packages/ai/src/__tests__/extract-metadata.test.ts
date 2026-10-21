@@ -79,6 +79,14 @@ describe("extractAndChunkWithMetadata", () => {
     expect(result.pageCount).toBeUndefined();
   });
 
+  it("rejects a PDF whose parser returns no usable result", async () => {
+    mockPdfParse.mockResolvedValue(null as never);
+
+    await expect(
+      service.extractAndChunkWithMetadata(pdf(), "application/pdf"),
+    ).rejects.toThrow(/PDF parsing returned an invalid result/);
+  });
+
   it("extractAndChunk returns just the chunks", async () => {
     mockPdfParse.mockResolvedValue({
       text: "page one\fpage two",
