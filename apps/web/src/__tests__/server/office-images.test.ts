@@ -55,14 +55,88 @@ describe("extractOfficeImages", () => {
     ]);
   });
 
-  it("fails instead of silently truncating more than 40 unique images", () => {
-    const entries: Record<string, Uint8Array> = {};
+  it("fails instead of silently truncating more than 40 referenced images", () => {
+    const entries: Record<string, Uint8Array> = {
+      "word/document.xml": bytes(
+        Array.from(
+          { length: 41 },
+          (_, i) => `<a:blip r:embed="rId${i}"/>`,
+        ).join(""),
+      ),
+      "word/_rels/document.xml.rels": bytes(
+        Array.from(
+          { length: 41 },
+          (_, i) => `<Relationship Id="rId${i}" Target="media/image${i}.png"/>`,
+        ).join(""),
+      ),
+    };
     for (let i = 0; i < 41; i++) {
       entries[`word/media/image${i}.png`] = png(i);
     }
     const archive = zipSync(entries);
     expect(() => extractOfficeImages(Buffer.from(archive), DOCX_MIME)).toThrow(
-      /more than 40 images/,
+      /contains 41 images; the limit is 40/,
     );
+  });
+
+  it("analyzes exactly the referenced images when orphaned media passes the caps", () => {
+    const entries: Record<string, Uint8Array> = {
+      "ppt/slides/slide1.xml": bytes(
+        '<a:blip r:embed="rId1"/><a:blip r:embed="rId2"/><a:blip r:embed="rId3"/>',
+      ),
+      "ppt/slides/_rels/slide1.xml.rels": bytes(
+        '<Relationship Id="rId1" Target="../media/real1.png"/>' +
+          '<Relationship Id="rId2" Target="../media/real2.png"/>' +
+          '<Relationship Id="rId3" Target="../media/real3.png"/>',
+      ),
+    };
+    for (let i = 0; i < 60; i++) {
+      entries[`ppt/media/orphan${i}.png`] = png(i);
+    }
+    entries["ppt/media/real1.png"] = png(101);
+    entries["ppt/media/real2.png"] = png(102);
+    entries["ppt/media/real3.png"] = png(103);
+
+    const images = extractOfficeImages(
+      Buffer.from(zipSync(entries)),
+      PPTX_MIME,
+    );
+    expect(images).toHaveLength(3);
+    expect(images.every((image) => image.section.startsWith("Slide 1"))).toBe(
+      true,
+    );
+  });
+
+  it("evicts oversized orphaned media instead of failing a deck whose referenced images fit", () => {
+    const oversized = (marker: number) => {
+      const data = new Uint8Array(7 * 1024 * 1024);
+      data.set([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10]);
+      // Vary the payload so identical-size images stay distinct under dedupe.
+      data[8] = marker;
+      return data;
+    };
+    const entries: Record<string, Uint8Array> = {
+      "word/document.xml": bytes(
+        '<a:blip r:embed="rId1"/><a:blip r:embed="rId2"/><a:blip r:embed="rId3"/>',
+      ),
+      "word/_rels/document.xml.rels": bytes(
+        '<Relationship Id="rId1" Target="media/real1.png"/>' +
+          '<Relationship Id="rId2" Target="media/real2.png"/>' +
+          '<Relationship Id="rId3" Target="media/real3.png"/>',
+      ),
+      "word/media/real1.png": oversized(1),
+      "word/media/real2.png": oversized(2),
+      "word/media/real3.png": oversized(3),
+      "word/media/orphan.png": oversized(4),
+    };
+
+    const images = extractOfficeImages(
+      Buffer.from(zipSync(entries)),
+      DOCX_MIME,
+    );
+    expect(images).toHaveLength(3);
+    expect(
+      images.every((image) => image.sourcePath !== "word/media/orphan.png"),
+    ).toBe(true);
   });
 });

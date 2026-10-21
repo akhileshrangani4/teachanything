@@ -5,6 +5,17 @@ import { unzipSync } from "fflate";
 
 const MAX_OFFICE_IMAGES = 40;
 const MAX_OFFICE_IMAGE_BYTES = 25 * 1024 * 1024;
+// Decompression memory guard for archive media; sits far above the analysis
+// caps because it runs before the document's own references are known.
+const MAX_ARCHIVE_MEDIA_BYTES = 128 * 1024 * 1024;
+// Section label for media entries no slide or document body references.
+const ORPHAN_SECTION = "Embedded image";
+
+type Candidate = OfficeImage & { sections: Set<string> };
+
+function isReferenced(sections: Set<string>): boolean {
+  return [...sections].some((section) => section !== ORPHAN_SECTION);
+}
 
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   png: "image/png",
@@ -117,19 +128,15 @@ export function extractOfficeImages(
   buffer: Buffer,
   mimeType: string,
 ): OfficeImage[] {
-  let archiveImageCount = 0;
-  let archiveImageBytes = 0;
+  let archiveMediaBytes = 0;
   const entries = unzipSync(new Uint8Array(buffer), {
     filter: (file) => {
       if (supportedMediaPath(file.name)) {
-        archiveImageCount += 1;
-        archiveImageBytes += file.originalSize;
-        if (archiveImageCount > MAX_OFFICE_IMAGES) {
-          throw new Error(
-            `This Office file contains more than ${MAX_OFFICE_IMAGES} images. Split it into smaller files and upload them separately.`,
-          );
-        }
-        if (archiveImageBytes > MAX_OFFICE_IMAGE_BYTES) {
+        // Decompression memory guard only — this runs before we know which
+        // media the document actually references, so it must not enforce the
+        // analysis caps; those apply after orphan eviction below.
+        archiveMediaBytes += file.originalSize;
+        if (archiveMediaBytes > MAX_ARCHIVE_MEDIA_BYTES) {
           throw new Error(
             "The images embedded in this Office file exceed 25 MB. Split it into smaller files and upload them separately.",
           );
@@ -148,11 +155,10 @@ export function extractOfficeImages(
   const mediaPaths = Object.keys(entries).filter(supportedMediaPath).sort();
 
   for (const path of mediaPaths) {
-    if (!references.has(path))
-      references.set(path, new Set(["Embedded image"]));
+    if (!references.has(path)) references.set(path, new Set([ORPHAN_SECTION]));
   }
 
-  const unique = new Map<string, OfficeImage & { sections: Set<string> }>();
+  const unique = new Map<string, Candidate>();
   for (const [path, sections] of references) {
     const entry = entries[path];
     if (!entry || !supportedMediaPath(path)) continue;
@@ -176,22 +182,38 @@ export function extractOfficeImages(
     });
   }
 
-  const totalBytes = [...unique.values()].reduce(
-    (sum, image) => sum + image.data.length,
-    0,
-  );
-  if (unique.size > MAX_OFFICE_IMAGES) {
+  // Referenced media first, orphans last, so the caps below prefer the images
+  // the document actually shows: an edited deck can carry dozens of
+  // unreferenced media files that must not evict (or bill for) real ones.
+  const candidates = [...unique.values()];
+  const ordered = [
+    ...candidates.filter((image) => isReferenced(image.sections)),
+    ...candidates.filter((image) => !isReferenced(image.sections)),
+  ];
+
+  const byteTotal = (images: Candidate[]) =>
+    images.reduce((sum, image) => sum + image.data.length, 0);
+  const overCaps = (images: Candidate[]) =>
+    images.length > MAX_OFFICE_IMAGES ||
+    byteTotal(images) > MAX_OFFICE_IMAGE_BYTES;
+
+  // Caps apply after ordering: over-budget orphans are evicted wholesale, and
+  // the file errors only if the referenced media alone still exceeds a cap.
+  const kept = overCaps(ordered)
+    ? ordered.filter((image) => isReferenced(image.sections))
+    : ordered;
+  if (kept.length > MAX_OFFICE_IMAGES) {
     throw new Error(
-      `This Office file contains ${unique.size} images; the limit is ${MAX_OFFICE_IMAGES}. Split it into smaller files and upload them separately.`,
+      `This Office file contains ${kept.length} images; the limit is ${MAX_OFFICE_IMAGES}. Split it into smaller files and upload them separately.`,
     );
   }
-  if (totalBytes > MAX_OFFICE_IMAGE_BYTES) {
+  if (byteTotal(kept) > MAX_OFFICE_IMAGE_BYTES) {
     throw new Error(
       "The images embedded in this Office file exceed 25 MB. Split it into smaller files and upload them separately.",
     );
   }
 
-  return [...unique.values()].map((image, index) => {
+  return kept.map((image, index) => {
     const section = [...image.sections].join(", ");
     return {
       data: image.data,
