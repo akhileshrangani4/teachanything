@@ -103,9 +103,13 @@ export const retryProcedure = protectedProcedure
         });
       } else {
         // Publish QStash job for async processing in production
+        // force: true so the job bypasses processFile's completed-version skip
+        // guard — a v3-completed file with a failed visual refresh must actually
+        // reprocess when a user explicitly retries it.
         await publishFileProcessingJob({
           fileId: input.fileId,
           userId: ctx.session.user.id,
+          force: true,
         });
 
         logInfo("File retry job published", {

@@ -90,10 +90,11 @@ export async function publishQStashJob(params: {
 export async function publishFileProcessingJob(params: {
   fileId: string;
   userId: string;
+  force?: boolean;
 }): Promise<{ messageId: string }> {
   return publishQStashJob({
     url: `${env.NEXT_PUBLIC_APP_URL}/api/jobs/process-file`,
-    body: { fileId: params.fileId },
+    body: { fileId: params.fileId, force: params.force ?? false },
     flowControl: fileProcessingFlow(params.userId),
   });
 }
