@@ -155,7 +155,7 @@ export function FileStatusBadge({
           <p className="text-xs">
             Stage: {progress?.stage ? STAGE_LABELS[progress.stage] : "Unknown"}
           </p>
-          <p className="text-xs text-amber-200">Try retrying this file</p>
+          <p className="text-xs text-amber-700">Try retrying this file</p>
         </div>
       );
     }
@@ -174,7 +174,7 @@ export function FileStatusBadge({
         <div className="space-y-1">
           <p className="font-medium">The existing index is still available</p>
           <p className="text-xs">{metadata.refreshWarning}</p>
-          <p className="text-xs text-amber-200">
+          <p className="text-xs text-amber-700">
             Retry to update image reading
           </p>
         </div>
