@@ -53,6 +53,7 @@ jest.unstable_mockModule("@/server/qstash", () => ({
   publishFileProcessingJob: mockPublish,
 }));
 jest.unstable_mockModule("@/server/file-processor", () => ({
+  CURRENT_PROCESSING_VERSION: 3,
   processFile: jest.fn(),
 }));
 jest.unstable_mockModule("@/lib/logger", () => ({
