@@ -1,6 +1,9 @@
 /** @jest-environment node */
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { analyzeImages } from "@/server/file-processor/visual-analysis";
+import {
+  analyzeImages,
+  analyzePdf,
+} from "@/server/file-processor/visual-analysis";
 import type { OfficeImage } from "@/server/file-processor/office-images";
 
 function image(label: string, size = 8): OfficeImage {
@@ -27,6 +30,33 @@ function successfulResponse(labels: string[]): Response {
                   pageNumber: null,
                   sourceLabel: label,
                   content: `Description for ${label}`,
+                })),
+              }),
+            },
+          ],
+        },
+      ],
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+}
+
+function successfulPdfResponse(
+  sections: Array<{ pageNumber: number; content: string }>,
+): Response {
+  return new Response(
+    JSON.stringify({
+      output: [
+        {
+          type: "message",
+          content: [
+            {
+              type: "output_text",
+              text: JSON.stringify({
+                sections: sections.map((section) => ({
+                  pageNumber: section.pageNumber,
+                  sourceLabel: `page ${section.pageNumber}`,
+                  content: section.content,
                 })),
               }),
             },
@@ -134,5 +164,68 @@ describe("visual analysis", () => {
         signal: new AbortController().signal,
       }),
     ).rejects.toThrow(/larger than 10 MB/);
+  });
+});
+
+describe("analyzePdf image-only cost gate", () => {
+  function pdfParams(
+    overrides: Partial<Parameters<typeof analyzePdf>[0]> = {},
+  ): Parameters<typeof analyzePdf>[0] {
+    return {
+      buffer: Buffer.from("%PDF-1.4 fixture"),
+      fileName: "lecture.pdf",
+      pageCount: 3,
+      hasNativeText: true,
+      apiKey: "sk-test",
+      model: "gpt-6-sol",
+      signal: new AbortController().signal,
+      ...overrides,
+    };
+  }
+
+  it("makes zero vision-model calls for a text-native PDF, whatever its length", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        successfulPdfResponse([{ pageNumber: 1, content: "never reached" }]),
+      );
+
+    const result = await analyzePdf(pdfParams({ pageCount: 120 }));
+
+    expect(fetchSpy).toHaveBeenCalledTimes(0);
+    expect(result.sections).toEqual([]);
+    expect(result.visualCount).toBe(0);
+  });
+
+  it("still calls the vision model for a scanned PDF", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        successfulPdfResponse([
+          { pageNumber: 1, content: "Handwritten lecture notes" },
+        ]),
+      );
+
+    const result = await analyzePdf(pdfParams({ hasNativeText: false }));
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0]!.pageNumber).toBe(1);
+  });
+
+  it("still calls the vision model for a standalone image", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(successfulResponse(["photo.png"]));
+
+    const result = await analyzeImages({
+      images: [image("photo.png")],
+      apiKey: "sk-test",
+      model: "gpt-6-sol",
+      signal: new AbortController().signal,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(result.visualCount).toBe(1);
   });
 });

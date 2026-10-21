@@ -137,12 +137,16 @@ export async function extractMaterialContent(params: {
     );
     if (params.mimeType === PDF_MIME) {
       const pageCount = native.pageCount ?? 0;
-      await params.onVisualAnalysis?.();
+      const hasNativeText = native.chunks.length > 0;
+      // Image-only cost gate: analyzePdf skips the vision call for text-native
+      // PDFs, so the visual-analysis progress stage only starts when it will
+      // actually run.
+      if (!hasNativeText) await params.onVisualAnalysis?.();
       const visual = await analyzePdf({
         buffer: params.buffer,
         fileName: params.fileName,
         pageCount,
-        hasNativeText: native.chunks.length > 0,
+        hasNativeText,
         apiKey: params.apiKey,
         model: params.visionModel,
         signal: controller.signal,
@@ -164,7 +168,9 @@ export async function extractMaterialContent(params: {
           ...(await chunkVisualSections(params.ragService, visual.sections)),
         ],
         visualCount: visual.visualCount,
-        visionModel: visual.model,
+        // Gated text-native runs analyze no visuals, so the index must not
+        // record a vision model.
+        ...(hasNativeText ? {} : { visionModel: visual.model }),
       };
     }
 

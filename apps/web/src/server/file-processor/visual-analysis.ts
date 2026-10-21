@@ -194,6 +194,14 @@ export async function analyzePdf(params: {
   model: string;
   signal: AbortSignal;
 }): Promise<VisualAnalysisResult> {
+  // Cost gate (image-only PDFs first): a PDF with usable native text is fully
+  // served by text extraction, so it never reaches the vision model. Checked
+  // before the page ceiling because the 50-page limit only applies to paid
+  // vision work. Until per-request pagination ships, visuals inside
+  // text-native PDFs are not analyzed.
+  if (params.hasNativeText) {
+    return { sections: [], model: params.model, visualCount: 0 };
+  }
   if (params.pageCount > 50) {
     throw new Error(
       `This PDF has ${params.pageCount} pages; visual processing supports at most 50. Split it into smaller files and upload them separately.`,
@@ -205,9 +213,6 @@ export async function analyzePdf(params: {
     );
   }
 
-  const mode = params.hasNativeText
-    ? "Focus on visual information and text inside images; do not repeat ordinary selectable body text unless needed to understand a visual."
-    : "This PDF has no usable text layer. Transcribe all readable page text as well as describing its visuals.";
   const sections = await createResponse({
     apiKey: params.apiKey,
     model: params.model,
@@ -215,7 +220,7 @@ export async function analyzePdf(params: {
     content: [
       {
         type: "input_text",
-        text: `${ANALYSIS_INSTRUCTIONS} ${mode} Set pageNumber for every section and set sourceLabel to a short page-specific label.`,
+        text: `${ANALYSIS_INSTRUCTIONS} This PDF has no usable text layer. Transcribe all readable page text as well as describing its visuals. Set pageNumber for every section and set sourceLabel to a short page-specific label.`,
       },
       {
         type: "input_file",
