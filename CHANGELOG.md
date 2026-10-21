@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.35.6](https://github.com/akhileshrangani4/teachanything/compare/v1.35.5...v1.35.6) (2026-10-21)
+
+
+### Miscellaneous Chores
+
+* add .obvious onboarding contract (stack, commands, codebase map, local-dev skill) ([#548](https://github.com/akhileshrangani4/teachanything/issues/548)) ([246217d](https://github.com/akhileshrangani4/teachanything/commit/246217dc95d5c639cac5799fe11099b8680ffaf1))
+
 ## [1.35.5](https://github.com/akhileshrangani4/teachanything/compare/v1.35.4...v1.35.5) (2026-10-09)
 
 
