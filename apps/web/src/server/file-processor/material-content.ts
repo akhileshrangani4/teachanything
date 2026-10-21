@@ -31,6 +31,28 @@ export interface MaterialContent {
   visionModel?: string;
 }
 
+/**
+ * Correct vision page attribution instead of hard-failing the file. pdf-parse
+ * can report zero pages (page count unknown), and the model can hallucinate a
+ * page or skip attribution entirely — none of that should cost the user the
+ * whole analysis.
+ */
+function clampPageAttribution(
+  sections: VisualSection[],
+  pageCount: number,
+): VisualSection[] {
+  return sections.map(({ pageNumber, ...rest }) => {
+    if (pageNumber == null) return rest;
+    // Zero reported pages means pdf-parse could not count them, so the
+    // model's positive numbers are the only attribution available.
+    if (pageCount < 1) return { pageNumber, ...rest };
+    return {
+      ...rest,
+      pageNumber: Math.min(Math.max(pageNumber, 1), pageCount),
+    };
+  });
+}
+
 function isEmptyNativeContent(error: unknown): boolean {
   return (
     error instanceof Error && error.message.includes("no readable text content")
@@ -151,21 +173,11 @@ export async function extractMaterialContent(params: {
         model: params.visionModel,
         signal: controller.signal,
       });
-      for (const section of visual.sections) {
-        if (
-          section.pageNumber == null ||
-          section.pageNumber < 1 ||
-          section.pageNumber > pageCount
-        ) {
-          throw new Error(
-            "OpenAI visual analysis returned invalid PDF page attribution",
-          );
-        }
-      }
+      const attributed = clampPageAttribution(visual.sections, pageCount);
       return {
         chunks: [
           ...native.chunks,
-          ...(await chunkVisualSections(params.ragService, visual.sections)),
+          ...(await chunkVisualSections(params.ragService, attributed)),
         ],
         visualCount: visual.visualCount,
         // Gated text-native runs analyze no visuals, so the index must not

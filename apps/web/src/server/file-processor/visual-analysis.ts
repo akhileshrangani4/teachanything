@@ -27,6 +27,7 @@ export interface VisualSection {
 export interface VisualAnalysisResult {
   sections: VisualSection[];
   model: string;
+  /** Visuals the model actually detected (its labeled output sections), not pages analyzed. */
   visualCount: number;
 }
 
@@ -234,7 +235,9 @@ export async function analyzePdf(params: {
   if (sections.length === 0) {
     throw new Error("OpenAI visual analysis found no usable PDF content");
   }
-  return { sections, model: params.model, visualCount: params.pageCount };
+  // Count what the model actually detected — its labeled output sections —
+  // not the page count the file happens to have.
+  return { sections, model: params.model, visualCount: sections.length };
 }
 
 function imageBatches(images: OfficeImage[]): OfficeImage[][] {

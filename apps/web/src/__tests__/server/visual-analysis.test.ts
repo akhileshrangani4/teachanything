@@ -211,6 +211,8 @@ describe("analyzePdf image-only cost gate", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(result.sections).toHaveLength(1);
     expect(result.sections[0]!.pageNumber).toBe(1);
+    // Detected visuals, not the 3-page file's page count.
+    expect(result.visualCount).toBe(1);
   });
 
   it("still calls the vision model for a standalone image", async () => {
