@@ -1,5 +1,8 @@
 import { describe, it, expect } from "@jest/globals";
-import { sanitizeProcessingError } from "@/lib/processing-error";
+import {
+  STORAGE_MISSING_ERROR,
+  sanitizeProcessingError,
+} from "@/lib/processing-error";
 
 /**
  * Every message a file owner can be shown when processing fails.
@@ -162,6 +165,17 @@ describe("sanitizeProcessingError", () => {
     expect(
       sanitizeProcessingError(new Error("upstream returned passwordless=true")),
     ).toBe("File processing failed due to an internal error");
+  });
+
+  it("passes the storage-missing message through unchanged", () => {
+    expect(sanitizeProcessingError(new Error(STORAGE_MISSING_ERROR))).toBe(
+      STORAGE_MISSING_ERROR,
+    );
+  });
+
+  it("passes animated-image limit messages through unchanged", () => {
+    const raw = "Animated GIF images are not supported.";
+    expect(sanitizeProcessingError(new Error(raw))).toBe(raw);
   });
 
   it("never leaks a stack trace or internal path to the user", () => {

@@ -139,4 +139,63 @@ describe("extractOfficeImages", () => {
       images.every((image) => image.sourcePath !== "word/media/orphan.png"),
     ).toBe(true);
   });
+
+  it("resolves absolute relationship targets", () => {
+    const archive = zipSync({
+      "word/document.xml": bytes('<a:blip r:embed="rId1"/>'),
+      "word/_rels/document.xml.rels": bytes(
+        '<Relationship Id="rId1" Target="/word/media/abs.png"/>',
+      ),
+      "word/media/abs.png": png(),
+    });
+
+    const images = extractOfficeImages(Buffer.from(archive), DOCX_MIME);
+    expect(images).toHaveLength(1);
+    expect(images[0]!.sourcePath).toBe("word/media/abs.png");
+  });
+
+  it("ignores relationship targets that are not raster media", () => {
+    const archive = zipSync({
+      "word/document.xml": bytes('<a:blip r:embed="rId1"/>'),
+      "word/_rels/document.xml.rels": bytes(
+        '<Relationship Id="rId1" Target="media/notes.txt"/>',
+      ),
+      "word/media/notes.txt": bytes("plain text"),
+    });
+
+    const images = extractOfficeImages(Buffer.from(archive), DOCX_MIME);
+    expect(images).toHaveLength(0);
+  });
+
+  it("fails when the referenced media alone exceeds the 25 MB budget", () => {
+    const oversized = (marker: number) => {
+      const data = new Uint8Array(7 * 1024 * 1024);
+      data.set([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10]);
+      data[8] = marker;
+      return data;
+    };
+    const entries: Record<string, Uint8Array> = {
+      "word/document.xml": bytes(
+        Array.from({ length: 4 }, (_, i) => `<a:blip r:embed="rId${i}"/>`).join(
+          "",
+        ),
+      ),
+      "word/_rels/document.xml.rels": bytes(
+        Array.from(
+          { length: 4 },
+          (_, i) => `<Relationship Id="rId${i}" Target="media/real${i}.png"/>`,
+        ).join(""),
+      ),
+      "word/media/real0.png": oversized(1),
+      "word/media/real1.png": oversized(2),
+      "word/media/real2.png": oversized(3),
+      "word/media/real3.png": oversized(4),
+    };
+
+    // Orphan eviction cannot save this one: the referenced media themselves
+    // are over budget, so the file must error instead of silently truncating.
+    expect(() =>
+      extractOfficeImages(Buffer.from(zipSync(entries)), DOCX_MIME),
+    ).toThrow(/exceed 25 MB/);
+  });
 });

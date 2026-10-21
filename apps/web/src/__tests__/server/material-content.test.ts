@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import type { RAGService } from "@teachanything/ai";
+import { zipSync } from "fflate";
 import { extractMaterialContent } from "@/server/file-processor/material-content";
 
 function pdfResponse(
@@ -216,5 +217,149 @@ describe("extractMaterialContent PDF cost gate", () => {
       ),
     ).toBe(true);
     expect(material.visionModel).toBe("gpt-6-sol");
+  });
+});
+
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const png = (marker = 0) =>
+  new Uint8Array([0x89, 0x50, 0x4e, 0x47, 13, 10, 26, 10, marker]);
+const bytes = (value: string) => new TextEncoder().encode(value);
+
+describe("extractMaterialContent standalone images", () => {
+  it("analyzes a standalone image and attributes the chunk to it", async () => {
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      visionResponse([
+        {
+          pageNumber: null,
+          sourceLabel: "cover.png",
+          content: "A labelled cell diagram",
+        },
+      ]),
+    );
+
+    const material = await extractMaterialContent({
+      ragService: ragServiceDouble({ chunks: [] }),
+      buffer: Buffer.from(png()),
+      mimeType: "image/png",
+      fileName: "cover.png",
+      apiKey: "sk-test",
+      visionModel: "gpt-6-sol",
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(material.visualCount).toBe(1);
+    expect(material.visionModel).toBe("gpt-6-sol");
+    expect(material.chunks[0]!.content).toContain(
+      "[Visual analysis — cover.png]",
+    );
+    expect(material.chunks[0]!.section).toBe("cover.png");
+  });
+});
+
+describe("extractMaterialContent office documents", () => {
+  it("merges analyzed embedded images with the document's native text", async () => {
+    // A DOCX whose text layer is empty: the extraction error is swallowed for
+    // office formats and the embedded image carries the document alone.
+    const ragService = {
+      extractAndChunkWithMetadata: async () => {
+        throw new Error("Word document contains no readable text content");
+      },
+      chunkText: async (content: string) => [content],
+    } as unknown as RAGService;
+    const entries = {
+      "word/document.xml": bytes('<a:blip r:embed="rId1"/>'),
+      "word/_rels/document.xml.rels": bytes(
+        '<Relationship Id="rId1" Target="media/diagram.png"/>',
+      ),
+      "word/media/diagram.png": png(),
+    };
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      visionResponse([
+        {
+          pageNumber: null,
+          sourceLabel: "Image 1 (Document image 1)",
+          content: "Mitosis stages",
+        },
+      ]),
+    );
+
+    const material = await extractMaterialContent({
+      ragService,
+      buffer: Buffer.from(zipSync(entries)),
+      mimeType: DOCX_MIME,
+      fileName: "handout.docx",
+      apiKey: "sk-test",
+      visionModel: "gpt-6-sol",
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(material.visualCount).toBe(1);
+    expect(material.visionModel).toBe("gpt-6-sol");
+    expect(
+      material.chunks.some((chunk) => chunk.content.includes("Mitosis stages")),
+    ).toBe(true);
+  });
+
+  it("returns native text alone when the document embeds no images", async () => {
+    const entries = {
+      "word/document.xml": bytes("<p>Week 1 reading</p>"),
+      "word/_rels/document.xml.rels": bytes(""),
+    };
+    const fetchSpy = jest.spyOn(globalThis, "fetch");
+
+    const material = await extractMaterialContent({
+      ragService: ragServiceDouble({
+        chunks: [{ content: "Week 1 reading" }],
+      }),
+      buffer: Buffer.from(zipSync(entries)),
+      mimeType: DOCX_MIME,
+      fileName: "notes.docx",
+      apiKey: "sk-test",
+      visionModel: "gpt-6-sol",
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(material).toEqual({
+      chunks: [{ content: "Week 1 reading" }],
+      visualCount: 0,
+    });
+  });
+
+  it("rejects an office document with neither text nor images", async () => {
+    const entries = {
+      "word/document.xml": bytes("<p/>"),
+      "word/_rels/document.xml.rels": bytes(""),
+    };
+
+    await expect(
+      extractMaterialContent({
+        ragService: {
+          extractAndChunkWithMetadata: async () => {
+            throw new Error("Word document contains no readable text content");
+          },
+          chunkText: async (content: string) => [content],
+        } as unknown as RAGService,
+        buffer: Buffer.from(zipSync(entries)),
+        mimeType: DOCX_MIME,
+        fileName: "empty.docx",
+        apiKey: "sk-test",
+        visionModel: "gpt-6-sol",
+      }),
+    ).rejects.toThrow("Office document contains no readable content");
+  });
+
+  it("passes other mime types through with text extraction only", async () => {
+    const material = await extractMaterialContent({
+      ragService: ragServiceDouble({ chunks: [{ content: "plain text" }] }),
+      buffer: Buffer.from("plain text"),
+      mimeType: "text/plain",
+      fileName: "notes.txt",
+      apiKey: "sk-test",
+      visionModel: "gpt-6-sol",
+    });
+
+    expect(material.visualCount).toBe(0);
+    expect(material.visionModel).toBeUndefined();
   });
 });

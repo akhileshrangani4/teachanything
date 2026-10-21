@@ -231,3 +231,171 @@ describe("analyzePdf image-only cost gate", () => {
     expect(result.visualCount).toBe(1);
   });
 });
+
+describe("visual analysis failure paths", () => {
+  const scannedParams = (
+    overrides: Partial<Parameters<typeof analyzePdf>[0]> = {},
+  ): Parameters<typeof analyzePdf>[0] => ({
+    buffer: Buffer.from("%PDF-1.4 fixture"),
+    fileName: "lecture.pdf",
+    pageCount: 3,
+    hasNativeText: false,
+    apiKey: "sk-test",
+    model: "gpt-6-sol",
+    signal: new AbortController().signal,
+    ...overrides,
+  });
+
+  it("rejects a scanned PDF over the 50-page vision ceiling before any call", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        successfulPdfResponse([{ pageNumber: 1, content: "never reached" }]),
+      );
+
+    await expect(analyzePdf(scannedParams({ pageCount: 51 }))).rejects.toThrow(
+      /at most 50/,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects a scanned PDF whose buffer exceeds the 50 MB request ceiling", async () => {
+    await expect(
+      analyzePdf(scannedParams({ buffer: Buffer.alloc(50 * 1024 * 1024) })),
+    ).rejects.toThrow(/under 50 MB/);
+  });
+
+  it("reports an incomplete vision response instead of indexing partial output", async () => {
+    jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: "incomplete",
+          incomplete_details: { reason: "max_output_tokens" },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    await expect(analyzePdf(scannedParams())).rejects.toThrow(
+      /incomplete \(max_output_tokens\)/,
+    );
+  });
+
+  it("fails the run when the vision response carries no text", async () => {
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+
+    await expect(analyzePdf(scannedParams())).rejects.toThrow(
+      /returned no text/,
+    );
+  });
+
+  it("reads a top-level output_text field when the API returns one", async () => {
+    jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          output_text: JSON.stringify({
+            sections: [
+              {
+                pageNumber: 2,
+                sourceLabel: "page 2",
+                content: "Chart of enrollment",
+              },
+            ],
+          }),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const result = await analyzePdf(scannedParams());
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0]!.pageNumber).toBe(2);
+    expect(result.sections[0]!.section).toBe("page 2");
+  });
+
+  it("stops after three attempts on a persistent rate limit", async () => {
+    // A fresh Response per attempt: a Response body can only be read once.
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(
+        async () => new Response("rate limited", { status: 429 }),
+      );
+
+    await expect(
+      analyzeImages({
+        images: [image("diagram.png")],
+        apiKey: "sk-test",
+        model: "gpt-6-sol",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow(/failed \(429\): rate limited/);
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports the underlying failure when every attempt errors", async () => {
+    jest.spyOn(globalThis, "fetch").mockRejectedValue("socket hang up");
+
+    await expect(
+      analyzeImages({
+        images: [image("diagram.png")],
+        apiKey: "sk-test",
+        model: "gpt-6-sol",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow(/failed after 3 attempts: socket hang up/);
+  });
+
+  it("rejects images whose returned labels do not match the request", async () => {
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(successfulResponse(["mislabeled"]));
+
+    await expect(
+      analyzeImages({
+        images: [image("photo.png")],
+        apiKey: "sk-test",
+        model: "gpt-6-sol",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow(/incomplete image attribution/);
+  });
+
+  it("rejects a scanned PDF whose analysis finds no usable content", async () => {
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(successfulPdfResponse([]));
+
+    await expect(analyzePdf(scannedParams())).rejects.toThrow(
+      /found no usable PDF content/,
+    );
+  });
+
+  it("splits batches when accumulated image bytes exceed the request limit", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (_url, options) => {
+        const body = JSON.parse(String(options?.body)) as {
+          input: Array<{ content: Array<{ type: string; text?: string }> }>;
+        };
+        const labels = body.input[0]!.content.filter((part) =>
+          part.text?.startsWith("Source label: "),
+        ).map((part) => part.text!.replace("Source label: ", ""));
+        return successfulResponse(labels);
+      });
+
+    const result = await analyzeImages({
+      images: [
+        image("a.png", 6 * 1024 * 1024),
+        image("b.png", 6 * 1024 * 1024),
+      ],
+      apiKey: "sk-test",
+      model: "gpt-6-sol",
+      signal: new AbortController().signal,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(result.visualCount).toBe(2);
+  });
+});

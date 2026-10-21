@@ -26,9 +26,12 @@ jest.unstable_mockModule("@/server/file-processor", () => ({
   CURRENT_PROCESSING_VERSION: 3,
   processFile: jest.fn(),
 }));
+const mockLogInfo = jest.fn<() => void>();
+const mockLogError = jest.fn<() => void>();
+
 jest.unstable_mockModule("@/lib/logger", () => ({
-  logInfo: jest.fn(),
-  logError: jest.fn(),
+  logInfo: mockLogInfo,
+  logError: mockLogError,
 }));
 
 const { maybeEnqueueReprocess } = await import("@/server/reprocess");
@@ -45,13 +48,17 @@ function renderSql(condition: unknown): string {
 function mockDb(candidates: unknown[], claimed: unknown[]) {
   let candidateWhere: unknown;
   let claimWhere: unknown;
+  const sets: unknown[] = [];
   const update = jest.fn(() => ({
-    set: () => ({
-      where: (where: unknown) => {
-        claimWhere = where;
-        return { returning: () => Promise.resolve(claimed) };
-      },
-    }),
+    set: (payload: unknown) => {
+      sets.push(payload);
+      return {
+        where: (where: unknown) => {
+          claimWhere = where;
+          return { returning: () => Promise.resolve(claimed) };
+        },
+      };
+    },
   }));
   const db = {
     select: () => ({
@@ -69,6 +76,7 @@ function mockDb(candidates: unknown[], claimed: unknown[]) {
   return {
     db: db as never,
     update,
+    sets,
     wheres: () => ({ candidateWhere, claimWhere }),
   };
 }
@@ -128,5 +136,49 @@ describe("maybeEnqueueReprocess", () => {
     expect(renderSql(candidateWhere)).toContain("is null");
     expect(renderSql(claimWhere)).toContain("refreshFailedAt");
     expect(renderSql(claimWhere)).toContain("is null");
+  });
+
+  it("releases the claim when publishing fails and keeps the batch alive", async () => {
+    const { db, update, sets } = mockDb(
+      [{ fileId: "f1" }, { fileId: "f2" }],
+      [
+        { fileId: "f1", userId: "owner-1" },
+        { fileId: "f2", userId: "owner-2" },
+      ],
+    );
+    mockPublish.mockRejectedValueOnce(new Error("qstash down"));
+
+    await maybeEnqueueReprocess(db, "bot-1");
+
+    // f1's publish failed (call 1) and f2 still went out (call 2): the batch
+    // survived the failure.
+    expect(mockPublish).toHaveBeenCalledTimes(2);
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.anything(),
+      "Failed to enqueue reprocess job",
+      { fileId: "f1" },
+    );
+    // The rollback drops reprocessQueuedAt so a later chat turn can claim f1
+    // again instead of losing it for the requeue window.
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(sets).toHaveLength(2);
+    expect(renderSql((sets[1] as { metadata: unknown }).metadata)).toContain(
+      "- 'reprocessQueuedAt'",
+    );
+  });
+
+  it("swallows selection failures instead of failing the chat turn", async () => {
+    const db = {
+      select: () => {
+        throw new Error("db down");
+      },
+    } as never;
+
+    await expect(maybeEnqueueReprocess(db, "bot-1")).resolves.toBeUndefined();
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.anything(),
+      "maybeEnqueueReprocess failed",
+      { chatbotId: "bot-1" },
+    );
   });
 });

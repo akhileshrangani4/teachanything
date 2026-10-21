@@ -151,4 +151,49 @@ describe("assertFileSignature", () => {
       assertFileSignature(Buffer.from("anything"), "application/zip"),
     ).not.toThrow();
   });
+
+  it("counts GIF frames by walking blocks, not by matching image bytes", () => {
+    // A global color table shifts the first frame's offset; the frame walker
+    // must skip it rather than read the palette as block structure.
+    const withGlobalColorTable = Buffer.concat([
+      Buffer.from("GIF89a"),
+      Buffer.from([1, 0, 1, 0, 0x81, 0, 0]),
+      Buffer.from([0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0]),
+      Buffer.from([0x3b]),
+    ]);
+    expect(() =>
+      assertFileSignature(withGlobalColorTable, "image/gif"),
+    ).not.toThrow();
+
+    // Extension blocks (0x21) sit between frames and must be skipped down to
+    // their terminator rather than read as a frame or as image data.
+    const withExtensionBlock = Buffer.concat([
+      Buffer.from("GIF89a"),
+      Buffer.from([1, 0, 1, 0, 0, 0, 0]),
+      Buffer.from([0x21, 0x02, 0x01, 0x00]),
+      Buffer.from([0x3b]),
+    ]);
+    expect(() =>
+      assertFileSignature(withExtensionBlock, "image/gif"),
+    ).not.toThrow();
+  });
+
+  it("accepts a GIF too short to carry frames", () => {
+    // Shorter than the 13-byte logical screen descriptor: nothing to count,
+    // so the single-frame assumption holds.
+    expect(() =>
+      assertFileSignature(Buffer.from("GIF89a"), "image/gif"),
+    ).not.toThrow();
+  });
+
+  it("rejects a RIFF container that is not WebP", () => {
+    const riff = Buffer.concat([
+      Buffer.from("RIFF"),
+      Buffer.alloc(4),
+      Buffer.from("WAVE"),
+    ]);
+    expect(() => assertFileSignature(riff, "image/webp")).toThrow(
+      /do not match the file type/,
+    );
+  });
 });
