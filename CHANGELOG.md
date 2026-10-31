@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.37.0](https://github.com/akhileshrangani4/teachanything/compare/v1.36.0...v1.37.0) (2026-10-31)
+
+
+### Features
+
+* **chat:** let professors set a welcome message students see first ([#557](https://github.com/akhileshrangani4/teachanything/issues/557)) ([9912d41](https://github.com/akhileshrangani4/teachanything/commit/9912d4181929c1332cf32e07640153645bfdd277))
+* **chat:** show the open-source LLM next to the Teach Anything brand ([#556](https://github.com/akhileshrangani4/teachanything/issues/556)) ([9fa353e](https://github.com/akhileshrangani4/teachanything/commit/9fa353ef30240f377a8e81dd3a73e81fb7c9c5cf))
+
+
+### Documentation
+
+* add code of conduct ([#554](https://github.com/akhileshrangani4/teachanything/issues/554)) ([bbc1336](https://github.com/akhileshrangani4/teachanything/commit/bbc1336ce2b5d505cb368559c1f85257ad115c40))
+
 ## [1.36.0](https://github.com/akhileshrangani4/teachanything/compare/v1.35.5...v1.36.0) (2026-10-31)
 
 
