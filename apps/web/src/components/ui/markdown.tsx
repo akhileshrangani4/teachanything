@@ -11,9 +11,12 @@ export type MarkdownProps = {
 };
 
 const markdownComponents: Components = {
+  // `ms-6` (margin-inline-start) and `dir="auto"` put the markers on the
+  // right for a right-to-left list (Hebrew, Arabic) instead of clipping them.
   ul: ({ children, className, ...props }) => (
     <ul
-      className={cn("ml-6 list-outside list-disc whitespace-normal", className)}
+      dir="auto"
+      className={cn("ms-6 list-outside list-disc whitespace-normal", className)}
       {...props}
     >
       {children}
@@ -21,8 +24,9 @@ const markdownComponents: Components = {
   ),
   ol: ({ children, className, ...props }) => (
     <ol
+      dir="auto"
       className={cn(
-        "ml-6 list-outside list-decimal whitespace-normal",
+        "ms-6 list-outside list-decimal whitespace-normal",
         className,
       )}
       {...props}
@@ -39,7 +43,13 @@ function MarkdownComponent({
   style,
 }: MarkdownProps) {
   return (
-    <div className={cn("streamdown-content", className)} style={style}>
+    // `dir="auto"` lets the browser pick the direction from the text itself,
+    // so a reply in Hebrew or Arabic reads right-to-left.
+    <div
+      dir="auto"
+      className={cn("streamdown-content", className)}
+      style={style}
+    >
       <Streamdown
         parseIncompleteMarkdown={parseIncompleteMarkdown}
         components={markdownComponents}

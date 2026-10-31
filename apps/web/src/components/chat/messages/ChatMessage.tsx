@@ -97,6 +97,7 @@ function ChatMessageImpl({
         <div className="flex flex-col items-end gap-1 md:gap-2 max-w-[85%] md:max-w-[80%] min-w-0">
           <MessageContent
             markdown={false}
+            dir="auto"
             className="bg-primary/10 text-foreground whitespace-pre-wrap shadow-xs border border-primary/20"
           >
             {textContent}
