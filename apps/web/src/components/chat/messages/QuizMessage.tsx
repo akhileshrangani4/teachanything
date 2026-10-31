@@ -148,7 +148,9 @@ export function QuizMessage({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
-        <p className="text-sm md:text-base font-medium">{question.question}</p>
+        <p dir="auto" className="text-sm md:text-base font-medium">
+          {question.question}
+        </p>
 
         <div
           className="flex flex-col gap-2"
@@ -171,11 +173,12 @@ export function QuizMessage({
                 // so option text alone can collide. Index disambiguates.
                 key={`${optionIndex}-${option}`}
                 type="button"
+                dir="auto"
                 onClick={() => handleSelect(optionIndex)}
                 disabled={answered}
                 aria-label={`${option}${answerState}`}
                 className={cn(
-                  "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                  "flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-start text-sm transition-colors",
                   "disabled:cursor-default",
                   !answered &&
                     "border-border/60 bg-background hover:bg-accent hover:text-accent-foreground",
@@ -213,7 +216,7 @@ export function QuizMessage({
             <span className="font-medium text-foreground">
               {chosen === question.correct_index ? "Correct! " : "Not quite. "}
             </span>
-            {question.explanation}
+            <span dir="auto">{question.explanation}</span>
           </div>
         )}
       </CardContent>

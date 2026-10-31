@@ -110,6 +110,7 @@ export function ChatInput({
           <PromptInputTextarea
             placeholder="Ask me anything..."
             aria-label="Type a message"
+            dir="auto"
             className="flex-1 text-foreground text-base min-h-[60px] md:min-h-[120px] scrollbar-thin"
           />
           <PromptInputActions>
