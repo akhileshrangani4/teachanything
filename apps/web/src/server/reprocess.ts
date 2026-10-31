@@ -29,6 +29,15 @@ const isOldVersion = or(
 );
 
 /**
+ * A failed paid vision refresh leaves the old index usable and waits for an
+ * explicit retry — auto-reprocessing the file on chat access would charge for
+ * the same analysis again.
+ */
+const isNotRefreshFailed = isNull(
+  sql`${userFiles.metadata} ->> 'refreshFailedAt'`,
+);
+
+/**
  * Lazily reprocess files ingested under an older processing version so they gain
  * page-aware chunks + pageNumber metadata (issue #271). Non-blocking and
  * best-effort: never throws into the chat path.
@@ -48,6 +57,7 @@ export async function maybeEnqueueReprocess(
           eq(userFiles.processingStatus, "completed"),
           isOldVersion,
           isNotQueued,
+          isNotRefreshFailed,
         ),
       )
       // Throttle: only (re)enqueue a small batch per chat access so a chatbot
@@ -71,6 +81,7 @@ export async function maybeEnqueueReprocess(
           ),
           eq(userFiles.processingStatus, "completed"),
           isNotQueued,
+          isNotRefreshFailed,
         ),
       )
       .returning({ fileId: userFiles.id, userId: userFiles.userId });
@@ -86,14 +97,21 @@ export async function maybeEnqueueReprocess(
     const inlineDev = env.NODE_ENV === "development";
     for (const { fileId, userId } of stale) {
       if (inlineDev) {
-        void processFile({ fileId }).catch((e) =>
-          logError(e, "Inline reprocess failed", { fileId }),
-        );
+        void processFile({
+          fileId,
+          targetProcessingVersion: CURRENT_PROCESSING_VERSION,
+        }).catch((e) => logError(e, "Inline reprocess failed", { fileId }));
       } else {
         try {
           await publishFileProcessingJob({ fileId, userId });
         } catch (e) {
           logError(e, "Failed to enqueue reprocess job", { fileId });
+          await db
+            .update(userFiles)
+            .set({
+              metadata: sql`${userFiles.metadata} - 'reprocessQueuedAt'`,
+            })
+            .where(eq(userFiles.id, fileId));
         }
       }
     }

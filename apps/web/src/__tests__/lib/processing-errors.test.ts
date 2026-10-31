@@ -1,5 +1,8 @@
 import { describe, it, expect } from "@jest/globals";
-import { sanitizeProcessingError } from "@/lib/processing-error";
+import {
+  STORAGE_MISSING_ERROR,
+  sanitizeProcessingError,
+} from "@/lib/processing-error";
 
 /**
  * Every message a file owner can be shown when processing fails.
@@ -15,7 +18,7 @@ describe("sanitizeProcessingError", () => {
     [
       "scanned / image-only PDF",
       "PDF contains no readable text content",
-      "OCR",
+      "No readable text or supported images",
     ],
     [
       "empty upload",
@@ -78,7 +81,7 @@ describe("sanitizeProcessingError", () => {
     [
       "word with no text",
       "Word document contains no readable text content",
-      "OCR",
+      "No readable text or supported images",
     ],
     [
       "password protected",
@@ -134,6 +137,22 @@ describe("sanitizeProcessingError", () => {
     expect(sanitizeProcessingError(new Error(raw))).toBe(raw);
   });
 
+  it("keeps actionable split-file limits", () => {
+    const raw =
+      "This PDF has 80 pages; visual processing supports at most 50. Split it into smaller files and upload them separately.";
+    expect(sanitizeProcessingError(new Error(raw))).toBe(raw);
+  });
+
+  it("turns a bad vision model into an administrator action", () => {
+    expect(
+      sanitizeProcessingError(
+        new Error(
+          'OpenAI vision model "cheap-model" is unavailable or incompatible',
+        ),
+      ),
+    ).toContain("OPENAI_VISION_MODEL");
+  });
+
   it("still has a generic fallback for genuinely unknown failures", () => {
     expect(sanitizeProcessingError(new Error("ECONNRESET"))).toBe(
       "File processing failed due to an internal error",
@@ -146,6 +165,17 @@ describe("sanitizeProcessingError", () => {
     expect(
       sanitizeProcessingError(new Error("upstream returned passwordless=true")),
     ).toBe("File processing failed due to an internal error");
+  });
+
+  it("passes the storage-missing message through unchanged", () => {
+    expect(sanitizeProcessingError(new Error(STORAGE_MISSING_ERROR))).toBe(
+      STORAGE_MISSING_ERROR,
+    );
+  });
+
+  it("passes animated-image limit messages through unchanged", () => {
+    const raw = "Animated GIF images are not supported.";
+    expect(sanitizeProcessingError(new Error(raw))).toBe(raw);
   });
 
   it("never leaks a stack trace or internal path to the user", () => {

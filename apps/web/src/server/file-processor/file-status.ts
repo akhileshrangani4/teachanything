@@ -6,9 +6,10 @@ import { logInfo, logError } from "@/lib/logger";
 /**
  * Bump when ingestion logic changes (chunking, page metadata, etc.). Files with
  * userFiles.metadata.processingVersion < this are reprocessed lazily on access.
- * v1 = pre-page flat chunks @2500; v2 = page-aware @1000 with pageNumber.
+ * v1 = pre-page flat chunks @2500; v2 = page-aware @1000 with pageNumber;
+ * v3 = image/scanned-PDF analysis with visual attribution.
  */
-export const CURRENT_PROCESSING_VERSION = 2;
+export const CURRENT_PROCESSING_VERSION = 3;
 
 /**
  * Mark a file failed and stop. Used by the paths that bail out mid-run without
@@ -40,7 +41,13 @@ export async function abandonProcessing(
  */
 export async function updateProgress(
   fileId: string,
-  stage: "downloading" | "extracting" | "chunking" | "embedding" | "storing",
+  stage:
+    | "downloading"
+    | "extracting"
+    | "analyzing"
+    | "chunking"
+    | "embedding"
+    | "storing",
   percentage: number,
   currentChunk?: number,
   totalChunks?: number,
@@ -55,8 +62,11 @@ export async function updateProgress(
     .limit(1);
 
   const existingMetadata = currentFile?.metadata || {};
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { error: _prevError, ...cleanMetadata } = existingMetadata;
+  const cleanMetadata = Object.fromEntries(
+    Object.entries(existingMetadata).filter(
+      ([key]) => !["error", "refreshWarning", "refreshFailedAt"].includes(key),
+    ),
+  ) as typeof existingMetadata;
   const startedAt = existingMetadata?.processingProgress?.startedAt || now;
 
   await db
