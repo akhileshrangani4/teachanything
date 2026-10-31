@@ -1,10 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useChat } from "@/hooks/useChat";
 import { ChatInterface } from "@/components/chat/messages/ChatInterface";
-import { BrandName } from "@/components/brand/BrandName";
+import { PoweredBy } from "@/components/brand/PoweredBy";
 import {
   Card,
   CardContent,
@@ -96,19 +95,7 @@ export default function SharedChatPage() {
             voiceInputEnabled
             onStudyAttempt={onStudyAttempt}
             studyAttempts={studyAttempts}
-            brandingText={
-              <span className="inline-flex items-center gap-1.5">
-                <span>Powered by</span>
-                <Image
-                  src="/logo.svg"
-                  alt="Teach Anything®"
-                  width={14}
-                  height={14}
-                  className="h-3.5 w-3.5"
-                />
-                <BrandName serifAnything className="font-medium" />
-              </span>
-            }
+            brandingText={<PoweredBy modelId={chatbot.model} />}
           />
         </ErrorBoundary>
       </div>

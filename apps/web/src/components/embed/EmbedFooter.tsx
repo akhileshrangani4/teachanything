@@ -1,10 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { BrandName } from "@/components/brand/BrandName";
+import { PoweredBy } from "@/components/brand/PoweredBy";
 
-export function EmbedFooter() {
+interface EmbedFooterProps {
+  /** The chatbot's model id, shown as its open-source LLM. */
+  modelId: string;
+}
+
+export function EmbedFooter({ modelId }: EmbedFooterProps) {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
@@ -15,17 +19,9 @@ export function EmbedFooter() {
         href={baseUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
-        <span>Powered by</span>
-        <Image
-          src="/logo.svg"
-          alt="Teach Anything®"
-          width={14}
-          height={14}
-          className="h-3.5 w-3.5"
-        />
-        <BrandName serifAnything className="font-medium" />
+        <PoweredBy modelId={modelId} className="justify-center" />
       </Link>
     </div>
   );

@@ -101,7 +101,7 @@ export default function EmbedWindowPage() {
           />
         </ErrorBoundary>
       </div>
-      <EmbedFooter />
+      <EmbedFooter modelId={chatbot.model} />
     </div>
   );
 }
