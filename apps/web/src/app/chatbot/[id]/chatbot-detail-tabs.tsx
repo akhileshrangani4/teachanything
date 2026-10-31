@@ -88,6 +88,7 @@ export function ChatbotDetailTabs({
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef}
             chatbotName={chatbot.name || "Chatbot"}
+            welcomeMessage={chatbot.welcomeMessage}
             resetChat={resetChat}
             stop={stop}
             showSources={showSources}
@@ -133,6 +134,7 @@ export function ChatbotDetailTabs({
               chatbot={{
                 name: chatbot.name,
                 description: chatbot.description,
+                welcomeMessage: chatbot.welcomeMessage,
                 model: chatbot.model,
                 systemPrompt: chatbot.systemPrompt,
                 temperature: chatbot.temperature,

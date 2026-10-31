@@ -87,6 +87,7 @@ export default function SharedChatPage() {
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
+            welcomeMessage={chatbot.welcomeMessage}
             resetChat={resetChat}
             stop={stop}
             height="flex-1 min-h-0"

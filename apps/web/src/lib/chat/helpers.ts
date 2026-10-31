@@ -143,3 +143,7 @@ export function deriveStatusLine(
   }
   return "Generating answer…";
 }
+
+/** Greeting shown under "Welcome to <name>!" when a chatbot has no custom welcome message. */
+export const DEFAULT_WELCOME_MESSAGE =
+  "Start by asking a question about the course.";

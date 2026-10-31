@@ -167,6 +167,9 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
         data: {
           name: name.trim(),
           description: description.trim() || undefined,
+          // Sent even when empty, unlike description: clearing the field
+          // must clear the message so the chat falls back to the default.
+          welcomeMessage: draft.welcomeMessage.trim(),
           model: model as SupportedModel,
           systemPrompt,
           temperature: parseFloat(temperature),
