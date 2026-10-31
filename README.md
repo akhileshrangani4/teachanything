@@ -99,7 +99,7 @@ npm run stop         # Stop PostgreSQL container
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, [SETUP.md](./SETUP.md) for environment configuration, and [AGENTS.md](./AGENTS.md) for coding guidelines.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, [SETUP.md](./SETUP.md) for environment configuration, and [AGENTS.md](./AGENTS.md) for coding guidelines. All contributors are expected to follow our [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## License
 
