@@ -402,3 +402,8 @@
   top: 0.75rem !important;
   transform: none !important;
 }
+
+/* Code stays left-to-right inside a right-to-left (Hebrew, Arabic) reply. */
+[data-streamdown="code-block"] {
+  direction: ltr;
+}
