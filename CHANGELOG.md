@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.36.0](https://github.com/akhileshrangani4/teachanything/compare/v1.35.5...v1.36.0) (2026-10-31)
+
+
+### Features
+
+* **chat:** render right-to-left text in chat and quiz ([#552](https://github.com/akhileshrangani4/teachanything/issues/552)) ([366c460](https://github.com/akhileshrangani4/teachanything/commit/366c46042051b7acdd31fd7292fc6bf756f0d555))
+
+
+### Miscellaneous Chores
+
+* add .obvious onboarding contract (stack, commands, codebase map, local-dev skill) ([#548](https://github.com/akhileshrangani4/teachanything/issues/548)) ([246217d](https://github.com/akhileshrangani4/teachanything/commit/246217dc95d5c639cac5799fe11099b8680ffaf1))
+* **deps-dev:** bump prettier from 3.9.6 to 3.9.10 in the prettier group across 1 directory ([#525](https://github.com/akhileshrangani4/teachanything/issues/525)) ([5d4a15f](https://github.com/akhileshrangani4/teachanything/commit/5d4a15f2e782b3be9617deeaa2134baeea3acb3e))
+* **deps:** bump codecov/codecov-action from 6 to 7 in the actions group across 1 directory ([#526](https://github.com/akhileshrangani4/teachanything/issues/526)) ([296c61e](https://github.com/akhileshrangani4/teachanything/commit/296c61e4e8bb11a3a701b2082eb2f1ef9429cf91))
+* **deps:** bump the npm-security group across 1 directory with 2 updates ([#546](https://github.com/akhileshrangani4/teachanything/issues/546)) ([bb68160](https://github.com/akhileshrangani4/teachanything/commit/bb6816011611dd7e884eb402dc7b112297d6ce3b))
+* remove .obvious onboarding contract ([#553](https://github.com/akhileshrangani4/teachanything/issues/553)) ([0dd8829](https://github.com/akhileshrangani4/teachanything/commit/0dd88296917ac56d4fd6ec9fc6e86adecd9a81d2))
+
 ## [1.35.5](https://github.com/akhileshrangani4/teachanything/compare/v1.35.4...v1.35.5) (2026-10-09)
 
 
