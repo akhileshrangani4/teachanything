@@ -20,6 +20,7 @@ import { MODEL_REGISTRY, formatContextWindow } from "@teachanything/ai/models";
 import { VALIDATION_LIMITS } from "@/lib/validation";
 import type { SettingsDraft } from "./settings-draft";
 import { modelsByProvider } from "./models-by-provider";
+import { WelcomeMessageField } from "./welcome-message-field";
 
 interface ConfigurationCardProps {
   draft: SettingsDraft;
@@ -144,6 +145,12 @@ export function ConfigurationCard({
           </div>
         </div>
       )}
+
+      <WelcomeMessageField
+        value={draft.welcomeMessage}
+        onChange={(value) => setField("welcomeMessage", value)}
+        isEditing={isEditing}
+      />
 
       {/* Model */}
       <div className="space-y-2">

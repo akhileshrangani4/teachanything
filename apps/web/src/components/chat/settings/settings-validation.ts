@@ -1,4 +1,8 @@
-import { validateName, validateDescription } from "@/lib/validation";
+import {
+  validateName,
+  validateDescription,
+  VALIDATION_LIMITS,
+} from "@/lib/validation";
 import type { SettingsDraft } from "./settings-draft";
 
 export interface SettingsValidationIssue {
@@ -13,7 +17,14 @@ export interface SettingsValidationIssue {
 export function validateSettingsDraft(
   draft: SettingsDraft,
 ): SettingsValidationIssue | null {
-  const { name, description, temperature, maxTokens, systemPrompt } = draft;
+  const {
+    name,
+    description,
+    welcomeMessage,
+    temperature,
+    maxTokens,
+    systemPrompt,
+  } = draft;
 
   const nameValidation = validateName(name);
   if (!nameValidation.isValid) {
@@ -28,6 +39,13 @@ export function validateSettingsDraft(
     return {
       title: descriptionValidation.error!,
       description: descriptionValidation.description,
+    };
+  }
+
+  if (welcomeMessage.length > VALIDATION_LIMITS.WELCOME_MESSAGE_MAX_LENGTH) {
+    return {
+      title: "Welcome message is too long",
+      description: `Welcome message must be ${VALIDATION_LIMITS.WELCOME_MESSAGE_MAX_LENGTH} characters or less`,
     };
   }
 

@@ -3,6 +3,7 @@ import { resolveModel } from "@teachanything/ai/models";
 export interface ChatbotSettingsChatbot {
   name: string;
   description: string | null;
+  welcomeMessage: string | null;
   model: string;
   systemPrompt: string;
   temperature: number | null;
@@ -15,6 +16,7 @@ export interface ChatbotSettingsChatbot {
 export type SettingsDraft = {
   name: string;
   description: string;
+  welcomeMessage: string;
   model: string;
   systemPrompt: string;
   temperature: string;
@@ -26,6 +28,7 @@ export function settingsFromChatbot(c: ChatbotSettingsChatbot): SettingsDraft {
   return {
     name: c.name,
     description: c.description ?? "",
+    welcomeMessage: c.welcomeMessage ?? "",
     // A retired model id (e.g. Mistral Large 3) already runs on its
     // replacement via resolveModel at chat time. Show that same model here so
     // the form matches what the bot actually does, and so the next save
