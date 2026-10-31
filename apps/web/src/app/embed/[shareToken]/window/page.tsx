@@ -79,6 +79,7 @@ export default function EmbedWindowPage() {
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
             chatbotName={chatbot.name || "Chatbot"}
+            welcomeMessage={chatbot.welcomeMessage}
             resetChat={resetChat}
             stop={stop}
             height="h-full"
@@ -101,7 +102,7 @@ export default function EmbedWindowPage() {
           />
         </ErrorBoundary>
       </div>
-      <EmbedFooter />
+      <EmbedFooter modelId={chatbot.model} />
     </div>
   );
 }

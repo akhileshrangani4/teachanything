@@ -4,6 +4,7 @@ import {
   toolCapableModels,
   modelSupportsTools,
   resolveModel,
+  getModelDisplayName,
 } from "../models";
 
 describe("supportsTools gating", () => {
@@ -57,5 +58,21 @@ describe("supportsTools gating", () => {
     ]) {
       expect(resolveModel(id)).toBe("qwen/qwen3-235b-a22b-2507");
     }
+  });
+});
+
+describe("getModelDisplayName", () => {
+  it("returns the registry display name for a supported model", () => {
+    expect(getModelDisplayName("meta-llama/llama-3.3-70b-instruct")).toBe(
+      "Llama 3.3 70B",
+    );
+  });
+  it("names the replacement model for a deprecated id", () => {
+    expect(getModelDisplayName("mistralai/mistral-large")).toBe(
+      MODEL_REGISTRY["qwen/qwen3-235b-a22b-2507"].displayName,
+    );
+  });
+  it("names the default model for an unknown id", () => {
+    expect(getModelDisplayName("not-a-real/model")).toBe("Llama 3.3 70B");
   });
 });

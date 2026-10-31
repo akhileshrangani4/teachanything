@@ -148,3 +148,12 @@ export function toolCapableModels(): ModelMetadata[] {
 export function modelSupportsTools(modelId: string): boolean {
   return MODEL_REGISTRY[resolveModel(modelId)].supportsTools;
 }
+
+/**
+ * Human-readable name of the model a chatbot actually runs, after resolving
+ * deprecated ids. Shown to students so they can see which open-source LLM
+ * powers the chatbot.
+ */
+export function getModelDisplayName(modelId: string): string {
+  return MODEL_REGISTRY[resolveModel(modelId)].displayName;
+}

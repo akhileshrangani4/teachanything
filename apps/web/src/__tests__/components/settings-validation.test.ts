@@ -8,6 +8,7 @@ import {
 const draft = (over: Partial<SettingsDraft> = {}): SettingsDraft => ({
   name: "Study Bot",
   description: "Helps with coursework",
+  welcomeMessage: "",
   model: "openai/gpt-4o-mini",
   systemPrompt: "You are a helpful tutor.",
   temperature: "70",
@@ -77,6 +78,18 @@ describe("validateSettingsDraft", () => {
     expect(validateSettingsDraft(draft({ maxTokens: "2000abc" }))).toBeNull();
   });
 
+  it("accepts a welcome message at the length limit", () => {
+    expect(
+      validateSettingsDraft(draft({ welcomeMessage: "a".repeat(500) })),
+    ).toBeNull();
+  });
+
+  it("rejects a welcome message over the length limit", () => {
+    expect(
+      validateSettingsDraft(draft({ welcomeMessage: "a".repeat(501) }))?.title,
+    ).toBe("Welcome message is too long");
+  });
+
   it("reports problems in field order, name first", () => {
     const issue = validateSettingsDraft(
       draft({ name: "", temperature: "999", systemPrompt: "" }),
@@ -97,6 +110,7 @@ describe("settingsFromChatbot", () => {
   const base = {
     name: "Bio 101",
     description: null,
+    welcomeMessage: null,
     systemPrompt: "Be helpful",
     temperature: 70,
     maxTokens: 2000,
@@ -109,6 +123,13 @@ describe("settingsFromChatbot", () => {
       settingsFromChatbot({ ...base, model: "mistralai/mistral-large-2512" })
         .model,
     ).toBe("qwen/qwen3-235b-a22b-2507");
+  });
+
+  it("shows no welcome message as an empty field", () => {
+    expect(
+      settingsFromChatbot({ ...base, model: "openai/gpt-oss-120b" })
+        .welcomeMessage,
+    ).toBe("");
   });
 
   it("leaves a live model unchanged", () => {

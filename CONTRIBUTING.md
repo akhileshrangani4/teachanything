@@ -2,6 +2,8 @@
 
 Thanks for your interest in contributing! This guide covers setup and workflow expectations.
 
+Everyone participating in this project is expected to follow our [Code of Conduct](./CODE_OF_CONDUCT.md).
+
 > **Using an AI coding assistant?** Read [AGENTS.md](./AGENTS.md) for agent-specific coding standards and architecture guidance.
 
 ## Development Setup

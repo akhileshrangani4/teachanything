@@ -14,7 +14,7 @@ import { MessageAvatar } from "@/components/ui/message";
 import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
-import { deriveStatusLine } from "@/lib/chat/helpers";
+import { deriveStatusLine, DEFAULT_WELCOME_MESSAGE } from "@/lib/chat/helpers";
 import type { ChatStatus } from "ai";
 import { toast } from "sonner";
 
@@ -31,6 +31,8 @@ interface ChatInterfaceProps {
   handleSendMessage: (e: React.FormEvent) => void;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   chatbotName: string;
+  /** Professor's custom greeting under "Welcome to <name>!"; blank uses the default. */
+  welcomeMessage?: string | null;
   resetChat: () => void;
   stop?: () => void;
   height?: string;
@@ -56,6 +58,7 @@ export function ChatInterface({
   handleSendMessage,
   messagesEndRef,
   chatbotName,
+  welcomeMessage,
   resetChat,
   stop,
   height = "h-[600px]",
@@ -156,8 +159,8 @@ export function ChatInterface({
                 <p className="text-muted-foreground mb-2 text-base md:text-lg">
                   👋 Welcome to {chatbotName}!
                 </p>
-                <p className="text-xs md:text-sm text-muted-foreground/70">
-                  Start by asking a question about the course.
+                <p className="max-w-prose whitespace-pre-line break-words text-xs md:text-sm text-muted-foreground/70">
+                  {welcomeMessage?.trim() || DEFAULT_WELCOME_MESSAGE}
                 </p>
               </div>
             ) : (
