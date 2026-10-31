@@ -1,7 +1,0 @@
-# Obvious repo policy — detected from GitHub repo settings on 2026-10-21
-defaultBranch: main
-merge:
-  method: squash # conventional commits; release-please manages versions
-  deleteBranchOnMerge: true
-github:
-  repo: akhileshrangani4/teachanything
