@@ -9,6 +9,7 @@ import { ArrowUp, Square } from "lucide-react";
 import { toast } from "sonner";
 import { VALIDATION_LIMITS } from "@/lib/validation";
 import { VoiceInputButton } from "./VoiceInputButton";
+import { useTranslation } from "react-i18next";
 
 interface ChatInputProps {
   currentMessage: string;
@@ -34,6 +35,7 @@ export function ChatInput({
   chatbotId,
   voiceInputEnabled = true,
 }: ChatInputProps) {
+  const { t } = useTranslation();
   // Global kill switch — when off, voice is hidden everywhere regardless
   // of the per-surface prop. Must match the server-side check in the
   // /api/transcribe route or users see a button that always 404s.
@@ -61,7 +63,7 @@ export function ChatInput({
     if (!currentMessage.trim() || isStreaming) return;
     if (currentMessage.length > VALIDATION_LIMITS.MESSAGE_MAX_LENGTH) {
       toast.error(
-        `Message exceeds ${VALIDATION_LIMITS.MESSAGE_MAX_LENGTH.toLocaleString()} character limit`,
+        t("chat.input.tooLong", { max: VALIDATION_LIMITS.MESSAGE_MAX_LENGTH }),
       );
       return;
     }
@@ -93,7 +95,7 @@ export function ChatInput({
     const capped = next.slice(0, VALIDATION_LIMITS.MESSAGE_MAX_LENGTH);
     setCurrentMessage(capped);
     if (capped.length === VALIDATION_LIMITS.MESSAGE_MAX_LENGTH) {
-      toast.warning("Message truncated to character limit");
+      toast.warning(t("chat.input.truncated"));
     }
   };
 
@@ -108,8 +110,8 @@ export function ChatInput({
       >
         <div className="flex items-end gap-2 w-full">
           <PromptInputTextarea
-            placeholder="Ask me anything..."
-            aria-label="Type a message"
+            placeholder={t("chat.input.placeholder")}
+            aria-label={t("chat.input.ariaLabel")}
             dir="auto"
             className="flex-1 text-foreground text-base min-h-[60px] md:min-h-[120px] scrollbar-thin"
           />
@@ -135,9 +137,9 @@ export function ChatInput({
                 size="icon"
                 variant="destructive"
                 onClick={handleStop}
-                aria-label="Stop generating"
+                aria-label={t("chat.input.stop")}
                 className="h-8 w-8 md:h-9 md:w-9 rounded-full"
-                title="Stop generating"
+                title={t("chat.input.stop")}
               >
                 <Square className="h-3.5 w-3.5 md:h-4 md:w-4 fill-current" />
               </Button>
@@ -147,7 +149,7 @@ export function ChatInput({
                 size="icon"
                 disabled={isStreaming || !currentMessage.trim()}
                 onClick={handleSubmit}
-                aria-label="Send message"
+                aria-label={t("chat.input.send")}
                 className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-foreground text-background hover:bg-foreground/90"
               >
                 <ArrowUp className="h-4 w-4 md:h-5 md:w-5" />
@@ -158,7 +160,10 @@ export function ChatInput({
       </PromptInput>
       <div className="flex justify-end mt-1 px-1">
         <span className={`text-xs ${getCounterColor()}`}>
-          {messageLength.toLocaleString()} / {maxLength.toLocaleString()}
+          {t("common.form.characterCount", {
+            current: messageLength,
+            max: maxLength,
+          })}
         </span>
       </div>
     </div>

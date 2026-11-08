@@ -12,8 +12,10 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 
 export default function PendingPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -50,19 +52,15 @@ export default function PendingPage() {
     <div className="min-h-screen flex items-center justify-center bg-secondary">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Account Pending Approval</CardTitle>
-          <CardDescription>Your registration has been received</CardDescription>
+          <CardTitle>{t("auth.pending.title")}</CardTitle>
+          <CardDescription>{t("auth.pending.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Alert>
             <AlertDescription>
-              <p className="mb-4">
-                Your account is currently awaiting approval from an
-                administrator. You&apos;ll receive an email notification once
-                your account has been reviewed.
-              </p>
+              <p className="mb-4">{t("auth.pending.body")}</p>
               <p className="text-sm text-muted-foreground">
-                This typically takes 24-48 hours during business days.
+                {t("auth.pending.timing")}
               </p>
             </AlertDescription>
           </Alert>
@@ -74,19 +72,25 @@ export default function PendingPage() {
               className="w-full"
               disabled={isRedirecting}
             >
-              {isRedirecting ? "Redirecting..." : "Back to Login"}
+              {isRedirecting
+                ? t("auth.pending.redirecting")
+                : t("auth.pending.backToLogin")}
             </Button>
 
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                Questions? Email us at{" "}
-                <a
-                  href="mailto:admin@teachanything.ai"
-                  className="text-primary hover:underline"
-                >
-                  admin@teachanything.ai
-                </a>
-                .
+                <Trans
+                  i18nKey="auth.pending.questions"
+                  values={{ email: "admin@teachanything.ai" }}
+                  components={{
+                    a: (
+                      <a
+                        href="mailto:admin@teachanything.ai"
+                        className="text-primary hover:underline"
+                      />
+                    ),
+                  }}
+                />
               </p>
             </div>
           </div>

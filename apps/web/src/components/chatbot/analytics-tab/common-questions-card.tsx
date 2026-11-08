@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { COMMON_QUESTIONS_PAGE_SIZE } from "./constants";
+import { useTranslation } from "react-i18next";
 
 type CommonQuestionsData = RouterOutputs["analytics"]["getCommonQuestions"];
 
@@ -25,12 +26,13 @@ export function CommonQuestionsCard({
   offset: number;
   onOffsetChange: (offset: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Card className="border border-border/60 shadow-xs">
       <CardHeader>
-        <CardTitle>Common Questions</CardTitle>
+        <CardTitle>{t("analytics.commonQuestions.title")}</CardTitle>
         <CardDescription>
-          Top first messages across student sessions
+          {t("analytics.commonQuestions.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -42,7 +44,7 @@ export function CommonQuestionsCard({
           </div>
         ) : !data || data.questions.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            No common questions yet
+            {t("analytics.commonQuestions.empty")}
           </div>
         ) : (
           <div className="space-y-3">
@@ -64,12 +66,14 @@ export function CommonQuestionsCard({
             {data.totalCount > COMMON_QUESTIONS_PAGE_SIZE && (
               <div className="flex items-center justify-between pt-3 border-t">
                 <span className="text-xs text-muted-foreground">
-                  Showing {offset + 1}-
-                  {Math.min(
-                    offset + COMMON_QUESTIONS_PAGE_SIZE,
-                    data.totalCount,
-                  )}{" "}
-                  of {data.totalCount}
+                  {t("common.table.range", {
+                    from: offset + 1,
+                    to: Math.min(
+                      offset + COMMON_QUESTIONS_PAGE_SIZE,
+                      data.totalCount,
+                    ),
+                    total: data.totalCount,
+                  })}
                 </span>
                 <div className="flex gap-1">
                   <Button
@@ -82,7 +86,7 @@ export function CommonQuestionsCard({
                     }
                     disabled={offset === 0}
                   >
-                    Previous
+                    {t("common.actions.previous")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -94,7 +98,7 @@ export function CommonQuestionsCard({
                       offset + COMMON_QUESTIONS_PAGE_SIZE >= data.totalCount
                     }
                   >
-                    Next
+                    {t("common.actions.next")}
                   </Button>
                 </div>
               </div>

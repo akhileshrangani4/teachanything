@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { RouterOutputs } from "@/lib/trpc";
 import { toggleAllInSet, toggleInSet } from "@/lib/selection";
 import { runSequentially } from "@/lib/sequential-actions";
+import { useTranslation } from "react-i18next";
 
 type CrawlSource = RouterOutputs["crawler"]["getCrawlSources"][number];
 
@@ -28,6 +29,7 @@ export function useSourceSelection({
   handleSelectAll: () => void;
   handleRemoveSelected: () => Promise<void>;
 } {
+  const { t } = useTranslation();
   const [expandedSources, setExpandedSources] = useState<Set<string>>(
     new Set(),
   );
@@ -77,12 +79,13 @@ export function useSourceSelection({
     );
     setSelectedSources(new Set());
     if (failures === 0) {
-      toast.success(
-        `${ids.length} web source${ids.length !== 1 ? "s" : ""} removed from chatbot`,
-      );
+      toast.success(t("webSources.page.removedAll", { count: ids.length }));
     } else {
       toast.error(
-        `${failures} of ${ids.length} web source${ids.length !== 1 ? "s" : ""} could not be removed`,
+        t("webSources.page.removedPartial", {
+          failed: failures,
+          total: ids.length,
+        }),
       );
     }
   };

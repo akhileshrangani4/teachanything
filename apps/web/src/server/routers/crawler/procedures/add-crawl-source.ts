@@ -1,11 +1,10 @@
 import { protectedProcedure } from "@/server/trpc";
 import { eq, and } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import {
   crawlSources,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { verifyUrlReachable } from "@teachanything/ai/crawler";
+import { assertUrlReachable } from "../url-reachability";
 import {
   dispatchCrawlJob,
   processCrawlDiscovery,
@@ -14,9 +13,10 @@ import { checkRateLimit, crawlSourceRateLimit } from "@/server/rate-limit";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import {
   CRAWL_SOURCES_PER_HOUR,
-  formatRetryAfter,
+  retryAfterMinutes,
 } from "@/lib/constants/rate-limits";
 import { crawlSourceInput } from "../validation";
+import { appError } from "@/server/app-error";
 
 export const addCrawlSourceProcedure = protectedProcedure
   .input(crawlSourceInput)
@@ -31,23 +31,13 @@ export const addCrawlSourceProcedure = protectedProcedure
       { action: "addCrawlSource" },
     );
     if (!success) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: `You've reached the hourly limit of ${CRAWL_SOURCES_PER_HOUR} full website crawls. This is an hourly limit, not a total cap on web sources. You can start another crawl in ${formatRetryAfter(reset)}.`,
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.fullCrawls", {
+        limit: CRAWL_SOURCES_PER_HOUR,
+        minutes: retryAfterMinutes(reset),
       });
     }
 
-    try {
-      await verifyUrlReachable(input.rootUrl);
-    } catch (e) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message:
-          e instanceof Error
-            ? e.message
-            : "Could not reach that URL. Please check it's correct and publicly accessible.",
-      });
-    }
+    await assertUrlReachable(input.rootUrl);
 
     const [existing] = await ctx.db
       .select()
@@ -61,10 +51,7 @@ export const addCrawlSourceProcedure = protectedProcedure
       .limit(1);
 
     if (existing) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: "You've already added this URL as a web source",
-      });
+      throw appError("CONFLICT", "errors.crawler.duplicateUrl");
     }
 
     const source = await ctx.db.transaction(async (tx) => {
@@ -83,10 +70,7 @@ export const addCrawlSourceProcedure = protectedProcedure
         .returning();
 
       if (!created) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create crawl source",
-        });
+        throw appError("INTERNAL_SERVER_ERROR", "errors.crawler.createFailed");
       }
 
       if (input.chatbotId) {

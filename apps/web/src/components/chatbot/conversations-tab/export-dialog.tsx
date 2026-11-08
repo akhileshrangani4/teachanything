@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import type { ExportFormat } from "@/lib/export-conversations";
 import { EXPORT_FORMAT_OPTIONS } from "./constants";
+import { useTranslation } from "react-i18next";
 
 export function ExportDialog({
   open,
@@ -31,6 +32,7 @@ export function ExportDialog({
   onClose: () => void;
   onExport: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog
       open={open}
@@ -41,32 +43,33 @@ export function ExportDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Export{" "}
-            {mode === "selected"
-              ? `${selectedCount} selected chat${selectedCount !== 1 ? "s" : ""}`
-              : "all chats"}
+            {t("conversations.exportDialog.title", {
+              mode: mode === "selected" ? "selected" : "all",
+              count: selectedCount,
+            })}
           </DialogTitle>
           <DialogDescription>
-            Choose the formats to include. A README explaining each file is
-            added automatically, and everything downloads as a single .zip.
+            {t("conversations.exportDialog.description")}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3 py-2">
           {EXPORT_FORMAT_OPTIONS.map((option) => (
             <label
-              key={option.value}
+              key={option}
               className="flex items-start gap-3 cursor-pointer"
             >
               <input
                 type="checkbox"
                 className="h-4 w-4 mt-0.5 shrink-0 cursor-pointer accent-primary"
-                checked={exportFormats.has(option.value)}
-                onChange={() => onToggleFormat(option.value)}
+                checked={exportFormats.has(option)}
+                onChange={() => onToggleFormat(option)}
               />
               <span className="min-w-0">
-                <span className="text-sm font-medium">{option.label}</span>
+                <span className="text-sm font-medium">
+                  {t(`conversations.exportDialog.formats.${option}Label`)}
+                </span>
                 <span className="block text-xs text-muted-foreground">
-                  {option.description}
+                  {t(`conversations.exportDialog.formats.${option}Description`)}
                 </span>
               </span>
             </label>
@@ -74,13 +77,15 @@ export function ExportDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={isExporting}>
-            Cancel
+            {t("common.actions.cancel")}
           </Button>
           <Button
             onClick={onExport}
             disabled={isExporting || exportFormats.size === 0}
           >
-            {isExporting ? "Exporting..." : "Export"}
+            {isExporting
+              ? t("conversations.exportDialog.exporting")
+              : t("conversations.exportDialog.export")}
           </Button>
         </DialogFooter>
       </DialogContent>

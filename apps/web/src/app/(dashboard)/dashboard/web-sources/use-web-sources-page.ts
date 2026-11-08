@@ -11,6 +11,7 @@ import { runSequentially } from "@/lib/sequential-actions";
 import { toast } from "sonner";
 import { keepPreviousData } from "@tanstack/react-query";
 import type { StatusFilter } from "./status-filter";
+import { useTranslation } from "react-i18next";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -20,6 +21,7 @@ const ITEMS_PER_PAGE = 20;
  * mutations, selection/expand sets, and batch delete (toast copy preserved).
  */
 export function useWebSourcesPage() {
+  const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedSources, setSelectedSources] = useState<Set<string>>(
     new Set(),
@@ -109,12 +111,14 @@ export function useWebSourcesPage() {
     );
     setSelectedSources(new Set());
     if (failures === 0) {
-      toast.success(
-        `${ids.length} web source${ids.length !== 1 ? "s" : ""} deleted`,
-      );
+      toast.success(t("webSources.page.deletedAll", { count: ids.length }));
     } else {
       toast.warning(
-        `Deleted ${ids.length - failures} of ${ids.length}. ${failures} could not be deleted (crawl in progress).`,
+        t("webSources.page.deletedPartial", {
+          deleted: ids.length - failures,
+          total: ids.length,
+          failed: failures,
+        }),
       );
     }
   };

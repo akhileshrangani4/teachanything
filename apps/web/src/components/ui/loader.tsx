@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 export function TypingLoader({
   className,
@@ -10,6 +11,7 @@ export function TypingLoader({
   className?: string;
   size?: "sm" | "md" | "lg";
 }) {
+  const { t } = useTranslation();
   const dotSizes = {
     sm: "h-1 w-1",
     md: "h-1.5 w-1.5",
@@ -42,7 +44,7 @@ export function TypingLoader({
           }}
         />
       ))}
-      <span className="sr-only">Loading</span>
+      <span className="sr-only">{t("common.status.loading")}</span>
     </div>
   );
 }

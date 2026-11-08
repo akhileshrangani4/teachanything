@@ -13,12 +13,15 @@ import { ConfigurationCard } from "./configuration-card";
 import { DisplaySettingsCard } from "./display-settings-card";
 import { ShareSettingsCard } from "./share-settings-card";
 import { DangerZoneCard } from "./danger-zone-card";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 interface ChatbotSettingsProps {
   chatbot: ChatbotSettingsChatbot;
 }
 
 export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
+  const { t } = useTranslation();
   const params = useParams();
   const router = useRouter();
   const chatbotId = typeof params.id === "string" ? params.id : "";
@@ -56,8 +59,8 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
       await utils.chatbot.getById.invalidate({ id: chatbotId });
     },
     onError: (error) => {
-      toast.error("Failed to save settings", {
-        description: error.message,
+      toast.error(t("chatbotSettings.toasts.saveFailed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -67,13 +70,13 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
       // Invalidate both query keys
       await utils.chatbot.get.invalidate({ id: chatbotId });
       await utils.chatbot.getById.invalidate({ id: chatbotId });
-      toast.success("Sharing enabled", {
-        description: "Your chatbot is now publicly accessible",
+      toast.success(t("chatbotSettings.toasts.sharingEnabled"), {
+        description: t("chatbotSettings.toasts.sharingEnabledDescription"),
       });
     },
     onError: (error) => {
-      toast.error("Failed to enable sharing", {
-        description: error.message,
+      toast.error(t("chatbotSettings.toasts.enableSharingFailed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -83,25 +86,25 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
       // Invalidate both query keys
       await utils.chatbot.get.invalidate({ id: chatbotId });
       await utils.chatbot.getById.invalidate({ id: chatbotId });
-      toast.success("Sharing disabled", {
-        description: "Your chatbot is no longer publicly accessible",
+      toast.success(t("chatbotSettings.toasts.sharingDisabled"), {
+        description: t("chatbotSettings.toasts.sharingDisabledDescription"),
       });
     },
     onError: (error) => {
-      toast.error("Failed to disable sharing", {
-        description: error.message,
+      toast.error(t("chatbotSettings.toasts.disableSharingFailed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
 
   const deleteChatbot = trpc.chatbot.delete.useMutation({
     onSuccess: () => {
-      toast.success("Chatbot deleted successfully");
+      toast.success(t("chatbots.delete.success"));
       router.push("/dashboard");
     },
     onError: (error) => {
-      toast.error("Failed to delete chatbot", {
-        description: error.message,
+      toast.error(t("chatbots.delete.failed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -115,19 +118,19 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
       await utils.chatbot.getById.invalidate({ id: chatbotId });
       toast.success(
         variables.showSources
-          ? "Sources display enabled"
-          : "Sources display disabled",
+          ? t("chatbotSettings.toasts.sourcesEnabled")
+          : t("chatbotSettings.toasts.sourcesDisabled"),
         {
           description: variables.showSources
-            ? "Source citations will now be shown below assistant messages"
-            : "Source citations will no longer be displayed",
+            ? t("chatbotSettings.toasts.sourcesEnabledDescription")
+            : t("chatbotSettings.toasts.sourcesDisabledDescription"),
         },
       );
     },
     onError: (error) => {
       setField("showSources", chatbot.showSources ?? false);
-      toast.error("Failed to update setting", {
-        description: error.message,
+      toast.error(t("chatbotSettings.toasts.updateFailed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -155,7 +158,7 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
   };
 
   const handleSave = () => {
-    const issue = validateSettingsDraft(draft);
+    const issue = validateSettingsDraft(draft, t);
     if (issue) {
       toast.error(issue.title, { description: issue.description });
       return;
@@ -185,8 +188,8 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
         onSuccess: (updated) => {
           setIsEditing(false);
           if (updated) setDraft(settingsFromChatbot(updated));
-          toast.success("Settings saved successfully", {
-            description: "Your chatbot configuration has been updated",
+          toast.success(t("chatbotSettings.toasts.saveSuccess"), {
+            description: t("chatbotSettings.toasts.saveSuccessDescription"),
           });
         },
       },
@@ -239,9 +242,9 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
         open={disableShareDialog}
         onOpenChange={setDisableShareDialog}
         onConfirm={confirmDisableShare}
-        title="Disable Sharing"
-        description="Are you sure you want to disable sharing? This will invalidate the current share link and users will no longer be able to access the chatbot through it."
-        confirmText="Disable Sharing"
+        title={t("chatbotSettings.disableSharing.title")}
+        description={t("chatbotSettings.disableSharing.description")}
+        confirmText={t("chatbotSettings.disableSharing.title")}
         variant="destructive"
         loading={disableShare.isPending}
       />
@@ -251,10 +254,10 @@ export function ChatbotSettings({ chatbot }: ChatbotSettingsProps) {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleDeleteChatbot}
-        title="Delete Chatbot"
-        description="Are you sure you want to delete this chatbot? This action cannot be undone and will permanently delete all uploaded files, conversation history, and analytics data."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t("chatbots.delete.title")}
+        description={t("chatbots.delete.description")}
+        confirmText={t("common.actions.delete")}
+        cancelText={t("common.actions.cancel")}
         variant="destructive"
         loading={deleteChatbot.isPending}
       />

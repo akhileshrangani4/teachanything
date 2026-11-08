@@ -27,12 +27,14 @@ import {
 import { usePanelRows } from "./conversations-tab/use-panel-rows";
 import { ConversationsResults } from "./conversations-tab/conversations-results";
 import { ConversationDetail } from "./conversations-tab/conversation-detail";
+import { useTranslation } from "react-i18next";
 
 interface ConversationsTabProps {
   chatbotId: string;
 }
 
 export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
+  const { t } = useTranslation();
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
@@ -65,10 +67,10 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
         <div>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            Student Chats
+            {t("conversations.title")}
           </CardTitle>
           <CardDescription className="mt-1.5">
-            Browse your students&apos; chat history with this chatbot.
+            {t("conversations.description")}
           </CardDescription>
         </div>
       </CardHeader>
@@ -77,7 +79,7 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search student chats..."
+              placeholder={t("conversations.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -92,9 +94,15 @@ export function ConversationsTab({ chatbotId }: ConversationsTabProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="recent">Most Recent</SelectItem>
-              <SelectItem value="mostMessages">Most Messages</SelectItem>
-              <SelectItem value="longestDuration">Longest Duration</SelectItem>
+              <SelectItem value="recent">
+                {t("conversations.sort.recent")}
+              </SelectItem>
+              <SelectItem value="mostMessages">
+                {t("conversations.sort.mostMessages")}
+              </SelectItem>
+              <SelectItem value="longestDuration">
+                {t("conversations.sort.longestDuration")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>

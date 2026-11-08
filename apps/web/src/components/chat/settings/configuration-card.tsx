@@ -16,11 +16,13 @@ import {
 import { FormFieldWithCounter } from "@/components/ui/form-field-with-counter";
 import { WrappableText } from "@/components/ui/wrappable-text";
 import { CharacterCounter } from "@/components/ui/character-counter";
-import { MODEL_REGISTRY, formatContextWindow } from "@teachanything/ai/models";
+import { MODEL_REGISTRY } from "@teachanything/ai/models";
+import { contextWindowLabel } from "./context-window-label";
 import { VALIDATION_LIMITS } from "@/lib/validation";
 import type { SettingsDraft } from "./settings-draft";
 import { modelsByProvider } from "./models-by-provider";
 import { WelcomeMessageField } from "./welcome-message-field";
+import { useTranslation } from "react-i18next";
 
 interface ConfigurationCardProps {
   draft: SettingsDraft;
@@ -49,6 +51,7 @@ export function ConfigurationCard({
   isSaving,
   savedModelIsNonTool,
 }: ConfigurationCardProps) {
+  const { t } = useTranslation();
   const { name, description, model, systemPrompt, temperature, maxTokens } =
     draft;
 
@@ -57,16 +60,18 @@ export function ConfigurationCard({
       {/* Header with Edit Button */}
       <div className="flex items-center justify-between pb-4 border-b">
         <div>
-          <h3 className="text-lg font-semibold">Configuration</h3>
+          <h3 className="text-lg font-semibold">
+            {t("chatbotSettings.configuration.title")}
+          </h3>
           <p className="text-xs text-muted-foreground">
-            Manage your chatbot settings
+            {t("chatbotSettings.configuration.description")}
           </p>
         </div>
         {/* Edit/Save/Cancel buttons */}
         <div className="flex gap-2">
           {!isEditing ? (
             <Button onClick={onEditStart} variant="outline" size="sm">
-              Edit Settings
+              {t("chatbotSettings.configuration.edit")}
             </Button>
           ) : (
             <>
@@ -76,10 +81,12 @@ export function ConfigurationCard({
                 size="sm"
                 disabled={isSaving}
               >
-                Cancel
+                {t("common.actions.cancel")}
               </Button>
               <Button onClick={onSave} size="sm" disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Changes"}
+                {isSaving
+                  ? t("common.actions.saving")
+                  : t("common.actions.saveChanges")}
               </Button>
             </>
           )}
@@ -90,20 +97,22 @@ export function ConfigurationCard({
       {isEditing ? (
         <FormFieldWithCounter
           id="name"
-          label="Name"
+          label={t("chatbots.fields.name")}
           value={name}
           onChange={(value) => setField("name", value)}
           maxLength={VALIDATION_LIMITS.NAME_MAX_LENGTH}
           warningThreshold={VALIDATION_LIMITS.NAME_WARNING_THRESHOLD}
-          helperText="The display name for your chatbot"
-          placeholder="Enter chatbot name"
+          helperText={t("chatbotSettings.configuration.nameHelp")}
+          placeholder={t("chatbotSettings.configuration.namePlaceholder")}
           showCounter={isEditing}
         />
       ) : (
         <div className="space-y-2">
-          <Label className="text-base font-semibold">Name</Label>
+          <Label className="text-base font-semibold">
+            {t("chatbots.fields.name")}
+          </Label>
           <p className="text-xs text-muted-foreground mb-2">
-            The display name for your chatbot
+            {t("chatbotSettings.configuration.nameHelp")}
           </p>
           <div className="px-3 py-2 bg-background rounded-md border">
             <p className="text-sm">{name}</p>
@@ -115,20 +124,24 @@ export function ConfigurationCard({
       {isEditing ? (
         <FormFieldWithCounter
           id="description"
-          label="Description"
+          label={t("chatbots.fields.description")}
           value={description}
           onChange={(value) => setField("description", value)}
           maxLength={VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH}
           warningThreshold={VALIDATION_LIMITS.DESCRIPTION_WARNING_THRESHOLD}
-          helperText="A brief description of what your chatbot does"
-          placeholder="Enter chatbot description (optional)"
+          helperText={t("chatbotSettings.configuration.descriptionHelp")}
+          placeholder={t(
+            "chatbotSettings.configuration.descriptionPlaceholder",
+          )}
           type="textarea"
           rows={3}
         />
       ) : (
         <div className="space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-            <Label className="text-base font-semibold">Description</Label>
+            <Label className="text-base font-semibold">
+              {t("chatbots.fields.description")}
+            </Label>
             <CharacterCounter
               current={description.length}
               max={VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH}
@@ -136,11 +149,14 @@ export function ConfigurationCard({
             />
           </div>
           <p className="text-xs text-muted-foreground mb-2">
-            A brief description of what your chatbot does
+            {t("chatbotSettings.configuration.descriptionHelp")}
           </p>
           <div className="px-3 py-2 bg-background rounded-md border">
             <p className="text-sm">
-              <WrappableText>{description || "No description"}</WrappableText>
+              <WrappableText>
+                {description ||
+                  t("chatbotSettings.configuration.noDescription")}
+              </WrappableText>
             </p>
           </div>
         </div>
@@ -155,10 +171,10 @@ export function ConfigurationCard({
       {/* Model */}
       <div className="space-y-2">
         <Label htmlFor="model" className="text-base font-semibold">
-          Model
+          {t("chatbots.fields.model")}
         </Label>
         <p className="text-xs text-muted-foreground mb-2">
-          Choose the AI model to power your chatbot
+          {t("chatbotSettings.configuration.modelHelp")}
         </p>
         {isEditing ? (
           <Select value={model} onValueChange={(v) => setField("model", v)}>
@@ -172,7 +188,10 @@ export function ConfigurationCard({
                     <SelectLabel>{provider}</SelectLabel>
                     {models.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
-                        {m.displayName} ({formatContextWindow(m.contextWindow)})
+                        {t("chatbotSettings.configuration.modelOption", {
+                          model: m.displayName,
+                          contextWindow: contextWindowLabel(t, m.contextWindow),
+                        })}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -183,9 +202,11 @@ export function ConfigurationCard({
                   other fields does not silently change the saved model. */}
               {savedModelIsNonTool && (
                 <SelectItem value={model}>
-                  {MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]
-                    ?.displayName ?? model}{" "}
-                  (no document tools)
+                  {t("chatbotSettings.configuration.modelWithoutTools", {
+                    model:
+                      MODEL_REGISTRY[model as keyof typeof MODEL_REGISTRY]
+                        ?.displayName ?? model,
+                  })}
                 </SelectItem>
               )}
             </SelectContent>
@@ -203,10 +224,10 @@ export function ConfigurationCard({
       {/* System Prompt */}
       <div className="space-y-2">
         <Label htmlFor="systemPrompt" className="text-base font-semibold">
-          System Prompt
+          {t("chatbots.fields.systemPrompt")}
         </Label>
         <p className="text-xs text-muted-foreground mb-2">
-          Define how your chatbot should behave and respond
+          {t("chatbotSettings.configuration.systemPromptHelp")}
         </p>
         <Textarea
           id="systemPrompt"
@@ -224,10 +245,10 @@ export function ConfigurationCard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="temperature" className="text-base font-semibold">
-            Temperature
+            {t("chatbots.fields.temperature")}
           </Label>
           <p className="text-xs text-muted-foreground mb-2">
-            Control randomness (0 = focused, 100 = creative)
+            {t("chatbots.fields.temperatureHelp")}
           </p>
           {isEditing ? (
             <Input
@@ -247,10 +268,10 @@ export function ConfigurationCard({
         </div>
         <div className="space-y-2">
           <Label htmlFor="maxTokens" className="text-base font-semibold">
-            Max Tokens
+            {t("chatbots.fields.maxTokens")}
           </Label>
           <p className="text-xs text-muted-foreground mb-2">
-            Maximum length of responses (100-4000)
+            {t("chatbots.fields.maxTokensHelp", { min: 100, max: 4000 })}
           </p>
           {isEditing ? (
             <Input

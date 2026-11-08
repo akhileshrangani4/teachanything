@@ -18,6 +18,7 @@ import { useUploadQueue } from "./upload-file-dialog/use-upload-queue";
 import { SelectedFileList } from "./upload-file-dialog/selected-file-list";
 import { UploadSummary } from "./upload-file-dialog/upload-summary";
 import type { RouterOutputs } from "@/lib/trpc";
+import { useTranslation, Trans } from "react-i18next";
 
 type FileData = RouterOutputs["files"]["list"]["files"][number];
 
@@ -30,6 +31,7 @@ export function UploadFileDialog({
   onSuccess,
   existingFiles = [],
 }: UploadFileDialogProps) {
+  const { t } = useTranslation();
   const {
     uploadDialogOpen,
     setUploadDialogOpen,
@@ -56,15 +58,16 @@ export function UploadFileDialog({
           className="shadow-sm hover:shadow-md transition-shadow"
         >
           <Upload className="h-4 w-4 mr-2" />
-          Upload File
+          {t("files.upload.trigger")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Upload Files</DialogTitle>
+          <DialogTitle>{t("files.page.uploadTitle")}</DialogTitle>
           <DialogDescription>
-            Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, or
-            CSV files (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
+            {t("files.upload.description", {
+              maxMb: MAX_FILE_SIZE / 1024 / 1024,
+            })}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,17 +117,20 @@ export function UploadFileDialog({
                   htmlFor="file"
                   className="cursor-pointer text-sm font-medium"
                 >
-                  <span className="text-primary hover:underline">
-                    Click to upload
-                  </span>{" "}
-                  or drag and drop
+                  <Trans
+                    i18nKey="files.upload.dropzone"
+                    components={{
+                      click: <span className="text-primary hover:underline" />,
+                    }}
+                  />
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV (max{" "}
-                  {MAX_FILE_SIZE / 1024 / 1024}MB each)
+                  {t("files.upload.formats", {
+                    maxMb: MAX_FILE_SIZE / 1024 / 1024,
+                  })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  You can select multiple files
+                  {t("files.upload.multipleHint")}
                 </p>
               </div>
             )}
@@ -146,7 +152,7 @@ export function UploadFileDialog({
               }}
               disabled={isUploading}
             >
-              Cancel
+              {t("common.actions.cancel")}
             </Button>
             <Button
               onClick={handleUpload}
@@ -158,13 +164,12 @@ export function UploadFileDialog({
               {isUploading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Uploading...
+                  {t("files.upload.uploading")}
                 </>
               ) : (
                 <>
                   <Upload className="h-4 w-4 mr-2" />
-                  Upload{" "}
-                  {selectedFiles.length > 0 && `(${selectedFiles.length})`}
+                  {t("files.upload.submit", { count: selectedFiles.length })}
                 </>
               )}
             </Button>

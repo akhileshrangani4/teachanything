@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { chartColors } from "./constants";
 import { ChartSkeleton, EmptyChart } from "./metric-card";
+import { useTranslation } from "react-i18next";
 
 type DistributionData =
   RouterOutputs["analytics"]["getSessionLengthDistribution"];
@@ -32,17 +33,20 @@ export function MessagesOverTimeCard({
   isLoading: boolean;
   data: Array<{ date: string; messages: number }>;
 }) {
+  const { t } = useTranslation();
   return (
     <Card className="border border-border/60 shadow-xs">
       <CardHeader>
-        <CardTitle>Messages Over Time</CardTitle>
-        <CardDescription>Student messages by day</CardDescription>
+        <CardTitle>{t("analytics.charts.messagesTitle")}</CardTitle>
+        <CardDescription>
+          {t("analytics.charts.messagesDescription")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <ChartSkeleton />
         ) : data.length === 0 ? (
-          <EmptyChart label="No message data yet" />
+          <EmptyChart label={t("analytics.charts.messagesEmpty")} />
         ) : (
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -81,6 +85,7 @@ export function MessagesOverTimeCard({
                 <Line
                   type="monotone"
                   dataKey="messages"
+                  name={t("analytics.charts.seriesMessages")}
                   stroke={chartColors.primary}
                   strokeWidth={2.5}
                   dot={false}
@@ -101,17 +106,20 @@ export function SessionsOverTimeCard({
   isLoading: boolean;
   data: Array<{ date: string; sessions: number }>;
 }) {
+  const { t } = useTranslation();
   return (
     <Card className="border border-border/60 shadow-xs">
       <CardHeader>
-        <CardTitle>Sessions Over Time</CardTitle>
-        <CardDescription>Unique active sessions by day</CardDescription>
+        <CardTitle>{t("analytics.charts.sessionsTitle")}</CardTitle>
+        <CardDescription>
+          {t("analytics.charts.sessionsDescription")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <ChartSkeleton />
         ) : data.every((item) => item.sessions === 0) ? (
-          <EmptyChart label="No session data yet" />
+          <EmptyChart label={t("analytics.charts.sessionsEmpty")} />
         ) : (
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -150,6 +158,7 @@ export function SessionsOverTimeCard({
                 <Line
                   type="monotone"
                   dataKey="sessions"
+                  name={t("analytics.charts.seriesSessions")}
                   stroke={chartColors.sessions}
                   strokeWidth={2.5}
                   dot={false}
@@ -170,17 +179,20 @@ export function SessionLengthsCard({
   isLoading: boolean;
   data: DistributionData;
 }) {
+  const { t } = useTranslation();
   return (
     <Card className="border border-border/60 shadow-xs xl:col-span-2">
       <CardHeader>
-        <CardTitle>Session Lengths</CardTitle>
-        <CardDescription>Sessions grouped by message count</CardDescription>
+        <CardTitle>{t("analytics.charts.lengthsTitle")}</CardTitle>
+        <CardDescription>
+          {t("analytics.charts.lengthsDescription")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <ChartSkeleton />
         ) : data.every((item) => item.count === 0) ? (
-          <EmptyChart label="No session lengths yet" />
+          <EmptyChart label={t("analytics.charts.lengthsEmpty")} />
         ) : (
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -217,6 +229,7 @@ export function SessionLengthsCard({
                 />
                 <Bar
                   dataKey="count"
+                  name={t("analytics.charts.seriesSessions")}
                   fill={chartColors.primary}
                   radius={[4, 4, 0, 0]}
                 />

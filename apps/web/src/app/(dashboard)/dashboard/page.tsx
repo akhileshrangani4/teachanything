@@ -7,8 +7,10 @@ import { Bot, FileText, MessageSquare, Plus } from "lucide-react";
 import { CreateChatbotDialog } from "@/components/dashboard/chatbots/CreateChatbotDialog";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { MessagesChart } from "@/components/dashboard/MessagesChart";
+import { useTranslation } from "react-i18next";
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   // Fetch chatbots
   const {
     data: chatbots,
@@ -57,10 +59,10 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
-              Dashboard
+              {t("dashboard.title")}
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Welcome to Your Chatbot Dashboard
+              {t("dashboard.subtitle")}
             </p>
           </div>
           <CreateChatbotDialog
@@ -71,7 +73,7 @@ export default function DashboardPage() {
                 className="shadow-sm hover:shadow-md transition-shadow"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                New Chatbot
+                {t("chatbots.list.newChatbot")}
               </Button>
             }
           />
@@ -80,9 +82,9 @@ export default function DashboardPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <StatCard
-            title="Total Chatbots"
+            title={t("dashboard.stats.totalChatbots")}
             value={chatbots?.totalCount || 0}
-            description="Active chatbots"
+            description={t("dashboard.stats.activeChatbots")}
             icon={Bot}
             iconColor="text-primary"
             iconBgColor="bg-primary/10"
@@ -90,9 +92,9 @@ export default function DashboardPage() {
           />
 
           <StatCard
-            title="Total Messages"
+            title={t("dashboard.stats.totalMessages")}
             value={totalMessages}
-            description="Total messages sent"
+            description={t("dashboard.stats.totalMessagesSent")}
             icon={MessageSquare}
             iconColor="text-blue-600"
             iconBgColor="bg-blue-500/10"
@@ -100,9 +102,9 @@ export default function DashboardPage() {
           />
 
           <StatCard
-            title="Total Files"
+            title={t("dashboard.stats.totalFiles")}
             value={filesData?.count || 0}
-            description="Uploaded files"
+            description={t("dashboard.stats.uploadedFiles")}
             icon={FileText}
             iconColor="text-green-600"
             iconBgColor="bg-green-500/10"

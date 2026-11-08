@@ -11,6 +11,7 @@ import { FileStatusBadge } from "../FileStatusBadge";
 import { FileActionButtons } from "./action-buttons";
 import { useFileActions } from "./use-file-actions";
 import type { BaseFile, FileTableRowProps } from "./types";
+import { useTranslation } from "react-i18next";
 
 // ── Desktop table row ────────────────────────────────────────────────
 export function FileTableRow<T extends BaseFile>({
@@ -25,6 +26,7 @@ export function FileTableRow<T extends BaseFile>({
   retryDisabled = false,
   showCreatedDate = false,
 }: FileTableRowProps<T>) {
+  const { t, i18n } = useTranslation();
   const actions = useFileActions(file);
 
   return (
@@ -47,7 +49,7 @@ export function FileTableRow<T extends BaseFile>({
             }}
             onClick={(e) => e.stopPropagation()}
             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-            aria-label={`Select ${file.fileName}`}
+            aria-label={t("common.table.selectRow", { name: file.fileName })}
           />
         </TableCell>
       )}
@@ -61,12 +63,14 @@ export function FileTableRow<T extends BaseFile>({
       </TableCell>
       <TableCell>
         <span className="text-sm text-muted-foreground whitespace-nowrap">
-          {getFileTypeDisplayName(file.fileType)}
+          {file.fileType === "text/plain"
+            ? t("files.types.text")
+            : getFileTypeDisplayName(file.fileType)}
         </span>
       </TableCell>
       <TableCell>
         <span className="text-sm whitespace-nowrap">
-          {formatFileSize(file.fileSize)}
+          {formatFileSize(file.fileSize, i18n.language)}
         </span>
       </TableCell>
       <TableCell>
@@ -80,7 +84,7 @@ export function FileTableRow<T extends BaseFile>({
       {showCreatedDate && file.createdAt && (
         <TableCell>
           <span className="text-sm text-muted-foreground whitespace-nowrap">
-            {formatDate(file.createdAt)}
+            {formatDate(file.createdAt, i18n.language)}
           </span>
         </TableCell>
       )}

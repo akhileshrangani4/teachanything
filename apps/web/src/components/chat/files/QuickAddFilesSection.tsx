@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getFilePollingInterval } from "@/hooks/file-polling";
 import { keepPreviousData } from "@tanstack/react-query";
 import type { RouterOutputs } from "@/lib/trpc";
+import { useTranslation } from "react-i18next";
 
 type FileData = RouterOutputs["files"]["list"]["files"][number];
 
@@ -32,6 +33,7 @@ export function QuickAddFilesSection({
   isAdding = false,
   onRefetch,
 }: QuickAddFilesSectionProps) {
+  const { t } = useTranslation();
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   const { state, searchInput, actions, queryParams } =
@@ -139,14 +141,14 @@ export function QuickAddFilesSection({
   return (
     <div className="mt-6">
       <p className="text-sm font-medium mb-4">
-        Quick add files from your library:
+        {t("files.chatbot.quickAddTitle")}
       </p>
 
       <div className="flex items-center gap-4 mb-4">
         <TableToolbar
           searchValue={searchInput}
           onSearchChange={actions.setSearch}
-          placeholder="Search files to add..."
+          placeholder={t("files.chatbot.quickAddSearch")}
           isLoading={isFetching && !filesLoading}
           className="mb-0 flex-1"
         />
@@ -154,12 +156,13 @@ export function QuickAddFilesSection({
           {selectedFiles.size > 0 && (
             <Button size="sm" onClick={handleAddSelected} disabled={isAdding}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Selected ({selectedFiles.size})
+              {t("files.chatbot.addSelected", { count: selectedFiles.size })}
             </Button>
           )}
           <p className="text-sm text-muted-foreground whitespace-nowrap">
-            Showing {availableFiles.length} available file
-            {availableFiles.length !== 1 ? "s" : ""}
+            {t("files.chatbot.availableCount", {
+              count: availableFiles.length,
+            })}
           </p>
         </div>
       </div>
@@ -199,8 +202,8 @@ export function QuickAddFilesSection({
       ) : availableFiles.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">
           {state.search || searchInput
-            ? "No files match your search"
-            : "No more files available to add."}
+            ? t("files.page.noSearchResults")
+            : t("files.chatbot.noneLeftToAdd")}
         </p>
       ) : (
         <>

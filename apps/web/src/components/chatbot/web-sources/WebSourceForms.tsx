@@ -24,6 +24,7 @@ import {
   CRAWL_SOURCES_PER_HOUR,
   MANUAL_URLS_PER_HOUR,
 } from "@/lib/constants/rate-limits";
+import { useTranslation } from "react-i18next";
 
 export function AddFullWebSourceDialog({
   open,
@@ -56,26 +57,27 @@ export function AddFullWebSourceDialog({
   onSubmit: () => void;
   isSubmitting: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button>
           <Plus className="h-4 w-4 mr-2" />
-          Add Full Web Source
+          {t("webSources.add.addFullSource")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Full Web Source</DialogTitle>
+          <DialogTitle>{t("webSources.add.addFullSource")}</DialogTitle>
           <DialogDescription>
-            Enter a starting URL. The crawler follows links from that page
-            within the limits you set. You can start up to{" "}
-            {CRAWL_SOURCES_PER_HOUR} crawls per hour.
+            {t("webSources.add.fullSourceDescription", {
+              limit: CRAWL_SOURCES_PER_HOUR,
+            })}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="rootUrl">Website URL</Label>
+            <Label htmlFor="rootUrl">{t("webSources.add.websiteUrl")}</Label>
             <Input
               id="rootUrl"
               placeholder="https://cs101.university.edu"
@@ -85,7 +87,9 @@ export function AddFullWebSourceDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="crawlDepth">Crawl Depth</Label>
+              <Label htmlFor="crawlDepth">
+                {t("webSources.add.crawlDepth")}
+              </Label>
               <Input
                 id="crawlDepth"
                 type="number"
@@ -98,7 +102,7 @@ export function AddFullWebSourceDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="maxPages">Max Pages</Label>
+              <Label htmlFor="maxPages">{t("webSources.add.maxPages")}</Label>
               <Input
                 id="maxPages"
                 type="number"
@@ -113,28 +117,28 @@ export function AddFullWebSourceDialog({
           </div>
           <PatternInput
             id="includePatterns"
-            label="Include URL patterns"
+            label={t("webSources.add.includePatterns")}
             value={includePatterns}
             placeholder="/lectures/*, /syllabus"
-            helpText="Optional. Only crawl matching paths, such as /lectures/*. The * means any characters."
+            helpText={t("webSources.add.includeHelp")}
             onChange={onIncludePatternsChange}
           />
           <PatternInput
             id="excludePatterns"
-            label="Exclude URL patterns"
+            label={t("webSources.add.excludePatterns")}
             value={excludePatterns}
             placeholder="/admin/*, /login"
-            helpText="Optional. Skip matching paths, such as /login or /admin/*."
+            helpText={t("webSources.add.excludeHelp")}
             onChange={onExcludePatternsChange}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("common.actions.cancel")}
           </Button>
           <Button onClick={onSubmit} disabled={!rootUrl || isSubmitting}>
             {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Start Crawl
+            {t("webSources.add.startCrawl")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -153,17 +157,18 @@ export function SingleWebpageForm({
   onManualUrlChange: (value: string) => void;
   onSubmit: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
       <div className="flex-1 space-y-1">
         <Input
-          placeholder="Add a single page URL..."
+          placeholder={t("webSources.add.singleUrlPlaceholder")}
           value={manualUrl}
           onChange={(event) => onManualUrlChange(event.target.value)}
           onKeyDown={(event) => event.key === "Enter" && onSubmit()}
         />
         <p className="text-xs text-muted-foreground">
-          Up to {MANUAL_URLS_PER_HOUR} single webpages per hour.
+          {t("webSources.add.singleLimit", { limit: MANUAL_URLS_PER_HOUR })}
         </p>
       </div>
       <TooltipProvider>
@@ -180,11 +185,11 @@ export function SingleWebpageForm({
               ) : (
                 <LinkIcon className="h-4 w-4" />
               )}
-              Add Single Webpage
+              {t("webSources.add.addSingleWebpage")}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            Adds only this page. It will not follow links.
+            {t("webSources.add.addSingleTooltip")}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -212,12 +217,13 @@ export function WebSourcesSkeleton() {
 }
 
 export function EmptyWebSourcesState() {
+  const { t } = useTranslation();
   return (
     <div className="text-center py-12 text-muted-foreground">
       <Globe className="h-12 w-12 mx-auto mb-4 opacity-50" />
-      <p className="text-lg font-medium">No web sources yet</p>
+      <p className="text-lg font-medium">{t("webSources.page.emptyTitle")}</p>
       <p className="text-sm mt-1">
-        Add a website URL to crawl or paste a single page URL above.
+        {t("webSources.chatbotTab.emptyDescription")}
       </p>
     </div>
   );

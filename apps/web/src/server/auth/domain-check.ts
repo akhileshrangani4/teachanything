@@ -78,6 +78,7 @@ export async function enforceAllowedDomain(user: { email: string }) {
     );
     // Use Better Auth's APIError for proper error messaging
     throw new APIError("BAD_REQUEST", {
+      code: "DOMAIN_NOT_AUTHORIZED",
       message:
         "This email domain is not authorized for registration. Please contact an administrator if you believe this is an error.",
     });

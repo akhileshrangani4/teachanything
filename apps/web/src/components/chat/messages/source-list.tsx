@@ -5,6 +5,7 @@ import { FileText } from "lucide-react";
 
 import { SourceBadge } from "@/components/ui/source-badge";
 import type { GroupedSource } from "@/lib/message-sources";
+import { useTranslation } from "react-i18next";
 
 /**
  * How many source badges show before the rest are folded away.
@@ -25,6 +26,7 @@ const VISIBLE_SOURCE_LIMIT = 5;
  * `groupSourcesByFile`; this caps what that leaves.
  */
 export function SourceList({ sources }: { sources: GroupedSource[] }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   if (sources.length === 0) return null;
@@ -37,7 +39,7 @@ export function SourceList({ sources }: { sources: GroupedSource[] }) {
     <div className="mt-2 md:mt-3 flex flex-wrap items-center gap-1.5 md:gap-2">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-        <span className="font-medium">Sources:</span>
+        <span className="font-medium">{t("chat.sources.label")}</span>
       </div>
 
       {visible.map((source) => (
@@ -59,7 +61,9 @@ export function SourceList({ sources }: { sources: GroupedSource[] }) {
           aria-expanded={expanded}
           className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
         >
-          {expanded ? "Show fewer" : `+${hiddenCount} more`}
+          {expanded
+            ? t("chat.sources.showFewer")
+            : t("chat.sources.more", { count: hiddenCount })}
         </button>
       )}
     </div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { resolveSourceDisplayName } from "@/lib/crawler-metadata";
 import { SourceStatusBadge } from "./StatusBadges";
+import { useTranslation } from "react-i18next";
 
 type AttachableSource =
   RouterOutputs["crawler"]["getAttachableSources"][number];
@@ -21,11 +22,12 @@ export function AttachExistingSources({
   attachingId: string | null;
   isAttaching: boolean;
 }) {
+  const { t } = useTranslation();
   if (sources.length === 0) return null;
 
   return (
     <div className="space-y-1.5">
-      <Label>Attach an existing web source</Label>
+      <Label>{t("webSources.add.attachExisting")}</Label>
       <div className="divide-y rounded-md border">
         {sources.map((source) => {
           const displayName = resolveSourceDisplayName(
@@ -55,7 +57,9 @@ export function AttachExistingSources({
                 onClick={() => onAttach(source.id)}
               >
                 <Plus className="mr-1 h-4 w-4" />
-                {attachingId === source.id ? "Attaching..." : "Attach"}
+                {attachingId === source.id
+                  ? t("webSources.table.attaching")
+                  : t("webSources.table.attach")}
               </Button>
             </div>
           );

@@ -18,6 +18,7 @@ import { ArrowLeft, MessageSquare } from "lucide-react";
 import { logError } from "@/lib/logger";
 import { formatTimestamp } from "@/lib/conversation-format";
 import { PANEL_CONTENT, PANEL_SHELL, PANEL_STYLE } from "./constants";
+import { useTranslation } from "react-i18next";
 
 export function ConversationDetail({
   chatbotId,
@@ -28,6 +29,7 @@ export function ConversationDetail({
   conversationId: string;
   onBack: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const [offset, setOffset] = useState(0);
   const limit = 100;
 
@@ -68,16 +70,24 @@ export function ConversationDetail({
             variant="ghost"
             size="icon"
             onClick={onBack}
-            aria-label="Back to student chats"
+            aria-label={t("conversations.detail.back")}
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           </Button>
           <div>
-            <CardTitle className="text-lg">Student Chat</CardTitle>
+            <CardTitle className="text-lg">
+              {t("conversations.detail.title")}
+            </CardTitle>
             {data?.conversation && (
               <CardDescription>
-                Started {formatTimestamp(data.conversation.createdAt)} ·
-                Session: {data.conversation.sessionId.slice(0, 8)}...
+                {t("conversations.detail.meta", {
+                  date: formatTimestamp(
+                    data.conversation.createdAt,
+                    t,
+                    i18n.language,
+                  ),
+                  session: data.conversation.sessionId.slice(0, 8),
+                })}
               </CardDescription>
             )}
           </div>
@@ -109,16 +119,16 @@ export function ConversationDetail({
           <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center">
             <MessageSquare className="h-12 w-12 mb-4 text-red-500 opacity-50" />
             <p className="text-lg font-medium text-red-600">
-              Failed to load messages
+              {t("conversations.detail.loadFailed")}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Please try again in a moment.
+              {t("conversations.detail.tryAgainLater")}
             </p>
           </div>
         ) : !data || data.messages.length === 0 ? (
           <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center text-muted-foreground">
             <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-            <p>No messages in this conversation.</p>
+            <p>{t("conversations.detail.noMessages")}</p>
           </div>
         ) : (
           <>
@@ -141,9 +151,11 @@ export function ConversationDetail({
             {data.totalCount > limit && (
               <div className="flex items-center justify-between pt-3 border-t shrink-0">
                 <span className="text-xs text-muted-foreground">
-                  Showing {offset + 1}-
-                  {Math.min(offset + limit, data.totalCount)} of{" "}
-                  {data.totalCount} messages
+                  {t("conversations.detail.range", {
+                    from: offset + 1,
+                    to: Math.min(offset + limit, data.totalCount),
+                    total: data.totalCount,
+                  })}
                 </span>
                 <div className="flex gap-1">
                   <Button
@@ -152,7 +164,7 @@ export function ConversationDetail({
                     onClick={() => setOffset(Math.max(0, offset - limit))}
                     disabled={offset === 0}
                   >
-                    Previous
+                    {t("common.actions.previous")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -160,7 +172,7 @@ export function ConversationDetail({
                     onClick={() => setOffset(offset + limit)}
                     disabled={offset + limit >= data.totalCount}
                   >
-                    Next
+                    {t("common.actions.next")}
                   </Button>
                 </div>
               </div>

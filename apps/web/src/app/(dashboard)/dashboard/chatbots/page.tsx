@@ -14,10 +14,13 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 const ITEMS_PER_PAGE = 4;
 
 export default function ChatbotsPage() {
+  const { t } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatbotToDelete, setChatbotToDelete] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -64,11 +67,11 @@ export default function ChatbotsPage() {
         actions.setPage(newTotalPages - 1);
       }
 
-      toast.success("Chatbot deleted successfully");
+      toast.success(t("chatbots.delete.success"));
     },
     onError: (error) => {
-      toast.error("Failed to delete chatbot", {
-        description: error.message,
+      toast.error(t("chatbots.delete.failed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -96,13 +99,13 @@ export default function ChatbotsPage() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
-              Chatbots
+              {t("chatbots.list.title")}
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Create and manage your chatbots.
+              {t("chatbots.list.subtitle")}
               {totalCount > 0 && (
                 <span className="ml-2 font-medium text-foreground">
-                  ({totalCount} {totalCount === 1 ? "chatbot" : "chatbots"})
+                  {t("chatbots.list.count", { count: totalCount })}
                 </span>
               )}
             </p>
@@ -115,7 +118,7 @@ export default function ChatbotsPage() {
                 className="shadow-sm hover:shadow-md transition-shadow"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                New Chatbot
+                {t("chatbots.list.newChatbot")}
               </Button>
             }
           />
@@ -150,15 +153,16 @@ export default function ChatbotsPage() {
             <TableToolbar
               searchValue={searchInput}
               onSearchChange={actions.setSearch}
-              placeholder="Search chatbots by name or description..."
-              totalCount={totalCount}
-              visibleCount={chatbots.length}
-              itemLabel="chatbot"
+              placeholder={t("chatbots.list.searchPlaceholder")}
+              summary={t("chatbots.list.showing", {
+                visible: chatbots.length,
+                total: totalCount,
+              })}
               isLoading={showInlineLoading}
             />
             {chatbots.length === 0 && state.search ? (
               <div className="text-center py-8 text-muted-foreground">
-                No chatbots match your search
+                {t("chatbots.list.noSearchResults")}
               </div>
             ) : (
               <>
@@ -199,10 +203,10 @@ export default function ChatbotsPage() {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         onConfirm={handleDeleteChatbot}
-        title="Delete Chatbot"
-        description="Are you sure you want to delete this chatbot? This action cannot be undone and will permanently delete all uploaded files, conversation history, and analytics data."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t("chatbots.delete.title")}
+        description={t("chatbots.delete.description")}
+        confirmText={t("common.actions.delete")}
+        cancelText={t("common.actions.cancel")}
         variant="destructive"
         loading={deleteChatbot.isPending}
       />

@@ -7,6 +7,7 @@ import { TableToolbar, type FileSortBy } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import type { UseServerTableReturn } from "@/hooks/useServerTable";
 import { Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface FilesTableSectionProps {
   table: UseServerTableReturn<FileSortBy>;
@@ -42,6 +43,7 @@ export function FilesTableSection({
   onRetry,
   onDeleteSelected,
 }: FilesTableSectionProps) {
+  const { t } = useTranslation();
   const { state, searchInput, actions } = table;
 
   return (
@@ -52,7 +54,7 @@ export function FilesTableSection({
             <TableToolbar
               searchValue={searchInput}
               onSearchChange={actions.setSearch}
-              placeholder="Search files by name or type..."
+              placeholder={t("files.page.searchPlaceholder")}
               isLoading={showInlineLoading}
               className="mb-0 flex-1"
             />
@@ -65,18 +67,22 @@ export function FilesTableSection({
                   disabled={deletePending}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected ({selectedFiles.size})
+                  {t("files.page.deleteSelected", {
+                    count: selectedFiles.size,
+                  })}
                 </Button>
               )}
               <p className="text-sm text-muted-foreground whitespace-nowrap">
-                Showing {files.length} of {totalCount} file
-                {totalCount !== 1 ? "s" : ""}
+                {t("files.page.showing", {
+                  visible: files.length,
+                  total: totalCount,
+                })}
               </p>
             </div>
           </div>
           {files.length === 0 && state.search ? (
             <div className="text-center py-8 text-muted-foreground">
-              No files match your search
+              {t("files.page.noSearchResults")}
             </div>
           ) : (
             <>

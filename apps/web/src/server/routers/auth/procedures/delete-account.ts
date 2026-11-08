@@ -2,12 +2,13 @@ import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { account } from "@teachanything/db/schema";
 import { eq, and } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import * as bcrypt from "bcryptjs";
 import { requireRateLimit, passwordUpdateRateLimit } from "@/server/rate-limit";
 import { logError } from "@/lib/logger";
 import { auth } from "@/server/auth";
 import { deleteUserAccount } from "@/server/services/user-deletion";
+import { appError } from "@/server/app-error";
+import { retryAfterMinutes } from "@/lib/constants/rate-limits";
 
 /**
  * Delete the current user's own account permanently.
@@ -32,20 +33,14 @@ export const deleteOwnAccountProcedure = protectedProcedure
     );
 
     if (!success) {
-      const retryAfter = Math.ceil((reset - Date.now()) / 1000);
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: `Too many attempts. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`,
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.attempts", {
+        minutes: retryAfterMinutes(reset),
       });
     }
 
     // Admins must be demoted before self-deleting to prevent accidental lockout
     if (currentUser.role === "admin") {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message:
-          "Admin accounts cannot be self-deleted. Please contact another admin to demote your account first.",
-      });
+      throw appError("BAD_REQUEST", "errors.account.adminSelfDelete");
     }
 
     // Verify password before proceeding
@@ -58,10 +53,7 @@ export const deleteOwnAccountProcedure = protectedProcedure
       .limit(1);
 
     if (!userAccount || !userAccount.password) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Password account not found",
-      });
+      throw appError("BAD_REQUEST", "errors.account.passwordAccountNotFound");
     }
 
     const isValidPassword = await bcrypt.compare(
@@ -70,10 +62,7 @@ export const deleteOwnAccountProcedure = protectedProcedure
     );
 
     if (!isValidPassword) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "Incorrect password",
-      });
+      throw appError("UNAUTHORIZED", "errors.account.incorrectPassword");
     }
 
     try {
@@ -96,9 +85,6 @@ export const deleteOwnAccountProcedure = protectedProcedure
         userId,
         email: currentUser.email,
       });
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to delete account",
-      });
+      throw appError("INTERNAL_SERVER_ERROR", "errors.account.deleteFailed");
     }
   });

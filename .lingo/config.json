@@ -1,0 +1,11 @@
+{
+  "sourceLocale": "en",
+  "targetLocales": ["fr", "es", "de"],
+  "files": [
+    {
+      "pattern": "apps/web/messages/en.json"
+    }
+  ],
+  "orgId": "org_yI7dS7d0kPKXg33CuUzI",
+  "engineId": "eng_VQSNpEWxyRRzSgrSutzK"
+}

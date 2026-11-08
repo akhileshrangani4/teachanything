@@ -38,4 +38,10 @@ export const userAdditionalFields = {
     type: "string",
     required: false,
   },
+  // Only `auth.updatePreferredLocale` writes this; sign-up cannot set it.
+  preferredLocale: {
+    type: "string",
+    required: false,
+    input: false,
+  },
 } as const;

@@ -11,8 +11,11 @@ import { Save, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { PasswordStrengthIndicator } from "./PasswordStrengthIndicator";
 import { PasswordRequirementsList } from "./PasswordRequirementsList";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 export function PasswordSection() {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,16 +26,18 @@ export function PasswordSection() {
   }, [newPassword]);
 
   const updatePassword = trpc.auth.updatePassword.useMutation({
-    onSuccess: (data) => {
-      toast.success(data.message || "Password updated", {
-        description: "Please sign in again on other devices.",
+    onSuccess: () => {
+      toast.success(t("settings.password.updated"), {
+        description: t("settings.password.signInAgain"),
       });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     },
     onError: (error) => {
-      toast.error("Failed to update password", { description: error.message });
+      toast.error(t("settings.password.updateFailed"), {
+        description: serverErrorMessage(t, error),
+      });
     },
   });
 
@@ -47,13 +52,13 @@ export function PasswordSection() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordValidation?.isValid) {
-      return toast.error("Password does not meet requirements");
+      return toast.error(t("settings.password.notMeetRequirements"));
     }
     if (newPassword !== confirmPassword) {
-      return toast.error("Passwords do not match");
+      return toast.error(t("settings.password.mismatch"));
     }
     if (newPassword === currentPassword) {
-      return toast.error("New password must be different");
+      return toast.error(t("settings.password.mustDiffer"));
     }
     updatePassword.mutate({ currentPassword, newPassword });
   };
@@ -63,41 +68,47 @@ export function PasswordSection() {
       {updatePassword.error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{updatePassword.error.message}</AlertDescription>
+          <AlertDescription>
+            {serverErrorMessage(t, updatePassword.error)}
+          </AlertDescription>
         </Alert>
       )}
 
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="currentPassword">Current</Label>
+          <Label htmlFor="currentPassword">
+            {t("settings.password.current")}
+          </Label>
           <Input
             id="currentPassword"
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="Current password"
+            placeholder={t("settings.password.currentPlaceholder")}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="newPassword">New</Label>
+          <Label htmlFor="newPassword">{t("settings.password.new")}</Label>
           <Input
             id="newPassword"
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="New password"
+            placeholder={t("settings.password.newPlaceholder")}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm</Label>
+          <Label htmlFor="confirmPassword">
+            {t("settings.password.confirm")}
+          </Label>
           <Input
             id="confirmPassword"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm password"
+            placeholder={t("settings.password.confirmPlaceholder")}
           />
         </div>
       </div>
@@ -122,12 +133,12 @@ export function PasswordSection() {
           {newPassword === confirmPassword ? (
             <>
               <CheckCircle2 className="h-3 w-3" />
-              Passwords match
+              {t("settings.password.match")}
             </>
           ) : (
             <>
               <XCircle className="h-3 w-3" />
-              Passwords do not match
+              {t("settings.password.mismatch")}
             </>
           )}
         </p>
@@ -141,12 +152,12 @@ export function PasswordSection() {
         {updatePassword.isPending ? (
           <>
             <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-            Updating...
+            {t("settings.password.updating")}
           </>
         ) : (
           <>
             <Save className="h-4 w-4 mr-2" />
-            Update Password
+            {t("settings.password.update")}
           </>
         )}
       </Button>

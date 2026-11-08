@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Share2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ShareLinkSectionProps {
   shareToken: string | null;
@@ -19,6 +20,7 @@ export function ShareLinkSection({
   onEnableSharing,
   isEnabling = false,
 }: ShareLinkSectionProps) {
+  const { t } = useTranslation();
   const shareUrl =
     typeof window !== "undefined" && shareToken
       ? `${window.location.origin}/chat/${shareToken}`
@@ -30,10 +32,12 @@ export function ShareLinkSection({
         <CardContent className="pt-6">
           <div className="flex items-center gap-2 mb-2">
             <Share2 className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Shareable Link</h3>
+            <h3 className="text-sm font-semibold">
+              {t("chatbotDetail.share.title")}
+            </h3>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Share this link with students to give them access to your chatbot
+            {t("chatbotDetail.share.description")}
           </p>
           <div className="flex gap-2">
             <Input
@@ -43,8 +47,8 @@ export function ShareLinkSection({
             />
             <CopyButton
               text={shareUrl}
-              successMessage="Share link copied to clipboard"
-              errorMessage="Failed to copy link"
+              successMessage={t("chatbotDetail.share.copied")}
+              errorMessage={t("chatbotDetail.share.copyFailed")}
             />
           </div>
         </CardContent>
@@ -59,14 +63,18 @@ export function ShareLinkSection({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Share2 className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Share Your Chatbot</h3>
+              <h3 className="text-sm font-semibold">
+                {t("chatbotDetail.share.enableTitle")}
+              </h3>
             </div>
             <p className="text-xs text-muted-foreground">
-              Enable sharing to generate a public link for your chatbot
+              {t("chatbotDetail.share.enableDescription")}
             </p>
           </div>
           <Button onClick={onEnableSharing} disabled={isEnabling} size="sm">
-            {isEnabling ? "Enabling..." : "Enable Sharing"}
+            {isEnabling
+              ? t("chatbotDetail.share.enabling")
+              : t("chatbotDetail.share.enable")}
           </Button>
         </div>
       </CardContent>

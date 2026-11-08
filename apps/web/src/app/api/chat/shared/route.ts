@@ -15,6 +15,7 @@ import {
   sharedChatRequestSchema,
   buildUserMessage,
   ChatRequestError,
+  chatErrorResponse,
 } from "@/server/chat/request";
 
 export const maxDuration = 300;
@@ -25,11 +26,11 @@ export async function POST(req: Request): Promise<Response> {
       await req.json().catch(() => null),
     );
     if (!parsed.success) {
-      return new Response("Invalid request", { status: 400 });
+      return chatErrorResponse("invalid_request", 400);
     }
     const userMessage = buildUserMessage(parsed.data.message);
     if (!userMessage) {
-      return new Response("Message must contain text", { status: 400 });
+      return chatErrorResponse("message_needs_text", 400);
     }
     const { shareToken } = parsed.data;
 
@@ -44,9 +45,7 @@ export async function POST(req: Request): Promise<Response> {
       limitGlobal(publicChatGlobalRateLimit, shareToken),
     ]);
     if (!perIp.success || !global.success) {
-      return new Response("Too many messages. Please slow down.", {
-        status: 429,
-      });
+      return chatErrorResponse("rate_limited", 429);
     }
 
     const [chatbot] = await db
@@ -60,9 +59,7 @@ export async function POST(req: Request): Promise<Response> {
       )
       .limit(1);
     if (!chatbot) {
-      return new Response("Chatbot not found or sharing is disabled", {
-        status: 404,
-      });
+      return chatErrorResponse("chatbot_not_shared", 404);
     }
 
     return await streamChat({
@@ -75,9 +72,9 @@ export async function POST(req: Request): Promise<Response> {
     });
   } catch (error) {
     if (error instanceof ChatRequestError) {
-      return new Response(error.message, { status: error.status });
+      return chatErrorResponse(error.code, error.status);
     }
     logError(error, "POST /api/chat/shared failed");
-    return new Response("Failed to send message", { status: 500 });
+    return chatErrorResponse("send_failed", 500);
   }
 }

@@ -2,6 +2,8 @@
 
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { PasswordValidationResult } from "@/lib/password/password-strength";
+import { passwordRuleLabel } from "@/lib/password/password-messages";
+import { useTranslation } from "react-i18next";
 
 interface PasswordRequirementsListProps {
   requirements: PasswordValidationResult["requirements"];
@@ -10,10 +12,11 @@ interface PasswordRequirementsListProps {
 export function PasswordRequirementsList({
   requirements,
 }: PasswordRequirementsListProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2 pt-2">
       <p className="text-xs font-semibold text-muted-foreground">
-        Requirements:
+        {t("settings.password.requirements")}
       </p>
       <div className="grid grid-cols-1 gap-1.5">
         {requirements.map((req, idx) => (
@@ -28,7 +31,7 @@ export function PasswordRequirementsList({
             ) : (
               <XCircle className="h-3 w-3" />
             )}
-            <span>{req.label}</span>
+            <span>{passwordRuleLabel(t, req.id)}</span>
           </div>
         ))}
       </div>

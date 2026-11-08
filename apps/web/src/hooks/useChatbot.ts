@@ -10,6 +10,7 @@ import {
   postStudyResponse,
   type StudyResponsePayload,
 } from "@/lib/submit-study-response";
+import { useTranslation } from "react-i18next";
 
 /**
  * Chat with an authenticated chatbot (the owner's /chatbot/[id] page), backed
@@ -22,6 +23,7 @@ export function useChatbot(
   chatbotId: string,
   session: { user: { id: string } } | null,
 ) {
+  const { t } = useTranslation();
   const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
   // The student's own finished study-tool responses this session, by tool
@@ -48,7 +50,7 @@ export function useChatbot(
         };
       },
     }),
-    onError: (error) => toast.error(describeChatError(error)),
+    onError: (error) => toast.error(describeChatError(error, t)),
     experimental_throttle: 50,
   });
 

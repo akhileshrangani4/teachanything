@@ -6,6 +6,10 @@ import {
   mergeSources,
 } from "@/lib/chat/helpers";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
+import en from "../../../messages/en.json";
+import { createI18n } from "@/i18n/create-i18n";
+
+const { t } = createI18n("en", en);
 
 // Minimal fixtures: deriveStatusLine only reads `role` and the last part's
 // `type`/`input`, so we cast small literals rather than build full UIMessages.
@@ -32,14 +36,18 @@ describe("clampMaxTokens", () => {
 
 describe("describeToolActivity", () => {
   it("includes the user query for search_documents", () => {
-    expect(describeToolActivity("search_documents", { query: "Berlin" })).toBe(
-      "Searching documents for “Berlin”",
-    );
+    expect(
+      describeToolActivity("search_documents", { query: "Berlin" }, t),
+    ).toBe("Searching documents for “Berlin”");
   });
   it("truncates an over-long search query with an ellipsis", () => {
-    const label = describeToolActivity("search_documents", {
-      query: "a".repeat(200),
-    });
+    const label = describeToolActivity(
+      "search_documents",
+      {
+        query: "a".repeat(200),
+      },
+      t,
+    );
     expect(label.startsWith("Searching documents for “aaaa")).toBe(true);
     expect(label.endsWith("…”")).toBe(true);
     // Fixed prose + quotes, plus 48 query chars and the one ellipsis char.
@@ -49,60 +57,68 @@ describe("describeToolActivity", () => {
     // 47 ASCII + 3 emoji = 50 code points; the 48-char cut lands right after the
     // first emoji, which must stay whole (a naive UTF-16 slice would halve it).
     const query = "a".repeat(47) + "😀😀😀";
-    expect(describeToolActivity("search_documents", { query })).toBe(
+    expect(describeToolActivity("search_documents", { query }, t)).toBe(
       `Searching documents for “${"a".repeat(47)}😀…”`,
     );
   });
   it("falls back to a generic search label when query is missing/empty", () => {
-    expect(describeToolActivity("search_documents", {})).toBe(
+    expect(describeToolActivity("search_documents", {}, t)).toBe(
       "Searching documents…",
     );
-    expect(describeToolActivity("search_documents", { query: "" })).toBe(
+    expect(describeToolActivity("search_documents", { query: "" }, t)).toBe(
       "Searching documents…",
     );
   });
   it("labels page and neighbor lookups", () => {
-    expect(describeToolActivity("get_page", { pageNumber: 14 })).toBe(
+    expect(describeToolActivity("get_page", { pageNumber: 14 }, t)).toBe(
       "Reading page 14…",
     );
     // Partial input (still streaming): pageNumber may not have arrived yet.
-    expect(describeToolActivity("get_page", {})).toBe("Reading a page…");
-    expect(describeToolActivity("get_context_around", {})).toBe(
+    expect(describeToolActivity("get_page", {}, t)).toBe("Reading a page…");
+    expect(describeToolActivity("get_context_around", {}, t)).toBe(
       "Reading surrounding context…",
     );
-    expect(describeToolActivity("list_documents", {})).toBe(
+    expect(describeToolActivity("list_documents", {}, t)).toBe(
       "Looking through your documents…",
     );
   });
   it("never throws on missing input and uses a generic fallback", () => {
-    expect(describeToolActivity("done", undefined)).toBe("Working…");
-    expect(describeToolActivity("unknown_tool", null)).toBe("Working…");
+    expect(describeToolActivity("done", undefined, t)).toBe("Working…");
+    expect(describeToolActivity("unknown_tool", null, t)).toBe("Working…");
   });
 });
 
 describe("deriveStatusLine", () => {
   it("shows retrieval while the request is pre-stream (submitted)", () => {
-    expect(deriveStatusLine(undefined, "submitted")).toBe("Searching sources…");
+    expect(deriveStatusLine(undefined, "submitted", t)).toBe(
+      "Searching sources…",
+    );
   });
   it("falls back to a generic label once the stream ends", () => {
-    expect(deriveStatusLine(undefined, "ready")).toBe("Thinking…");
-    expect(deriveStatusLine(undefined, "error")).toBe("Thinking…");
+    expect(deriveStatusLine(undefined, "ready", t)).toBe("Thinking…");
+    expect(deriveStatusLine(undefined, "error", t)).toBe("Thinking…");
   });
   it("names the active retrieval tool while streaming", () => {
     const msg = assistantWith({
       type: "tool-search_documents",
       input: { query: "Berlin" },
     });
-    expect(deriveStatusLine(msg, "streaming")).toBe(
+    expect(deriveStatusLine(msg, "streaming", t)).toBe(
       "Searching documents for “Berlin”",
     );
   });
   it("shows generation while streaming with no active tool", () => {
     expect(
-      deriveStatusLine(assistantWith({ type: "text", text: "" }), "streaming"),
+      deriveStatusLine(
+        assistantWith({ type: "text", text: "" }),
+        "streaming",
+        t,
+      ),
     ).toBe("Generating answer…");
     // The transient window before the assistant message lands.
-    expect(deriveStatusLine(undefined, "streaming")).toBe("Generating answer…");
+    expect(deriveStatusLine(undefined, "streaming", t)).toBe(
+      "Generating answer…",
+    );
   });
 });
 

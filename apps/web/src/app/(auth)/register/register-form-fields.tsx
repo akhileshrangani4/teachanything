@@ -16,12 +16,15 @@ import { PasswordStrengthIndicator } from "@/components/dashboard/settings/Passw
 import { PasswordRequirementsList } from "@/components/dashboard/settings/PasswordRequirementsList";
 import { TITLE_OPTIONS } from "@/lib/constants/title-options";
 import type { RegisterForm } from "./use-register";
+import { useTranslation } from "react-i18next";
+import { failedPasswordErrors } from "@/lib/password/password-messages";
 
 /**
  * All registration form fields: title (with custom "Other" input),
  * profile details, credentials, and the live password strength UI.
  */
 export function RegisterFormFields({ form }: { form: RegisterForm }) {
+  const { t } = useTranslation();
   const {
     titleSelection,
     setTitleSelection,
@@ -50,7 +53,7 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor="title">Title</Label>
+        <Label htmlFor="title">{t("auth.register.titleLabel")}</Label>
         <Select
           value={titleSelection}
           onValueChange={(value) => {
@@ -62,12 +65,12 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
           disabled={loading || success}
         >
           <SelectTrigger id="title">
-            <SelectValue placeholder="Select your title" />
+            <SelectValue placeholder={t("auth.register.selectYourTitle")} />
           </SelectTrigger>
           <SelectContent>
             {TITLE_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
-                {option.label}
+                {t(`settings.titles.${option.value}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -75,7 +78,7 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
         {titleSelection === "other" && (
           <Input
             id="customTitle"
-            placeholder="Enter your title"
+            placeholder={t("auth.register.enterYourTitle")}
             value={customTitle}
             onChange={(e) => setCustomTitle(e.target.value)}
             disabled={loading || success}
@@ -84,10 +87,10 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
         )}
       </div>
       <div className="space-y-2">
-        <Label htmlFor="name">Full Name</Label>
+        <Label htmlFor="name">{t("auth.register.fullName")}</Label>
         <Input
           id="name"
-          placeholder="Jane Smith"
+          placeholder={t("auth.register.fullNamePlaceholder")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -96,11 +99,11 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="institutionalAffiliation">
-          Institutional Affiliation
+          {t("auth.register.affiliation")}
         </Label>
         <Input
           id="institutionalAffiliation"
-          placeholder="University of Example"
+          placeholder={t("auth.register.affiliationPlaceholder")}
           value={institutionalAffiliation}
           onChange={(e) => setInstitutionalAffiliation(e.target.value)}
           required
@@ -108,10 +111,10 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="department">Name of Your Department</Label>
+        <Label htmlFor="department">{t("auth.register.department")}</Label>
         <Input
           id="department"
-          placeholder="Department of Computer Science"
+          placeholder={t("auth.register.departmentPlaceholder")}
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
           required
@@ -119,7 +122,7 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
         />
       </div>
       <div className="space-y-2">
-        <Label>Country</Label>
+        <Label>{t("auth.register.country")}</Label>
         <CountryCombobox
           value={country}
           onValueChange={setCountry}
@@ -127,11 +130,11 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="facultyWebpage">University webpage about you</Label>
+        <Label htmlFor="facultyWebpage">{t("auth.register.webpage")}</Label>
         <Input
           id="facultyWebpage"
           type="url"
-          placeholder="university.edu/your-name"
+          placeholder={t("auth.register.webpagePlaceholder")}
           value={facultyWebpage}
           onChange={(e) => setFacultyWebpage(e.target.value)}
           onBlur={(e) => {
@@ -145,11 +148,11 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Your university email</Label>
+        <Label htmlFor="email">{t("auth.register.universityEmail")}</Label>
         <Input
           id="email"
           type="email"
-          placeholder="you@university.edu"
+          placeholder={t("auth.fields.emailPlaceholder")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -157,7 +160,7 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t("auth.fields.password")}</Label>
         <Input
           id="password"
           type="password"
@@ -192,9 +195,11 @@ export function RegisterFormFields({ form }: { form: RegisterForm }) {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 <ul className="list-disc list-inside space-y-1">
-                  {passwordValidation.errors.map((error, idx) => (
-                    <li key={idx}>{error}</li>
-                  ))}
+                  {failedPasswordErrors(t, passwordValidation.requirements).map(
+                    (error, idx) => (
+                      <li key={idx}>{error}</li>
+                    ),
+                  )}
                 </ul>
               </AlertDescription>
             </Alert>

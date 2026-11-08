@@ -1,10 +1,10 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { userFiles, chatbotFileAssociations } from "@teachanything/db/schema";
 import { logInfo } from "@/lib/logger";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
+import { appError } from "@/server/app-error";
 
 /**
  * Associate file with chatbot
@@ -30,22 +30,16 @@ export const associateWithChatbotProcedure = protectedProcedure
       .limit(1);
 
     if (!file) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "File not found",
-      });
+      throw appError("NOT_FOUND", "errors.notFoundItems.file");
     }
 
     // Prevent associating files that failed to process
     if (file.processingStatus === "failed") {
-      const errorMessage = file.metadata?.error
-        ? `This file failed to process: ${file.metadata.error}. Please re-upload the file or check the file status on the Files page.`
-        : "This file failed to process. Please re-upload the file or check the file status on the Files page.";
-
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: errorMessage,
-      });
+      throw file.metadata?.error
+        ? appError("BAD_REQUEST", "errors.files.failedToProcessWithReason", {
+            error: file.metadata.error,
+          })
+        : appError("BAD_REQUEST", "errors.files.failedToProcess");
     }
 
     // Warn but allow associating files that are still processing
@@ -117,10 +111,7 @@ export const disassociateFromChatbotProcedure = protectedProcedure
       .limit(1);
 
     if (!file) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "File not found",
-      });
+      throw appError("NOT_FOUND", "errors.notFoundItems.file");
     }
 
     // Verify chatbot ownership

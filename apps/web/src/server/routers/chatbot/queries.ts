@@ -6,9 +6,9 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import { eq, and, sql, desc, asc, ilike, or } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { escapeLikePattern } from "@/server/utils";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
+import { appError } from "@/server/app-error";
 
 export const chatbotQueries = {
   /**
@@ -122,10 +122,7 @@ export const chatbotQueries = {
         .limit(1);
 
       if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found or not shared",
-        });
+        throw appError("NOT_FOUND", "errors.notFoundItems.chatbotNotShared");
       }
 
       return chatbot;

@@ -10,6 +10,7 @@ import { FileStatusBadge } from "../FileStatusBadge";
 import { FileActionButtons } from "./action-buttons";
 import { useFileActions } from "./use-file-actions";
 import type { BaseFile, FileTableRowProps } from "./types";
+import { useTranslation } from "react-i18next";
 
 // ── Mobile card view ─────────────────────────────────────────────────
 export function FileCardMobile<T extends BaseFile>({
@@ -24,6 +25,7 @@ export function FileCardMobile<T extends BaseFile>({
   retryDisabled = false,
   showCreatedDate = false,
 }: FileTableRowProps<T>) {
+  const { t, i18n } = useTranslation();
   const actions = useFileActions(file);
 
   return (
@@ -47,7 +49,7 @@ export function FileCardMobile<T extends BaseFile>({
             }}
             onClick={(e) => e.stopPropagation()}
             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer flex-shrink-0"
-            aria-label={`Select ${file.fileName}`}
+            aria-label={t("common.table.selectRow", { name: file.fileName })}
           />
         )}
         <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
@@ -59,14 +61,16 @@ export function FileCardMobile<T extends BaseFile>({
       {/* Metadata badges */}
       <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
         <span className="bg-muted px-2 py-0.5 rounded">
-          {getFileTypeDisplayName(file.fileType)}
+          {file.fileType === "text/plain"
+            ? t("files.types.text")
+            : getFileTypeDisplayName(file.fileType)}
         </span>
         <span className="bg-muted px-2 py-0.5 rounded">
-          {formatFileSize(file.fileSize)}
+          {formatFileSize(file.fileSize, i18n.language)}
         </span>
         {showCreatedDate && file.createdAt && (
           <span className="bg-muted px-2 py-0.5 rounded">
-            {formatDate(file.createdAt)}
+            {formatDate(file.createdAt, i18n.language)}
           </span>
         )}
       </div>

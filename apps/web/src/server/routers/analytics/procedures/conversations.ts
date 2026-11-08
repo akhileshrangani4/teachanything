@@ -8,7 +8,6 @@ import {
 } from "@teachanything/db/schema";
 import type { SQL } from "drizzle-orm";
 import { eq, and, sql, desc, asc, inArray, ilike } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { escapeLikePattern, formatPreview } from "@/server/utils";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import {
@@ -16,6 +15,7 @@ import {
   conversationSearchRateLimit,
 } from "@/server/rate-limit";
 import { buildMessageStatsSubquery } from "../helpers";
+import { appError } from "@/server/app-error";
 
 export const getConversationsListProcedure = protectedProcedure
   .input(
@@ -119,10 +119,7 @@ export const getConversationMessagesProcedure = protectedProcedure
       .limit(1);
 
     if (!row) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Conversation not found",
-      });
+      throw appError("NOT_FOUND", "errors.notFoundItems.conversation");
     }
 
     const [totalResult] = await ctx.db
@@ -183,10 +180,7 @@ export const searchConversationsProcedure = protectedProcedure
       { path: "analytics.searchConversations" },
     );
     if (!success) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: "Too many search requests. Please slow down.",
-      });
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.search");
     }
 
     // Materialize matching ids once so the (expensive) ILIKE scan runs a

@@ -2,9 +2,9 @@ import { publicProcedure, protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { user } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { checkRateLimit, userStatusProbeRateLimit } from "@/server/rate-limit";
 import { getTrustedClientIp } from "@/lib/get-client-ip";
+import { appError } from "@/server/app-error";
 
 /**
  * Get current user status
@@ -50,10 +50,7 @@ export const checkUserStatusProcedure = publicProcedure
       false,
     );
     if (!probe.success) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: "Too many requests. Please try again later.",
-      });
+      throw appError("TOO_MANY_REQUESTS", "errors.tooManyRequestsLater");
     }
 
     const [foundUser] = await ctx.db

@@ -2,7 +2,6 @@ import { describe, it, expect } from "@jest/globals";
 import {
   validatePasswordStrength,
   getPasswordStrengthColor,
-  getPasswordStrengthLabel,
   getPasswordStrengthBgColor,
 } from "@/lib/password/password-strength";
 
@@ -197,24 +196,6 @@ describe("getPasswordStrengthColor", () => {
 
   it("returns green for very-strong", () => {
     expect(getPasswordStrengthColor("very-strong")).toBe("text-green-600");
-  });
-});
-
-describe("getPasswordStrengthLabel", () => {
-  it("returns 'Weak' for weak", () => {
-    expect(getPasswordStrengthLabel("weak")).toBe("Weak");
-  });
-
-  it("returns 'Medium' for medium", () => {
-    expect(getPasswordStrengthLabel("medium")).toBe("Medium");
-  });
-
-  it("returns 'Strong' for strong", () => {
-    expect(getPasswordStrengthLabel("strong")).toBe("Strong");
-  });
-
-  it("returns 'Very Strong' for very-strong", () => {
-    expect(getPasswordStrengthLabel("very-strong")).toBe("Very Strong");
   });
 });
 

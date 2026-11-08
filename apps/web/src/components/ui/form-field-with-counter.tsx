@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CharacterCounter } from "@/components/ui/character-counter";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface FormFieldWithCounterProps {
   id: string;
@@ -37,6 +38,7 @@ export function FormFieldWithCounter({
   className,
   showCounter = true,
 }: FormFieldWithCounterProps) {
+  const { t } = useTranslation();
   const threshold =
     warningThreshold < 1
       ? Math.floor(maxLength * warningThreshold)
@@ -88,7 +90,7 @@ export function FormFieldWithCounter({
         {error && <p className="text-xs text-destructive">{error}</p>}
         {isOverLimit && !error && (
           <p className="text-xs text-destructive">
-            {label} exceeds the maximum length of {maxLength} characters
+            {t("common.form.exceedsMaxLength", { label, max: maxLength })}
           </p>
         )}
       </div>

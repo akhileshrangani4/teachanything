@@ -1,6 +1,5 @@
 import { protectedProcedure } from "@/server/trpc";
 import { eq, sql } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { crawlSources } from "@teachanything/db/schema";
 import {
   dispatchCrawlJob,
@@ -9,10 +8,11 @@ import {
 import { checkRateLimit, recrawlRateLimit } from "@/server/rate-limit";
 import {
   RECRAWLS_PER_HOUR,
-  formatRetryAfter,
+  retryAfterMinutes,
 } from "@/lib/constants/rate-limits";
 import { crawlSourceIdInput } from "../validation";
 import { assertOwnedCrawlSource } from "../helpers";
+import { appError } from "@/server/app-error";
 
 export const recrawlProcedure = protectedProcedure
   .input(crawlSourceIdInput)
@@ -25,9 +25,9 @@ export const recrawlProcedure = protectedProcedure
       { action: "recrawl" },
     );
     if (!success) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: `You've reached the hourly limit of ${RECRAWLS_PER_HOUR} re-crawls. You can re-crawl again in ${formatRetryAfter(reset)}.`,
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.recrawls", {
+        limit: RECRAWLS_PER_HOUR,
+        minutes: retryAfterMinutes(reset),
       });
     }
 
@@ -37,10 +37,7 @@ export const recrawlProcedure = protectedProcedure
       const isStuck =
         source.updatedAt !== null && source.updatedAt < stuckThreshold;
       if (!isStuck) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "A crawl is already in progress",
-        });
+        throw appError("CONFLICT", "errors.crawler.crawlInProgress");
       }
     }
 
@@ -55,10 +52,7 @@ export const recrawlProcedure = protectedProcedure
       .returning();
 
     if (!updatedSource) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to update crawl source",
-      });
+      throw appError("INTERNAL_SERVER_ERROR", "errors.crawler.updateFailed");
     }
 
     await dispatchCrawlJob({

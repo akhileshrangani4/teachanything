@@ -1,8 +1,8 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and, count } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { userFiles } from "@teachanything/db/schema";
+import { appError } from "@/server/app-error";
 
 /**
  * Get file processing status
@@ -23,10 +23,7 @@ export const getProcessingStatusProcedure = protectedProcedure
       .limit(1);
 
     if (!file) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "File not found",
-      });
+      throw appError("NOT_FOUND", "errors.notFoundItems.file");
     }
 
     return {
