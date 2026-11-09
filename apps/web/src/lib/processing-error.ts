@@ -25,6 +25,10 @@ export const STORAGE_MISSING_ERROR =
  */
 export function sanitizeProcessingError(error: unknown): string {
   const msg = error instanceof Error ? error.message : String(error);
+  // Image (OCR) failures come first: two of them also match generic branches
+  // below ("timed out", "no readable text") whose advice is wrong for images.
+  const imageMessage = sanitizeImageError(msg);
+  if (imageMessage) return imageMessage;
   if (msg.includes("timed out")) return "File processing timed out";
   if (msg.includes("Unsupported file type")) return msg;
   if (msg.includes("no readable text")) {
@@ -90,4 +94,38 @@ export function sanitizeProcessingError(error: unknown): string {
     return "The AI service was busy or unavailable and did not recover after retrying. Try again in a few minutes.";
   }
   return "File processing failed due to an internal error";
+}
+
+/**
+ * Owner-facing messages for image uploads, keyed on the wording thrown by
+ * `recognizeImageText` and `RAGService.extractImage` in @teachanything/ai.
+ * Returns null for anything that is not an image failure.
+ */
+function sanitizeImageError(msg: string): string | null {
+  if (msg.includes("Image contains no readable text")) {
+    // The generic "no readable text" advice says to run the file through OCR,
+    // which is exactly what just happened.
+    return (
+      "No readable text was found in this image. Text recognition works best " +
+      "on clear, well-lit photos or scans of printed or typed text; " +
+      "handwriting, very small text, and blurry or low-contrast photos often " +
+      "cannot be read."
+    );
+  }
+  if (msg.includes("Image text recognition timed out")) {
+    return "Reading the text in this image took too long. Try a smaller or cropped image, or split it into several images.";
+  }
+  if (msg.includes("Image too large for text recognition")) {
+    return "This image is too large to read. Resize it (for example, to 4000 pixels on the longest side) and upload it again.";
+  }
+  if (msg.includes("Multi-page TIFF")) {
+    return "This TIFF file has more than one page, and only single images are supported. Save each page as its own image and upload those instead.";
+  }
+  if (
+    msg.includes("Invalid image") ||
+    msg.includes("Error attempting to read image")
+  ) {
+    return "This image could not be read -- it may be damaged or in an unusual format. Open it, save it again as PNG or JPEG, and upload it once more.";
+  }
+  return null;
 }

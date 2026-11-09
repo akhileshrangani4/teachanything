@@ -203,3 +203,76 @@ describe("sanitizeProcessingError on provider failures", () => {
     expect(out).not.toContain("AI service");
   });
 });
+
+/**
+ * Image uploads are read with OCR. Their failures arrive wrapped by
+ * `RAGService.extractContent` ("Failed to extract content: ..."), which is how
+ * these inputs are written.
+ */
+describe("sanitizeProcessingError on image uploads", () => {
+  const wrap = (msg: string) => new Error(`Failed to extract content: ${msg}`);
+
+  it("explains an image with no text without telling the owner to run OCR", () => {
+    const result = sanitizeProcessingError(
+      wrap("Image contains no readable text content"),
+    );
+    expect(result).toContain("No readable text was found in this image");
+    // The PDF advice ("run it through OCR") is wrong here: OCR just ran.
+    expect(result).not.toContain("OCR");
+  });
+
+  it("gives image-specific advice for an OCR timeout", () => {
+    expect(
+      sanitizeProcessingError(
+        wrap("Image text recognition timed out after 45s"),
+      ),
+    ).toContain("took too long");
+  });
+
+  it("asks the owner to resize an oversized image", () => {
+    expect(
+      sanitizeProcessingError(
+        wrap(
+          "Image too large for text recognition: 9000x9000 pixels exceeds the 30 megapixel limit",
+        ),
+      ),
+    ).toContain("Resize it");
+  });
+
+  it("explains that multi-page TIFFs are not supported", () => {
+    expect(
+      sanitizeProcessingError(
+        wrap(
+          "Multi-page TIFF images are not supported: only the first page would be read",
+        ),
+      ),
+    ).toContain("more than one page");
+  });
+
+  it.each([
+    "Invalid image: the file is damaged or could not be read as an image",
+    "Error: Error attempting to read image.",
+  ])("calls an undecodable image damaged: %s", (msg) => {
+    expect(sanitizeProcessingError(wrap(msg))).toContain(
+      "This image could not be read",
+    );
+  });
+
+  it("still names a renamed file as the wrong format", () => {
+    expect(
+      sanitizeProcessingError(
+        wrap(
+          "Invalid PNG image file: the contents do not match the file type. This may indicate a renamed or corrupted file.",
+        ),
+      ),
+    ).toContain("not the format it says it is");
+  });
+
+  it("leaves a PDF with no text on the PDF advice", () => {
+    expect(
+      sanitizeProcessingError(
+        new Error("PDF contains no readable text content"),
+      ),
+    ).toContain("OCR");
+  });
+});

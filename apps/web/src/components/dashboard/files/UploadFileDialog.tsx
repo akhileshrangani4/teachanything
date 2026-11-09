@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MAX_FILE_SIZE } from "./file-constants";
+import { ALLOWED_EXTENSIONS, MAX_FILE_SIZE } from "./file-constants";
 import { useUploadQueue } from "./upload-file-dialog/use-upload-queue";
 import { SelectedFileList } from "./upload-file-dialog/selected-file-list";
 import { UploadSummary } from "./upload-file-dialog/upload-summary";
@@ -63,8 +63,8 @@ export function UploadFileDialog({
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
           <DialogDescription>
-            Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, or
-            CSV files (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
+            Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, CSV,
+            or image files (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
           </DialogDescription>
         </DialogHeader>
 
@@ -94,7 +94,7 @@ export function UploadFileDialog({
               type="file"
               ref={fileInputRef}
               onChange={handleInputChange}
-              accept=".pdf,.doc,.docx,.pptx,.txt,.md,.json,.csv"
+              accept={ALLOWED_EXTENSIONS.join(",")}
               multiple
               className="hidden"
             />
@@ -120,8 +120,8 @@ export function UploadFileDialog({
                   or drag and drop
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV (max{" "}
-                  {MAX_FILE_SIZE / 1024 / 1024}MB each)
+                  PDF, Word, PowerPoint, TXT, Markdown, JSON, CSV, or images
+                  (max {MAX_FILE_SIZE / 1024 / 1024}MB each)
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   You can select multiple files

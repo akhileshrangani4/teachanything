@@ -49,10 +49,14 @@ describe("SUPPORTED_FILE_TYPES", () => {
     expect(SUPPORTED_FILE_TYPES).toContain("text/markdown");
     expect(SUPPORTED_FILE_TYPES).toContain("application/json");
     expect(SUPPORTED_FILE_TYPES).toContain("text/csv");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/jpeg");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/png");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/webp");
+    expect(SUPPORTED_FILE_TYPES).toContain("image/tiff");
   });
 
-  it("has exactly 8 supported types", () => {
-    expect(SUPPORTED_FILE_TYPES).toHaveLength(8);
+  it("has exactly 12 supported types", () => {
+    expect(SUPPORTED_FILE_TYPES).toHaveLength(12);
   });
 });
 
@@ -82,6 +86,17 @@ describe("EXTENSION_MIME_MAP", () => {
 
   it("maps json to application/json", () => {
     expect(EXTENSION_MIME_MAP["json"]).toEqual(["application/json"]);
+  });
+
+  it.each([
+    ["jpg", "image/jpeg"],
+    ["jpeg", "image/jpeg"],
+    ["png", "image/png"],
+    ["webp", "image/webp"],
+    ["tif", "image/tiff"],
+    ["tiff", "image/tiff"],
+  ])("maps %s to %s", (extension, mime) => {
+    expect(EXTENSION_MIME_MAP[extension]).toEqual([mime]);
   });
 
   it("maps csv to text/csv", () => {
@@ -375,14 +390,28 @@ describe("validateFileType", () => {
     });
   });
 
+  describe("supported image types", () => {
+    it.each(["image/jpeg", "image/png", "image/webp", "image/tiff"])(
+      "accepts %s",
+      (mime) => {
+        expect(() => validateFileType(mime)).not.toThrow();
+      },
+    );
+  });
+
   describe("unsupported types", () => {
-    it("rejects image/png", () => {
-      expectTRPCError(
-        () => validateFileType("image/png"),
-        "BAD_REQUEST",
-        "Unsupported file type",
-      );
-    });
+    // Image formats the OCR path does not take. HEIC is what iPhones save
+    // photos as by default, so it is the one owners will actually try.
+    it.each(["image/gif", "image/heic", "image/bmp", "image/svg+xml"])(
+      "rejects %s",
+      (mime) => {
+        expectTRPCError(
+          () => validateFileType(mime),
+          "BAD_REQUEST",
+          "Unsupported file type",
+        );
+      },
+    );
 
     it("rejects application/zip", () => {
       expectTRPCError(
@@ -418,21 +447,22 @@ describe("validateFileType", () => {
 
     it("includes display name for known unsupported types in error", () => {
       try {
-        validateFileType("image/png");
+        validateFileType("image/gif");
         throw new Error("Expected to throw");
       } catch (error) {
         const trpcError = error as TRPCError;
-        // image/png is not in FILE_TYPE_DISPLAY_NAMES, so the raw type is used
-        expect(trpcError.message).toContain("image/png");
+        // image/gif is not in FILE_TYPE_DISPLAY_NAMES, so the raw type is used
+        expect(trpcError.message).toContain("image/gif");
       }
     });
 
     it("lists supported types in error message", () => {
       try {
-        validateFileType("image/png");
+        validateFileType("image/gif");
         throw new Error("Expected to throw");
       } catch (error) {
         const trpcError = error as TRPCError;
+        expect(trpcError.message).toContain("images (JPEG, PNG, WebP, TIFF)");
         expect(trpcError.message).toContain("PDF");
         expect(trpcError.message).toContain("Word");
         expect(trpcError.message).toContain("Text");
@@ -445,6 +475,31 @@ describe("validateFileType", () => {
 });
 
 describe("validateExtensionMatchesMimeType", () => {
+  describe("image extensions", () => {
+    it.each([
+      ["scan.jpg", "image/jpeg"],
+      ["scan.JPEG", "image/jpeg"],
+      ["board.png", "image/png"],
+      ["slide.webp", "image/webp"],
+      ["page.tif", "image/tiff"],
+      ["page.tiff", "image/tiff"],
+    ])("accepts %s declared as %s", (name, mime) => {
+      expect(() => validateExtensionMatchesMimeType(name, mime)).not.toThrow();
+    });
+
+    it.each([
+      ["photo.png", "image/jpeg"],
+      ["notes.pdf", "image/png"],
+      ["photo.jpg", "application/pdf"],
+    ])("rejects %s declared as %s", (name, mime) => {
+      expectTRPCError(
+        () => validateExtensionMatchesMimeType(name, mime),
+        "BAD_REQUEST",
+        "does not match file type",
+      );
+    });
+  });
+
   describe("matching extension and MIME type", () => {
     it("accepts .pdf with application/pdf", () => {
       expect(() =>

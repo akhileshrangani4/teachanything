@@ -16,6 +16,10 @@ export const ALLOWED_FILE_TYPES = [
   "text/markdown",
   "application/json",
   "text/csv",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/tiff",
 ] as const;
 
 export const ALLOWED_EXTENSIONS = [
@@ -28,6 +32,12 @@ export const ALLOWED_EXTENSIONS = [
   ".markdown",
   ".json",
   ".csv",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".tif",
+  ".tiff",
 ] as const;
 
 // User-friendly file type names for error messages
@@ -42,6 +52,10 @@ export const FILE_TYPE_DISPLAY_NAMES: Record<string, string> = {
   "text/markdown": "Markdown",
   "application/json": "JSON",
   "text/csv": "CSV",
+  "image/jpeg": "JPEG image",
+  "image/png": "PNG image",
+  "image/webp": "WebP image",
+  "image/tiff": "TIFF image",
 };
 
 // Helper to get user-friendly file type name
