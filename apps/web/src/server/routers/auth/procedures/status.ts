@@ -1,10 +1,4 @@
 import { publicProcedure, protectedProcedure } from "@/server/trpc";
-import { z } from "zod";
-import { user } from "@teachanything/db/schema";
-import { eq } from "drizzle-orm";
-import { checkRateLimit, userStatusProbeRateLimit } from "@/server/rate-limit";
-import { getTrustedClientIp } from "@/lib/get-client-ip";
-import { appError } from "@/server/app-error";
 
 /**
  * Get current user status
@@ -29,45 +23,6 @@ export const getStatusProcedure = publicProcedure.query(async ({ ctx }) => {
     },
   };
 });
-
-/**
- * Check user status by email (for login error handling)
- *
- * This reveals whether an email is registered and its approval state, so
- * it is rate limited per IP to prevent account enumeration scans. Fail
- * closed on a limiter that errors at runtime; a deploy with no Redis at
- * all still answers, since denying there would break the login page's
- * pending/rejected redirect on every Redis-less environment.
- */
-export const checkUserStatusProcedure = publicProcedure
-  .input(z.object({ email: z.string().email() }))
-  .query(async ({ ctx, input }) => {
-    const clientIp = getTrustedClientIp(ctx.headers);
-    const probe = await checkRateLimit(
-      userStatusProbeRateLimit,
-      clientIp,
-      { context: "user-status-probe" },
-      false,
-    );
-    if (!probe.success) {
-      throw appError("TOO_MANY_REQUESTS", "errors.tooManyRequestsLater");
-    }
-
-    const [foundUser] = await ctx.db
-      .select({ status: user.status })
-      .from(user)
-      .where(eq(user.email, input.email))
-      .limit(1);
-
-    if (!foundUser) {
-      return { exists: false, status: null };
-    }
-
-    return {
-      exists: true,
-      status: foundUser.status,
-    };
-  });
 
 /**
  * Check if user's account is approved
