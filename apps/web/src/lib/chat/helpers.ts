@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type { ChatStatus } from "ai";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import { RETRIEVAL_PART_TYPES } from "@/lib/retrieval-tool-names";
@@ -89,7 +90,11 @@ function truncateForLabel(text: string): string {
  * user-derived query are surfaced -- never tool RESULT content (which could
  * contain document text on public shared bots).
  */
-export function describeToolActivity(toolName: string, input: unknown): string {
+export function describeToolActivity(
+  toolName: string,
+  input: unknown,
+  t: TFunction,
+): string {
   const args = (input ?? {}) as {
     query?: unknown;
     pageNumber?: unknown;
@@ -97,20 +102,20 @@ export function describeToolActivity(toolName: string, input: unknown): string {
   switch (toolName) {
     case "search_documents":
       return typeof args.query === "string" && args.query.length > 0
-        ? `Searching documents for “${truncateForLabel(args.query)}”`
-        : "Searching documents…";
+        ? t("chat.status.searchingFor", { query: truncateForLabel(args.query) })
+        : t("chat.status.searching");
     case "get_page":
       // The client calls this while the tool input is still streaming, so
       // pageNumber may not have arrived yet.
       return typeof args.pageNumber === "number"
-        ? `Reading page ${args.pageNumber}…`
-        : "Reading a page…";
+        ? t("chat.status.readingPage", { page: args.pageNumber })
+        : t("chat.status.readingAPage");
     case "get_context_around":
-      return "Reading surrounding context…";
+      return t("chat.status.readingContext");
     case "list_documents":
-      return "Looking through your documents…";
+      return t("chat.status.lookingThrough");
     default:
-      return "Working…";
+      return t("chat.status.working");
   }
 }
 
@@ -128,9 +133,10 @@ export function describeToolActivity(toolName: string, input: unknown): string {
 export function deriveStatusLine(
   last: StudyUIMessage | undefined,
   status: ChatStatus,
+  t: TFunction,
 ): string {
-  if (status === "submitted") return "Searching sources…";
-  if (status !== "streaming") return "Thinking…";
+  if (status === "submitted") return t("chat.status.searchingSources");
+  if (status !== "streaming") return t("chat.status.thinking");
   const parts = last?.role === "assistant" ? last.parts : [];
   const lastPart = parts[parts.length - 1];
   if (lastPart && RETRIEVAL_PART_TYPES.has(lastPart.type)) {
@@ -139,11 +145,8 @@ export function deriveStatusLine(
     return describeToolActivity(
       lastPart.type.slice("tool-".length),
       "input" in lastPart ? lastPart.input : undefined,
+      t,
     );
   }
-  return "Generating answer…";
+  return t("chat.status.generating");
 }
-
-/** Greeting shown under "Welcome to <name>!" when a chatbot has no custom welcome message. */
-export const DEFAULT_WELCOME_MESSAGE =
-  "Start by asking a question about the course.";

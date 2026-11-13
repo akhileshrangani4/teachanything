@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 // Get max file size from environment variable (client-accessible via NEXT_PUBLIC_ prefix)
 // Falls back to 50MB if not set
 const getMaxFileSizeMB = (): number => {
@@ -50,13 +51,16 @@ export const getFileTypeDisplayName = (mimeType: string): string => {
 };
 
 // Validate file name
-export const validateFileName = (fileName: string): string | null => {
+export const validateFileName = (
+  fileName: string,
+  t: TFunction,
+): string | null => {
   if (!fileName || fileName.trim().length === 0) {
-    return "File name is required";
+    return t("files.validation.nameRequired");
   }
 
   if (fileName.length > MAX_FILE_NAME_LENGTH) {
-    return `File name must be less than ${MAX_FILE_NAME_LENGTH} characters`;
+    return t("files.validation.nameTooLong", { max: MAX_FILE_NAME_LENGTH });
   }
 
   // Check for invalid characters
@@ -66,7 +70,7 @@ export const validateFileName = (fileName: string): string | null => {
     (char) => char.charCodeAt(0) >= 0 && char.charCodeAt(0) <= 31,
   );
   if (invalidChars.test(fileName) || hasControlChars) {
-    return "File name contains invalid characters. Please use only letters, numbers, spaces, and common punctuation.";
+    return t("files.validation.nameInvalidCharacters");
   }
 
   // Check file extension
@@ -76,22 +80,36 @@ export const validateFileName = (fileName: string): string | null => {
       extension as (typeof ALLOWED_EXTENSIONS)[number],
     )
   ) {
-    return `File extension ${extension} is not supported. Allowed extensions: ${ALLOWED_EXTENSIONS.join(", ")}`;
+    return t("files.validation.extensionNotSupported", {
+      extension,
+      allowed: ALLOWED_EXTENSIONS.join(", "),
+    });
   }
 
   return null;
 };
 
-export const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+const FILE_SIZE_UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+
+export const formatFileSize = (bytes: number, locale: string) => {
+  const exponent =
+    bytes === 0
+      ? 0
+      : Math.min(
+          Math.floor(Math.log(bytes) / Math.log(1024)),
+          FILE_SIZE_UNITS.length - 1,
+        );
+  return new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit: FILE_SIZE_UNITS[exponent],
+    // Short bytes read wrongly in English: "500 byte".
+    unitDisplay: exponent === 0 ? "long" : "short",
+    maximumFractionDigits: 2,
+  }).format(bytes / 1024 ** exponent);
 };
 
-export const formatDate = (date: Date | string) => {
-  return new Date(date).toLocaleDateString("en-US", {
+export const formatDate = (date: Date | string, locale: string) => {
+  return new Date(date).toLocaleDateString(locale, {
     year: "numeric",
     month: "long",
     day: "numeric",

@@ -14,9 +14,10 @@ import { MessageAvatar } from "@/components/ui/message";
 import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
-import { deriveStatusLine, DEFAULT_WELCOME_MESSAGE } from "@/lib/chat/helpers";
+import { deriveStatusLine } from "@/lib/chat/helpers";
 import type { ChatStatus } from "ai";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
   if (!message || message.role !== "assistant") return false;
@@ -73,12 +74,13 @@ export function ChatInterface({
   onStudyAttempt,
   studyAttempts,
 }: ChatInterfaceProps) {
+  const { t } = useTranslation();
   const isStreaming = status === "submitted" || status === "streaming";
   const lastMessage = messages[messages.length - 1];
   // Show the typing/status indicator while streaming until the assistant
   // message has visible content of its own (text or a rendered study tool).
   const showIndicator = isStreaming && !hasVisibleContent(lastMessage);
-  const statusLine = deriveStatusLine(lastMessage, status);
+  const statusLine = deriveStatusLine(lastMessage, status, t);
 
   return (
     <div
@@ -105,39 +107,43 @@ export function ChatInterface({
                       exportChatAsText(messages, chatbotName, {
                         studyAttempts,
                       });
-                      toast.success("Chat exported successfully");
+                      toast.success(t("chat.interface.exported"));
                     } catch (error) {
-                      toast.error("Failed to export chat", {
+                      toast.error(t("chat.interface.exportFailed"), {
                         description:
                           error instanceof Error
                             ? error.message
-                            : "Unknown error",
+                            : t("common.status.unknownError"),
                       });
                     }
                   }}
                   disabled={isStreaming}
-                  aria-label="Export chat"
+                  aria-label={t("chat.interface.exportChat")}
                   className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
                 >
                   <Download
                     className="h-3.5 w-3.5 md:mr-1.5"
                     aria-hidden="true"
                   />
-                  <span className="hidden md:inline">Export Chat</span>
+                  <span className="hidden md:inline">
+                    {t("chat.interface.exportChat")}
+                  </span>
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={resetChat}
                   disabled={isStreaming}
-                  aria-label="New chat"
+                  aria-label={t("chat.interface.newChat")}
                   className="h-8 px-2 md:px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background border-border/50 hover:border-border transition-all duration-200"
                 >
                   <RotateCcw
                     className="h-3.5 w-3.5 md:mr-1.5"
                     aria-hidden="true"
                   />
-                  <span className="hidden md:inline">New Chat</span>
+                  <span className="hidden md:inline">
+                    {t("chat.interface.newChat")}
+                  </span>
                 </Button>
               </>
             )}
@@ -150,17 +156,17 @@ export function ChatInterface({
         <ChatContainerRoot
           className={`flex-1 min-h-0 overflow-y-auto ${embedMode ? "scrollbar-embed" : ""}`}
           aria-live="polite"
-          aria-label="Chat messages"
+          aria-label={t("chat.interface.messagesRegion")}
           aria-busy={isStreaming}
         >
           <ChatContainerContent className="p-2 md:p-3">
             {messages.length === 0 && !isStreaming ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-8 md:py-12 px-4">
                 <p className="text-muted-foreground mb-2 text-base md:text-lg">
-                  👋 Welcome to {chatbotName}!
+                  {t("chat.interface.welcome", { name: chatbotName })}
                 </p>
                 <p className="max-w-prose whitespace-pre-line break-words text-xs md:text-sm text-muted-foreground/70">
-                  {welcomeMessage?.trim() || DEFAULT_WELCOME_MESSAGE}
+                  {welcomeMessage?.trim() || t("chat.interface.emptyPrompt")}
                 </p>
               </div>
             ) : (

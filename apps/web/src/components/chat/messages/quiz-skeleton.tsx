@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Placeholder shown while the model is still streaming the quiz tool input
@@ -10,6 +11,7 @@ import { Sparkles } from "lucide-react";
  * blank gap covered only by the input's Stop button.
  */
 export function QuizSkeleton() {
+  const { t } = useTranslation();
   return (
     // The Card itself is NOT aria-hidden: the typing indicator is suppressed
     // while this shows (it counts as visible content), so "Building your quiz…"
@@ -22,7 +24,7 @@ export function QuizSkeleton() {
           aria-live="polite"
         >
           <Sparkles className="h-4 w-4 animate-pulse" aria-hidden="true" />
-          Building your quiz…
+          {t("chat.quiz.building")}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3" aria-hidden="true">

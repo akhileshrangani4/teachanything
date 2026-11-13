@@ -20,6 +20,8 @@ import {
 import { MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RouterOutputs } from "@/lib/trpc";
+import { useTranslation } from "react-i18next";
+import { formatChartDate } from "@/components/chatbot/analytics-tab/formatters";
 
 type MessageData = RouterOutputs["analytics"]["getTotalMessagesPerMonth"];
 
@@ -48,23 +50,21 @@ export function MessagesChart({
   onPreviousPeriod,
   onNextPeriod,
 }: MessagesChartProps) {
+  const { t, i18n } = useTranslation();
   // Format message data for chart
   const chartData =
     data?.data?.map((item) => ({
-      date: new Date(item.date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
+      date: formatChartDate(item.date, i18n.language),
       messages: item.count,
     })) || [];
 
   // Format date range for display
   const dateRange =
     data?.startDate && data?.endDate
-      ? `${new Date(data.startDate).toLocaleDateString("en-US", {
+      ? `${new Date(data.startDate).toLocaleDateString(i18n.language, {
           month: "short",
           day: "numeric",
-        })} - ${new Date(data.endDate).toLocaleDateString("en-US", {
+        })} - ${new Date(data.endDate).toLocaleDateString(i18n.language, {
           month: "short",
           day: "numeric",
           year: "numeric",
@@ -84,10 +84,10 @@ export function MessagesChart({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <CardTitle className="text-lg sm:text-xl font-semibold">
-              Messages Sent Over Time
+              {t("dashboard.chart.title")}
             </CardTitle>
             <CardDescription className="text-base">
-              {dateRange || "Track your chatbot usage over time"}
+              {dateRange || t("dashboard.chart.emptyDescription")}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -99,8 +99,8 @@ export function MessagesChart({
               className="h-9 w-9"
               title={
                 hasReachedAccountCreation
-                  ? "Cannot go back further than account creation date"
-                  : "Previous 30 days"
+                  ? t("dashboard.chart.cannotGoBack")
+                  : t("dashboard.chart.previousPeriod")
               }
             >
               <ChevronLeft className="h-4 w-4" />
@@ -138,10 +138,10 @@ export function MessagesChart({
             <div className="text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
               <p className="text-muted-foreground font-medium">
-                No message data available yet
+                {t("dashboard.chart.noData")}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Start chatting to see your analytics
+                {t("dashboard.chart.noDataHint")}
               </p>
             </div>
           </div>
@@ -186,6 +186,7 @@ export function MessagesChart({
                 <Line
                   type="monotone"
                   dataKey="messages"
+                  name={t("dashboard.chart.seriesMessages")}
                   stroke={chartColors.primary}
                   strokeWidth={2.5}
                   dot={false}

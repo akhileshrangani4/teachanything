@@ -3,6 +3,7 @@
 import { FileText } from "lucide-react";
 import Link from "next/link";
 import { QuickAddFilesSection } from "./QuickAddFilesSection";
+import { useTranslation, Trans } from "react-i18next";
 
 interface EmptyChatbotFilesStateProps {
   chatbotId: string;
@@ -19,18 +20,25 @@ export function EmptyChatbotFilesState({
   isAdding = false,
   onRefetch,
 }: EmptyChatbotFilesStateProps) {
+  const { t } = useTranslation();
   return (
     <div className="text-center py-12">
       <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
       <p className="text-muted-foreground mb-4">
-        No files associated with this chatbot yet.
+        {t("files.chatbot.emptyTitle")}
       </p>
       <p className="text-sm text-muted-foreground mb-4">
-        Upload files from the{" "}
-        <Link href="/dashboard/files" className="text-primary underline">
-          Files page
-        </Link>{" "}
-        and then associate them with this chatbot.
+        <Trans
+          i18nKey="files.chatbot.emptyDescription"
+          components={{
+            a: (
+              <Link
+                href="/dashboard/files"
+                className="text-primary underline"
+              />
+            ),
+          }}
+        />
       </p>
       <QuickAddFilesSection
         chatbotId={chatbotId}

@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 /**
  * Validation constants and utilities for chatbot forms
  */
@@ -20,20 +22,22 @@ export interface ValidationResult {
   description?: string;
 }
 
-export function validateName(name: string): ValidationResult {
+export function validateName(name: string, t: TFunction): ValidationResult {
   if (!name.trim()) {
     return {
       isValid: false,
-      error: "Name is required",
-      description: "Please provide a name for your chatbot",
+      error: t("chatbots.validation.nameRequired"),
+      description: t("chatbots.validation.nameRequiredHint"),
     };
   }
 
   if (name.length > VALIDATION_LIMITS.NAME_MAX_LENGTH) {
     return {
       isValid: false,
-      error: "Name is too long",
-      description: `Name must be ${VALIDATION_LIMITS.NAME_MAX_LENGTH} characters or less`,
+      error: t("chatbots.validation.nameTooLong"),
+      description: t("chatbots.validation.nameTooLongHint", {
+        max: VALIDATION_LIMITS.NAME_MAX_LENGTH,
+      }),
     };
   }
 
@@ -42,6 +46,7 @@ export function validateName(name: string): ValidationResult {
 
 export function validateDescription(
   description: string | null | undefined,
+  t: TFunction,
   required = false,
 ): ValidationResult {
   const desc = description ?? "";
@@ -49,16 +54,18 @@ export function validateDescription(
   if (required && !desc.trim()) {
     return {
       isValid: false,
-      error: "Description is required",
-      description: "Please provide a description for your chatbot",
+      error: t("chatbots.validation.descriptionRequired"),
+      description: t("chatbots.validation.descriptionRequiredHint"),
     };
   }
 
   if (desc && desc.length > VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH) {
     return {
       isValid: false,
-      error: "Description is too long",
-      description: `Description must be ${VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH} characters or less`,
+      error: t("chatbots.validation.descriptionTooLong"),
+      description: t("chatbots.validation.descriptionTooLongHint", {
+        max: VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH,
+      }),
     };
   }
 

@@ -1,0 +1,1338 @@
+{
+  "common": {
+    "actions": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "delete": "Delete",
+      "remove": "Remove",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "close": "Close",
+      "back": "Back",
+      "retry": "Retry",
+      "tryAgain": "Try Again",
+      "reloadPage": "Reload Page",
+      "previous": "Previous",
+      "next": "Next",
+      "moreActions": "More actions"
+    },
+    "status": {
+      "loading": "Loading",
+      "unknownError": "Unknown error"
+    },
+    "clipboard": {
+      "copied": "Copied to clipboard",
+      "failed": "Failed to copy"
+    },
+    "table": {
+      "searchPlaceholder": "Search...",
+      "clearSearch": "Clear search",
+      "pageOf": "Page {current, number} of {total, number}",
+      "selectAll": "Select all",
+      "range": "Showing {from, number}-{to, number} of {total, number}",
+      "selectRow": "Select {name}"
+    },
+    "form": {
+      "requiredLabel": "{label} *",
+      "characterCount": "{current, number}/{max, number}",
+      "exceedsMaxLength": "{label} exceeds the maximum length of {max, number} characters",
+      "optional": "Optional"
+    },
+    "country": {
+      "placeholder": "Select country",
+      "search": "Search country...",
+      "empty": "No country found."
+    },
+    "editableName": {
+      "save": "Save name",
+      "cancel": "Cancel rename"
+    },
+    "errorBoundary": {
+      "title": "Something went wrong",
+      "description": "An unexpected error occurred. Please try again."
+    },
+    "pageError": {
+      "title": "This page couldn't load",
+      "description": "Something went wrong while loading this page. Try again, or go back to the dashboard.",
+      "descriptionHome": "Something went wrong while loading this page. Try again.",
+      "backToDashboard": "Back to Dashboard"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "chatbots": "Chatbots",
+    "files": "Files",
+    "webSources": "Web Sources",
+    "settings": "Settings",
+    "admin": "Admin",
+    "support": "Support",
+    "docs": "Docs",
+    "documentation": "Documentation",
+    "privacyPolicy": "Privacy Policy",
+    "builtBy": "Built by <a>{name}</a>",
+    "signOut": "Sign Out",
+    "signedOut": "Signed out successfully",
+    "openMenu": "Open navigation menu",
+    "menuTitle": "Navigation menu",
+    "menuDescription": "Main navigation sidebar for the dashboard",
+    "userMenu": "Account menu"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Welcome to Your Chatbot Dashboard",
+    "stats": {
+      "totalChatbots": "Total Chatbots",
+      "activeChatbots": "Active chatbots",
+      "totalMessages": "Total Messages",
+      "totalMessagesSent": "Total messages sent",
+      "totalFiles": "Total Files",
+      "uploadedFiles": "Uploaded files"
+    },
+    "chart": {
+      "title": "Messages Sent Over Time",
+      "emptyDescription": "Track your chatbot usage over time",
+      "dateRange": "{start} - {end}",
+      "previousPeriod": "Previous 30 days",
+      "nextPeriod": "Next 30 days",
+      "cannotGoBack": "Cannot go back further than account creation date",
+      "noData": "No message data available yet",
+      "noDataHint": "Start chatting to see your analytics",
+      "seriesMessages": "Messages"
+    }
+  },
+  "chatbots": {
+    "list": {
+      "title": "Chatbots",
+      "subtitle": "Create and manage your chatbots.",
+      "count": "{count, plural, one {(# chatbot)} other {(# chatbots)}}",
+      "newChatbot": "New Chatbot",
+      "searchPlaceholder": "Search chatbots by name or description...",
+      "showing": "Showing {visible, number} of {total, plural, one {# chatbot} other {# chatbots}}",
+      "noSearchResults": "No chatbots match your search"
+    },
+    "card": {
+      "openChatbot": "Open Chatbot"
+    },
+    "empty": {
+      "title": "No chatbots yet",
+      "description": "Get started by creating your first AI chatbot",
+      "cta": "Create Your First Chatbot"
+    },
+    "delete": {
+      "title": "Delete Chatbot",
+      "description": "Are you sure you want to delete this chatbot? This action cannot be undone and will permanently delete all uploaded files, conversation history, and analytics data.",
+      "success": "Chatbot deleted successfully",
+      "failed": "Failed to delete chatbot"
+    },
+    "create": {
+      "title": "Create New Chatbot",
+      "description": "Configure your AI chatbot for your course",
+      "namePlaceholder": "CS101 Assistant",
+      "descriptionPlaceholder": "AI assistant for Introduction to Computer Science",
+      "systemPromptPlaceholder": "You are a helpful teaching assistant...",
+      "submit": "Create Chatbot",
+      "submitting": "Creating...",
+      "success": "Chatbot created successfully!",
+      "failed": "Failed to create chatbot"
+    },
+    "fields": {
+      "chatbotName": "Chatbot Name",
+      "name": "Name",
+      "description": "Description",
+      "aiModel": "AI Model",
+      "model": "Model",
+      "systemPrompt": "System Prompt",
+      "temperature": "Temperature",
+      "temperatureHelp": "Control randomness (0 = focused, 100 = creative)",
+      "maxTokens": "Max Tokens",
+      "maxTokensHelp": "Maximum length of responses ({min, number}-{max, number})"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "nameRequiredHint": "Please provide a name for your chatbot",
+      "nameTooLong": "Name is too long",
+      "nameTooLongHint": "Name must be {max, number} characters or less",
+      "descriptionRequired": "Description is required",
+      "descriptionRequiredHint": "Please provide a description for your chatbot",
+      "descriptionTooLong": "Description is too long",
+      "descriptionTooLongHint": "Description must be {max, number} characters or less",
+      "invalidTemperature": "Invalid temperature",
+      "invalidTemperatureHint": "Temperature must be between {min, number} and {max, number}",
+      "invalidMaxTokens": "Invalid max tokens",
+      "invalidMaxTokensHint": "Max tokens must be between {min, number} and {max, number}",
+      "systemPromptRequired": "System prompt is required",
+      "systemPromptRequiredHint": "Please provide a system prompt for your chatbot",
+      "welcomeTooLong": "Welcome message is too long",
+      "welcomeTooLongHint": "Welcome message must be {max, number} characters or less"
+    },
+    "defaultPrompt": {
+      "systemPrompt": "You are a helpful teaching assistant. Answer questions based on the provided context from course materials.",
+      "replyLanguageClause": "Reply in the language the student writes in."
+    }
+  },
+  "chatbotDetail": {
+    "nameFallback": "Chatbot",
+    "tabs": {
+      "chat": "Chat",
+      "files": "Files",
+      "webSources": "Web Sources",
+      "conversations": "Student Chats",
+      "analytics": "Analytics",
+      "settings": "Settings",
+      "embed": "Embed"
+    },
+    "header": {
+      "sharingEnabled": "Sharing Enabled"
+    },
+    "notFound": {
+      "title": "Chatbot Not Found",
+      "description": "The chatbot you're looking for doesn't exist.",
+      "back": "Back to Dashboard"
+    },
+    "settingsCard": {
+      "title": "Chatbot Settings",
+      "description": "Configure your chatbot"
+    },
+    "share": {
+      "title": "Shareable Link",
+      "description": "Share this link with students to give them access to your chatbot",
+      "copied": "Share link copied to clipboard",
+      "copyFailed": "Failed to copy link",
+      "enableTitle": "Share Your Chatbot",
+      "enableDescription": "Enable sharing to generate a public link for your chatbot",
+      "enable": "Enable Sharing",
+      "enabling": "Enabling..."
+    },
+    "embed": {
+      "cardTitle": "Embed On Website",
+      "cardDescription": "Add your chatbot to any website. Choose between a floating widget button (recommended for most sites) or an always-visible chat window. Works with HTML, WordPress, React, Next.js, and any web platform.",
+      "widgetTab": "Widget (Floating Button)",
+      "windowTab": "Window (Always Visible)",
+      "voicePolicy": "Voice input needs microphone access inside the embed. If your site sends a <code>{policyHeader}</code> header (common with WordPress security plugins and CDN presets), it must include <code>{allowDirective}</code>. With <code>{denyDirective}</code> the mic button is hidden.",
+      "widgetModeTitle": "Widget Mode (Recommended)",
+      "widgetModeDescription": "Adds a floating chat button in the bottom-right corner of your website. When clicked, it opens a chat window. Users can close it when done. Perfect for most websites as it doesn't take up permanent space.",
+      "htmlLabel": "HTML (for standard websites, WordPress, etc.)",
+      "htmlWidgetHelp": "Paste this code before the closing <code>{tag}</code> tag in your HTML.",
+      "reactLabel": "React/Next.js Component",
+      "reactHelp": "Use this if you're building with React or Next.js. Add it to your layout or main component.",
+      "windowModeTitle": "Window Mode (Always Visible)",
+      "windowModeDescription": "Embeds the chat window directly on your page as an always-visible iframe. Good for dedicated support or chat pages, but takes up permanent screen space. The chat window cannot be closed by users.",
+      "windowHtmlLabel": "HTML",
+      "windowHelp": "Paste this code where you want the chat window to appear on your page.",
+      "copyCode": "Copy code"
+    }
+  },
+  "chatbotSettings": {
+    "toasts": {
+      "saveSuccess": "Settings saved successfully",
+      "saveSuccessDescription": "Your chatbot configuration has been updated",
+      "saveFailed": "Failed to save settings",
+      "sharingEnabled": "Sharing enabled",
+      "sharingEnabledDescription": "Your chatbot is now publicly accessible",
+      "enableSharingFailed": "Failed to enable sharing",
+      "sharingDisabled": "Sharing disabled",
+      "sharingDisabledDescription": "Your chatbot is no longer publicly accessible",
+      "disableSharingFailed": "Failed to disable sharing",
+      "sourcesEnabled": "Sources display enabled",
+      "sourcesEnabledDescription": "Source citations will now be shown below assistant messages",
+      "sourcesDisabled": "Sources display disabled",
+      "sourcesDisabledDescription": "Source citations will no longer be displayed",
+      "updateFailed": "Failed to update setting"
+    },
+    "disableSharing": {
+      "title": "Disable Sharing",
+      "description": "Are you sure you want to disable sharing? This will invalidate the current share link and users will no longer be able to access the chatbot through it.",
+      "confirm": "Disable Sharing",
+      "disabling": "Disabling..."
+    },
+    "configuration": {
+      "title": "Configuration",
+      "description": "Manage your chatbot settings",
+      "edit": "Edit Settings",
+      "nameHelp": "The display name for your chatbot",
+      "namePlaceholder": "Enter chatbot name",
+      "descriptionHelp": "A brief description of what your chatbot does",
+      "descriptionPlaceholder": "Enter chatbot description (optional)",
+      "noDescription": "No description",
+      "modelHelp": "Choose the AI model to power your chatbot",
+      "modelOption": "{model} ({contextWindow})",
+      "contextWindowK": "{size, number}K context",
+      "contextWindowM": "{size, number}M context",
+      "modelWithoutTools": "{model} (no document tools)",
+      "systemPromptHelp": "Define how your chatbot should behave and respond"
+    },
+    "display": {
+      "title": "Display Settings",
+      "description": "Configure how messages are displayed in the chat",
+      "showSources": "Show Sources",
+      "showSourcesHelp": "Display source file citations below assistant messages"
+    },
+    "share": {
+      "title": "Share Settings",
+      "enabledDescription": "Your chatbot is publicly accessible via the link below",
+      "linkCopied": "Link copied to clipboard",
+      "generating": "Generating..."
+    },
+    "dangerZone": {
+      "title": "Danger Zone",
+      "description": "Permanently delete this chatbot and all associated data"
+    },
+    "welcome": {
+      "label": "Welcome Message",
+      "help": "Shown to students under \"Welcome to {name}!\" before they send their first message. Leave blank to use the default greeting.",
+      "placeholder": "e.g. Hello, I am an AI tutor trained on the content of this course. How can I help you?",
+      "default": "Default: {message}"
+    }
+  },
+  "files": {
+    "page": {
+      "title": "Files",
+      "subtitle": "List of all of your imported and crawled files.",
+      "count": "{count, plural, one {(# file)} other {(# files)}}",
+      "uploadTitle": "Upload Files",
+      "uploadDescription": "Upload files to your centralized library. You can then associate them with any chatbot.",
+      "searchPlaceholder": "Search files by name or type...",
+      "deleteSelected": "Delete Selected ({count, number})",
+      "showing": "Showing {visible, number} of {total, plural, one {# file} other {# files}}",
+      "noSearchResults": "No files match your search",
+      "emptyTitle": "Import a file now",
+      "emptyDescription": "You don't have any files yet. Import a file."
+    },
+    "deleteDialog": {
+      "title": "{count, plural, one {Delete File} other {Delete # Files}}",
+      "description": "{count, plural, one {Are you sure you want to delete this file? This action cannot be undone and will remove it from all chatbots it's associated with.} other {Are you sure you want to delete # files? This action cannot be undone and will remove them from all chatbots they're associated with.}}"
+    },
+    "retryDialog": {
+      "title": "Cancel and Restart Processing?",
+      "description": "This file is currently being processed. Are you sure you want to cancel and restart from the beginning? All current progress will be lost.",
+      "confirm": "Cancel and Restart",
+      "keepProcessing": "Keep Processing"
+    },
+    "toasts": {
+      "deleteFailed": "Failed to delete file",
+      "restartedAfterCancel": "Processing cancelled and restarted",
+      "restarted": "File processing restarted",
+      "restartedFromStart": "The file will be processed again from the beginning",
+      "restartedDescription": "The file will be processed again",
+      "retryFailed": "Failed to retry file",
+      "deleting": "{count, plural, one {Deleting # file...} other {Deleting # files...}}",
+      "deletedAll": "{count, plural, one {Successfully deleted # file} other {Successfully deleted # files}}",
+      "deletedPartial": "{succeeded, plural, one {Deleted # file} other {Deleted # files}}, {failed, number} failed",
+      "deleteAllFailed": "Failed to delete files",
+      "pleaseTryAgain": "Please try again",
+      "notReady": "File is not ready",
+      "notReadyDescription": "Please wait for the file to finish processing",
+      "downloadStarted": "Download started",
+      "accessFailed": "Failed to access file"
+    },
+    "table": {
+      "fileName": "File Name",
+      "type": "Type",
+      "size": "Size",
+      "status": "Status",
+      "created": "Created",
+      "empty": "No files found",
+      "selectAll": "Select all files",
+      "viewInNewTab": "View in new tab",
+      "download": "Download",
+      "cancelAndRestart": "Cancel and restart",
+      "retryProcessing": "Retry processing",
+      "add": "Add"
+    },
+    "types": {
+      "text": "Text"
+    },
+    "validation": {
+      "nameRequired": "File name is required",
+      "nameTooLong": "File name must be less than {max, number} characters",
+      "nameInvalidCharacters": "File name contains invalid characters. Please use only letters, numbers, spaces, and common punctuation.",
+      "extensionNotSupported": "File extension {extension} is not supported. Allowed extensions: {allowed}"
+    },
+    "upload": {
+      "trigger": "Upload File",
+      "title": "Upload Files",
+      "description": "Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV files (max {maxMb, number}MB each)",
+      "dropzone": "<click>Click to upload</click> or drag and drop",
+      "formats": "PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV (max {maxMb, number}MB each)",
+      "multipleHint": "You can select multiple files",
+      "submit": "{count, plural, =0 {Upload} other {Upload (#)}}",
+      "uploading": "Uploading...",
+      "clearAll": "Clear all",
+      "removeFile": "Remove {name}",
+      "totalFiles": "Total files:",
+      "totalSize": "Total size:",
+      "scrollHint": "Scroll to see all files",
+      "emptyFile": "Cannot upload empty file",
+      "tooLarge": "File size ({sizeMb, number}MB) exceeds the {maxMb, number}MB limit",
+      "unsupportedType": "File type \"{type}\" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, or CSV files.",
+      "duplicateName": "A file with the name \"{name}\" already exists. Please rename your file or delete the existing one.",
+      "fileError": "{name}: {error}",
+      "duplicateInSelection": "Duplicate file in selection",
+      "invalidFiles": "Invalid files",
+      "someSkipped": "Some files were skipped",
+      "skippedCount": "{count, plural, one {# file had errors} other {# files had errors}}",
+      "genericError": "An error occurred",
+      "uploadingToast": "{count, plural, one {Uploading # file...} other {Uploading # files...}}",
+      "uploadingDescription": "Please wait while we process your files",
+      "uploadedAll": "{count, plural, one {Successfully uploaded # file} other {Successfully uploaded # files}}",
+      "uploadedAllDescription": "Files are being processed",
+      "uploadedPartial": "{succeeded, plural, one {Uploaded # file} other {Uploaded # files}}, {failed, number} failed",
+      "uploadedPartialDescription": "Some files failed to upload",
+      "uploadFailed": "Failed to upload files",
+      "uploadFailedDescription": "Please check the errors and try again",
+      "httpFailed": "Upload failed with status {status}",
+      "networkError": "Network error during upload",
+      "cancelled": "Upload was cancelled",
+      "timedOut": "Upload timed out after {minutes, number} minutes. Please try a smaller file or check your connection.",
+      "selectedCount": "{count, plural, one {# file selected} other {# files selected}}"
+    },
+    "status": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "stuck": "Stuck",
+      "pending": "Pending",
+      "processing": "Processing",
+      "stages": {
+        "downloading": "Downloading",
+        "extracting": "Extracting content",
+        "chunking": "Chunking text",
+        "embedding": "Generating embeddings",
+        "storing": "Storing data"
+      },
+      "stuckTitle": "File processing appears to be stuck",
+      "lastUpdated": "Last updated: {time}",
+      "stage": "Stage: {stage}",
+      "unknown": "Unknown",
+      "tryRetry": "Try retrying this file",
+      "failedTitle": "Processing failed",
+      "completedTitle": "Processing completed",
+      "chunksCreated": "{count, plural, one {# chunk created} other {# chunks created}}",
+      "inProgressTitle": "Processing in progress",
+      "chunkProgress": "Chunk {current, number} of {total, number}",
+      "progress": "Progress: {progress, number, ::percent}",
+      "percent": "{progress, number, ::percent}"
+    },
+    "errors": {
+      "storageMissing": "The uploaded file could not be found in storage. Upload it again.",
+      "timedOut": "File processing timed out",
+      "unsupportedType": "Unsupported file type: {type}",
+      "noReadableText": "No readable text found. If this is a scanned document, it needs to be run through OCR (or re-exported as a text PDF) before it can be used.",
+      "formatMismatch": "This file is not the format it says it is. That usually means it was renamed, for example a PDF saved as a .pptx. Open it, save it again in the format its name says, and upload it once more.",
+      "emptyFile": "This file is empty. Check that it opens on your computer, then upload it again.",
+      "invalidPdf": "This file is not a readable PDF -- it may be truncated or corrupt. Try re-exporting or re-downloading it.",
+      "passwordProtected": "This file is password-protected. Remove the protection and upload it again.",
+      "embeddingDimension": "Embedding dimension mismatch",
+      "pdfUnreadable": "This PDF could not be read -- it may be damaged, truncated, or protected. Try re-saving or re-downloading it from the original source.",
+      "wordUnreadable": "This Word document could not be read. If it is an older .doc file, save it as .docx and upload again.",
+      "unreadable": "This file could not be read. Try re-saving it in its native application and uploading again.",
+      "providerQuota": "The AI service is out of quota or its key was rejected, so this file could not be indexed. This is a platform issue, not a problem with your file.",
+      "providerUnavailable": "The AI service was busy or unavailable and did not recover after retrying. Try again in a few minutes.",
+      "internal": "File processing failed due to an internal error",
+      "stalePending": "Processing never started. It may have been interrupted -- use Retry to try again.",
+      "staleProcessing": "Processing stopped responding and was timed out. Use Retry to try again; if it keeps failing, the file may be too large or contain no readable text.",
+      "crawledPageFailed": "Failed to fetch or extract content"
+    },
+    "chatbot": {
+      "title": "Associated Files",
+      "description": "Files that provide context for this chatbot. Manage files from the <a>Files page</a>.",
+      "searchPlaceholder": "Search associated files...",
+      "removeSelected": "Remove Selected ({count, number})",
+      "emptyTitle": "No files associated with this chatbot yet.",
+      "emptyDescription": "Upload files from the <a>Files page</a> and then associate them with this chatbot.",
+      "quickAddTitle": "Quick add files from your library:",
+      "quickAddSearch": "Search files to add...",
+      "addSelected": "Add Selected ({count, number})",
+      "availableCount": "{count, plural, one {Showing # available file} other {Showing # available files}}",
+      "noneLeftToAdd": "No more files available to add.",
+      "toasts": {
+        "added": "File added to chatbot",
+        "cannotAdd": "Cannot add file",
+        "addFailed": "Failed to add file",
+        "removed": "File removed from chatbot",
+        "removeFailed": "Failed to remove file",
+        "adding": "{count, plural, one {Adding # file...} other {Adding # files...}}",
+        "pleaseWait": "Please wait",
+        "addedAll": "{count, plural, one {Successfully added # file to chatbot} other {Successfully added # files to chatbot}}",
+        "addedPartial": "{succeeded, plural, one {Added # file} other {Added # files}}, {failed, number} failed",
+        "addedPartialDescription": "Some files could not be added. Check individual error messages above.",
+        "addFailedAll": "Failed to add files",
+        "addFailedAllDescription": "None of the selected files could be added. Check error messages above.",
+        "removedCount": "{count, plural, one {# file removed from chatbot} other {# files removed from chatbot}}"
+      }
+    }
+  },
+  "webSources": {
+    "page": {
+      "title": "Web Sources",
+      "subtitle": "Crawl full websites or add single webpages, then attach them to your chatbots.",
+      "count": "{count, plural, one {(# source)} other {(# sources)}}",
+      "rateLimits": "You can add up to {crawls, number} full website crawls and {pages, number} single webpages per hour. These are hourly limits, not a cap on how many web sources you can have in total.",
+      "emptyTitle": "No web sources yet",
+      "emptyDescription": "Use <b>Add single page</b> or <b>Add Full Web Source</b> above to get started.",
+      "emptyNoChatbots": "You can create a chatbot later and attach sources to it.",
+      "createChatbot": "Create a Chatbot",
+      "searchPlaceholder": "Search web sources...",
+      "showing": "Showing {visible, number} of {total, plural, one {# source} other {# sources}}",
+      "deleteSelected": "Delete Selected ({count, number})",
+      "removeSelected": "Remove Selected ({count, number})",
+      "noFilterResults": "No web sources match your filters.",
+      "noSearchResults": "No web sources match your search",
+      "deletedAll": "{count, plural, one {# web source deleted} other {# web sources deleted}}",
+      "deletedPartial": "Deleted {deleted, number} of {total, number}. {failed, number} could not be deleted (crawl in progress).",
+      "removedAll": "{count, plural, one {# web source removed from chatbot} other {# web sources removed from chatbot}}",
+      "removedPartial": "{failed, number} of {total, plural, one {# web source} other {# web sources}} could not be removed"
+    },
+    "statusFilter": {
+      "all": "All statuses",
+      "crawling": "Crawling",
+      "completed": "Completed",
+      "failed": "Failed",
+      "disabled": "Disabled"
+    },
+    "sourceStatus": {
+      "completed": "Completed",
+      "crawling": "Crawling",
+      "discovering": "Discovering",
+      "pending": "Pending",
+      "failed": "Failed"
+    },
+    "pageStatus": {
+      "completed": "Done",
+      "processing": "Processing",
+      "pending": "Pending",
+      "failed": "Failed",
+      "blocked": "Blocked",
+      "skipped": "Unchanged"
+    },
+    "table": {
+      "name": "Name",
+      "pages": "Pages",
+      "status": "Status",
+      "enabled": "Enabled",
+      "chatbots": "Chatbots",
+      "lastCrawled": "Last Crawled",
+      "actions": "Actions",
+      "empty": "No web sources found",
+      "selectAll": "Select all web sources",
+      "selectAllShort": "Select all",
+      "pageCount": "{count, plural, one {# page} other {# pages}}",
+      "lastCrawledShort": "Last: {date}",
+      "enabledLabel": "Enabled",
+      "disabledLabel": "Disabled",
+      "enabledTooltip": "Enabled — included in chat context. Toggle to disable.",
+      "disabledTooltip": "Disabled — kept but excluded from chat context. Toggle to enable.",
+      "disableSource": "Disable source",
+      "enableSource": "Enable source",
+      "disableThisSource": "Disable this source (keeps data, excludes from chat context)",
+      "enableThisSource": "Enable this source",
+      "toggleSource": "Toggle source",
+      "rename": "Rename web source",
+      "showPages": "Show crawled pages",
+      "hidePages": "Hide crawled pages",
+      "showPagesFor": "Show crawled pages for {name}",
+      "hidePagesFor": "Hide crawled pages for {name}",
+      "attachedTo": "Attached to: {names}",
+      "attachToChatbots": "Attach to chatbots",
+      "attachedCount": "{count, plural, one {# chatbot} other {# chatbots}}",
+      "attach": "Attach",
+      "attaching": "Attaching...",
+      "noChatbots": "No chatbots yet. Create one to attach this source.",
+      "errorCount": "{count, plural, one {# error} other {# errors}}"
+    },
+    "actions": {
+      "stopCrawl": "Stop crawl",
+      "recrawl": "Re-crawl",
+      "exportJson": "Export JSON",
+      "downloadJson": "Download JSON",
+      "removeFromChatbot": "Remove from chatbot",
+      "keepCrawling": "Keep crawling",
+      "stopDescriptionDashboard": "Stop this crawl now. Pages already crawled are kept; the rest are skipped. You can re-crawl or delete the source afterwards.",
+      "stopDescriptionChatbot": "Stop this crawl now. Pages already crawled are kept; the rest are skipped. You can re-crawl or remove the source afterwards.",
+      "deleteTitle": "Delete web source",
+      "deleteDescription": "Permanently delete this web source and all of its crawled pages. It will be detached from every chatbot. This cannot be undone.",
+      "deletePermanently": "Delete permanently",
+      "removeDescription": "Remove this web source from this chatbot? Its content stays available to attach again."
+    },
+    "add": {
+      "addSinglePage": "Add single page",
+      "singlePageTitle": "Add a single page",
+      "singlePageDescription": "Adds only this page to your library. The crawler does not follow its links.",
+      "addFullSource": "Add Full Web Source",
+      "fullSourceDescription": "Enter a starting URL. The crawler follows links from that page within the limits you set. You can start up to {limit, plural, one {# crawl} other {# crawls}} per hour.",
+      "websiteUrl": "Website URL",
+      "crawlDepth": "Crawl Depth",
+      "maxPages": "Max Pages",
+      "includePatterns": "Include URL patterns",
+      "includeHelp": "Optional. Only crawl matching paths, such as /lectures/*. The * means any characters.",
+      "excludePatterns": "Exclude URL patterns",
+      "excludeHelp": "Optional. Skip matching paths, such as /login or /admin/*.",
+      "startCrawl": "Start Crawl",
+      "singleUrlPlaceholder": "Add a single page URL...",
+      "singleLimit": "Up to {limit, plural, one {# single webpage} other {# single webpages}} per hour.",
+      "addSingleWebpage": "Add Single Webpage",
+      "addSingleTooltip": "Adds only this page. It will not follow links.",
+      "attachExisting": "Attach an existing web source"
+    },
+    "chatbotTab": {
+      "title": "Web Sources",
+      "description": "Crawl websites to add their content to your chatbot's knowledge base.",
+      "emptyDescription": "Add a website URL to crawl or paste a single page URL above.",
+      "attached": "Web source attached",
+      "detached": "Removed from this chatbot"
+    },
+    "toasts": {
+      "attachFailed": "Failed to attach",
+      "removeFailed": "Failed to remove",
+      "recrawlStarted": "Re-crawl started",
+      "recrawlFailed": "Failed to start re-crawl",
+      "crawlStopped": "Crawl stopped",
+      "stopFailed": "Failed to stop crawl",
+      "sourceEnabled": "Source enabled",
+      "sourceDisabled": "Source disabled",
+      "toggleFailed": "Failed to toggle source",
+      "renamed": "Web source renamed",
+      "renameFailed": "Failed to rename source",
+      "deleted": "Web source deleted",
+      "deleteFailed": "Failed to delete source",
+      "crawlStarted": "Crawl started",
+      "crawlStartFailed": "Failed to start crawl",
+      "urlAdded": "URL added",
+      "urlAddFailed": "Failed to add URL",
+      "jsonExported": "JSON exported",
+      "jsonExportFailed": "Failed to export JSON"
+    },
+    "validation": {
+      "maxPagesTooBig": "Max pages cannot exceed {max, number}",
+      "maxPagesTooSmall": "Max pages must be at least {min, number}",
+      "crawlDepthTooBig": "Crawl depth cannot exceed {max, number}",
+      "crawlDepthTooSmall": "Crawl depth must be at least {min, number}",
+      "invalidUrl": "Please enter a valid URL",
+      "tooManyPatterns": "Use at most {max, number} URL patterns per list",
+      "patternTooLong": "Each URL pattern can have at most {max, number} characters",
+      "patternInvalidCharacters": "URL patterns can only use unaccented letters, numbers, spaces and - _ / . *",
+      "invalidInput": "Invalid input"
+    },
+    "progress": {
+      "waiting": "Waiting to start...",
+      "discovering": "Discovering pages...",
+      "processingOf": "Processing {done, number} of {total, number} pages...",
+      "processing": "Processing pages..."
+    },
+    "pages": {
+      "empty": "No pages crawled yet.",
+      "range": "Showing {from, number}-{to, number} of {total, number}",
+      "wordCount": "{count, plural, one {# word} other {# words}}",
+      "rename": "Rename crawled page",
+      "remove": "Remove page",
+      "removeDescription": "Remove \"{title}\" from this chatbot's knowledge? This deletes the page and its embeddings. This action cannot be undone.",
+      "removed": "Page removed",
+      "removeFailed": "Failed to remove page",
+      "renamed": "Page renamed",
+      "renameFailed": "Failed to rename page",
+      "failureReason": "Reason: {reason}",
+      "sourceErrorsTitle": "Crawl errors"
+    },
+    "errors": {
+      "stalePreCrawl": "The crawl never started. It may have been interrupted -- try adding this source again.",
+      "staleCrawl": "The crawl stopped responding and was timed out. Remove this source and try again, or lower the crawl depth.",
+      "pageTimedOut": "Crawl timed out before this page was processed.",
+      "noPagesScraped": "No pages could be scraped. The site may require JavaScript to render content.",
+      "blockedByRobots": "Blocked by robots.txt",
+      "invalidApiKey": "Embedding failed: invalid API key. Please check your OpenAI key.",
+      "connectionFailed": "Could not connect to the page. The site may be down or blocking requests.",
+      "timeout": "The page took too long to respond.",
+      "robotsBlocked": "This page is blocked by the site's robots.txt.",
+      "notFound": "Page not found (404).",
+      "forbidden": "Access to this page is forbidden (403).",
+      "rateLimited": "Rate limited by the site. Try again later.",
+      "noContent": "No readable content found on this page.",
+      "generic": "Failed to process this page. It may be unavailable or unsupported."
+    }
+  },
+  "analytics": {
+    "loadFailed": "Analytics failed to load",
+    "loadFailedHint": "Please refresh and try again.",
+    "metrics": {
+      "uniqueSessions": "Unique Sessions",
+      "uniqueSessionsDescription": "Student chat sessions",
+      "avgMessages": "Avg Msgs/Session",
+      "avgMessagesDescription": "Student messages per session",
+      "avgDuration": "Avg Duration",
+      "avgDurationDescription": "First to last message",
+      "ragHitRate": "RAG Hit Rate",
+      "ragHitRateDescription": "Messages using source context",
+      "ragHitRateValue": "{rate, number, ::percent}"
+    },
+    "duration": {
+      "seconds": "{seconds, number}s",
+      "minutes": "{minutes, number}m",
+      "minutesSeconds": "{minutes, number}m {seconds, number}s",
+      "hours": "{hours, number}h",
+      "hoursMinutes": "{hours, number}h {minutes, number}m"
+    },
+    "charts": {
+      "messagesTitle": "Messages Over Time",
+      "messagesDescription": "Student messages by day",
+      "messagesEmpty": "No message data yet",
+      "sessionsTitle": "Sessions Over Time",
+      "sessionsDescription": "Unique active sessions by day",
+      "sessionsEmpty": "No session data yet",
+      "lengthsTitle": "Session Lengths",
+      "lengthsDescription": "Sessions grouped by message count",
+      "lengthsEmpty": "No session lengths yet",
+      "seriesMessages": "Messages",
+      "seriesSessions": "Sessions"
+    },
+    "buckets": {
+      "one": "1 message",
+      "twoToFive": "2-5 messages",
+      "sixToTen": "6-10 messages",
+      "tenPlus": "10+ messages"
+    },
+    "commonQuestions": {
+      "title": "Common Questions",
+      "description": "Top first messages across student sessions",
+      "empty": "No common questions yet",
+      "unavailable": "Question unavailable"
+    },
+    "lowConfidence": {
+      "title": "Low-Confidence Queries",
+      "description": "Messages that did not use RAG context",
+      "empty": "No low-confidence queries found",
+      "session": "Session {id}..."
+    }
+  },
+  "conversations": {
+    "title": "Student Chats",
+    "description": "Browse your students' chat history with this chatbot.",
+    "searchPlaceholder": "Search student chats...",
+    "sort": {
+      "recent": "Most Recent",
+      "mostMessages": "Most Messages",
+      "longestDuration": "Longest Duration"
+    },
+    "detail": {
+      "back": "Back to student chats",
+      "title": "Student Chat",
+      "meta": "Started {date} · Session: {session}...",
+      "loadFailed": "Failed to load messages",
+      "tryAgainLater": "Please try again in a moment.",
+      "noMessages": "No messages in this conversation.",
+      "range": "Showing {from, number}-{to, number} of {total, number} messages"
+    },
+    "list": {
+      "selectChat": "Select chat",
+      "deleteChat": "Delete chat",
+      "noMessagesPreview": "No messages",
+      "messageCount": "{count, plural, one {# message} other {# messages}}",
+      "selectAllOnPage": "Select all on this page",
+      "selectAll": "Select all",
+      "selectedCount": "{count, number} selected",
+      "exportSelected": "Export selected",
+      "exportAll": "Export all",
+      "deleteSelected": "Delete selected",
+      "deleted": "{count, plural, one {Deleted # chat} other {Deleted # chats}}",
+      "deleteFailed": "Failed to delete. Please try again.",
+      "range": "Showing {from, number}-{to, number} of {total, number}"
+    },
+    "results": {
+      "loadFailed": "Failed to load student chats",
+      "noResults": "No results found",
+      "tryDifferentSearch": "Try a different search term.",
+      "empty": "No student chats yet",
+      "emptyHint": "Student chats will appear here when students start using this chatbot."
+    },
+    "deleteDialog": {
+      "title": "{count, plural, one {Delete # chat?} other {Delete # chats?}}",
+      "description": "{count, plural, one {This permanently deletes the selected student chat and all their messages. This cannot be undone.} other {This permanently deletes the selected student chats and all their messages. This cannot be undone.}}",
+      "deleting": "Deleting..."
+    },
+    "exportDialog": {
+      "title": "{mode, select, selected {Export {count, plural, one {# selected chat} other {# selected chats}}} other {Export all chats}}",
+      "description": "Choose the formats to include. A README explaining each file is added automatically, and everything downloads as a single .zip.",
+      "export": "Export",
+      "exporting": "Exporting...",
+      "formats": {
+        "htmlLabel": "Visual transcript (HTML)",
+        "htmlDescription": "Open in a browser — chat-style, easy to read.",
+        "csvLabel": "Spreadsheet (CSV)",
+        "csvDescription": "Open in Excel / Google Sheets for analysis.",
+        "textLabel": "Plain text (TXT)",
+        "textDescription": "Portable transcript for any text editor."
+      }
+    },
+    "exportToasts": {
+      "noRecords": "No chat records to export.",
+      "truncated": "Exported the first {max, number} chats. Export smaller selections to capture the rest.",
+      "exported": "{count, plural, one {Exported # chat.} other {Exported # chats.}}",
+      "failed": "Export failed. Please try again."
+    },
+    "time": {
+      "yesterday": "Yesterday",
+      "daysAgo": "{days, plural, one {# day ago} other {# days ago}}"
+    }
+  },
+  "exports": {
+    "roles": {
+      "student": "Student",
+      "assistant": "Assistant"
+    },
+    "formatLabels": {
+      "html": "Visual transcript (open in any web browser)",
+      "csv": "Spreadsheet (open in Excel / Google Sheets)",
+      "text": "Plain text (open in any text editor)"
+    },
+    "unknownDate": "Unknown",
+    "similarity": "{similarity, number, ::percent .0}",
+    "readme": {
+      "title": "Teach Anything — Chat Records Export",
+      "chatbot": "Chatbot:",
+      "exported": "Exported:",
+      "conversations": "Conversations:",
+      "capNote": "NOTE: This export was capped at the first {max, number} conversations. This chatbot has more records. Export in smaller selections to capture the remainder.",
+      "contains": "This bundle contains:",
+      "fileLine": "{file} — {label}",
+      "howToUse": "How to use each file",
+      "htmlHelp": "Double-click to open in any web browser. Conversations are laid out as a readable chat transcript — student messages on the right, the chatbot's replies on the left, with timestamps and any sources the chatbot cited.",
+      "csvHelp": "Open in Excel or Google Sheets. One row per message, with columns for the conversation number/id, session, turn, role, timestamp, message text and cited sources — handy for filtering and analysis.",
+      "csvLocaleNote": "Column names stay in English so existing scripts keep working; dates, roles and study-tool summaries follow your interface language.",
+      "textHelp": "Open in any text editor. Plain, portable transcript grouped by conversation, each turn labeled {student} / {assistant}.",
+      "studyToolsNote": "Interactive study tools a student used (e.g. quizzes) appear inline in each format: the questions, the correct answers, and the student's own responses and score for each attempt.",
+      "privacyNote": "Records are exported for pedagogical and research use. Please handle student data responsibly and in line with your institution's privacy policies."
+    },
+    "text": {
+      "header": "Chat Records: {chatbot}",
+      "exported": "Exported: {date}",
+      "conversations": "Conversations: {count, number}",
+      "empty": "No chat records to export.",
+      "conversationHeading": "=== Conversation {index, number} of {total, number} ===",
+      "session": "Session: {id}",
+      "started": "Started: {date}",
+      "messages": "Messages: {count, number}",
+      "turn": "[{index}] {role}:",
+      "sources": "Sources:",
+      "sourceLine": "{index}. {file} ({similarity})"
+    },
+    "html": {
+      "documentTitle": "Chat Records — {chatbot}",
+      "kicker": "Teach Anything · Chat Records",
+      "masthead": "Exported <b>{date}</b> · <b>{count, plural, one {# conversation} other {# conversations}}</b>",
+      "truncatedNotice": "Showing the first {max, number} conversations. This chatbot has more; export in smaller selections to capture the rest.",
+      "empty": "No chat records to export.",
+      "allChats": "All chats",
+      "chatSubtitle": "Started {date} · Session {session}… · {count, plural, one {# message} other {# messages}}",
+      "noMessages": "No messages in this conversation.",
+      "previewStudyActivity": "Study activity",
+      "previewNoMessages": "No messages",
+      "sources": "Sources:",
+      "relevance": "Relevance {similarity}",
+      "rowMessageCount": "{count, plural, one {# message} other {# messages}}",
+      "filteredCount": "{shown, number} of {total, plural, one {# chat} other {# chats}}",
+      "totalCount": "{count, plural, one {# chat} other {# chats}}",
+      "noMatching": "No matching chats."
+    }
+  },
+  "settings": {
+    "page": {
+      "title": "Settings",
+      "subtitle": "Manage your account settings",
+      "account": "Account",
+      "accountDescription": "Your profile and contact details",
+      "institutionalInfo": "Institutional Information",
+      "changePassword": "Change Password",
+      "needHelp": "Need help? <a>{email}</a>"
+    },
+    "language": {
+      "title": "Language",
+      "description": "Choose the language for your dashboard. Chatbot answers and your own content are not translated.",
+      "studentPagesNote": "Pages your students see, such as the shared chat and the website embed, stay in English.",
+      "useBrowser": "Use browser language",
+      "fromBrowser": "Currently using {language} from your browser settings",
+      "save": "Save language",
+      "applying": "Applying...",
+      "saveFailed": "Couldn't save your language. Please try again.",
+      "unconfirmed": "We couldn't confirm the change. Retry to make sure your language is saved."
+    },
+    "profile": {
+      "name": "Name",
+      "namePlaceholder": "Your name",
+      "nameUpdated": "Name updated",
+      "nameUpdateFailed": "Failed to update name",
+      "nameEmpty": "Name cannot be empty",
+      "upToDate": "Up to date",
+      "email": "Email",
+      "emailLocked": "Email cannot be changed"
+    },
+    "institutional": {
+      "loadFailed": "Failed to load profile",
+      "updated": "Information updated",
+      "updateFailed": "Failed to update",
+      "title": "Title",
+      "selectTitle": "Select title",
+      "enterTitle": "Enter title",
+      "institution": "Institution",
+      "institutionPlaceholder": "University of Example",
+      "department": "Department",
+      "departmentPlaceholder": "Computer Science",
+      "country": "Country",
+      "webpage": "University webpage about you",
+      "titleRequired": "Title is required",
+      "enterYourTitle": "Please enter your title",
+      "institutionRequired": "Institution is required",
+      "departmentRequired": "Department is required",
+      "countryRequired": "Country is required",
+      "webpageRequired": "University webpage is required",
+      "invalidUrl": "Please enter a valid URL"
+    },
+    "titles": {
+      "dr": "Dr",
+      "professor": "Professor",
+      "associate_professor": "Associate Professor",
+      "assistant_professor": "Assistant Professor",
+      "lecturer": "Lecturer",
+      "researcher": "Researcher",
+      "mr": "Mr",
+      "ms": "Ms",
+      "mrs": "Mrs",
+      "other": "Other"
+    },
+    "password": {
+      "updated": "Password updated",
+      "signInAgain": "Please sign in again on other devices.",
+      "updateFailed": "Failed to update password",
+      "notMeetRequirements": "Password does not meet requirements",
+      "mismatch": "Passwords do not match",
+      "match": "Passwords match",
+      "mustDiffer": "New password must be different",
+      "current": "Current",
+      "currentPlaceholder": "Current password",
+      "new": "New",
+      "newPlaceholder": "New password",
+      "confirm": "Confirm",
+      "confirmPlaceholder": "Confirm password",
+      "updating": "Updating...",
+      "update": "Update Password",
+      "requirements": "Requirements:",
+      "strength": "Password Strength:",
+      "strengthLevels": {
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong",
+        "veryStrong": "Very Strong"
+      }
+    },
+    "passwordRules": {
+      "minLength": {
+        "label": "At least {min, number} characters",
+        "error": "Password must be at least {min, number} characters"
+      },
+      "maxLength": {
+        "label": "Less than {max, number} characters",
+        "error": "Password must be less than {max, number} characters"
+      },
+      "hasLowercase": {
+        "label": "Contains lowercase letter",
+        "error": "Password must contain at least one lowercase letter"
+      },
+      "hasUppercase": {
+        "label": "Contains uppercase letter",
+        "error": "Password must contain at least one uppercase letter"
+      },
+      "hasNumber": {
+        "label": "Contains number",
+        "error": "Password must contain at least one number"
+      },
+      "hasSpecialChar": {
+        "label": "Contains special character",
+        "error": "Password must contain at least one special character"
+      },
+      "noRepeatedChars": {
+        "label": "No repeated characters",
+        "error": "Password must not contain repeated characters"
+      },
+      "noSequentialChars": {
+        "label": "No sequential characters",
+        "error": "Password must not contain sequential characters"
+      },
+      "notCommon": {
+        "label": "Not a common password",
+        "error": "Password is too common. Please choose a more unique password"
+      },
+      "aggregate": "{count, plural, one {Password does not meet # requirement: {list}} other {Password does not meet # requirements: {list}}}"
+    },
+    "deleteAccount": {
+      "title": "Delete Account",
+      "description": "Permanently delete your account, chatbots, files, and all associated data.",
+      "dialogTitle": "Delete your account?",
+      "dialogDescription": "This action is permanent and cannot be undone.",
+      "willDelete": "All of the following will be deleted:",
+      "itemChatbots": "Your chatbots and their configurations",
+      "itemFiles": "All uploaded files",
+      "itemHistory": "Conversation history and analytics",
+      "itemProfile": "Your profile and account data",
+      "enterPassword": "Enter your password to confirm",
+      "passwordPlaceholder": "Your password",
+      "typeToConfirm": "Type <strong>{word}</strong> to confirm",
+      "confirmWord": "DELETE",
+      "deleting": "Deleting...",
+      "confirm": "Delete My Account",
+      "success": "Account deleted",
+      "successDescription": "Your account and all associated data have been permanently removed.",
+      "failed": "Failed to delete account"
+    }
+  },
+  "auth": {
+    "fields": {
+      "email": "Email",
+      "emailPlaceholder": "you@university.edu",
+      "password": "Password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
+    },
+    "login": {
+      "title": "Welcome Back",
+      "description": "Login to your <brand></brand> account",
+      "forgotPassword": "Forgot password?",
+      "submit": "Login",
+      "submitting": "Logging in...",
+      "noAccount": "Don't have an account? <a>Register</a>",
+      "welcomeToast": "Welcome back!",
+      "successToast": "Login successful",
+      "failed": "Login failed",
+      "genericError": "An error occurred during login",
+      "pendingTitle": "Account Pending",
+      "pendingDescription": "Your account is awaiting admin approval",
+      "rejectedTitle": "Account Rejected",
+      "rejectedDescription": "Your registration was not approved"
+    },
+    "forgotPassword": {
+      "title": "Forgot Password",
+      "description": "Enter your email address and we'll send you a link to reset your password",
+      "submit": "Send Reset Link",
+      "sending": "Sending...",
+      "rememberPassword": "Remember your password? <a>Back to Login</a>",
+      "backToLogin": "Back to Login",
+      "sendFailed": "Failed to send reset email",
+      "requestSubmitted": "Request submitted!",
+      "requestSubmittedDescription": "If an account exists, you'll receive a reset link",
+      "resent": "New reset link sent!",
+      "resentDescription": "Check your inbox for the new link",
+      "checkEmailTitle": "Check Your Email",
+      "checkEmailDescription": "If an account exists for <b>{email}</b>, we've sent a password reset link.",
+      "linkExpiry": "Click the link in the email to reset your password. The link will expire in 1 hour.",
+      "notReceived": "Didn't receive the email? Check your spam folder or request a new link.",
+      "resendIn": "Resend available in {seconds, number}s",
+      "resend": "Resend reset link",
+      "differentEmail": "Try with a different email address"
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "description": "Enter your new password below",
+      "newPassword": "New Password",
+      "confirmNewPassword": "Confirm New Password",
+      "submit": "Reset Password",
+      "submitting": "Resetting...",
+      "linkExpiredTitle": "Link expired",
+      "linkExpiredDescription": "This password reset link has already been used or has expired. Please request a new one.",
+      "invalidPassword": "Invalid password",
+      "missingToken": "Invalid or missing reset token",
+      "failed": "Failed to reset password",
+      "success": "Password reset!",
+      "successDescription": "Your password has been successfully reset",
+      "invalidLinkTitle": "Invalid or Expired Link",
+      "invalidLinkDescription": "This password reset link is invalid or has expired.",
+      "invalidLinkHelp": "Password reset links expire after 1 hour for security reasons. Please request a new one.",
+      "requestNewLink": "Request New Reset Link",
+      "successTitle": "Password Reset Successfully",
+      "successBody": "Your password has been updated. You can now log in with your new password.",
+      "continueToLogin": "Continue to Login",
+      "missingTokenTitle": "Missing Reset Token",
+      "missingTokenBody": "No password reset token found. Please use the link from your email.",
+      "requestReset": "Request Password Reset"
+    },
+    "register": {
+      "title": "Create Account",
+      "description": "Register for <brand></brand> AI",
+      "infoAlert": "All accounts require admin approval before you can log in. You'll receive an email once your account is approved. After signing up, please check your inbox and spam folder for approval emails from <a>{adminEmail}</a>. To make sure you receive updates, please add this address to your contacts.",
+      "infoContact": "If you have any questions, please contact us at <a>{email}</a>",
+      "successAlert": "Registration successful! Your account is pending admin approval. Redirecting...",
+      "submit": "Register",
+      "submitting": "Registering...",
+      "submitted": "Success!",
+      "haveAccount": "Already have an account? <a>Login</a>",
+      "titleLabel": "Title",
+      "selectYourTitle": "Select your title",
+      "enterYourTitle": "Enter your title",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "Jane Smith",
+      "affiliation": "Institutional Affiliation",
+      "affiliationPlaceholder": "University of Example",
+      "department": "Name of Your Department",
+      "departmentPlaceholder": "Department of Computer Science",
+      "country": "Country",
+      "webpage": "University webpage about you",
+      "webpagePlaceholder": "university.edu/your-name",
+      "universityEmail": "Your university email",
+      "titleRequired": "Title is required",
+      "otherTitleRequired": "Please enter your title when selecting 'Other'",
+      "fullNameRequired": "Full name is required",
+      "affiliationRequired": "Institutional affiliation is required",
+      "departmentRequired": "Department is required",
+      "countryRequired": "Country is required",
+      "webpageRequired": "University webpage about you is required",
+      "webpageInvalid": "Please enter a valid URL for your university webpage",
+      "invalidUrlTitle": "Invalid URL",
+      "invalidUrlHint": "Please enter a valid URL (e.g., university.edu/your-name)",
+      "emailRequired": "Email is required",
+      "passwordRequired": "Password is required",
+      "successToast": "Registration successful!",
+      "pendingToast": "Your account is pending admin approval",
+      "failed": "Registration failed",
+      "failedRetry": "Registration failed. Please try again.",
+      "genericError": "An error occurred during registration"
+    },
+    "pending": {
+      "title": "Account Pending Approval",
+      "description": "Your registration has been received",
+      "body": "Your account is currently awaiting approval from an administrator. You'll receive an email notification once your account has been reviewed.",
+      "timing": "This typically takes 24-48 hours during business days.",
+      "redirecting": "Redirecting...",
+      "backToLogin": "Back to Login",
+      "questions": "Questions? Email us at <a>{email}</a>"
+    },
+    "rejected": {
+      "title": "Account Registration Not Approved",
+      "description": "Your registration has been reviewed",
+      "body": "Unfortunately, your account registration was not approved at this time.",
+      "why": "Why might this happen?",
+      "reasonInstitutions": "Registration may be limited to specific institutions",
+      "reasonDomain": "Your email domain may not be on the approved list",
+      "reasonVerification": "Additional verification may be required",
+      "contact": "If you believe this decision was made in error, please contact your institution's administrator."
+    },
+    "errors": {
+      "invalidCredentials": "Invalid email or password",
+      "userExists": "User already exists. Use another email.",
+      "domainNotAuthorized": "This email domain is not authorized for registration. Please contact an administrator if you believe this is an error.",
+      "registrationUnavailable": "Unable to complete registration. Please try again later or contact support.",
+      "invalidEmail": "Invalid email address",
+      "passwordTooShort": "Password is too short",
+      "passwordTooLong": "Password is too long",
+      "tooManyAttempts": "Too many attempts. Please wait a moment and try again."
+    }
+  },
+  "chat": {
+    "input": {
+      "placeholder": "Ask me anything...",
+      "ariaLabel": "Type a message",
+      "stop": "Stop generating",
+      "send": "Send message",
+      "tooLong": "Message exceeds {max, number} character limit",
+      "truncated": "Message truncated to character limit"
+    },
+    "interface": {
+      "exportChat": "Export Chat",
+      "exported": "Chat exported successfully",
+      "exportFailed": "Failed to export chat",
+      "newChat": "New Chat",
+      "messagesRegion": "Chat messages",
+      "emptyPrompt": "Start by asking a question about the course.",
+      "welcome": "👋 Welcome to {name}!"
+    },
+    "message": {
+      "quizFailed": "Couldn't build the quiz. Try asking again.",
+      "copy": "Copy message",
+      "copied": "Message copied to clipboard",
+      "copyFailed": "Failed to copy message",
+      "cutOff": "Response was cut off at the token limit. Try raising max tokens or asking a shorter question."
+    },
+    "status": {
+      "searchingFor": "Searching documents for “{query}”",
+      "searching": "Searching documents…",
+      "readingPage": "Reading page {page, number}…",
+      "readingAPage": "Reading a page…",
+      "readingContext": "Reading surrounding context…",
+      "lookingThrough": "Looking through your documents…",
+      "working": "Working…",
+      "searchingSources": "Searching sources…",
+      "thinking": "Thinking…",
+      "generating": "Generating answer…"
+    },
+    "sources": {
+      "label": "Sources:",
+      "showFewer": "Show fewer",
+      "more": "+{count, number} more",
+      "page": "Page {page, number}",
+      "pageCount": "{count, plural, one {# page} other {# pages}}",
+      "pagesList": "Pages {list}",
+      "similarity": "Similarity: {similarity, number, ::percent .0}"
+    },
+    "quiz": {
+      "building": "Building your quiz…",
+      "questionOf": "Question {current, number} of {total, number}",
+      "correctAnswerSuffix": " (correct answer)",
+      "yourAnswerIncorrectSuffix": " (your answer, incorrect)",
+      "correctFeedback": "Correct!",
+      "incorrectFeedback": "Not quite.",
+      "finish": "Finish",
+      "scoreSummary": "You answered {score, number} of {total, number} correctly.",
+      "scoreTotal": "/ {total, number}",
+      "yourAnswers": "Your answers",
+      "studentAnswers": "Student answers",
+      "retake": "Retake quiz",
+      "previousAttempt": "Previous attempt",
+      "nextAttempt": "Next attempt",
+      "attemptScore": "Attempt {attempt, number}: scored {score, number}/{total, number}",
+      "score": "Scored {score, number}/{total, number}",
+      "correctSuffix": " (correct)",
+      "incorrectSuffix": " (incorrect)",
+      "noAnswer": "(no answer)",
+      "attemptOf": "Attempt {current, number} / {total, number}"
+    },
+    "voice": {
+      "voiceInput": "Voice input",
+      "cancelRecording": "Cancel recording",
+      "stopRecording": "Stop recording",
+      "stopRecordingElapsed": "Stop recording ({elapsed})",
+      "unsupported": "Voice input is not supported in this browser. Please type your message.",
+      "permissionDenied": "Microphone access was blocked. Enable mic access in your browser or device settings, or just type your question.",
+      "noMicrophone": "No microphone found. Connect a mic or type your question.",
+      "startFailed": "Could not start recording. Please try again or type your question.",
+      "startFailedBrowser": "Could not start recording in this browser.",
+      "recorderFailed": "Recording failed. Please try again.",
+      "couldNotStart": "Recording could not start.",
+      "noAudio": "No audio was captured. Please try again.",
+      "processFailed": "Failed to process the recording. Please try again.",
+      "transcribing": "Transcribing audio",
+      "start": "Start voice input"
+    },
+    "transcription": {
+      "rateLimited": "{seconds, plural, one {Too many transcription requests. Please try again in # second.} other {Too many transcription requests. Please try again in # seconds.}}",
+      "tooLong": "Recording is too long. Please record a shorter clip.",
+      "tooLarge": "Recording is too large. Please record a shorter clip.",
+      "invalid": "That recording couldn't be processed. Please try again.",
+      "unavailable": "Voice transcription is temporarily unavailable. Please type your question.",
+      "disabled": "Voice input is currently disabled. Please type your question.",
+      "unauthorized": "Please sign in again to use voice input.",
+      "failed": "Voice input failed. Please try again or type your question.",
+      "noSpeech": "No speech detected. Please try again.",
+      "network": "Network error. Please try again."
+    },
+    "microphoneHelp": {
+      "title": "Microphone access is blocked",
+      "intro": "You can still type your question. To use voice input, allow microphone access:",
+      "desktopTitle": "Desktop browsers",
+      "desktopSteps": "Click the lock or site-info icon in the address bar, find Microphone, and switch it to Allow. Then reload the page.",
+      "iosTitle": "iPhone & iPad (Safari)",
+      "iosSteps": "Open the Settings app, scroll to Safari, tap Microphone, and allow this site. Reload the page.",
+      "androidTitle": "Android (Chrome)",
+      "androidSteps": "Tap the lock icon next to the URL, then Permissions, then Microphone, and choose Allow. Reload the page.",
+      "gotIt": "Got it"
+    },
+    "export": {
+      "quizNotGenerated": "[Quiz could not be generated]",
+      "interactiveQuiz": "[Interactive quiz: {title}]",
+      "quizHeading": "Quiz: {title}",
+      "questionLine": "Q{index}. {question}",
+      "correctMark": "[correct]",
+      "correctTag": "correct",
+      "incorrectTag": "incorrect",
+      "noAnswerSubmitted": "(no answer submitted)",
+      "noAnswerSubmittedSentence": "No answer submitted.",
+      "attemptScore": "Attempt {attempt, number} — score {score, number}/{total, number}",
+      "answerLine": "Q{index}: {answer} ({result})",
+      "studyTool": "Study tool: {name}",
+      "studyToolBracketed": "[Study tool: {name}]",
+      "data": "Data: {json}",
+      "attempt": "Attempt {attempt, number}",
+      "attemptData": "Attempt {attempt, number}: {json}",
+      "textHeader": "Chat Export: {chatbot}",
+      "textExportedOn": "Exported on: {date}",
+      "roleUser": "User",
+      "roleAssistant": "Assistant",
+      "sources": "Sources:",
+      "sourceSimilarity": "(similarity: {similarity, number, ::percent .0})"
+    }
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network": "Network error. Check your connection and try again.",
+    "invalidInput": "Some of the information entered isn't valid. Check the form and try again.",
+    "notFound": "The item you're looking for couldn't be found.",
+    "forbidden": "You don't have permission to do this.",
+    "unauthenticated": "You must be logged in to access this resource",
+    "pendingApproval": "Your account is pending admin approval",
+    "tooManyRequestsIn": "Too many requests. Please try again in {minutes, plural, one {# minute} other {# minutes}}.",
+    "tooManyRequestsLater": "Too many requests. Please try again later.",
+    "notFoundItems": {
+      "chatbot": "Chatbot not found",
+      "chatbotNotShared": "Chatbot not found or not shared",
+      "file": "File not found",
+      "conversation": "Conversation not found",
+      "crawlSource": "Crawl source not found",
+      "crawledPage": "Crawled page not found",
+      "user": "User not found"
+    },
+    "rateLimits": {
+      "chatbotCreation": "{hours, plural, one {Too many chatbot creations. Please try again in # hour.} other {Too many chatbot creations. Please try again in # hours.}}",
+      "upload": "Too many upload requests. Please try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "passwordUpdate": "Too many password update attempts. Please try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "attempts": "Too many attempts. Please try again in {minutes, plural, one {# minute} other {# minutes}}.",
+      "search": "Too many search requests. Please slow down.",
+      "exports": "Too many exports. Please wait a moment and try again.",
+      "fullCrawls": "You've reached the hourly limit of {limit, number} full website crawls. This is an hourly limit, not a total cap on web sources. You can start another crawl in {minutes, plural, one {# minute} other {# minutes}}.",
+      "singlePages": "You've reached the hourly limit of {limit, number} single webpages. This is an hourly limit, not a total cap on web sources. You can add another page in {minutes, plural, one {# minute} other {# minutes}}.",
+      "recrawls": "You've reached the hourly limit of {limit, number} re-crawls. You can re-crawl again in {minutes, plural, one {# minute} other {# minutes}}."
+    },
+    "crawler": {
+      "urlNotAllowed": "URL is not allowed",
+      "urlUnreachable": "Could not reach that URL. Please check it's correct and publicly accessible.",
+      "urlUnreachableStatus": "Could not reach that URL ({status}). Please check it's correct and publicly accessible.",
+      "duplicateUrl": "You've already added this URL as a web source",
+      "crawlInProgress": "A crawl is already in progress",
+      "crawlNotRunning": "This crawl is not running.",
+      "createFailed": "Failed to create crawl source",
+      "updateFailed": "Failed to update crawl source",
+      "stopFailed": "Failed to stop the crawl",
+      "removePageFailed": "Failed to remove crawled page",
+      "removeSourceFailed": "Failed to remove crawl source",
+      "exportTooLarge": "Export too large ({count, number} chunks). Try exporting fewer pages.",
+      "removePageCrawling": "Cannot remove this page while a crawl is in progress. Wait for the crawl to finish."
+    },
+    "files": {
+      "failedToProcessWithReason": "This file failed to process: {error}. Please re-upload the file or check the file status on the Files page.",
+      "failedToProcess": "This file failed to process. Please re-upload the file or check the file status on the Files page.",
+      "sizeMismatch": "File size mismatch. Expected {expected, number} bytes, got {actual, number} bytes. Upload may have been corrupted.",
+      "notInStorage": "File was not found in storage. Upload may have failed.",
+      "unsupportedType": "Unsupported file type: {type}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV",
+      "tooLarge": "File size exceeds {maxMb, number}MB limit. Current file size: {sizeMb, number}MB",
+      "extensionMismatch": "File extension (.{extension}) does not match file type ({type}). This may indicate a renamed or corrupted file.",
+      "retryNotAllowed": "Can only retry failed, stuck, or processing files",
+      "retryNotFound": "File not found or you don't have permission to retry it",
+      "retryFailed": "Failed to retry file processing",
+      "finalizeFailed": "Failed to finalize file upload",
+      "invalidStoragePath": "Invalid storage path"
+    },
+    "account": {
+      "incorrectPassword": "Incorrect password",
+      "currentPasswordIncorrect": "Current password is incorrect",
+      "newPasswordSame": "New password must be different from your current password",
+      "passwordAccountNotFound": "Password account not found",
+      "updatePasswordFailed": "Failed to update password",
+      "passwordUpdatedSignInAgain": "Password updated successfully. Please sign in again on other devices.",
+      "adminSelfDelete": "Admin accounts cannot be self-deleted. Please contact another admin to demote your account first.",
+      "deleteFailed": "Failed to delete account"
+    },
+    "chat": {
+      "sendFailed": "Failed to send message. Please try again.",
+      "tooManyMessages": "Too many messages. Please slow down.",
+      "invalidRequest": "Invalid request",
+      "messageNeedsText": "Message must contain text",
+      "conversationStartFailed": "Could not start this conversation. Please try again.",
+      "unauthorized": "Please sign in again.",
+      "streamInterrupted": "The response was interrupted. Please try again."
+    }
+  }
+}

@@ -9,6 +9,7 @@ import {
   chooseMimeType,
   isSupportedEnvironment,
 } from "./voice-recorder-support";
+import { useTranslation } from "react-i18next";
 
 export type {
   VoiceRecorderStatus,
@@ -21,6 +22,7 @@ export function useVoiceRecorder({
   onComplete,
   onError,
 }: UseVoiceRecorderOptions): UseVoiceRecorderResult {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<VoiceRecorderStatus>("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [isSupported, setIsSupported] = useState(false);
@@ -117,10 +119,7 @@ export function useVoiceRecorder({
 
   const start = useCallback(async () => {
     if (!isSupportedEnvironment()) {
-      emitError(
-        "unsupported",
-        "Voice input is not supported in this browser. Please type your message.",
-      );
+      emitError("unsupported", t("chat.voice.unsupported"));
       return;
     }
     // Synchronous lock — `status` reads aren't reliable across rapid
@@ -144,20 +143,11 @@ export function useVoiceRecorder({
       }
       const name = err instanceof Error ? err.name : "";
       if (name === "NotAllowedError" || name === "SecurityError") {
-        emitError(
-          "permission_denied",
-          "Microphone access was blocked. Enable mic access in your browser or device settings, or just type your question.",
-        );
+        emitError("permission_denied", t("chat.voice.permissionDenied"));
       } else if (name === "NotFoundError" || name === "OverconstrainedError") {
-        emitError(
-          "no_microphone",
-          "No microphone found. Connect a mic or type your question.",
-        );
+        emitError("no_microphone", t("chat.voice.noMicrophone"));
       } else {
-        emitError(
-          "recorder_failed",
-          "Could not start recording. Please try again or type your question.",
-        );
+        emitError("recorder_failed", t("chat.voice.startFailed"));
       }
       startingRef.current = false;
       setStatus("idle");
@@ -187,10 +177,7 @@ export function useVoiceRecorder({
         : new MediaRecorder(stream);
     } catch {
       cleanup();
-      emitError(
-        "recorder_failed",
-        "Could not start recording in this browser.",
-      );
+      emitError("recorder_failed", t("chat.voice.startFailedBrowser"));
       setStatus("idle");
       return;
     }
@@ -207,7 +194,7 @@ export function useVoiceRecorder({
       cleanup();
       setStatus("idle");
       setElapsedMs(0);
-      emitError("recorder_failed", "Recording failed. Please try again.");
+      emitError("recorder_failed", t("chat.voice.recorderFailed"));
     });
 
     recorder.addEventListener("stop", () => {
@@ -240,7 +227,7 @@ export function useVoiceRecorder({
 
       if (wasCancelled) return;
       if (blob.size === 0) {
-        emitError("no_audio", "No audio was captured. Please try again.");
+        emitError("no_audio", t("chat.voice.noAudio"));
         return;
       }
       // Call the latest handler via ref. Guard so a synchronous throw in
@@ -251,9 +238,7 @@ export function useVoiceRecorder({
       } catch (err) {
         emitError(
           "recorder_failed",
-          err instanceof Error
-            ? err.message
-            : "Failed to process the recording. Please try again.",
+          err instanceof Error ? err.message : t("chat.voice.processFailed"),
         );
       }
     });
@@ -266,7 +251,7 @@ export function useVoiceRecorder({
     } catch {
       cleanup();
       setStatus("idle");
-      emitError("recorder_failed", "Recording could not start.");
+      emitError("recorder_failed", t("chat.voice.couldNotStart"));
       return;
     }
 
@@ -290,7 +275,7 @@ export function useVoiceRecorder({
         stop();
       }
     }, maxDurationMs);
-  }, [cleanup, emitError, maxDurationMs, stop]);
+  }, [cleanup, emitError, maxDurationMs, stop, t]);
 
   return { status, elapsedMs, isSupported, start, stop, cancel };
 }

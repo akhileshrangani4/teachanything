@@ -27,6 +27,7 @@ import {
 import { getFriendlyError, hasActiveCrawl } from "./web-sources/utils";
 import { usePagedSources } from "./web-sources-tab/use-paged-sources";
 import { useSourceSelection } from "./web-sources-tab/use-source-selection";
+import { useTranslation } from "react-i18next";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -35,6 +36,7 @@ interface WebSourcesTabProps {
 }
 
 export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
+  const { t } = useTranslation();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const { state, searchInput, actions } = useServerTable<WebSourceSortBy>(
@@ -106,9 +108,9 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
   } = useCrawlerMutations({
     refresh: refetchSources,
     refreshAttachments: () => utils.crawler.getAttachableSources.invalidate(),
-    attachSuccessMessage: "Web source attached",
-    detachSuccessMessage: "Removed from this chatbot",
-    formatError: getFriendlyError,
+    attachSuccessMessage: t("webSources.chatbotTab.attached"),
+    detachSuccessMessage: t("webSources.chatbotTab.detached"),
+    formatError: (error) => getFriendlyError(error, t),
     refreshAfterRename: () =>
       Promise.all([
         refetchSources(),
@@ -146,11 +148,10 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5" />
-              Web Sources
+              {t("webSources.page.title")}
             </CardTitle>
             <CardDescription className="mt-1.5">
-              Crawl websites to add their content to your chatbot&apos;s
-              knowledge base.
+              {t("webSources.chatbotTab.description")}
             </CardDescription>
           </div>
           <AddFullWebSourceDialog
@@ -200,7 +201,7 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
               <TableToolbar
                 searchValue={searchInput}
                 onSearchChange={actions.setSearch}
-                placeholder="Search web sources..."
+                placeholder={t("webSources.page.searchPlaceholder")}
                 className="mb-0 flex-1"
               />
               <div className="flex items-center gap-4 ml-auto">
@@ -212,19 +213,23 @@ export function WebSourcesTab({ chatbotId }: WebSourcesTabProps) {
                     disabled={detach.isPending}
                   >
                     <X className="h-4 w-4 mr-2" />
-                    Remove Selected ({selectedSources.size})
+                    {t("webSources.page.removeSelected", {
+                      count: selectedSources.size,
+                    })}
                   </Button>
                 )}
                 <p className="text-sm text-muted-foreground whitespace-nowrap">
-                  Showing {pagedSources.length} of {totalCount} source
-                  {totalCount !== 1 ? "s" : ""}
+                  {t("webSources.page.showing", {
+                    visible: pagedSources.length,
+                    total: totalCount,
+                  })}
                 </p>
               </div>
             </div>
 
             {pagedSources.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No web sources match your search
+                {t("webSources.page.noSearchResults")}
               </div>
             ) : (
               <>

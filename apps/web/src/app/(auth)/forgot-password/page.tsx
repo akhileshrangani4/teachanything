@@ -16,10 +16,14 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { useTranslation, Trans } from "react-i18next";
+import { authErrorMessage } from "@/lib/auth-error-message";
+import { logError } from "@/lib/logger";
 
 const COOLDOWN_SECONDS = 60;
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,43 +37,45 @@ export default function ForgotPasswordPage() {
     return () => clearTimeout(timer);
   }, [cooldown]);
 
-  const requestReset = useCallback(async (emailAddress: string) => {
-    setLoading(true);
+  const requestReset = useCallback(
+    async (emailAddress: string) => {
+      setLoading(true);
 
-    try {
-      const { error: resetError } = await authClient.$fetch<{
-        status: boolean;
-      }>("/request-password-reset", {
-        method: "POST",
-        body: {
-          email: emailAddress,
-          redirectTo: "/reset-password",
-        },
-      });
-
-      if (resetError) {
-        setError(resetError.message || "Failed to send reset email");
-        toast.error("Error", {
-          description: resetError.message || "Failed to send reset email",
+      try {
+        const { error: resetError } = await authClient.$fetch<{
+          status: boolean;
+        }>("/request-password-reset", {
+          method: "POST",
+          body: {
+            email: emailAddress,
+            redirectTo: "/reset-password",
+          },
         });
-        return false;
-      }
 
-      return true;
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "An error occurred. Please try again.";
-      setError(errorMessage);
-      toast.error("Error", {
-        description: errorMessage,
-      });
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        if (resetError) {
+          const message = authErrorMessage(
+            t,
+            resetError,
+            t("auth.forgotPassword.sendFailed"),
+          );
+          setError(message);
+          toast.error(message);
+          return false;
+        }
+
+        return true;
+      } catch (err: unknown) {
+        const errorMessage = t("errors.generic");
+        logError(err, "Password reset request failed");
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [t],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,8 +85,8 @@ export default function ForgotPasswordPage() {
     if (sent) {
       setSuccess(true);
       setCooldown(COOLDOWN_SECONDS);
-      toast.success("Request submitted!", {
-        description: "If an account exists, you'll receive a reset link",
+      toast.success(t("auth.forgotPassword.requestSubmitted"), {
+        description: t("auth.forgotPassword.requestSubmittedDescription"),
       });
     }
   };
@@ -91,8 +97,8 @@ export default function ForgotPasswordPage() {
     const sent = await requestReset(email);
     if (sent) {
       setCooldown(COOLDOWN_SECONDS);
-      toast.success("New reset link sent!", {
-        description: "Check your inbox for the new link",
+      toast.success(t("auth.forgotPassword.resent"), {
+        description: t("auth.forgotPassword.resentDescription"),
       });
     }
   };
@@ -105,21 +111,24 @@ export default function ForgotPasswordPage() {
             <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
               <CheckCircle2 className="w-6 h-6 text-green-600" />
             </div>
-            <CardTitle>Check Your Email</CardTitle>
+            <CardTitle>{t("auth.forgotPassword.checkEmailTitle")}</CardTitle>
             <CardDescription>
-              If an account exists for{" "}
-              <span className="font-medium text-foreground">{email}</span>,
-              we&apos;ve sent a password reset link.
+              <Trans
+                i18nKey="auth.forgotPassword.checkEmailDescription"
+                values={{ email }}
+                components={{
+                  b: <span className="font-medium text-foreground" />,
+                }}
+              />
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              Click the link in the email to reset your password. The link will
-              expire in 1 hour.
+              {t("auth.forgotPassword.linkExpiry")}
             </p>
             <div className="text-center">
               <p className="text-sm text-muted-foreground mb-2">
-                Didn&apos;t receive the email? Check your spam folder or
+                {t("auth.forgotPassword.notReceived")}
               </p>
               <Button
                 variant="outline"
@@ -128,10 +137,10 @@ export default function ForgotPasswordPage() {
                 disabled={cooldown > 0 || loading}
               >
                 {loading
-                  ? "Sending..."
+                  ? t("auth.forgotPassword.sending")
                   : cooldown > 0
-                    ? `Resend available in ${cooldown}s`
-                    : "Resend reset link"}
+                    ? t("auth.forgotPassword.resendIn", { seconds: cooldown })
+                    : t("auth.forgotPassword.resend")}
               </Button>
             </div>
             <p className="text-sm text-muted-foreground text-center">
@@ -143,14 +152,14 @@ export default function ForgotPasswordPage() {
                 }}
                 className="text-primary hover:underline"
               >
-                Try with a different email address
+                {t("auth.forgotPassword.differentEmail")}
               </button>
             </p>
             <div className="pt-2">
               <Link href="/login">
                 <Button variant="outline" className="w-full">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Login
+                  {t("auth.forgotPassword.backToLogin")}
                 </Button>
               </Link>
             </div>
@@ -164,10 +173,9 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-secondary">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Forgot Password</CardTitle>
+          <CardTitle>{t("auth.forgotPassword.title")}</CardTitle>
           <CardDescription>
-            Enter your email address and we&apos;ll send you a link to reset
-            your password
+            {t("auth.forgotPassword.description")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -179,11 +187,11 @@ export default function ForgotPasswordPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("auth.fields.email")}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@university.edu"
+                placeholder={t("auth.fields.emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -191,15 +199,24 @@ export default function ForgotPasswordPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending..." : "Send Reset Link"}
+              {loading
+                ? t("auth.forgotPassword.sending")
+                : t("auth.forgotPassword.submit")}
             </Button>
           </form>
 
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Remember your password?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Back to Login
-            </Link>
+            <Trans
+              i18nKey="auth.forgotPassword.rememberPassword"
+              components={{
+                a: (
+                  <Link
+                    href="/login"
+                    className="text-primary hover:underline"
+                  />
+                ),
+              }}
+            />
           </p>
         </CardContent>
       </Card>

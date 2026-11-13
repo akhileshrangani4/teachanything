@@ -6,7 +6,6 @@ import {
   studyToolResponses,
 } from "@teachanything/db/schema";
 import { eq, and, asc, inArray } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import {
   collectStudyTools,
   groupStudyResponses,
@@ -14,6 +13,7 @@ import {
 } from "@/server/study/collect-export";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { checkRateLimit, downloadRateLimit } from "@/server/rate-limit";
+import { appError } from "@/server/app-error";
 
 /**
  * Export student chat records for a chatbot the caller owns. Returns the
@@ -43,10 +43,7 @@ export const exportConversationsProcedure = protectedProcedure
       { path: "analytics.exportConversations" },
     );
     if (!success) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: "Too many exports. Please wait a moment and try again.",
-      });
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.exports");
     }
 
     const EXPORT_MAX_CONVERSATIONS = 1000;

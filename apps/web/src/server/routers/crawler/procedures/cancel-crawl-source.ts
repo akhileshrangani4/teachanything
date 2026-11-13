@@ -1,9 +1,9 @@
 import { protectedProcedure } from "@/server/trpc";
-import { TRPCError } from "@trpc/server";
 import { logInfo, logError } from "@/lib/logger";
 import { timeOutStuckCrawl } from "@/server/crawl-stale";
 import { crawlSourceIdInput } from "../validation";
 import { assertOwnedCrawlSource } from "../helpers";
+import { appError } from "@/server/app-error";
 
 export const cancelCrawlSourceProcedure = protectedProcedure
   .input(crawlSourceIdInput)
@@ -15,10 +15,7 @@ export const cancelCrawlSourceProcedure = protectedProcedure
       source.status !== "discovering" &&
       source.status !== "crawling"
     ) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "This crawl is not running.",
-      });
+      throw appError("BAD_REQUEST", "errors.crawler.crawlNotRunning");
     }
 
     try {
@@ -39,9 +36,6 @@ export const cancelCrawlSourceProcedure = protectedProcedure
       logError(error, "Failed to cancel crawl source", {
         crawlSourceId: input.crawlSourceId,
       });
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to stop the crawl",
-      });
+      throw appError("INTERNAL_SERVER_ERROR", "errors.crawler.stopFailed");
     }
   });

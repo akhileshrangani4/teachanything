@@ -13,6 +13,7 @@ import { createFileRecord, findOwnRecord } from "./create-file-record";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/server/file-processor";
+import { appError } from "@/server/app-error";
 
 /**
  * Finalize upload after client has uploaded to storage.
@@ -76,10 +77,7 @@ export const finalizeUploadProcedure = protectedProcedure
       // Validate storage path matches expected pattern: {userId}/{fileId}
       const expectedPath = `${ctx.session.user.id}/${input.fileId}`;
       if (input.storagePath !== expectedPath) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invalid storage path",
-        });
+        throw appError("BAD_REQUEST", "errors.files.invalidStoragePath");
       }
       isPathOwned = true;
 
@@ -87,19 +85,16 @@ export const finalizeUploadProcedure = protectedProcedure
         // Verify file exists on local filesystem
         const exists = await localFileExists(input.storagePath);
         if (!exists) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "File was not found in storage. Upload may have failed.",
-          });
+          throw appError("BAD_REQUEST", "errors.files.notInStorage");
         }
 
         // Verify file size
         const actualSize = await getLocalFileSize(input.storagePath);
         const tolerance = input.fileSize * 0.01;
         if (Math.abs(actualSize - input.fileSize) > tolerance) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
+          throw appError("BAD_REQUEST", "errors.files.sizeMismatch", {
+            expected: input.fileSize,
+            actual: actualSize,
           });
         }
       } else {
@@ -113,10 +108,7 @@ export const finalizeUploadProcedure = protectedProcedure
           });
 
         if (checkError || !fileExists || fileExists.length === 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "File was not found in storage. Upload may have failed.",
-          });
+          throw appError("BAD_REQUEST", "errors.files.notInStorage");
         }
 
         // Verify the uploaded file size matches what was declared
@@ -125,9 +117,9 @@ export const finalizeUploadProcedure = protectedProcedure
           const actualSize = uploadedFile.metadata.size;
           const tolerance = input.fileSize * 0.01;
           if (Math.abs(actualSize - input.fileSize) > tolerance) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: `File size mismatch. Expected ${input.fileSize} bytes, got ${actualSize} bytes. Upload may have been corrupted.`,
+            throw appError("BAD_REQUEST", "errors.files.sizeMismatch", {
+              expected: input.fileSize,
+              actual: actualSize,
             });
           }
         }
@@ -208,9 +200,6 @@ export const finalizeUploadProcedure = protectedProcedure
         throw error;
       }
 
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to finalize file upload",
-      });
+      throw appError("INTERNAL_SERVER_ERROR", "errors.files.finalizeFailed");
     }
   });

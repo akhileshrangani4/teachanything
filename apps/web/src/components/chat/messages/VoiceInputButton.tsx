@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useVoiceRecorder";
 import { useTranscription } from "./use-transcription";
 import { MicrophoneHelpDialog } from "./microphone-help-dialog";
+import { useTranslation } from "react-i18next";
 
 interface VoiceInputButtonProps {
   disabled?: boolean;
@@ -34,6 +35,7 @@ export function VoiceInputButton({
   chatbotId,
   onTranscript,
 }: VoiceInputButtonProps) {
+  const { t } = useTranslation();
   const [permissionHelpOpen, setPermissionHelpOpen] = useState(false);
 
   const handleError = useCallback((err: VoiceRecorderError) => {
@@ -76,8 +78,8 @@ export function VoiceInputButton({
               size="icon"
               variant="ghost"
               onClick={cancel}
-              aria-label="Cancel recording"
-              title="Cancel"
+              aria-label={t("chat.voice.cancelRecording")}
+              title={t("common.actions.cancel")}
               className="h-8 w-8 md:h-9 md:w-9 rounded-full"
             >
               <X className="h-4 w-4" />
@@ -87,8 +89,10 @@ export function VoiceInputButton({
               size="icon"
               variant="destructive"
               onClick={stop}
-              aria-label="Stop recording"
-              title={`Stop recording (${formatElapsed(elapsedMs)})`}
+              aria-label={t("chat.voice.stopRecording")}
+              title={t("chat.voice.stopRecordingElapsed", {
+                elapsed: formatElapsed(elapsedMs),
+              })}
               className="h-8 w-8 md:h-9 md:w-9 rounded-full"
             >
               <Square className="h-3.5 w-3.5 fill-current" />
@@ -108,9 +112,11 @@ export function VoiceInputButton({
             disabled={disabled || isBusy}
             onClick={start}
             aria-label={
-              isTranscribing ? "Transcribing audio" : "Start voice input"
+              isTranscribing
+                ? t("chat.voice.transcribing")
+                : t("chat.voice.start")
             }
-            title="Voice input"
+            title={t("chat.voice.voiceInput")}
             className="h-8 w-8 md:h-9 md:w-9 rounded-full"
           >
             {isBusy ? (

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Trans, useTranslation } from "react-i18next";
 import { useSession, type ExtendedUser } from "@/lib/auth-client";
 import {
   LayoutDashboard,
@@ -17,31 +18,31 @@ import {
 
 const navigation = [
   {
-    name: "Dashboard",
+    labelKey: "nav.dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
-    name: "Chatbots",
+    labelKey: "nav.chatbots",
     href: "/dashboard/chatbots",
     icon: Bot,
   },
   {
-    name: "Files",
+    labelKey: "nav.files",
     href: "/dashboard/files",
     icon: FileText,
   },
   {
-    name: "Web Sources",
+    labelKey: "nav.webSources",
     href: "/dashboard/web-sources",
     icon: Globe,
   },
   {
-    name: "Settings",
+    labelKey: "nav.settings",
     href: "/dashboard/settings",
     icon: Settings,
   },
-];
+] as const;
 
 interface DashboardSidebarProps {
   onNavigate?: () => void;
@@ -50,6 +51,7 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { t } = useTranslation();
 
   // Check if user is admin
   const user = session?.user as ExtendedUser | undefined;
@@ -70,7 +72,7 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
 
             return (
               <Link
-                key={item.name}
+                key={item.href}
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
@@ -97,7 +99,7 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
                     isActive && "font-semibold",
                   )}
                 >
-                  {item.name}
+                  {t(item.labelKey)}
                 </span>
               </Link>
             );
@@ -134,7 +136,7 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
                     isAdminActive && "font-semibold",
                   )}
                 >
-                  Admin
+                  {t("nav.admin")}
                 </span>
               </Link>
             </>
@@ -151,7 +153,7 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
           className="group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
           <BookOpen className="mr-3 h-4 w-4 flex-shrink-0 text-sidebar-foreground/40 group-hover:text-sidebar-foreground" />
-          Documentation
+          {t("nav.documentation")}
         </a>
         <Link
           href="/privacy-policy"
@@ -160,25 +162,30 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
           className="group flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground"
         >
           <ScrollText className="mr-3 h-4 w-4 flex-shrink-0 text-sidebar-foreground/40 group-hover:text-sidebar-foreground" />
-          Privacy Policy
+          {t("nav.privacyPolicy")}
         </Link>
       </div>
 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-sidebar-border flex-shrink-0">
         <p className="text-xs text-sidebar-foreground/50 font-medium">
-          Built by{" "}
-          <a
-            href={
-              process.env.NEXT_PUBLIC_LINKEDIN_URL ||
-              "https://www.linkedin.com/in/akhileshrangani/"
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sidebar-primary hover:underline font-medium"
-          >
-            Akhilesh Rangani
-          </a>
+          <Trans
+            i18nKey="nav.builtBy"
+            values={{ name: "Akhilesh Rangani" }}
+            components={{
+              a: (
+                <a
+                  href={
+                    process.env.NEXT_PUBLIC_LINKEDIN_URL ||
+                    "https://www.linkedin.com/in/akhileshrangani/"
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sidebar-primary hover:underline font-medium"
+                />
+              ),
+            }}
+          />
         </p>
       </div>
     </aside>

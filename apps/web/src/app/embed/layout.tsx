@@ -1,5 +1,6 @@
 import "../globals.css";
 import { Providers } from "@/lib/providers";
+import { getRootMessages } from "@/server/i18n/root-messages";
 
 export default function EmbedLayout({
   children,
@@ -26,7 +27,7 @@ export default function EmbedLayout({
         }}
       />
       <div className="w-full h-full overflow-hidden flex flex-col">
-        <Providers>{children}</Providers>
+        <Providers messages={getRootMessages()}>{children}</Providers>
       </div>
     </>
   );

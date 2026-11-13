@@ -8,6 +8,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { logError } from "@/lib/logger";
 import type { SortBy } from "./constants";
 import { ConversationListView } from "./conversation-list-view";
+import { useTranslation } from "react-i18next";
 
 export function ConversationsResults({
   chatbotId,
@@ -26,6 +27,7 @@ export function ConversationsResults({
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
+  const { t } = useTranslation();
   const listQuery = trpc.analytics.getConversationsList.useQuery(
     { chatbotId, sortBy, limit, offset },
     { enabled: !search, placeholderData: keepPreviousData },
@@ -71,10 +73,10 @@ export function ConversationsResults({
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center">
         <MessageSquare className="h-12 w-12 mb-4 text-red-500 opacity-50" />
         <p className="text-lg font-medium text-red-600">
-          Failed to load student chats
+          {t("conversations.results.loadFailed")}
         </p>
         <p className="text-sm text-muted-foreground mt-1">
-          Please try again in a moment.
+          {t("conversations.detail.tryAgainLater")}
         </p>
       </div>
     );
@@ -85,18 +87,22 @@ export function ConversationsResults({
       return (
         <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center text-muted-foreground">
           <Search className="h-12 w-12 mb-4 opacity-50" />
-          <p className="text-lg font-medium">No results found</p>
-          <p className="text-sm mt-1">Try a different search term.</p>
+          <p className="text-lg font-medium">
+            {t("conversations.results.noResults")}
+          </p>
+          <p className="text-sm mt-1">
+            {t("conversations.results.tryDifferentSearch")}
+          </p>
         </div>
       );
     }
     return (
       <div className="flex flex-1 min-h-0 flex-col items-center justify-center text-center text-muted-foreground">
         <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-        <p className="text-lg font-medium">No student chats yet</p>
-        <p className="text-sm mt-1">
-          Student chats will appear here when students start using this chatbot.
+        <p className="text-lg font-medium">
+          {t("conversations.results.empty")}
         </p>
+        <p className="text-sm mt-1">{t("conversations.results.emptyHint")}</p>
       </div>
     );
   }

@@ -1,13 +1,13 @@
 /**
- * Database Extensions Setup Script
+ * Database Setup Script
  *
- * This script enables required PostgreSQL extensions (currently: pgvector).
- * It reads the SQL from ./setup-extensions.sql and executes it.
+ * Runs one SQL file from this directory, statement by statement.
  *
  * Usage:
- *   npm run db:setup-extensions
+ *   npm run db:setup-extensions   # setup-extensions.sql, before the schema
+ *   npm run db:setup-indexes      # setup-indexes.sql, after the schema
  *
- * This script is automatically run before db:push and db:migrate commands.
+ * Both run automatically as part of db:push and db:migrate.
  */
 
 import postgres from "postgres";
@@ -39,17 +39,16 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-async function setupExtensions() {
+const sqlFile = process.argv[2] ?? "setup-extensions.sql";
+
+async function runSetupSql() {
   const sql = postgres(databaseUrl!);
 
   try {
-    console.log("🔧 Enabling required database extensions...");
+    console.log(`🔧 Running ${sqlFile}...`);
 
     // Read the SQL file from the same directory
-    const sqlContent = readFileSync(
-      resolve(__dirname, "./setup-extensions.sql"),
-      "utf-8",
-    );
+    const sqlContent = readFileSync(resolve(__dirname, sqlFile), "utf-8");
 
     // Execute statements one at a time. Sending the whole file as a single
     // multi-statement simple query makes Postgres wrap it in an implicit
@@ -66,13 +65,13 @@ async function setupExtensions() {
       await sql.unsafe(statement);
     }
 
-    console.log("✅ Database extensions enabled successfully");
+    console.log(`✅ ${sqlFile} applied successfully`);
   } catch (error) {
-    console.error("❌ Error enabling extensions:", error);
+    console.error(`❌ Error running ${sqlFile}:`, error);
     process.exit(1);
   } finally {
     await sql.end();
   }
 }
 
-setupExtensions();
+runSetupSql();

@@ -6,6 +6,11 @@ import {
   normalizeUrl,
   parsePatternList,
 } from "@/components/chatbot/web-sources/utils";
+import en from "../../../messages/en.json";
+import { crawlSourceInput } from "@/server/routers/crawler/validation";
+import { createI18n } from "@/i18n/create-i18n";
+
+const { t } = createI18n("en", en);
 
 describe("web source UI utilities", () => {
   describe("normalizeUrl", () => {
@@ -70,6 +75,32 @@ describe("web source UI utilities", () => {
   });
 
   describe("getFriendlyError", () => {
+    const patternError = (patterns: string[]) => {
+      const result = crawlSourceInput.safeParse({
+        rootUrl: "https://example.com",
+        includePatterns: patterns,
+      });
+      return getFriendlyError({ message: result.error!.message }, t);
+    };
+
+    it("explains an invalid pattern, once however many fail", () => {
+      expect(patternError(["/actualités/*", "/blog?page=*"])).toBe(
+        en.webSources.validation.patternInvalidCharacters,
+      );
+    });
+
+    it("gives the limit for a long pattern", () => {
+      expect(patternError(["a".repeat(201)])).toBe(
+        "Each URL pattern can have at most 200 characters",
+      );
+    });
+
+    it("gives the limit for too many patterns", () => {
+      expect(patternError(Array(11).fill("/a"))).toBe(
+        "Use at most 10 URL patterns per list",
+      );
+    });
+
     it("maps Zod maxPages bounds errors to readable copy", () => {
       const error = {
         message: JSON.stringify([
@@ -80,7 +111,7 @@ describe("web source UI utilities", () => {
           },
         ]),
       };
-      expect(getFriendlyError(error)).toBe("Max pages cannot exceed 500");
+      expect(getFriendlyError(error, t)).toBe("Max pages cannot exceed 500");
     });
 
     it("maps URL validation errors to readable copy", () => {
@@ -93,12 +124,12 @@ describe("web source UI utilities", () => {
           },
         ]),
       };
-      expect(getFriendlyError(error)).toBe("Please enter a valid URL");
+      expect(getFriendlyError(error, t)).toBe("Please enter a valid URL");
     });
 
     it("returns plain error messages unchanged", () => {
       expect(
-        getFriendlyError({ message: "A crawl is already in progress" }),
+        getFriendlyError({ message: "A crawl is already in progress" }, t),
       ).toBe("A crawl is already in progress");
     });
   });

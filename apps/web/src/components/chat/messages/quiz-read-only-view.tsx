@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { QuizAttemptsViewer } from "./QuizAttemptsViewer";
+import { useTranslation } from "react-i18next";
 
 interface QuizReadOnlyViewProps {
   quiz: Quiz;
@@ -14,6 +15,7 @@ interface QuizReadOnlyViewProps {
 // Read-only reveal for the professor dashboard: every question with its
 // correct answer highlighted and explanation shown, no answer submission.
 export function QuizReadOnlyView({ quiz, attempts }: QuizReadOnlyViewProps) {
+  const { t } = useTranslation();
   return (
     <Card className="bg-secondary">
       <CardHeader>
@@ -46,7 +48,9 @@ export function QuizReadOnlyView({ quiz, attempts }: QuizReadOnlyViewProps) {
                           announced; a real (visually hidden) text node is, so
                           screen-reader users learn which option is correct. */}
                       {isCorrect && (
-                        <span className="sr-only"> (correct answer)</span>
+                        <span className="sr-only">
+                          {t("chat.quiz.correctAnswerSuffix")}
+                        </span>
                       )}
                     </span>
                     {isCorrect && (
@@ -66,7 +70,7 @@ export function QuizReadOnlyView({ quiz, attempts }: QuizReadOnlyViewProps) {
           <QuizAttemptsViewer
             quiz={quiz}
             attempts={attempts}
-            label="Student answers"
+            label={t("chat.quiz.studentAnswers")}
           />
         )}
       </CardContent>

@@ -8,9 +8,9 @@ import {
   user,
 } from "@teachanything/db/schema";
 import { eq, and, sql, gte, lte, inArray } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { MESSAGE_EVENT_TYPES } from "../helpers";
+import { appError } from "@/server/app-error";
 
 export const getChatbotStatsProcedure = protectedProcedure
   .input(z.object({ chatbotId: z.string().uuid() }))
@@ -127,10 +127,7 @@ export const getTotalMessagesPerMonthProcedure = protectedProcedure
       .limit(1);
 
     if (!userRecord) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "User not found",
-      });
+      throw appError("NOT_FOUND", "errors.notFoundItems.user");
     }
 
     const accountCreatedAt = userRecord.createdAt;

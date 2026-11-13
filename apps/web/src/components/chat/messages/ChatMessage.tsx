@@ -17,6 +17,7 @@ import { AlertTriangle } from "lucide-react";
 import { groupSourcesByFile } from "@/lib/message-sources";
 import { SourceList } from "./source-list";
 import { extractText } from "@/lib/chat/ui-messages";
+import { useTranslation } from "react-i18next";
 
 interface ChatMessageProps {
   message: StudyUIMessage;
@@ -43,10 +44,11 @@ interface ChatMessageProps {
  * nothing at all -- a blank assistant bubble.
  */
 function QuizErrorNotice() {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic">
       <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-      <span>Couldn&apos;t build the quiz. Try asking again.</span>
+      <span>{t("chat.message.quizFailed")}</span>
     </div>
   );
 }
@@ -72,6 +74,7 @@ function ChatMessageImpl({
   onStudyAttempt,
   studyAttempts,
 }: ChatMessageProps) {
+  const { t } = useTranslation();
   const isUser = message.role === "user";
   const sources = useMemo(
     () => groupSourcesByFile(message.metadata?.sources ?? []),
@@ -103,11 +106,11 @@ function ChatMessageImpl({
             {textContent}
           </MessageContent>
           <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <MessageAction tooltip="Copy message">
+            <MessageAction tooltip={t("chat.message.copy")}>
               <CopyButton
                 text={textContent}
-                successMessage="Message copied to clipboard"
-                errorMessage="Failed to copy message"
+                successMessage={t("chat.message.copied")}
+                errorMessage={t("chat.message.copyFailed")}
               />
             </MessageAction>
           </MessageActions>
@@ -202,10 +205,7 @@ function ChatMessageImpl({
           {truncated && (
             <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 italic">
               <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-              <span>
-                Response was cut off at the token limit. Try raising max tokens
-                or asking a shorter question.
-              </span>
+              <span>{t("chat.message.cutOff")}</span>
             </div>
           )}
 
@@ -217,11 +217,11 @@ function ChatMessageImpl({
       {hasContent && (
         <div className="pl-9 md:pl-12">
           <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <MessageAction tooltip="Copy message">
+            <MessageAction tooltip={t("chat.message.copy")}>
               <CopyButton
                 text={textContent}
-                successMessage="Message copied to clipboard"
-                errorMessage="Failed to copy message"
+                successMessage={t("chat.message.copied")}
+                errorMessage={t("chat.message.copyFailed")}
               />
             </MessageAction>
           </MessageActions>

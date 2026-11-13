@@ -13,6 +13,7 @@ import { Bot, MoreVertical, Trash2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import type { Chatbot } from "@/types/database";
 import { MODELS, formatDate } from "./chatbot-constants";
+import { useTranslation } from "react-i18next";
 
 interface ChatbotCardProps {
   chatbot: Chatbot;
@@ -20,6 +21,7 @@ interface ChatbotCardProps {
 }
 
 export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
+  const { t, i18n } = useTranslation();
   return (
     <Card className="border border-border/60 bg-card card-hover-lift shadow-xs group">
       <CardContent className="p-6">
@@ -47,7 +49,7 @@ export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
                 {chatbot.id.slice(0, 8)}...
               </span>
               <span>•</span>
-              <span>{formatDate(chatbot.createdAt)}</span>
+              <span>{formatDate(chatbot.createdAt, i18n.language)}</span>
             </div>
           </Link>
           <DropdownMenu>
@@ -68,7 +70,7 @@ export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  Open Chatbot
+                  {t("chatbots.card.openChatbot")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -80,7 +82,7 @@ export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
                 className="text-destructive focus:text-destructive cursor-pointer"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {t("common.actions.delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

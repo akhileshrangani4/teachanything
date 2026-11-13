@@ -6,6 +6,10 @@ import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { TITLE_OPTIONS } from "@/lib/constants/title-options";
+import { useTranslation } from "react-i18next";
+import { authErrorMessage } from "@/lib/auth-error-message";
+import { firstPasswordError } from "@/lib/password/password-messages";
+import { logError } from "@/lib/logger";
 
 /**
  * Owns all registration form state: field values, real-time password
@@ -14,6 +18,7 @@ import { TITLE_OPTIONS } from "@/lib/constants/title-options";
  * success path.
  */
 export function useRegister() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [titleSelection, setTitleSelection] = useState("");
   const [customTitle, setCustomTitle] = useState("");
@@ -55,8 +60,8 @@ export function useRegister() {
   const handleRegistrationSuccess = () => {
     setSuccess(true);
     setLoading(false);
-    toast.success("Registration successful!", {
-      description: "Your account is pending admin approval",
+    toast.success(t("auth.register.successToast"), {
+      description: t("auth.register.pendingToast"),
     });
     setTimeout(() => {
       router.push("/pending");
@@ -70,47 +75,47 @@ export function useRegister() {
 
     // Validate required fields
     if (!titleSelection) {
-      setError("Title is required");
-      toast.error("Title is required");
+      setError(t("auth.register.titleRequired"));
+      toast.error(t("auth.register.titleRequired"));
       return;
     }
 
     // Validate custom title when "Other" is selected
     if (titleSelection === "other" && !customTitle.trim()) {
-      setError("Please enter your title when selecting 'Other'");
-      toast.error("Title is required", {
-        description: "Please enter your title when selecting 'Other'",
+      setError(t("auth.register.otherTitleRequired"));
+      toast.error(t("auth.register.titleRequired"), {
+        description: t("auth.register.otherTitleRequired"),
       });
       return;
     }
 
     if (!name.trim()) {
-      setError("Full name is required");
-      toast.error("Full name is required");
+      setError(t("auth.register.fullNameRequired"));
+      toast.error(t("auth.register.fullNameRequired"));
       return;
     }
 
     if (!institutionalAffiliation.trim()) {
-      setError("Institutional affiliation is required");
-      toast.error("Institutional affiliation is required");
+      setError(t("auth.register.affiliationRequired"));
+      toast.error(t("auth.register.affiliationRequired"));
       return;
     }
 
     if (!department.trim()) {
-      setError("Department is required");
-      toast.error("Department is required");
+      setError(t("auth.register.departmentRequired"));
+      toast.error(t("auth.register.departmentRequired"));
       return;
     }
 
     if (!country.trim()) {
-      setError("Country is required");
-      toast.error("Country is required");
+      setError(t("auth.register.countryRequired"));
+      toast.error(t("auth.register.countryRequired"));
       return;
     }
 
     if (!facultyWebpage.trim()) {
-      setError("University webpage about you is required");
-      toast.error("University webpage about you is required");
+      setError(t("auth.register.webpageRequired"));
+      toast.error(t("auth.register.webpageRequired"));
       return;
     }
 
@@ -118,32 +123,30 @@ export function useRegister() {
     try {
       new URL(facultyWebpage.trim());
     } catch {
-      setError("Please enter a valid URL for your university webpage");
-      toast.error("Invalid URL", {
-        description:
-          "Please enter a valid URL (e.g., university.edu/your-name)",
+      setError(t("auth.register.webpageInvalid"));
+      toast.error(t("auth.register.invalidUrlTitle"), {
+        description: t("auth.register.invalidUrlHint"),
       });
       return;
     }
 
     if (!email.trim()) {
-      setError("Email is required");
-      toast.error("Email is required");
+      setError(t("auth.register.emailRequired"));
+      toast.error(t("auth.register.emailRequired"));
       return;
     }
 
     if (!password) {
-      setError("Password is required");
-      toast.error("Password is required");
+      setError(t("auth.register.passwordRequired"));
+      toast.error(t("auth.register.passwordRequired"));
       return;
     }
 
     // Password strength validation
     if (passwordValidation && !passwordValidation.isValid) {
-      const firstError =
-        passwordValidation.errors[0] || "Password does not meet requirements";
+      const firstError = firstPasswordError(t, passwordValidation.requirements);
       setError(firstError);
-      toast.error("Invalid password", {
+      toast.error(t("auth.resetPassword.invalidPassword"), {
         description: firstError,
       });
       return;
@@ -177,8 +180,8 @@ export function useRegister() {
           onSuccess: () => {
             setSuccess(true);
             setLoading(false);
-            toast.success("Registration successful!", {
-              description: "Your account is pending admin approval",
+            toast.success(t("auth.register.successToast"), {
+              description: t("auth.register.pendingToast"),
             });
             // Redirect to pending page after 2 seconds
             setTimeout(() => {
@@ -193,10 +196,13 @@ export function useRegister() {
             }
 
             // Real error - show to user
-            const errorMessage =
-              ctx.error.message || "Registration failed. Please try again.";
+            const errorMessage = authErrorMessage(
+              t,
+              ctx.error,
+              t("auth.register.failedRetry"),
+            );
             setError(errorMessage);
-            toast.error("Registration failed", {
+            toast.error(t("auth.register.failed"), {
               description: errorMessage,
             });
             setLoading(false);
@@ -211,10 +217,10 @@ export function useRegister() {
       }
 
       // Real error - show to user
-      const errorMessage =
-        (err as Error).message || "An error occurred during registration";
+      const errorMessage = t("auth.register.genericError");
+      logError(err, "Registration failed");
       setError(errorMessage);
-      toast.error("Registration failed", {
+      toast.error(t("auth.register.failed"), {
         description: errorMessage,
       });
       setLoading(false);

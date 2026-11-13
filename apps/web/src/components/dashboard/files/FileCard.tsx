@@ -6,6 +6,7 @@ import { FileText, Trash2 } from "lucide-react";
 import type { RouterOutputs } from "@/lib/trpc";
 import { formatFileSize, formatDate } from "./file-constants";
 import { FileStatusBadge } from "./FileStatusBadge";
+import { useTranslation } from "react-i18next";
 
 type FileData = RouterOutputs["files"]["list"]["files"][number];
 
@@ -15,6 +16,7 @@ interface FileCardProps {
 }
 
 export function FileCard({ file, onDelete }: FileCardProps) {
+  const { i18n } = useTranslation();
   return (
     <Card className="border-2 hover:border-primary/50 hover:shadow-md transition-all duration-200 group">
       <CardContent className="p-6">
@@ -32,7 +34,7 @@ export function FileCard({ file, onDelete }: FileCardProps) {
             </div>
             <div className="flex items-center gap-4 text-xs text-muted-foreground pl-[52px]">
               <span className="font-medium">
-                {formatFileSize(file.fileSize)}
+                {formatFileSize(file.fileSize, i18n.language)}
               </span>
               <span>•</span>
               <FileStatusBadge
@@ -42,7 +44,7 @@ export function FileCard({ file, onDelete }: FileCardProps) {
                 size="sm"
               />
               <span>•</span>
-              <span>{formatDate(file.createdAt)}</span>
+              <span>{formatDate(file.createdAt, i18n.language)}</span>
             </div>
           </div>
           <Button

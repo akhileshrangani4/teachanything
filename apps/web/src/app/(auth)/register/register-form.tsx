@@ -15,12 +15,14 @@ import { BrandName } from "@/components/brand/BrandName";
 import { useRegister } from "./use-register";
 import { RegistrationInfoAlert } from "./registration-info-alert";
 import { RegisterFormFields } from "./register-form-fields";
+import { useTranslation, Trans } from "react-i18next";
 
 /**
  * Registration card: admin-approval notice, status alerts, and the
  * sign-up form. State and submission live in useRegister.
  */
 export function RegisterForm() {
+  const { t } = useTranslation();
   const form = useRegister();
   const { error, success, loading, passwordValidation, handleSubmit } = form;
 
@@ -28,9 +30,12 @@ export function RegisterForm() {
     <div className="min-h-screen flex items-center justify-center bg-secondary px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Create Account</CardTitle>
+          <CardTitle>{t("auth.register.title")}</CardTitle>
           <CardDescription>
-            Register for <BrandName /> AI
+            <Trans
+              i18nKey="auth.register.description"
+              components={{ brand: <BrandName /> }}
+            />
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -39,8 +44,7 @@ export function RegisterForm() {
           {success && (
             <Alert className="mb-4">
               <AlertDescription>
-                Registration successful! Your account is pending admin approval.
-                Redirecting...
+                {t("auth.register.successAlert")}
               </AlertDescription>
             </Alert>
           )}
@@ -63,15 +67,26 @@ export function RegisterForm() {
                 (passwordValidation ? !passwordValidation.isValid : false)
               }
             >
-              {loading ? "Registering..." : success ? "Success!" : "Register"}
+              {loading
+                ? t("auth.register.submitting")
+                : success
+                  ? t("auth.register.submitted")
+                  : t("auth.register.submit")}
             </Button>
           </form>
 
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Login
-            </Link>
+            <Trans
+              i18nKey="auth.register.haveAccount"
+              components={{
+                a: (
+                  <Link
+                    href="/login"
+                    className="text-primary hover:underline"
+                  />
+                ),
+              }}
+            />
           </p>
         </CardContent>
       </Card>

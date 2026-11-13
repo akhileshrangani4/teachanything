@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import type { ChatbotSettingsChatbot } from "./settings-draft";
+import { useTranslation } from "react-i18next";
 
 interface ShareSettingsCardProps {
   chatbot: Pick<ChatbotSettingsChatbot, "shareToken" | "sharingEnabled">;
@@ -22,6 +23,7 @@ export function ShareSettingsCard({
   onEnableSharing,
   onDisableSharing,
 }: ShareSettingsCardProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -30,7 +32,7 @@ export function ShareSettingsCard({
         `${window.location.origin}/chat/${chatbot.shareToken}`,
       );
       setCopied(true);
-      toast.success("Link copied to clipboard");
+      toast.success(t("chatbotSettings.share.linkCopied"));
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -38,11 +40,13 @@ export function ShareSettingsCard({
   return (
     <div className="space-y-4 p-6 bg-muted/30 rounded-lg border">
       <div className="space-y-1">
-        <Label className="text-base font-semibold">Share Settings</Label>
+        <Label className="text-base font-semibold">
+          {t("chatbotSettings.share.title")}
+        </Label>
         <p className="text-xs text-muted-foreground">
           {chatbot.sharingEnabled
-            ? "Your chatbot is publicly accessible via the link below"
-            : "Enable sharing to generate a public link for your chatbot"}
+            ? t("chatbotSettings.share.enabledDescription")
+            : t("chatbotDetail.share.enableDescription")}
         </p>
       </div>
 
@@ -60,7 +64,7 @@ export function ShareSettingsCard({
               disabled={copied}
               className="shrink-0"
             >
-              {copied ? "Copied!" : "Copy"}
+              {copied ? t("common.actions.copied") : t("common.actions.copy")}
             </Button>
           </div>
           <Button
@@ -69,7 +73,9 @@ export function ShareSettingsCard({
             onClick={onDisableSharing}
             disabled={isDisabling}
           >
-            {isDisabling ? "Disabling..." : "Disable Sharing"}
+            {isDisabling
+              ? t("chatbotSettings.disableSharing.disabling")
+              : t("chatbotSettings.disableSharing.title")}
           </Button>
         </div>
       ) : (
@@ -78,7 +84,9 @@ export function ShareSettingsCard({
           disabled={isGenerating}
           className="w-full sm:w-auto"
         >
-          {isGenerating ? "Generating..." : "Enable Sharing"}
+          {isGenerating
+            ? t("chatbotSettings.share.generating")
+            : t("chatbotDetail.share.enable")}
         </Button>
       )}
     </div>

@@ -3,6 +3,12 @@
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { logError } from "@/lib/logger";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
+import {
+  fileAssociationErrorMessage,
+  isFailedFileError,
+} from "@/lib/stored-file-error";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -29,6 +35,7 @@ export function useChatbotFileAssociations({
   currentPage,
   setPage,
 }: UseChatbotFileAssociationsArgs) {
+  const { t, i18n } = useTranslation();
   const utils = trpc.useUtils();
 
   const associateFile = trpc.files.associateWithChatbot.useMutation({
@@ -39,15 +46,15 @@ export function useChatbotFileAssociations({
         utils.files.list.invalidate(),
       ]);
       onRefetch();
-      toast.success("File added to chatbot");
+      toast.success(t("files.chatbot.toasts.added"));
     },
     onError: (error) => {
-      // Check if it's a failed file error
-      const isFailedFileError = error.message.includes("failed to process");
       toast.error(
-        isFailedFileError ? "Cannot add file" : "Failed to add file",
+        isFailedFileError(error)
+          ? t("files.chatbot.toasts.cannotAdd")
+          : t("files.chatbot.toasts.addFailed"),
         {
-          description: error.message,
+          description: fileAssociationErrorMessage(i18n, error),
           duration: 5000,
         },
       );
@@ -70,11 +77,11 @@ export function useChatbotFileAssociations({
         setPage(newTotalPages - 1);
       }
 
-      toast.success("File removed from chatbot");
+      toast.success(t("files.chatbot.toasts.removed"));
     },
     onError: (error) => {
-      toast.error("Failed to remove file", {
-        description: error.message,
+      toast.error(t("files.chatbot.toasts.removeFailed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -87,9 +94,9 @@ export function useChatbotFileAssociations({
     if (fileIds.length === 0) return;
 
     const toastId = toast.loading(
-      `Adding ${fileIds.length} file${fileIds.length !== 1 ? "s" : ""}...`,
+      t("files.chatbot.toasts.adding", { count: fileIds.length }),
       {
-        description: "Please wait",
+        description: t("files.chatbot.toasts.pleaseWait"),
       },
     );
 
@@ -104,9 +111,11 @@ export function useChatbotFileAssociations({
       } catch (error) {
         errorCount++;
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+          error instanceof Error
+            ? fileAssociationErrorMessage(i18n, error)
+            : t("common.status.unknownError");
         // Show individual error for failed files
-        toast.error("Failed to add file", {
+        toast.error(t("files.chatbot.toasts.addFailed"), {
           description: errorMessage,
           duration: 3000,
         });
@@ -120,26 +129,27 @@ export function useChatbotFileAssociations({
     // Show summary toast
     if (successCount > 0 && errorCount === 0) {
       toast.success(
-        `Successfully added ${successCount} file${successCount !== 1 ? "s" : ""} to chatbot`,
+        t("files.chatbot.toasts.addedAll", { count: successCount }),
         {
           id: toastId,
         },
       );
     } else if (successCount > 0 && errorCount > 0) {
       toast.warning(
-        `Added ${successCount} file${successCount !== 1 ? "s" : ""}, ${errorCount} failed`,
+        t("files.chatbot.toasts.addedPartial", {
+          succeeded: successCount,
+          failed: errorCount,
+        }),
         {
           id: toastId,
-          description:
-            "Some files could not be added. Check individual error messages above.",
+          description: t("files.chatbot.toasts.addedPartialDescription"),
           duration: 5000,
         },
       );
     } else {
-      toast.error("Failed to add files", {
+      toast.error(t("files.chatbot.toasts.addFailedAll"), {
         id: toastId,
-        description:
-          "None of the selected files could be added. Check error messages above.",
+        description: t("files.chatbot.toasts.addFailedAllDescription"),
         duration: 5000,
       });
     }
@@ -162,7 +172,7 @@ export function useChatbotFileAssociations({
     // Refetch after all files are processed
     onRefetch();
     toast.success(
-      `${fileIds.length} file${fileIds.length !== 1 ? "s" : ""} removed from chatbot`,
+      t("files.chatbot.toasts.removedCount", { count: fileIds.length }),
     );
   };
 

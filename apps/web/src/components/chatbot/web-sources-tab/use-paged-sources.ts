@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import type { RouterOutputs } from "@/lib/trpc";
 import type { WebSourceSortBy } from "@/components/data-table";
 import type { SortDirection } from "@/hooks/useServerTable";
@@ -37,6 +38,7 @@ export function usePagedSources({
   totalPages: number;
   pagedSources: CrawlSource[];
 } {
+  const { i18n } = useTranslation();
   const filteredSources = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return sources;
@@ -55,7 +57,10 @@ export function usePagedSources({
       switch (sortBy) {
         case "name":
           return (
-            getSourceDisplayName(a).localeCompare(getSourceDisplayName(b)) * dir
+            getSourceDisplayName(a).localeCompare(
+              getSourceDisplayName(b),
+              i18n.language,
+            ) * dir
           );
         case "pageCount":
           return (getSourcePageCount(a) - getSourcePageCount(b)) * dir;
@@ -75,7 +80,7 @@ export function usePagedSources({
       }
     };
     return [...filteredSources].sort(compare);
-  }, [filteredSources, sortBy, sortDir]);
+  }, [filteredSources, sortBy, sortDir, i18n.language]);
 
   const totalCount = sortedSources.length;
   const totalPages = Math.ceil(totalCount / pageSize);

@@ -558,13 +558,31 @@ export function isRobotsAllowed(
   return result !== false;
 }
 
+/** The URL points somewhere the crawler refuses to go. */
+export class UrlNotAllowedError extends Error {
+  constructor() {
+    super("URL is not allowed");
+    this.name = "UrlNotAllowedError";
+  }
+}
+
+/** The URL answered with a status that is not a success. */
+export class UrlUnreachableError extends Error {
+  constructor(readonly status: number | undefined) {
+    super(
+      `Could not reach that URL (${status ?? "unknown"}). Please check it's correct and publicly accessible.`,
+    );
+    this.name = "UrlUnreachableError";
+  }
+}
+
 /**
  * Verify a URL is reachable (HEAD request with SSRF-safe redirect following).
  * Throws an error with a descriptive message on failure.
  */
 export async function verifyUrlReachable(url: string): Promise<void> {
   if (!(await isUrlSafeWithDns(url))) {
-    throw new Error("URL is not allowed");
+    throw new UrlNotAllowedError();
   }
 
   let currentUrl = url;
@@ -572,7 +590,7 @@ export async function verifyUrlReachable(url: string): Promise<void> {
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     if (!(await isUrlSafeWithDns(currentUrl))) {
-      throw new Error("URL is not allowed");
+      throw new UrlNotAllowedError();
     }
     response = await fetch(currentUrl, {
       method: "HEAD",
@@ -590,9 +608,7 @@ export async function verifyUrlReachable(url: string): Promise<void> {
   }
 
   if (!response || !response.ok) {
-    throw new Error(
-      `Could not reach that URL (${response?.status ?? "unknown"}). Please check it's correct and publicly accessible.`,
-    );
+    throw new UrlUnreachableError(response?.status);
   }
 }
 

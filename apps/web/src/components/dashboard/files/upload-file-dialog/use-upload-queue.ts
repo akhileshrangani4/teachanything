@@ -10,6 +10,8 @@ import {
 } from "../file-constants";
 import { useDirectUpload } from "@/lib/direct-upload";
 import type { RouterOutputs } from "@/lib/trpc";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 type FileData = RouterOutputs["files"]["list"]["files"][number];
 
@@ -28,6 +30,7 @@ export function useUploadQueue({
   onSuccess?: () => void;
   existingFiles?: FileData[];
 }) {
+  const { t } = useTranslation();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileUploadState[]>([]);
   const [uploadError, setUploadError] = useState("");
@@ -54,20 +57,22 @@ export function useUploadQueue({
   const validateFile = useCallback(
     (file: File): string | null => {
       // Validate file name
-      const fileNameError = validateFileName(file.name);
+      const fileNameError = validateFileName(file.name, t);
       if (fileNameError) {
         return fileNameError;
       }
 
       // Validate file size - check for empty files
       if (file.size === 0) {
-        return "Cannot upload empty file";
+        return t("files.upload.emptyFile");
       }
 
       // Validate file size - check maximum
       if (file.size > MAX_FILE_SIZE) {
-        const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
-        return `File size (${fileSizeMB}MB) exceeds the ${MAX_FILE_SIZE / 1024 / 1024}MB limit`;
+        return t("files.upload.tooLarge", {
+          sizeMb: Number((file.size / 1024 / 1024).toFixed(2)),
+          maxMb: MAX_FILE_SIZE / 1024 / 1024,
+        });
       }
 
       // Validate file type
@@ -77,18 +82,18 @@ export function useUploadQueue({
         )
       ) {
         const displayName = getFileTypeDisplayName(file.type);
-        return `File type "${displayName}" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, or CSV files.`;
+        return t("files.upload.unsupportedType", { type: displayName });
       }
 
       // Check for duplicate file name
       const isDuplicate = existingFiles?.some((f) => f.fileName === file.name);
       if (isDuplicate) {
-        return `A file with the name "${file.name}" already exists. Please rename your file or delete the existing one.`;
+        return t("files.upload.duplicateName", { name: file.name });
       }
 
       return null;
     },
-    [existingFiles],
+    [existingFiles, t],
   );
 
   const handleFileSelect = useCallback(
@@ -106,7 +111,12 @@ export function useUploadQueue({
             (f) => f.file.name === file.name,
           );
           if (isDuplicateInSelection) {
-            errors.push(`${file.name}: Duplicate file in selection`);
+            errors.push(
+              t("files.upload.fileError", {
+                name: file.name,
+                error: t("files.upload.duplicateInSelection"),
+              }),
+            );
           } else {
             validFiles.push({ file, status: "pending" });
           }
@@ -116,12 +126,14 @@ export function useUploadQueue({
       if (errors.length > 0) {
         setUploadError(errors.join("; "));
         if (errors.length === files.length) {
-          toast.error("Invalid files", {
+          toast.error(t("files.upload.invalidFiles"), {
             description: errors[0],
           });
         } else {
-          toast.warning("Some files were skipped", {
-            description: `${errors.length} file(s) had errors`,
+          toast.warning(t("files.upload.someSkipped"), {
+            description: t("files.upload.skippedCount", {
+              count: errors.length,
+            }),
           });
         }
       } else {
@@ -143,7 +155,7 @@ export function useUploadQueue({
         fileInputRef.current.value = "";
       }
     },
-    [validateFile],
+    [validateFile, t],
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,7 +209,9 @@ export function useUploadQueue({
       updateFileStatus(file.name, "success", undefined, 100);
     } catch (error) {
       const errorMsg =
-        error instanceof Error ? error.message : "An error occurred";
+        error instanceof Error
+          ? serverErrorMessage(t, error)
+          : t("files.upload.genericError");
       updateFileStatus(file.name, "error", errorMsg);
       throw error;
     }
@@ -210,9 +224,9 @@ export function useUploadQueue({
     setIsUploading(true);
     setUploadError("");
     const toastId = toast.loading(
-      `Uploading ${pendingFiles.length} file(s)...`,
+      t("files.upload.uploadingToast", { count: pendingFiles.length }),
       {
-        description: "Please wait while we process your files",
+        description: t("files.upload.uploadingDescription"),
       },
     );
 
@@ -234,9 +248,9 @@ export function useUploadQueue({
 
     // Show summary toast
     if (successCount > 0 && errorCount === 0) {
-      toast.success(`Successfully uploaded ${successCount} file(s)`, {
+      toast.success(t("files.upload.uploadedAll", { count: successCount }), {
         id: toastId,
-        description: "Files are being processed",
+        description: t("files.upload.uploadedAllDescription"),
       });
       // Close dialog and reset after a short delay
       setTimeout(() => {
@@ -245,14 +259,20 @@ export function useUploadQueue({
         onSuccess?.();
       }, 1500);
     } else if (successCount > 0 && errorCount > 0) {
-      toast.warning(`Uploaded ${successCount} file(s), ${errorCount} failed`, {
-        id: toastId,
-        description: "Some files failed to upload",
-      });
+      toast.warning(
+        t("files.upload.uploadedPartial", {
+          succeeded: successCount,
+          failed: errorCount,
+        }),
+        {
+          id: toastId,
+          description: t("files.upload.uploadedPartialDescription"),
+        },
+      );
     } else {
-      toast.error("Failed to upload files", {
+      toast.error(t("files.upload.uploadFailed"), {
         id: toastId,
-        description: "Please check the errors and try again",
+        description: t("files.upload.uploadFailedDescription"),
       });
     }
   };

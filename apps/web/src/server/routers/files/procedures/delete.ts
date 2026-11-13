@@ -1,7 +1,6 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import {
   userFiles,
   chatbotFileAssociations,
@@ -11,6 +10,7 @@ import { createSupabaseClient } from "@/server/supabase";
 import { isServiceAvailable } from "@/lib/env";
 import { deleteLocalFile } from "@/server/local-storage";
 import { logInfo, logError } from "@/lib/logger";
+import { appError } from "@/server/app-error";
 
 /**
  * Delete file from user's library
@@ -31,10 +31,7 @@ export const deleteProcedure = protectedProcedure
       .limit(1);
 
     if (!file) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "File not found",
-      });
+      throw appError("NOT_FOUND", "errors.notFoundItems.file");
     }
 
     try {
@@ -89,9 +86,6 @@ export const deleteProcedure = protectedProcedure
         fileId: input.fileId,
         userId: ctx.session.user.id,
       });
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to delete file",
-      });
+      throw appError("INTERNAL_SERVER_ERROR", "files.toasts.deleteFailed");
     }
   });

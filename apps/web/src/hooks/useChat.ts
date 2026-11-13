@@ -10,6 +10,7 @@ import {
   postStudyResponse,
   type StudyResponsePayload,
 } from "@/lib/submit-study-response";
+import { useTranslation } from "react-i18next";
 
 /**
  * Chat with a shared/public chatbot (share-token pages + embed widget), backed
@@ -19,6 +20,7 @@ import {
  * no cross-reload history rehydration in this phase).
  */
 export function useChat(shareToken: string) {
+  const { t } = useTranslation();
   const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
   // The student's own finished study-tool responses this session, by tool
@@ -51,7 +53,7 @@ export function useChat(shareToken: string) {
         };
       },
     }),
-    onError: (error) => toast.error(describeChatError(error)),
+    onError: (error) => toast.error(describeChatError(error, t)),
     experimental_throttle: 50,
   });
 

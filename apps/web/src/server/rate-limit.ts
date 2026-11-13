@@ -71,6 +71,13 @@ export const passwordUpdateRateLimit = createLimiter({
   prefix: "@ratelimit/password-update",
 });
 
+// Rate limiter for saving the dashboard language
+// 30 saves per hour per user
+export const localeUpdateRateLimit = createLimiter({
+  window: [30, "1 h"],
+  prefix: "@ratelimit/locale-update",
+});
+
 // Rate limiter for login attempts
 // 5 attempts per 15 minutes per IP (prevents brute force)
 export const loginRateLimit = createLimiter({

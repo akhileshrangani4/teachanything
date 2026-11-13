@@ -1,12 +1,12 @@
 import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { crawlSources } from "@teachanything/db/schema";
 import { logInfo } from "@/lib/logger";
 import { checkRateLimit, recrawlRateLimit } from "@/server/rate-limit";
-import { formatRetryAfter } from "@/lib/constants/rate-limits";
+import { retryAfterMinutes } from "@/lib/constants/rate-limits";
 import { assertOwnedCrawlSource } from "../helpers";
+import { appError } from "@/server/app-error";
 
 export const toggleCrawlSourceProcedure = protectedProcedure
   .input(
@@ -24,9 +24,8 @@ export const toggleCrawlSourceProcedure = protectedProcedure
       { action: "toggleCrawlSource" },
     );
     if (!success) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: `Too many requests. Please try again in ${formatRetryAfter(reset)}.`,
+      throw appError("TOO_MANY_REQUESTS", "errors.tooManyRequestsIn", {
+        minutes: retryAfterMinutes(reset),
       });
     }
 

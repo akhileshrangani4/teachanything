@@ -9,6 +9,8 @@ import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { isPasswordDifferent } from "@/lib/password/password-validation";
 import { logInfo, logError, logWarn } from "@/lib/logger";
 import { auth } from "@/server/auth";
+import { appError } from "@/server/app-error";
+import { retryAfterMinutes } from "@/lib/constants/rate-limits";
 
 /**
  * Update user password
@@ -38,10 +40,8 @@ export const updatePasswordProcedure = protectedProcedure
     );
 
     if (!success) {
-      const retryAfter = Math.ceil((reset - Date.now()) / 1000);
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: `Too many password update attempts. Please try again in ${Math.ceil(retryAfter / 60)} minutes.`,
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.passwordUpdate", {
+        minutes: retryAfterMinutes(reset),
       });
     }
 
@@ -55,19 +55,13 @@ export const updatePasswordProcedure = protectedProcedure
       .limit(1);
 
     if (!userAccount || !userAccount.password) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Password account not found",
-      });
+      throw appError("BAD_REQUEST", "errors.account.passwordAccountNotFound");
     }
 
     // Validate new password strength
     const passwordValidation = validatePasswordStrength(input.newPassword);
     if (!passwordValidation.isValid) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: passwordValidation.errors.join(". "),
-      });
+      throw appError("BAD_REQUEST", "settings.password.notMeetRequirements");
     }
 
     // Check if new password is different from current password
@@ -81,10 +75,7 @@ export const updatePasswordProcedure = protectedProcedure
       );
 
       if (!isDifferent) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "New password must be different from your current password",
-        });
+        throw appError("BAD_REQUEST", "errors.account.newPasswordSame");
       }
     } catch (error) {
       if (error instanceof TRPCError && error.code === "BAD_REQUEST") {
@@ -146,15 +137,15 @@ export const updatePasswordProcedure = protectedProcedure
         errorMessage.includes("Incorrect password") ||
         errorMessage.includes("credentials")
       ) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Current password is incorrect",
-        });
+        throw appError(
+          "UNAUTHORIZED",
+          "errors.account.currentPasswordIncorrect",
+        );
       }
 
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to update password",
-      });
+      throw appError(
+        "INTERNAL_SERVER_ERROR",
+        "errors.account.updatePasswordFailed",
+      );
     }
   });

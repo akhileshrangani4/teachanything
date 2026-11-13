@@ -1,6 +1,7 @@
 "use client";
 
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { useTranslation } from "react-i18next";
 
 interface FilesPageDialogsProps {
   deleteDialogOpen: boolean;
@@ -26,6 +27,7 @@ export function FilesPageDialogs({
   onConfirmRetry,
   retryPending,
 }: FilesPageDialogsProps) {
+  const { t } = useTranslation();
   return (
     <>
       {/* Delete Confirmation Dialog */}
@@ -33,18 +35,12 @@ export function FilesPageDialogs({
         open={deleteDialogOpen}
         onOpenChange={onDeleteDialogOpenChange}
         onConfirm={onConfirmDeleteFiles}
-        title={
-          filesToDelete.length === 1
-            ? "Delete File"
-            : `Delete ${filesToDelete.length} Files`
-        }
-        description={
-          filesToDelete.length === 1
-            ? "Are you sure you want to delete this file? This action cannot be undone and will remove it from all chatbots it's associated with."
-            : `Are you sure you want to delete ${filesToDelete.length} files? This action cannot be undone and will remove them from all chatbots they're associated with.`
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t("files.deleteDialog.title", { count: filesToDelete.length })}
+        description={t("files.deleteDialog.description", {
+          count: filesToDelete.length,
+        })}
+        confirmText={t("common.actions.delete")}
+        cancelText={t("common.actions.cancel")}
         variant="destructive"
         loading={deletePending}
       />
@@ -54,10 +50,10 @@ export function FilesPageDialogs({
         open={retryDialogOpen}
         onOpenChange={onRetryDialogOpenChange}
         onConfirm={onConfirmRetry}
-        title="Cancel and Restart Processing?"
-        description="This file is currently being processed. Are you sure you want to cancel and restart from the beginning? All current progress will be lost."
-        confirmText="Cancel and Restart"
-        cancelText="Keep Processing"
+        title={t("files.retryDialog.title")}
+        description={t("files.retryDialog.description")}
+        confirmText={t("files.retryDialog.confirm")}
+        cancelText={t("files.retryDialog.keepProcessing")}
         variant="default"
         loading={retryPending}
       />

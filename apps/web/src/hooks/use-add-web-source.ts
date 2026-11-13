@@ -8,6 +8,7 @@ import {
   normalizeUrl,
   parsePatternList,
 } from "@/components/chatbot/web-sources/utils";
+import { useTranslation } from "react-i18next";
 
 interface UseAddWebSourceOptions {
   /**
@@ -33,6 +34,7 @@ export function useAddWebSource({
   onCrawlSourceAdded,
   onManualUrlAdded,
 }: UseAddWebSourceOptions) {
+  const { t } = useTranslation();
   const [rootUrl, setRootUrl] = useState("");
   const [crawlDepth, setCrawlDepth] = useState(3);
   const [maxPages, setMaxPages] = useState(100);
@@ -53,11 +55,11 @@ export function useAddWebSource({
       onAdded();
       onCrawlSourceAdded?.();
       resetCrawlFields();
-      toast.success("Crawl started");
+      toast.success(t("webSources.toasts.crawlStarted"));
     },
     onError: (error) => {
-      toast.error("Failed to start crawl", {
-        description: getFriendlyError(error),
+      toast.error(t("webSources.toasts.crawlStartFailed"), {
+        description: getFriendlyError(error, t),
       });
     },
   });
@@ -67,11 +69,11 @@ export function useAddWebSource({
       onAdded();
       setManualUrl("");
       onManualUrlAdded?.();
-      toast.success("URL added");
+      toast.success(t("webSources.toasts.urlAdded"));
     },
     onError: (error) => {
-      toast.error("Failed to add URL", {
-        description: getFriendlyError(error),
+      toast.error(t("webSources.toasts.urlAddFailed"), {
+        description: getFriendlyError(error, t),
       });
     },
   });
