@@ -183,7 +183,13 @@ export async function runPrimaryTurn(args: {
     await forward(
       args.writer,
       args.modelCanUseTools
-        ? primaryUiStream.pipeThrough(recoverLeakedQuiz())
+        ? primaryUiStream.pipeThrough(
+            recoverLeakedQuiz({
+              chatbotId: args.chatbotId,
+              modelId: args.modelId,
+              turn: "primary",
+            }),
+          )
         : primaryUiStream,
       args.chatbotId,
       (chunk) => recordTurnChunk(tail, chunk),
@@ -333,7 +339,13 @@ export async function runFallbackTurn(args: {
           sendFinish: false,
           onError: args.onStreamError,
         })
-        .pipeThrough(recoverLeakedQuiz()),
+        .pipeThrough(
+          recoverLeakedQuiz({
+            chatbotId: args.chatbotId,
+            modelId: args.modelId,
+            turn: "fallback",
+          }),
+        ),
       args.chatbotId,
     );
     const text = await fallback.text;

@@ -26,6 +26,7 @@ jest.unstable_mockModule("@/lib/logger", () => ({
   logInfo: jest.fn(),
 }));
 
+const { logWarn } = await import("@/lib/logger");
 const { executeTurn } = await import("@/server/chat/turn-execution");
 const { MAX_AGENT_STEPS } = await import("@/server/chat/turn-end");
 const { studyTools } = await import("@/server/chat/study-tools");
@@ -537,6 +538,16 @@ describe("a fallback that writes its quiz as text", () => {
     expect(r.shownText).not.toContain("correct_index");
     expect(r.sawError).toBe(false);
     expect(r.state.executeErrored).toBe(false);
+    expect(logWarn).toHaveBeenCalledWith(
+      "Recovered a showQuiz call the model leaked into text",
+      {
+        chatbotId: "cb1",
+        modelId: "openai/gpt-oss-120b",
+        turn: "fallback",
+        form: "json",
+        outcome: "recovered",
+      },
+    );
   });
 
   it("keeps the preamble the fallback wrote before the quiz", async () => {
