@@ -181,9 +181,12 @@ describe("a text block the provider ends after a tool call", () => {
     },
   ];
 
+  const recovery = () =>
+    recoverLeakedQuiz({ chatbotId: "bot", modelId: "m", turn: "primary" });
+
   function pipeline(chunks: Chunk[]): ReadableStream<Chunk> {
     return streamOf(chunks)
-      .pipeThrough(recoverLeakedQuiz() as never)
+      .pipeThrough(recovery() as never)
       .pipeThrough(guardTextSequence({ chatbotId: "bot" }) as never);
   }
 
@@ -199,7 +202,7 @@ describe("a text block the provider ends after a tool call", () => {
       { type: "finish" },
     ];
     await expect(
-      assemble(streamOf(chunks).pipeThrough(recoverLeakedQuiz() as never)),
+      assemble(streamOf(chunks).pipeThrough(recovery() as never)),
     ).rejects.toThrow(/text-end for missing text part/);
   });
 

@@ -61,6 +61,21 @@ export function isQuizInProgress(held: string): boolean {
   );
 }
 
+/** The syntax a leaked `showQuiz` call was written in, for logging. */
+export type LeakForm = "json" | "fenced" | "pseudo-call";
+
+/**
+ * Classify held text that starts at a leak marker (see `findMarker`). Only
+ * the opening characters are inspected, so the result never carries any of
+ * the quiz's content.
+ */
+export function leakFormOf(held: string): LeakForm {
+  const text = held.replace(/^\s+/, "");
+  if (text.startsWith("`")) return "fenced";
+  if (text.startsWith("{")) return "json";
+  return "pseudo-call";
+}
+
 /** Index where the earliest leak marker starts in `text`, or -1. */
 export function findMarker(text: string): number {
   let earliest = -1;
