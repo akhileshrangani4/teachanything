@@ -77,7 +77,7 @@ export function useUploadQueue({
         )
       ) {
         const displayName = getFileTypeDisplayName(file.type);
-        return `File type "${displayName}" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, or CSV files.`;
+        return `File type "${displayName}" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV, or image (JPEG, PNG, WebP, TIFF) files.`;
       }
 
       // Check for duplicate file name

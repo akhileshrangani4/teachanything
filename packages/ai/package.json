@@ -15,12 +15,14 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.112",
-    "@teachanything/logger": "*",
     "@langchain/community": "^1.1.29",
     "@langchain/core": "^1.2.11",
     "@langchain/textsplitters": "^1.0.0",
     "@mozilla/readability": "^0.6.0",
     "@openrouter/ai-sdk-provider": "^1.5.4",
+    "@teachanything/logger": "*",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@types/jsdom": "^21.1.7",
     "@types/pdf-parse": "^1.1.4",
     "ai": "^6.0.283",
     "cheerio": "^1.2.0",
@@ -32,7 +34,7 @@
     "officeparser": "^6.1.0",
     "pdf-parse": "^1.1.1",
     "robots-parser": "^3.0.1",
-    "@types/jsdom": "^21.1.7"
+    "tesseract.js": "^7.0.0"
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",

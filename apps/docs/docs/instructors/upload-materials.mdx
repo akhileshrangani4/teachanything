@@ -26,13 +26,17 @@ This is where your assistant actually learns. Upload the documents you want it t
   <Card title="Spreadsheets & data" icon="table">
     `.csv` and `.json` files.
   </Card>
+  <Card title="Images" icon="image">
+    `.jpg`, `.png`, `.webp`, and `.tif` photos or scans of printed text.
+  </Card>
 </CardGroup>
 
 :::note[File size and format notes]
 
 - Each file can be up to **100 MB**.
 - Word and PowerPoint must be the newer `.docx` / `.pptx` formats. If you have an older `.doc` or `.ppt` file, open it and choose **Save As → .docx** (or **.pptx**) first.
-- Scanned PDFs that are just images of text do not work. Please put them through the OCR (Optical Character Recognition) process first.
+- Images are read with OCR (Optical Character Recognition). It works best on clear, well-lit photos or scans of printed or typed text; handwriting and blurry photos often can't be read. Each image is read as one page, so multi-page TIFF files are not supported — save each page as its own image. iPhone HEIC photos are not supported yet; export them as JPEG first.
+- Scanned PDFs that are just images of text do not work yet. Please put them through the OCR process first, or upload the pages as images.
   :::
 
 ## How to upload
