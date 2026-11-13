@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { describeChatError } from "@/lib/chat-error-message";
+import { restoreRefusedTurn } from "@/lib/chat/refused-turn";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import {
   postStudyResponse,
@@ -34,6 +35,8 @@ export function useChat(shareToken: string) {
     shareToken,
     sessionId,
   );
+  // The last message sent, to hand back to the student if the server refuses it.
+  const lastSentRef = useRef("");
 
   const {
     data: chatbot,
@@ -58,7 +61,15 @@ export function useChat(shareToken: string) {
         };
       },
     }),
-    onError: (error) => toast.error(describeChatError(error, t)),
+    onError: (error) => {
+      toast.error(describeChatError(error, t));
+      restoreRefusedTurn(
+        error,
+        lastSentRef.current,
+        chat.setMessages,
+        setCurrentMessage,
+      );
+    },
     experimental_throttle: 50,
   });
 
@@ -71,6 +82,7 @@ export function useChat(shareToken: string) {
   const sendMessage = useCallback(
     (text: string): boolean => {
       if (!text.trim() || isStreaming) return false;
+      lastSentRef.current = text;
       void chat.sendMessage({ text });
       return true;
     },

@@ -1343,7 +1343,8 @@
       "updatePasswordFailed": "No se pudo actualizar la contraseña",
       "passwordUpdatedSignInAgain": "Contraseña actualizada correctamente. Vuelva a iniciar sesión en sus otros dispositivos.",
       "adminSelfDelete": "Los administradores no pueden eliminar su propia cuenta. Pida primero a otro administrador que cambie el rol de su cuenta.",
-      "deleteFailed": "No se pudo eliminar la cuenta"
+      "deleteFailed": "No se pudo eliminar la cuenta",
+      "storageCleanupFailed": "No se pudieron eliminar sus archivos. Inténtelo de nuevo"
     },
     "chat": {
       "sendFailed": "No se pudo enviar el mensaje. Vuelva a intentarlo.",
@@ -1352,7 +1353,8 @@
       "messageNeedsText": "El mensaje debe contener texto",
       "conversationStartFailed": "No se pudo iniciar esta conversación. Vuelva a intentarlo.",
       "unauthorized": "Vuelva a iniciar sesión.",
-      "streamInterrupted": "La respuesta se interrumpió. Vuelva a intentarlo."
+      "streamInterrupted": "La respuesta se interrumpió. Vuelva a intentarlo.",
+      "turnInProgress": "Ya hay una respuesta en curso — espere a que termine."
     }
   }
 }

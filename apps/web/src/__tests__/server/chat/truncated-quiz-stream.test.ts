@@ -99,7 +99,13 @@ async function runCutOffTurn(deltaCount: number) {
         })
         .pipeThrough(stripRetrievalOutputs())
         .pipeThrough(repairQuizToolParts())
-        .pipeThrough(recoverLeakedQuiz());
+        .pipeThrough(
+          recoverLeakedQuiz({
+            chatbotId: "cb1",
+            modelId: "test-model",
+            turn: "primary",
+          }),
+        );
       const reader = source.getReader();
       for (;;) {
         const { done, value } = await reader.read();

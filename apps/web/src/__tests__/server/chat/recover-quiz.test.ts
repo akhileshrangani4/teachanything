@@ -1,10 +1,23 @@
-import { describe, it, expect } from "@jest/globals";
-import { recoverLeakedQuiz } from "@/server/chat/recover-quiz";
+import { jest, describe, it, expect, beforeEach } from "@jest/globals";
+
+const logWarn = jest.fn();
+jest.unstable_mockModule("@/lib/logger", () => ({ logWarn }));
+
+const { recoverLeakedQuiz } = await import("@/server/chat/recover-quiz");
 
 type Chunk = Record<string, unknown>;
 
-async function pump(chunks: Chunk[]): Promise<Chunk[]> {
-  const stream = recoverLeakedQuiz();
+const RECOVERY_CONTEXT = {
+  chatbotId: "cb1",
+  modelId: "meta-llama/llama-4-maverick",
+  turn: "primary",
+} as const;
+
+async function pump(
+  chunks: Chunk[],
+  context: Parameters<typeof recoverLeakedQuiz>[0] = RECOVERY_CONTEXT,
+): Promise<Chunk[]> {
+  const stream = recoverLeakedQuiz(context);
   const writer = stream.writable.getWriter();
   const out: Chunk[] = [];
   const drained = (async () => {
@@ -542,5 +555,117 @@ describe("placeholder while a leaked quiz is buffering", () => {
     const available = out.find((c) => c.type === "tool-input-available");
     const input = available?.input as { questions: unknown[] };
     expect(input.questions.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Every recovery is logged once with the model that leaked, so the leak rate
+ * per model can be measured (#398). The held text is the quiz's answer key and
+ * may echo the student, so none of it may reach the log.
+ */
+describe("recovery logging", () => {
+  beforeEach(() => logWarn.mockClear());
+
+  const preamble = "Here are some quiz questions for you.\n\n";
+
+  /** Every string the quiz or the preamble could leak into a log. */
+  const forbiddenInLogs = [
+    preamble.trim(),
+    quiz.quiz_title,
+    quiz.questions[0]!.question,
+    quiz.questions[0]!.explanation,
+    "correct_index",
+  ];
+
+  const expectOneWarning = (fields: Record<string, unknown>) => {
+    expect(logWarn).toHaveBeenCalledTimes(1);
+    const [message, context] = logWarn.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(context).toEqual({
+      chatbotId: RECOVERY_CONTEXT.chatbotId,
+      modelId: RECOVERY_CONTEXT.modelId,
+      turn: RECOVERY_CONTEXT.turn,
+      ...fields,
+    });
+    const logged = JSON.stringify([message, context]);
+    for (const text of forbiddenInLogs) expect(logged).not.toContain(text);
+  };
+
+  it("logs one warning with the model for a recovered JSON leak", async () => {
+    await pump(textBlock("t1", [preamble, JSON.stringify(quiz)]));
+    expectOneWarning({ form: "json", outcome: "recovered" });
+  });
+
+  it("names the fenced form", async () => {
+    await pump(textBlock("t1", ["```json\n" + JSON.stringify(quiz) + "\n```"]));
+    expectOneWarning({ form: "fenced", outcome: "recovered" });
+  });
+
+  it("names the pseudo-call form", async () => {
+    const call = `[showQuiz(quiz_title="${quiz.quiz_title}", questions=${JSON.stringify(quiz.questions)})]`;
+    await pump(textBlock("t1", [preamble, call]));
+    expectOneWarning({ form: "pseudo-call", outcome: "recovered" });
+  });
+
+  it("logs once when the stream ends before the block's text-end", async () => {
+    await pump([
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: JSON.stringify(quiz) },
+    ]);
+    expectOneWarning({ form: "json", outcome: "recovered" });
+  });
+
+  it("logs once per leak when a turn leaks twice", async () => {
+    await pump([
+      ...textBlock("t1", [JSON.stringify(quiz)]),
+      ...textBlock("t2", [JSON.stringify(quiz)]),
+    ]);
+    expect(logWarn).toHaveBeenCalledTimes(2);
+  });
+
+  it("records which turn recovered the leak", async () => {
+    await pump(textBlock("t1", [JSON.stringify(quiz)]), {
+      ...RECOVERY_CONTEXT,
+      turn: "fallback",
+    });
+    expect(logWarn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ turn: "fallback" }),
+    );
+  });
+
+  it("logs the placeholder that ended as an error notice", async () => {
+    // Quiz-shaped and long enough for the skeleton, but every question points
+    // past its options, so nothing renders and the skeleton becomes an error.
+    const questions = Array.from({ length: 5 }, (_, i) => ({
+      question: `Unrenderable question ${i + 1} padded out to clear the placeholder threshold?`,
+      options: ["First option", "Second option"],
+      correct_index: 99,
+      explanation: "Long enough that the held text is clearly a quiz.",
+    }));
+    const leak = JSON.stringify({ quiz_title: quiz.quiz_title, questions });
+    const out = await pump(textBlock("t1", [preamble, leak]));
+
+    expect(out.map((c) => c.type)).toContain("tool-output-error");
+    expectOneWarning({ form: "json", outcome: "unparseable" });
+  });
+
+  it("logs nothing for ordinary prose", async () => {
+    await pump(textBlock("t1", ["Photosynthesis turns ", "light into sugar."]));
+    expect(logWarn).not.toHaveBeenCalled();
+  });
+
+  it("logs nothing for a JSON block that is not a quiz", async () => {
+    await pump(textBlock("t1", ['{"model": "llama", "temperature": 0.7}']));
+    expect(logWarn).not.toHaveBeenCalled();
+  });
+
+  it("logs nothing for prose that mentions the tool", async () => {
+    await pump(
+      textBlock("t1", ["I call showQuiz() when you ask to be quizzed."]),
+    );
+    expect(logWarn).not.toHaveBeenCalled();
   });
 });

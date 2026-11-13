@@ -1343,7 +1343,8 @@
       "updatePasswordFailed": "Impossible de mettre à jour le mot de passe",
       "passwordUpdatedSignInAgain": "Mot de passe mis à jour. Reconnectez-vous sur vos autres appareils.",
       "adminSelfDelete": "Les administrateurs ne peuvent pas supprimer eux-mêmes leur compte. Demandez d’abord à un autre administrateur de rétrograder votre compte.",
-      "deleteFailed": "Impossible de supprimer le compte"
+      "deleteFailed": "Impossible de supprimer le compte",
+      "storageCleanupFailed": "Impossible de supprimer vos fichiers — veuillez réessayer"
     },
     "chat": {
       "sendFailed": "Impossible d’envoyer le message. Veuillez réessayer.",
@@ -1352,7 +1353,8 @@
       "messageNeedsText": "Le message doit contenir du texte",
       "conversationStartFailed": "Impossible de démarrer cette conversation. Veuillez réessayer.",
       "unauthorized": "Veuillez vous reconnecter.",
-      "streamInterrupted": "La réponse a été interrompue. Veuillez réessayer."
+      "streamInterrupted": "La réponse a été interrompue. Veuillez réessayer.",
+      "turnInProgress": "Une réponse est déjà en cours — attendez qu’elle se termine."
     }
   }
 }

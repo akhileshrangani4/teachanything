@@ -13,6 +13,7 @@ const CHAT_ERROR_KEYS = {
   chatbot_not_found: "errors.notFoundItems.chatbot",
   chatbot_not_shared: "errors.notFoundItems.chatbotNotShared",
   send_failed: "errors.chat.sendFailed",
+  turn_in_progress: "errors.chat.turnInProgress",
 } as const;
 
 export type ChatErrorCode = keyof typeof CHAT_ERROR_KEYS;
@@ -27,6 +28,11 @@ function chatErrorCode(message: string): ChatErrorCode | null {
   } catch {
     return null;
   }
+}
+
+/** The route's error code a failed chat request carries, if any. */
+export function chatErrorCodeOf(error: Error): ChatErrorCode | null {
+  return chatErrorCode(error.message?.trim() ?? "");
 }
 
 export function describeChatError(error: Error, t: TFunction): string {

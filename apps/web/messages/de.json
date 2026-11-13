@@ -1343,7 +1343,8 @@
       "updatePasswordFailed": "Passwort konnte nicht aktualisiert werden",
       "passwordUpdatedSignInAgain": "Passwort erfolgreich aktualisiert. Bitte melden Sie sich auf anderen Geräten erneut an.",
       "adminSelfDelete": "Administratorkonten können nicht selbst gelöscht werden. Bitten Sie zuerst eine andere Person mit Administratorrechten, Ihr Konto herabzustufen.",
-      "deleteFailed": "Konto konnte nicht gelöscht werden"
+      "deleteFailed": "Konto konnte nicht gelöscht werden",
+      "storageCleanupFailed": "Ihre Dateien konnten nicht entfernt werden – bitte versuchen Sie es erneut"
     },
     "chat": {
       "sendFailed": "Die Nachricht konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
@@ -1352,7 +1353,8 @@
       "messageNeedsText": "Die Nachricht muss Text enthalten",
       "conversationStartFailed": "Diese Unterhaltung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
       "unauthorized": "Bitte melden Sie sich erneut an.",
-      "streamInterrupted": "Die Antwort wurde unterbrochen. Bitte versuchen Sie es erneut."
+      "streamInterrupted": "Die Antwort wurde unterbrochen. Bitte versuchen Sie es erneut.",
+      "turnInProgress": "Es wird bereits eine Antwort erstellt — bitte warten Sie, bis sie fertig ist."
     }
   }
 }

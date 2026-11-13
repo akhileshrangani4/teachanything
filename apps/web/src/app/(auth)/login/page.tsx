@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { authClient, useSession } from "@/lib/auth-client";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc";
 import { BrandName } from "@/components/brand/BrandName";
 import { useTranslation, Trans } from "react-i18next";
 import { loginErrorMessage } from "@/lib/auth-error-message";
@@ -31,7 +30,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const utils = trpc.useUtils();
 
   // Redirect to dashboard if already signed in
   useEffect(() => {
@@ -61,10 +59,12 @@ export default function LoginPage() {
             });
             router.push("/dashboard");
           },
-          onError: async (ctx) => {
+          onError: (ctx) => {
             setLoading(false);
 
-            // Check for specific error messages from Better Auth
+            // The session gate raises these only after Better Auth has
+            // verified the password, so an account's approval state is never
+            // revealed to someone who doesn't hold its credentials (#480).
             const errorMessage = ctx.error.message || "";
 
             if (errorMessage === "ACCOUNT_PENDING") {
@@ -81,35 +81,6 @@ export default function LoginPage() {
               });
               router.push("/rejected");
               return;
-            }
-
-            // For other errors, check user status as fallback
-            if (!errorMessage.includes("credentials") && email) {
-              try {
-                const statusResult =
-                  await utils.client.auth.checkUserStatus.query({
-                    email,
-                  });
-
-                if (statusResult.exists && statusResult.status === "pending") {
-                  toast.info(t("auth.login.pendingTitle"), {
-                    description: t("auth.login.pendingDescription"),
-                  });
-                  router.push("/pending");
-                  return;
-                } else if (
-                  statusResult.exists &&
-                  statusResult.status === "rejected"
-                ) {
-                  toast.error(t("auth.login.rejectedTitle"), {
-                    description: t("auth.login.rejectedDescription"),
-                  });
-                  router.push("/rejected");
-                  return;
-                }
-              } catch {
-                // If status check fails, fall through to regular error handling
-              }
             }
 
             // Default error handling

@@ -6,7 +6,10 @@ import * as bcrypt from "bcryptjs";
 import { requireRateLimit, passwordUpdateRateLimit } from "@/server/rate-limit";
 import { logError } from "@/lib/logger";
 import { auth } from "@/server/auth";
-import { deleteUserAccount } from "@/server/services/user-deletion";
+import {
+  deleteUserAccount,
+  StorageCleanupError,
+} from "@/server/services/user-deletion";
 import { appError } from "@/server/app-error";
 import { retryAfterMinutes } from "@/lib/constants/rate-limits";
 
@@ -85,6 +88,12 @@ export const deleteOwnAccountProcedure = protectedProcedure
         userId,
         email: currentUser.email,
       });
-      throw appError("INTERNAL_SERVER_ERROR", "errors.account.deleteFailed");
+      // The account is intact after a storage failure, so say it can be retried.
+      throw appError(
+        "INTERNAL_SERVER_ERROR",
+        error instanceof StorageCleanupError
+          ? "errors.account.storageCleanupFailed"
+          : "errors.account.deleteFailed",
+      );
     }
   });

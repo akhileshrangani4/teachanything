@@ -1343,7 +1343,8 @@
       "updatePasswordFailed": "Failed to update password",
       "passwordUpdatedSignInAgain": "Password updated successfully. Please sign in again on other devices.",
       "adminSelfDelete": "Admin accounts cannot be self-deleted. Please contact another admin to demote your account first.",
-      "deleteFailed": "Failed to delete account"
+      "deleteFailed": "Failed to delete account",
+      "storageCleanupFailed": "Couldn't remove your files — please try again"
     },
     "chat": {
       "sendFailed": "Failed to send message. Please try again.",
@@ -1352,7 +1353,8 @@
       "messageNeedsText": "Message must contain text",
       "conversationStartFailed": "Could not start this conversation. Please try again.",
       "unauthorized": "Please sign in again.",
-      "streamInterrupted": "The response was interrupted. Please try again."
+      "streamInterrupted": "The response was interrupted. Please try again.",
+      "turnInProgress": "A response is already in progress — wait for it to finish."
     }
   }
 }

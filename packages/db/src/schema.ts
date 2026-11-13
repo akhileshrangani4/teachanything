@@ -320,6 +320,8 @@ export const conversations = pgTable(
       .$type<{
         userAgent?: string;
         referrer?: string;
+        /** ISO time a chat turn claimed this session; absent when idle (#465). */
+        activeTurnAt?: string;
       }>()
       .default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
