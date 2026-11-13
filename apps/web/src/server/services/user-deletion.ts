@@ -5,11 +5,34 @@ import {
   approvedDomains,
   emailDeliveries,
 } from "@teachanything/db/schema";
-import { createSupabaseClient } from "@/server/supabase";
-import { isServiceAvailable } from "@/lib/env";
+import { removeStoredFiles } from "@/server/storage-removal";
+import { isCrawledPagePath } from "@/server/crawled-page-files";
 import { sendAccountDeletedEmail } from "@/server/email";
 import { logInfo, logError } from "@/lib/logger";
 import type { db as DbType } from "@teachanything/db";
+
+/**
+ * Storage cleanup failed, so nothing in the database was touched. The account
+ * is intact and deleting it again is safe.
+ */
+export class StorageCleanupError extends Error {
+  constructor(options: { cause: unknown }) {
+    super("Couldn't remove your files — please try again", options);
+    this.name = "StorageCleanupError";
+  }
+}
+
+/**
+ * The object keys to remove from storage for a user's `userFiles` rows.
+ * Crawled pages store their URL in `storagePath` and have no stored object.
+ */
+export function storagePathsToRemove(
+  rows: ReadonlyArray<{ storagePath: string }>,
+): string[] {
+  return rows
+    .map((row) => row.storagePath)
+    .filter((storagePath) => !isCrawledPagePath(storagePath));
+}
 
 /**
  * Delete a user account and all associated data.
@@ -18,6 +41,10 @@ import type { db as DbType } from "@teachanything/db";
  * cascading DB delete, and confirmation email. Both the admin
  * deleteUser and self-service deleteOwnAccount mutations call this
  * after their own authorization checks.
+ *
+ * Fails closed: stored files are removed first, and if that fails it throws
+ * `StorageCleanupError` before any database write. Deleting the rows anyway
+ * would leave the files in storage with nothing pointing at them.
  */
 export async function deleteUserAccount(
   db: typeof DbType,
@@ -36,33 +63,24 @@ export async function deleteUserAccount(
     ...(deletedBy && { deletedBy }),
   });
 
-  // Delete files from Supabase Storage
-  const userFilesList = await db
-    .select({ storagePath: userFiles.storagePath })
-    .from(userFiles)
-    .where(eq(userFiles.userId, userId));
+  const storagePaths = storagePathsToRemove(
+    await db
+      .select({ storagePath: userFiles.storagePath })
+      .from(userFiles)
+      .where(eq(userFiles.userId, userId)),
+  );
 
-  if (userFilesList.length > 0 && isServiceAvailable("supabase-storage")) {
-    const supabase = createSupabaseClient();
-    const storagePaths = userFilesList.map(
-      (f: { storagePath: string }) => f.storagePath,
-    );
+  try {
+    await removeStoredFiles(storagePaths);
+  } catch (error) {
+    throw new StorageCleanupError({ cause: error });
+  }
 
-    const { error: storageError } = await supabase.storage
-      .from("chatbot-files")
-      .remove(storagePaths);
-
-    if (storageError) {
-      logError(storageError, "Failed to delete some files from storage", {
-        userId,
-        fileCount: userFilesList.length,
-      });
-    } else {
-      logInfo("Deleted files from storage", {
-        userId,
-        fileCount: userFilesList.length,
-      });
-    }
+  if (storagePaths.length > 0) {
+    logInfo("Deleted files from storage", {
+      userId,
+      fileCount: storagePaths.length,
+    });
   }
 
   // Wrap DB writes in a transaction to prevent partial deletion on crash
