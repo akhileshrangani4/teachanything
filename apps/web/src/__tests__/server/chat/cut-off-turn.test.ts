@@ -499,6 +499,60 @@ describe("a turn cut off mid-search", () => {
   });
 });
 
+/**
+ * The fallback has no tools, but a student who asked for a quiz still gets
+ * one: the model writes it as JSON text. Without recovery that JSON -- the
+ * answer key included -- rendered verbatim (#398).
+ */
+describe("a fallback that writes its quiz as text", () => {
+  const QUIZ = {
+    quiz_title: "Units of analysis",
+    questions: [
+      {
+        question: "What is the unit of analysis in an ecological study?",
+        options: ["A group", "An individual"],
+        correct_index: 0,
+        explanation: "Ecological studies compare groups, not individuals.",
+      },
+    ],
+  };
+  const quizParts = (chunks: Chunk[]) =>
+    chunks.filter(
+      (c) => c.type === "tool-input-available" && c.toolName === "showQuiz",
+    );
+
+  it("renders the leaked quiz as a quiz, not as text", async () => {
+    const r = await runTurn([
+      ...SEARCHES_UNTIL_LAST_STEP,
+      { search: "one more", finish: "tool-calls" },
+      { text: JSON.stringify(QUIZ), finish: "stop" },
+    ]);
+
+    expect(r.calls).toHaveLength(MAX_AGENT_STEPS + 1);
+    expect(toolNamesOf(r.calls[MAX_AGENT_STEPS])).toEqual([]);
+    const quizzes = quizParts(r.chunks);
+    expect(quizzes).toHaveLength(1);
+    expect(quizzes[0]).toMatchObject({ input: QUIZ });
+    expect(r.shownText).not.toContain("quiz_title");
+    expect(r.shownText).not.toContain("correct_index");
+    expect(r.sawError).toBe(false);
+    expect(r.state.executeErrored).toBe(false);
+  });
+
+  it("keeps the preamble the fallback wrote before the quiz", async () => {
+    const preamble = "Here is a short quiz on units of analysis:\n\n";
+    const r = await runTurn([
+      ...SEARCHES_UNTIL_LAST_STEP,
+      { search: "one more", finish: "tool-calls" },
+      { text: preamble + JSON.stringify(QUIZ), finish: "stop" },
+    ]);
+
+    expect(r.shownText).toContain(preamble.trim());
+    expect(r.shownText).not.toContain("quiz_title");
+    expect(quizParts(r.chunks)).toHaveLength(1);
+  });
+});
+
 describe("a turn that answered", () => {
   it("answers again when a later request fails after an early full answer (accepted trade-off)", async () => {
     // Deliberate, see cutOffMidSearch: text written before a search cannot be

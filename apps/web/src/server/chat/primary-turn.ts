@@ -290,6 +290,13 @@ export function writeDoneAnswerAsText(
 /**
  * Empty-response fallback (#357): a static, no-tools turn so the user always
  * gets an answer instead of a stuck, empty stream.
+ *
+ * It runs through `recoverLeakedQuiz` like the primary turn. Having no tools
+ * does not stop a model from writing a quiz: the student may have asked for
+ * one, and the history can hold earlier `showQuiz` calls for it to imitate.
+ * Without recovery that quiz -- answer key included -- would render as raw
+ * JSON. Only tool-capable bots ever reach the fallback (see
+ * `answerWithFallback`), so this is the same gate the primary turn applies.
  */
 export async function runFallbackTurn(args: {
   aiClient: OpenRouterClient;
@@ -319,12 +326,14 @@ export async function runFallbackTurn(args: {
     // truncation notice) cannot overtake the answer's last tokens.
     await forward(
       args.writer,
-      fallback.toUIMessageStream<StudyUIMessage>({
-        sendReasoning: false,
-        sendStart: false,
-        sendFinish: false,
-        onError: args.onStreamError,
-      }),
+      fallback
+        .toUIMessageStream<StudyUIMessage>({
+          sendReasoning: false,
+          sendStart: false,
+          sendFinish: false,
+          onError: args.onStreamError,
+        })
+        .pipeThrough(recoverLeakedQuiz()),
       args.chatbotId,
     );
     const text = await fallback.text;
