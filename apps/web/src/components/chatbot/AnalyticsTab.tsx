@@ -19,6 +19,7 @@ import {
 } from "./analytics-tab/charts";
 import { CommonQuestionsCard } from "./analytics-tab/common-questions-card";
 import { LowConfidenceCard } from "./analytics-tab/low-confidence-card";
+import { RatingsCard } from "./analytics-tab/ratings-card";
 import {
   formatChartDate,
   formatDurationSeconds,
@@ -66,6 +67,10 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
     { chatbotId, limit: 5, offset: 0 },
     { enabled: !!chatbotId },
   );
+  const ratingsQuery = trpc.analytics.getRatingsSummary.useQuery(
+    { chatbotId },
+    { enabled: !!chatbotId },
+  );
 
   const sessionMetrics = sessionMetricsQuery.data;
   const stats = statsQuery.data;
@@ -91,7 +96,8 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
     sessionsOverTimeQuery.isError ||
     distributionQuery.isError ||
     commonQuestionsQuery.isError ||
-    lowConfidenceQuery.isError;
+    lowConfidenceQuery.isError ||
+    ratingsQuery.isError;
 
   if (hasError) {
     return (
@@ -163,6 +169,11 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
         <SessionLengthsCard
           isLoading={distributionQuery.isLoading}
           data={distributionData}
+        />
+
+        <RatingsCard
+          isLoading={ratingsQuery.isLoading}
+          data={ratingsQuery.data}
         />
       </div>
 

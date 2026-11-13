@@ -4,6 +4,7 @@ import {
   conversations,
   messages,
   studyToolResponses,
+  messageRatings,
 } from "@teachanything/db/schema";
 import { eq, and, asc, inArray } from "drizzle-orm";
 import {
@@ -101,8 +102,19 @@ export const exportConversationsProcedure = protectedProcedure
         content: messages.content,
         metadata: messages.metadata,
         createdAt: messages.createdAt,
+        rating: messageRatings.rating,
       })
       .from(messages)
+      .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+      // Ratings are keyed by (message, session); only the conversation's own
+      // session's rating belongs in its export.
+      .leftJoin(
+        messageRatings,
+        and(
+          eq(messageRatings.messageId, messages.id),
+          eq(messageRatings.sessionId, conversations.sessionId),
+        ),
+      )
       .where(
         and(
           inArray(messages.conversationId, conversationIds),
@@ -138,6 +150,7 @@ export const exportConversationsProcedure = protectedProcedure
         createdAt: Date;
         sources: Array<{ fileName: string; similarity: number }>;
         studyTools: CollectedStudyTool[];
+        rating: "up" | "down" | null;
       }>
     >();
 
@@ -159,6 +172,7 @@ export const exportConversationsProcedure = protectedProcedure
                 responsesByKey,
               )
             : [],
+        rating: row.role === "assistant" ? row.rating : null,
       });
       messagesByConversation.set(row.conversationId, list);
     }

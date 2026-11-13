@@ -14,10 +14,11 @@ import { MessageAvatar } from "@/components/ui/message";
 import { TypingLoader } from "@/components/ui/loader";
 import { RotateCcw, Download } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
-import { deriveStatusLine } from "@/lib/chat/helpers";
+import { deriveStatusLine, isRateable } from "@/lib/chat/helpers";
 import type { ChatStatus } from "ai";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import type { MessageRatings, RateMessage } from "@/hooks/use-message-ratings";
 
 function hasVisibleContent(message: StudyUIMessage | undefined): boolean {
   if (!message || message.role !== "assistant") return false;
@@ -49,6 +50,10 @@ interface ChatInterfaceProps {
   onStudyAttempt?: (toolCallId: string, response: StudyResponsePayload) => void;
   /** Student's own attempts by tool toolCallId, for the chat export. */
   studyAttempts?: Record<string, StudyResponsePayload[]>;
+  /** Student chat only: the student's ratings this session, by message id. */
+  ratings?: MessageRatings;
+  /** Student chat only: shows thumbs on each finished assistant message. */
+  onRate?: RateMessage;
 }
 
 export function ChatInterface({
@@ -73,6 +78,8 @@ export function ChatInterface({
   voiceInputEnabled = true,
   onStudyAttempt,
   studyAttempts,
+  ratings,
+  onRate,
 }: ChatInterfaceProps) {
   const { t } = useTranslation();
   const isStreaming = status === "submitted" || status === "streaming";
@@ -178,6 +185,13 @@ export function ChatInterface({
                     showSources={showSources}
                     onStudyAttempt={onStudyAttempt}
                     studyAttempts={studyAttempts}
+                    ratingValue={ratings?.[msg.id]?.value ?? null}
+                    isRatingSaving={ratings?.[msg.id]?.isSaving ?? false}
+                    onRate={
+                      isRateable(msg, lastMessage, isStreaming)
+                        ? onRate
+                        : undefined
+                    }
                   />
                 ))}
                 {showIndicator && (

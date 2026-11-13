@@ -19,6 +19,8 @@ export function buildCsv(data: ConversationsExport): string {
     "message",
     "sources",
     "study_tools",
+    // Appended last so existing column positions stay put for saved sheets.
+    "rating",
   ];
 
   // CRLF + a UTF-8 BOM so Excel opens accented / non-ASCII content correctly.
@@ -42,6 +44,7 @@ export function buildCsv(data: ConversationsExport): string {
           message.content,
           sources,
           renderStudyToolsText(message.studyTools ?? []),
+          message.rating ?? "",
         ]
           .map(csvCell)
           .join(","),

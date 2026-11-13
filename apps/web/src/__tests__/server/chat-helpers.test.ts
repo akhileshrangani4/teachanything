@@ -3,6 +3,7 @@ import {
   clampMaxTokens,
   describeToolActivity,
   deriveStatusLine,
+  isRateable,
   mergeSources,
 } from "@/lib/chat/helpers";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
@@ -171,5 +172,29 @@ describe("mergeSources", () => {
   it("does not conflate same chunk index across different files", () => {
     const merged = mergeSources([rag("a.pdf", 1)], [tool("b.pdf", 1)]);
     expect(merged).toHaveLength(2);
+  });
+});
+
+describe("isRateable", () => {
+  const user = {
+    id: "u",
+    role: "user",
+    parts: [],
+  } as unknown as StudyUIMessage;
+  const earlier = assistantWith({ type: "text", text: "earlier" });
+  const last = assistantWith({ type: "text", text: "last" });
+
+  it("rates every assistant message once nothing is streaming", () => {
+    expect(isRateable(earlier, last, false)).toBe(true);
+    expect(isRateable(last, last, false)).toBe(true);
+  });
+
+  it("holds back only the reply still being streamed", () => {
+    expect(isRateable(last, last, true)).toBe(false);
+    expect(isRateable(earlier, last, true)).toBe(true);
+  });
+
+  it("never rates a student's own message", () => {
+    expect(isRateable(user, last, false)).toBe(false);
   });
 });
