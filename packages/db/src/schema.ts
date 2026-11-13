@@ -433,6 +433,41 @@ export const studyToolResponses = pgTable(
   ],
 );
 
+export const messageRatingEnum = pgEnum("message_rating", ["up", "down"]);
+
+// A student's thumbs up/down on one assistant message. Anonymous: keyed by the
+// chat session, not a user. One row per (message, session) -- re-rating updates
+// it in place, so the professor's totals count each student's latest opinion
+// once. `chatbotId` is denormalized from the message's conversation so the
+// analytics card can count a chatbot's ratings without joining messages.
+export const messageRatings = pgTable(
+  "message_ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    messageId: uuid("message_id")
+      .references(() => messages.id, { onDelete: "cascade" })
+      .notNull(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    sessionId: text("session_id").notNull(),
+    rating: messageRatingEnum("rating").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("message_ratings_message_id_session_id_unique").on(
+      table.messageId,
+      table.sessionId,
+    ),
+    // The professor's ratings card: one chatbot, a recent time window.
+    index("message_ratings_chatbot_id_updated_at_idx").on(
+      table.chatbotId,
+      table.updatedAt,
+    ),
+  ],
+);
+
 // Analytics table
 export const analytics = pgTable(
   "analytics",
@@ -632,6 +667,7 @@ export const chatbotsRelations = relations(chatbots, ({ one, many }) => ({
   fileAssociations: many(chatbotFileAssociations),
   conversations: many(conversations),
   analytics: many(analytics),
+  messageRatings: many(messageRatings),
   crawlSourceAssociations: many(chatbotCrawlSourceAssociations),
 }));
 
@@ -677,12 +713,27 @@ export const conversationsRelations = relations(
   }),
 );
 
-export const messagesRelations = relations(messages, ({ one }) => ({
+export const messagesRelations = relations(messages, ({ one, many }) => ({
   conversation: one(conversations, {
     fields: [messages.conversationId],
     references: [conversations.id],
   }),
+  ratings: many(messageRatings),
 }));
+
+export const messageRatingsRelations = relations(
+  messageRatings,
+  ({ one }) => ({
+    message: one(messages, {
+      fields: [messageRatings.messageId],
+      references: [messages.id],
+    }),
+    chatbot: one(chatbots, {
+      fields: [messageRatings.chatbotId],
+      references: [chatbots.id],
+    }),
+  }),
+);
 
 export const studyToolResponsesRelations = relations(
   studyToolResponses,
