@@ -1169,6 +1169,14 @@
       "pagesList": "Páginas {list}",
       "similarity": "Similitud: {similarity, number, ::percent .0}"
     },
+    "citations": {
+      "label": "Fuentes citadas",
+      "marker": "Fuente {ref, number}",
+      "showExcerpt": "Mostrar fragmento",
+      "hideExcerpt": "Ocultar fragmento",
+      "openPage": "Abrir página {page, number}",
+      "openFile": "Abrir archivo"
+    },
     "quiz": {
       "building": "Creando su cuestionario…",
       "questionOf": "Pregunta {current, number} de {total, number}",

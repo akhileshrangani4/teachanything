@@ -1,5 +1,6 @@
 import { describe, it, expect } from "@jest/globals";
 import {
+  citationFileHref,
   describeSource,
   groupSourcesByFile,
   sourceDisplayName,
@@ -48,6 +49,23 @@ describe("describeSource", () => {
       isWeb: false,
       label: "syllabus.pdf",
     });
+  });
+});
+
+describe("citationFileHref", () => {
+  it("lands on the cited page of the owner download route", () => {
+    expect(citationFileHref("f-1", 12)).toBe("/api/files/f-1/download#page=12");
+  });
+
+  it("opens the file itself when there is no page", () => {
+    expect(citationFileHref("f-1", null)).toBe("/api/files/f-1/download");
+    expect(citationFileHref("f-1")).toBe("/api/files/f-1/download");
+  });
+
+  it("keeps an odd id inside its path segment", () => {
+    expect(citationFileHref("a/../b", 1)).toBe(
+      "/api/files/a%2F..%2Fb/download#page=1",
+    );
   });
 });
 
