@@ -8,8 +8,9 @@ import { createI18n } from "@/i18n/create-i18n";
 
 /**
  * A turn refused because another one holds the session (#465): the student
- * sees the localized message and gets their draft back. Drives the real
- * shared-chat hook and chat input; only the network and the toast are stubbed.
+ * sees the localized message and gets their draft back. Drives each real chat
+ * hook (shared link and the owner's dashboard) with the real chat input; only
+ * the network and the toast are stubbed.
  */
 
 // jsdom has no structuredClone, which the AI SDK's chat state uses to snapshot
@@ -35,17 +36,62 @@ jest.unstable_mockModule("@/lib/trpc", () => ({
           error: null,
         }),
       },
+      get: {
+        useQuery: () => ({
+          data: { id: "chatbot-1", name: "Biology" },
+          isLoading: false,
+        }),
+      },
     },
   },
 }));
 
 const { useChat } = await import("@/hooks/useChat");
+const { useChatbot } = await import("@/hooks/useChatbot");
 const { ChatInput } = await import("@/components/chat/messages/ChatInput");
 const { extractText } = await import("@/lib/chat/ui-messages");
 
-/** The shared chat page's input, wired to the real hook, plus its transcript. */
-function SharedChat() {
-  const chat = useChat("share-token");
+/** What the chat surface below needs from either chat hook. */
+type ChatHook = () => Pick<
+  ReturnType<typeof useChatbot>,
+  | "messages"
+  | "currentMessage"
+  | "setCurrentMessage"
+  | "isStreaming"
+  | "handleSendMessage"
+  | "stop"
+>;
+
+/** The shared-link chat page's hook. */
+function useSharedChat() {
+  return useChat("share-token");
+}
+
+/** The owner's dashboard chat page's hook. */
+function useDashboardChat() {
+  return useChatbot("chatbot-1", { user: { id: "owner-1" } });
+}
+
+const surfaces: ReadonlyArray<{
+  name: string;
+  endpoint: string;
+  useChatHook: ChatHook;
+}> = [
+  {
+    name: "shared chat",
+    endpoint: "/api/chat/shared",
+    useChatHook: useSharedChat,
+  },
+  {
+    name: "dashboard chat",
+    endpoint: "/api/chat",
+    useChatHook: useDashboardChat,
+  },
+];
+
+/** A chat page's input, wired to the real hook, plus its transcript. */
+function ChatSurface({ useChatHook }: { useChatHook: ChatHook }) {
+  const chat = useChatHook();
   return (
     <>
       <ul aria-label="transcript">
@@ -82,11 +128,11 @@ beforeEach(() => {
 
 const QUESTION = "What is photosynthesis?";
 
-function renderChat(locale: "en" | "fr") {
+function renderChat(locale: "en" | "fr", useChatHook: ChatHook) {
   const catalog = locale === "fr" ? fr : en;
   render(
     <I18nextProvider i18n={createI18n(locale, catalog, en)}>
-      <SharedChat />
+      <ChatSurface useChatHook={useChatHook} />
     </I18nextProvider>,
   );
   return {
@@ -109,53 +155,56 @@ async function send(text: string, catalog: typeof en) {
   return user;
 }
 
-describe("a turn refused while another is in progress", () => {
-  it.each(["en", "fr"] as const)(
-    "shows the %s message and gives the draft back",
-    async (locale) => {
-      const { catalog, input, transcript } = renderChat(locale);
-      await send(QUESTION, catalog);
-      expect(fetchMock.mock.calls[0]![0]).toBe("/api/chat/shared");
-      // Sent: the input clears and the message shows optimistically.
-      expect(input).toHaveValue("");
-      expect(transcript).toHaveTextContent(QUESTION);
+describe.each(surfaces)(
+  "$name: a turn refused while another is in progress",
+  ({ endpoint, useChatHook }) => {
+    it.each(["en", "fr"] as const)(
+      "shows the %s message and gives the draft back",
+      async (locale) => {
+        const { catalog, input, transcript } = renderChat(locale, useChatHook);
+        await send(QUESTION, catalog);
+        expect(fetchMock.mock.calls[0]![0]).toBe(endpoint);
+        // Sent: the input clears and the message shows optimistically.
+        expect(input).toHaveValue("");
+        expect(transcript).toHaveTextContent(QUESTION);
+
+        respond(routeError(409, "turn_in_progress"));
+
+        await waitFor(() =>
+          expect(toastError).toHaveBeenCalledWith(
+            catalog.errors.chat.turnInProgress,
+          ),
+        );
+        await waitFor(() => expect(input).toHaveValue(QUESTION));
+        expect(transcript).toBeEmptyDOMElement();
+      },
+    );
+
+    it("keeps a new draft typed while the request was refused", async () => {
+      const { catalog, input, transcript } = renderChat("en", useChatHook);
+      const user = await send(QUESTION, catalog);
+      await user.type(input, "And respiration?");
 
       respond(routeError(409, "turn_in_progress"));
 
+      await waitFor(() => expect(toastError).toHaveBeenCalled());
+      await waitFor(() => expect(transcript).toBeEmptyDOMElement());
+      expect(input).toHaveValue("And respiration?");
+    });
+
+    it("leaves the transcript and input alone for other errors", async () => {
+      const { catalog, input, transcript } = renderChat("en", useChatHook);
+      await send(QUESTION, catalog);
+
+      respond(routeError(429, "rate_limited"));
+
       await waitFor(() =>
         expect(toastError).toHaveBeenCalledWith(
-          catalog.errors.chat.turnInProgress,
+          catalog.errors.chat.tooManyMessages,
         ),
       );
-      await waitFor(() => expect(input).toHaveValue(QUESTION));
-      expect(transcript).toBeEmptyDOMElement();
-    },
-  );
-
-  it("keeps a new draft typed while the request was refused", async () => {
-    const { catalog, input, transcript } = renderChat("en");
-    const user = await send(QUESTION, catalog);
-    await user.type(input, "And respiration?");
-
-    respond(routeError(409, "turn_in_progress"));
-
-    await waitFor(() => expect(toastError).toHaveBeenCalled());
-    await waitFor(() => expect(transcript).toBeEmptyDOMElement());
-    expect(input).toHaveValue("And respiration?");
-  });
-
-  it("leaves the transcript and input alone for other errors", async () => {
-    const { catalog, input, transcript } = renderChat("en");
-    await send(QUESTION, catalog);
-
-    respond(routeError(429, "rate_limited"));
-
-    await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith(
-        catalog.errors.chat.tooManyMessages,
-      ),
-    );
-    expect(transcript).toHaveTextContent(QUESTION);
-    expect(input).toHaveValue("");
-  });
-});
+      expect(transcript).toHaveTextContent(QUESTION);
+      expect(input).toHaveValue("");
+    });
+  },
+);
