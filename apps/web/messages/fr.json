@@ -1162,7 +1162,10 @@
       "rating": {
         "group": "Évaluer cette réponse",
         "up": "Réponse utile",
-        "down": "Réponse pas utile"
+        "down": "Réponse pas utile",
+        "failed": "Impossible d’enregistrer votre évaluation. Veuillez réessayer.",
+        "ratedUp": "Évaluation de l’étudiant : réponse utile",
+        "ratedDown": "Évaluation de l’étudiant : réponse pas utile"
       }
     },
     "status": {

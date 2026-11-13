@@ -1162,7 +1162,10 @@
       "rating": {
         "group": "Diese Antwort bewerten",
         "up": "Hilfreiche Antwort",
-        "down": "Nicht hilfreiche Antwort"
+        "down": "Nicht hilfreiche Antwort",
+        "failed": "Ihre Bewertung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+        "ratedUp": "Bewertung der Studierenden: hilfreiche Antwort",
+        "ratedDown": "Bewertung der Studierenden: nicht hilfreiche Antwort"
       }
     },
     "status": {

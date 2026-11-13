@@ -1162,7 +1162,10 @@
       "rating": {
         "group": "Valorar esta respuesta",
         "up": "Respuesta útil",
-        "down": "Respuesta poco útil"
+        "down": "Respuesta poco útil",
+        "failed": "No se pudo guardar su valoración. Inténtelo de nuevo.",
+        "ratedUp": "Valoración del estudiante: respuesta útil",
+        "ratedDown": "Valoración del estudiante: respuesta poco útil"
       }
     },
     "status": {
