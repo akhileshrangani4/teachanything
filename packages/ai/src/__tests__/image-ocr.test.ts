@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
-import { existsSync, mkdtempSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -46,6 +46,7 @@ jest.unstable_mockModule("@tesseract.js-data/eng", () => ({
 
 const { recognizeImageText, OCR_MAX_PIXELS, OCR_TIMEOUT_MS } =
   await import("../image-ocr");
+const { readJpegOrientation } = await import("../image-orientation");
 
 function fakeWorker(
   recognize: () => Promise<{ data: { text: string } }>,
@@ -212,5 +213,64 @@ describe("recognizeImageText", () => {
     // The pipeline's timeout cannot stop the worker; this one can. See the
     // comment on OCR_TIMEOUT_MS.
     expect(OCR_TIMEOUT_MS).toBeLessThan(60_000);
+  });
+});
+
+/**
+ * The image handed to the engine. Real fixture files are used for realistic
+ * JPEG headers; the fake engine never decodes them.
+ */
+describe("recognizeImageText orientation handling", () => {
+  const fixture = (name: string) =>
+    readFileSync(new URL(`./fixtures/images/${name}`, import.meta.url));
+
+  /** tesseract.js 7's own detection (src/worker-script/utils/setImage.js). */
+  const detectedByTesseractJs = (buf: Buffer) =>
+    parseInt(
+      Array.from(buf.subarray(0, 500))
+        .join(" ")
+        .match(/1 18 0 3 0 0 0 1 0 (\d)/)?.[1] ?? "",
+      10,
+    ) || 1;
+
+  async function imageSentToEngine(
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<Buffer> {
+    const worker = fakeWorker(async () => ({ data: { text: "x" } }));
+    mockCreateWorker.mockReset();
+    mockCreateWorker.mockResolvedValue(worker);
+    await recognizeImageText(buffer, mimeType);
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+    return worker.recognize.mock.calls[0]![0];
+  }
+
+  it("hands the engine a sideways little-endian JPEG with its orientation made detectable", async () => {
+    const original = fixture("exif-orientation-6-le.jpg");
+    expect(detectedByTesseractJs(original)).toBe(1);
+
+    const sent = await imageSentToEngine(original, "image/jpeg");
+
+    expect(detectedByTesseractJs(sent)).toBe(6);
+    expect(readJpegOrientation(sent)).toBe(6);
+  });
+
+  it("passes a JPEG without EXIF to the engine untouched", async () => {
+    const original = fixture("text.jpg");
+    expect(await imageSentToEngine(original, "image/jpeg")).toBe(original);
+  });
+
+  it("passes an upright JPEG with EXIF to the engine untouched", async () => {
+    const original = fixture("exif-orientation-1-le.jpg");
+    expect(await imageSentToEngine(original, "image/jpeg")).toBe(original);
+  });
+
+  it.each([
+    ["text.png", "image/png"],
+    ["text.webp", "image/webp"],
+    ["text.tif", "image/tiff"],
+  ])("never alters %s", async (name, mimeType) => {
+    const original = fixture(name);
+    expect(await imageSentToEngine(original, mimeType)).toBe(original);
   });
 });

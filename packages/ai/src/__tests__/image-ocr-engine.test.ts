@@ -72,3 +72,28 @@ describe("image OCR with the real engine", () => {
     ).rejects.toThrow("Invalid JPEG image file");
   });
 });
+
+/**
+ * Phone photos saved sideways or mirrored, with the turn recorded in EXIF.
+ * tesseract.js 7 detects only big-endian EXIF on its own; see
+ * image-orientation.ts. Every orientation is checked with little-endian EXIF,
+ * the case it misses, plus one big-endian control that must not be rotated
+ * twice. Each fixture was verified upright with Pillow's exif_transpose.
+ */
+describe("image OCR of EXIF-oriented photos with the real engine", () => {
+  it.each([
+    ["exif-orientation-1-le.jpg", "upright"],
+    ["exif-orientation-2-le.jpg", "mirrored"],
+    ["exif-orientation-3-le.jpg", "upside down"],
+    ["exif-orientation-4-le.jpg", "upside down, mirrored"],
+    ["exif-orientation-5-le.jpg", "sideways, mirrored"],
+    ["exif-orientation-6-le.jpg", "sideways"],
+    ["exif-orientation-7-le.jpg", "sideways, mirrored"],
+    ["exif-orientation-8-le.jpg", "sideways"],
+    ["exif-orientation-6-be.jpg", "sideways, big-endian EXIF"],
+  ])("reads %s (%s) the right way up", async (name) => {
+    await expect(
+      service.extractContent(fixture(name), "image/jpeg"),
+    ).resolves.toBe(EXPECTED);
+  });
+});

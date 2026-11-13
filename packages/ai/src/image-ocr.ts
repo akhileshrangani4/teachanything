@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Worker } from "tesseract.js";
 import { readImageInfo } from "./image-dimensions";
+import { withDetectableOrientation } from "./image-orientation";
 
 /**
  * Optical character recognition (OCR) for uploaded images, using tesseract.js:
@@ -124,6 +125,10 @@ export async function recognizeImageText(
 ): Promise<string> {
   const timeoutMs = options.timeoutMs ?? OCR_TIMEOUT_MS;
   assertImageIsProcessable(buffer, mimeType);
+  // Sideways phone photos: see image-orientation.ts. Other formats, and JPEGs
+  // with nothing to rotate, are passed through unchanged.
+  const image =
+    mimeType === "image/jpeg" ? withDetectableOrientation(buffer) : buffer;
 
   // Held in an object, not a `let`, so the `finally` below sees the worker
   // assigned inside the async closure.
@@ -140,7 +145,7 @@ export async function recognizeImageText(
       return "";
     }
     state.worker = worker;
-    const { data } = await worker.recognize(buffer);
+    const { data } = await worker.recognize(image);
     return data.text ?? "";
   })();
   // After a timeout nothing awaits `work`; keep its late outcome from
