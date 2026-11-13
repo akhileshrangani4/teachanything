@@ -21,9 +21,8 @@ jest.unstable_mockModule("@/lib/logger", () => ({
 }));
 
 const { submitMessageRating } = await import("@/lib/submit-message-rating");
-const { PERSIST_RETRY_DELAYS_MS } = await import(
-  "@/lib/post-with-persist-retry"
-);
+const { PERSIST_RETRY_DELAYS_MS } =
+  await import("@/lib/post-with-persist-retry");
 
 const INPUT = {
   shareToken: "share-token-1",
