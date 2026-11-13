@@ -702,6 +702,18 @@
       "description": "Nachrichten ohne RAG-Kontext",
       "empty": "Keine Anfragen mit geringer Konfidenz gefunden",
       "session": "Sitzung {id}…"
+    },
+    "ratings": {
+      "title": "Bewertungen der Antworten",
+      "description": "Wie Studierende die KI-Antworten bewertet haben",
+      "period": "Letzte 30 Tage",
+      "up": "Daumen hoch",
+      "down": "Daumen runter",
+      "positive": "Positiv",
+      "count": "{count, number}",
+      "positiveValue": "{rate, number, ::percent}",
+      "empty": "Keine Bewertungen in den letzten 30 Tagen",
+      "emptyHint": "Bewertungen erscheinen hier, sobald Studierende eine Antwort bewerten."
     }
   },
   "conversations": {
@@ -1146,7 +1158,12 @@
       "copy": "Nachricht kopieren",
       "copied": "Nachricht in die Zwischenablage kopiert",
       "copyFailed": "Nachricht konnte nicht kopiert werden",
-      "cutOff": "Die Antwort wurde am Token-Limit abgeschnitten. Erhöhen Sie die maximale Tokenanzahl oder stellen Sie eine kürzere Frage."
+      "cutOff": "Die Antwort wurde am Token-Limit abgeschnitten. Erhöhen Sie die maximale Tokenanzahl oder stellen Sie eine kürzere Frage.",
+      "rating": {
+        "group": "Diese Antwort bewerten",
+        "up": "Hilfreiche Antwort",
+        "down": "Nicht hilfreiche Antwort"
+      }
     },
     "status": {
       "searchingFor": "Dokumente werden nach „{query}“ durchsucht",

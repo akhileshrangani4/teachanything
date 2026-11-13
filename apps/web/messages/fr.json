@@ -702,6 +702,18 @@
       "description": "Messages qui n’ont pas utilisé le contexte RAG",
       "empty": "Aucune requête à faible confiance",
       "session": "Session {id}…"
+    },
+    "ratings": {
+      "title": "Évaluations des réponses",
+      "description": "Comment les étudiants ont évalué les réponses de l’IA",
+      "period": "30 derniers jours",
+      "up": "Pouce levé",
+      "down": "Pouce baissé",
+      "positive": "Positives",
+      "count": "{count, number}",
+      "positiveValue": "{rate, number, ::percent}",
+      "empty": "Aucune évaluation au cours des 30 derniers jours",
+      "emptyHint": "Les évaluations apparaissent ici lorsque les étudiants évaluent une réponse."
     }
   },
   "conversations": {
@@ -1146,7 +1158,12 @@
       "copy": "Copier le message",
       "copied": "Message copié dans le presse-papiers",
       "copyFailed": "Impossible de copier le message",
-      "cutOff": "La réponse a été coupée à la limite de tokens. Augmentez le nombre maximal de tokens ou posez une question plus courte."
+      "cutOff": "La réponse a été coupée à la limite de tokens. Augmentez le nombre maximal de tokens ou posez une question plus courte.",
+      "rating": {
+        "group": "Évaluer cette réponse",
+        "up": "Réponse utile",
+        "down": "Réponse pas utile"
+      }
     },
     "status": {
       "searchingFor": "Recherche de « {query} » dans les documents",

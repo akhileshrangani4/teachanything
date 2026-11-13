@@ -702,6 +702,18 @@
       "description": "Mensajes que no usaron el contexto de RAG",
       "empty": "No se encontraron consultas de baja confianza",
       "session": "Sesión {id}…"
+    },
+    "ratings": {
+      "title": "Valoraciones de respuestas",
+      "description": "Cómo valoraron los estudiantes las respuestas de la IA",
+      "period": "Últimos 30 días",
+      "up": "Pulgar arriba",
+      "down": "Pulgar abajo",
+      "positive": "Positivas",
+      "count": "{count, number}",
+      "positiveValue": "{rate, number, ::percent}",
+      "empty": "No hay valoraciones en los últimos 30 días",
+      "emptyHint": "Las valoraciones aparecen aquí cuando los estudiantes valoran una respuesta."
     }
   },
   "conversations": {
@@ -1146,7 +1158,12 @@
       "copy": "Copiar mensaje",
       "copied": "Mensaje copiado al portapapeles",
       "copyFailed": "No se pudo copiar el mensaje",
-      "cutOff": "La respuesta se cortó al alcanzar el límite de tokens. Aumente el máximo de tokens o haga una pregunta más corta."
+      "cutOff": "La respuesta se cortó al alcanzar el límite de tokens. Aumente el máximo de tokens o haga una pregunta más corta.",
+      "rating": {
+        "group": "Valorar esta respuesta",
+        "up": "Respuesta útil",
+        "down": "Respuesta poco útil"
+      }
     },
     "status": {
       "searchingFor": "Buscando «{query}» en los documentos",
