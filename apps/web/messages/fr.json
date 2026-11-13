@@ -1333,7 +1333,8 @@
       "messageNeedsText": "Le message doit contenir du texte",
       "conversationStartFailed": "Impossible de démarrer cette conversation. Veuillez réessayer.",
       "unauthorized": "Veuillez vous reconnecter.",
-      "streamInterrupted": "La réponse a été interrompue. Veuillez réessayer."
+      "streamInterrupted": "La réponse a été interrompue. Veuillez réessayer.",
+      "turnInProgress": "Une réponse est déjà en cours — attendez qu’elle se termine."
     }
   }
 }

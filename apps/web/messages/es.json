@@ -1333,7 +1333,8 @@
       "messageNeedsText": "El mensaje debe contener texto",
       "conversationStartFailed": "No se pudo iniciar esta conversación. Vuelva a intentarlo.",
       "unauthorized": "Vuelva a iniciar sesión.",
-      "streamInterrupted": "La respuesta se interrumpió. Vuelva a intentarlo."
+      "streamInterrupted": "La respuesta se interrumpió. Vuelva a intentarlo.",
+      "turnInProgress": "Ya hay una respuesta en curso — espere a que termine."
     }
   }
 }

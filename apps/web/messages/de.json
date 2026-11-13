@@ -1333,7 +1333,8 @@
       "messageNeedsText": "Die Nachricht muss Text enthalten",
       "conversationStartFailed": "Diese Unterhaltung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
       "unauthorized": "Bitte melden Sie sich erneut an.",
-      "streamInterrupted": "Die Antwort wurde unterbrochen. Bitte versuchen Sie es erneut."
+      "streamInterrupted": "Die Antwort wurde unterbrochen. Bitte versuchen Sie es erneut.",
+      "turnInProgress": "Es wird bereits eine Antwort erstellt — bitte warten Sie, bis sie fertig ist."
     }
   }
 }
