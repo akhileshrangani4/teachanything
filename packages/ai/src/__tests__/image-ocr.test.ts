@@ -1,5 +1,7 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /**
@@ -29,6 +31,19 @@ jest.unstable_mockModule("tesseract.js", () => ({
   OEM: { LSTM_ONLY: 1 },
 }));
 
+/**
+ * The model package, pointing at the REAL installed model unless a test moves
+ * it -- so the configuration test below checks a file that actually exists.
+ */
+const realModelData = createRequire(import.meta.url)(
+  "@tesseract.js-data/eng",
+) as { code: string; gzip: boolean; langPath: string };
+const modelData = { ...realModelData };
+
+jest.unstable_mockModule("@tesseract.js-data/eng", () => ({
+  default: modelData,
+}));
+
 const { recognizeImageText, OCR_MAX_PIXELS, OCR_TIMEOUT_MS } =
   await import("../image-ocr");
 
@@ -56,6 +71,7 @@ const never = () => new Promise<never>(() => {});
 describe("recognizeImageText", () => {
   beforeEach(() => {
     mockCreateWorker.mockReset();
+    modelData.langPath = realModelData.langPath;
   });
 
   it("returns the recognized text and terminates the worker", async () => {
@@ -88,6 +104,19 @@ describe("recognizeImageText", () => {
     expect(existsSync(join(langPath, "eng.traineddata.gz"))).toBe(true);
   });
 
+  it("fails fast, without spawning a worker, when the model data is missing", async () => {
+    // tesseract.js would spawn a worker thread and then never settle, leaving
+    // a thread nothing can terminate. The model check must run first.
+    const emptyPackage = mkdtempSync(join(tmpdir(), "ocr-no-model-"));
+    mkdirSync(join(emptyPackage, "4.0.0_best_int"));
+    modelData.langPath = join(emptyPackage, "4.0.0");
+
+    await expect(recognizeImageText(png(), "image/png")).rejects.toThrow(
+      "OCR language data not found",
+    );
+    expect(mockCreateWorker).not.toHaveBeenCalled();
+  });
+
   it("refuses an image over the pixel limit before starting the engine", async () => {
     const side = Math.ceil(Math.sqrt(OCR_MAX_PIXELS)) + 1;
 
@@ -116,6 +145,30 @@ describe("recognizeImageText", () => {
       "Error attempting to read image.",
     );
     expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("terminates the worker when the engine fails mid-job after a successful start", async () => {
+    // e.g. the decoder crashes partway through a large image.
+    const worker = fakeWorker(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      throw new Error("RuntimeError: memory access out of bounds");
+    });
+    mockCreateWorker.mockResolvedValue(worker);
+
+    await expect(recognizeImageText(png(), "image/png")).rejects.toThrow(
+      "memory access out of bounds",
+    );
+    expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reports the original error if terminating the worker also fails", async () => {
+    const worker = fakeWorker(() => Promise.reject(new Error("decode failed")));
+    worker.terminate.mockRejectedValue(new Error("already gone"));
+    mockCreateWorker.mockResolvedValue(worker);
+
+    await expect(recognizeImageText(png(), "image/png")).rejects.toThrow(
+      "decode failed",
+    );
   });
 
   it("passes on a failure to start the engine", async () => {

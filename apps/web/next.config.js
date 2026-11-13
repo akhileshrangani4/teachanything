@@ -17,18 +17,20 @@ const nextConfig = {
   ],
   output: "standalone",
   // Image OCR runs tesseract.js on a worker thread. Output tracing follows the
-  // main-thread code but not the worker script's own requires or the files it
-  // loads by computed path, so the standalone build silently lacked the WASM
-  // engine and the language model, and every image upload failed. List them
-  // for the one route that runs file processing in production (the inline
-  // paths in finalize-upload, retry and reprocess are development-only).
+  // main-thread code but not the worker script, its requires, or the files it
+  // loads by computed path -- and it does not trace the requires of files
+  // listed here either. Without each entry below the standalone build lacks a
+  // piece and every image upload fails (each was verified by removing it).
+  // Listed for the one route that runs file processing in production; the
+  // inline paths in finalize-upload, retry and reprocess are development-only.
   //
   // All six engine builds are listed, not just the LSTM ones image-ocr.ts asks
   // for: tesseract.js 7.0.0 passes a boolean where its Node core loader expects
   // an OEM code, so in Node it always loads a full build (plain, SIMD or
-  // relaxed-SIMD, chosen by CPU feature at runtime). Together these add ~60 MB
-  // to the route: engine ~44 MB (~24 MB of it browser-only `.wasm.js` bundles
-  // the tracer pulls in from tesseract.js's browser worker), model data ~14 MB.
+  // relaxed-SIMD, chosen by CPU feature at runtime). The route grows by ~60 MB:
+  // engine ~44 MB, model data ~14 MB. ~24 MB of the engine is browser-only
+  // `.wasm.js` files that end up in the trace even with a glob that excludes
+  // them; where they come from is not yet known.
   outputFileTracingIncludes: {
     "/api/jobs/process-file": [
       "../../node_modules/tesseract.js/src/**/*",

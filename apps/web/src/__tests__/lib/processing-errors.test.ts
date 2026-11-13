@@ -268,6 +268,17 @@ describe("sanitizeProcessingError on image uploads", () => {
     ).toContain("not the format it says it is");
   });
 
+  it("blames a missing OCR model on the platform, without leaking the path", () => {
+    const result = sanitizeProcessingError(
+      wrap(
+        "OCR language data not found: /var/task/node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz",
+      ),
+    );
+    expect(result).toContain("platform problem");
+    expect(result).toContain("not a problem with your file");
+    expect(result).not.toContain("/var/task");
+  });
+
   it("leaves a PDF with no text on the PDF advice", () => {
     expect(
       sanitizeProcessingError(

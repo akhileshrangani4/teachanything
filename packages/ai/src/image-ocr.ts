@@ -1,3 +1,4 @@
+import { access } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Worker } from "tesseract.js";
 import { readImageInfo } from "./image-dimensions";
@@ -28,6 +29,9 @@ export const OCR_MAX_PIXELS = 30_000_000;
  */
 export const OCR_TIMEOUT_MS = 45_000;
 
+/** The gzipped English LSTM model inside `@tesseract.js-data/eng`. */
+const MODEL_FILE = "eng.traineddata.gz";
+
 /**
  * Directory holding the English model (`eng.traineddata.gz`), shipped as an
  * npm package so it is read from disk instead of being downloaded from a CDN
@@ -39,7 +43,18 @@ export const OCR_TIMEOUT_MS = 45_000;
  */
 async function englishModelDir(): Promise<string> {
   const { default: eng } = await import("@tesseract.js-data/eng");
-  return join(dirname(eng.langPath), "4.0.0_best_int");
+  const dir = join(dirname(eng.langPath), "4.0.0_best_int");
+  // Checked BEFORE a worker exists, because tesseract.js 7 cannot clean up
+  // after this failure itself: when the model fails to load, createWorker()
+  // never settles, and the worker thread it already spawned is never handed
+  // back, so nothing can terminate it. Failing here means a deployment that
+  // lost the model gets a clear error and no stray thread.
+  try {
+    await access(join(dir, MODEL_FILE));
+  } catch {
+    throw new Error(`OCR language data not found: ${join(dir, MODEL_FILE)}`);
+  }
+  return dir;
 }
 
 async function createOcrWorker(): Promise<Worker> {
@@ -85,8 +100,22 @@ function assertImageIsProcessable(buffer: Buffer, mimeType: string): void {
  * Recognize the text in an image and return it raw (unsanitized, possibly
  * empty -- the caller decides what "no text" means).
  *
- * Throws on an unreadable, oversized or multi-page image, on an engine
- * failure, and after `timeoutMs`. The worker is terminated on every path.
+ * Throws on an unreadable, oversized or multi-page image, on missing model
+ * data, on an engine failure, and after `timeoutMs`. Once tesseract.js hands
+ * a worker back, it is terminated on every path: success, failure, timeout,
+ * and a start-up that only finishes after the timeout. A start-up that never
+ * finishes yields no worker to terminate: tesseract.js 7 offers no handle,
+ * cancel or timeout before then. The model check above removes the likely
+ * cause (a missing file). A model file that exists but is corrupted is not
+ * caught by it, and tesseract.js 7 then fails in one of two ways:
+ * - truncated: start-up never finishes; this fails at the deadline and leaves
+ *   one idle thread until the process exits;
+ * - not valid model data: the worker answers twice and tesseract.js throws an
+ *   uncaught TypeError from its message listener, which `errorHandler` does
+ *   not cover. Plain Node exits; the Next.js server logs it and keeps serving,
+ *   and this call fails at the deadline.
+ * A promise timeout alone would not be enough: it stops the waiting, not the
+ * worker thread, which is why the deadline terminates it.
  */
 export async function recognizeImageText(
   buffer: Buffer,

@@ -102,6 +102,11 @@ export function sanitizeProcessingError(error: unknown): string {
  * Returns null for anything that is not an image failure.
  */
 function sanitizeImageError(msg: string): string | null {
+  if (msg.includes("OCR language data not found")) {
+    // A deployment problem, not the file: say so, as the provider branches
+    // below do, and keep the server path out of the message.
+    return "Text recognition is unavailable because of a platform problem, so this image could not be read. This is not a problem with your file.";
+  }
   if (msg.includes("Image contains no readable text")) {
     // The generic "no readable text" advice says to run the file through OCR,
     // which is exactly what just happened.
