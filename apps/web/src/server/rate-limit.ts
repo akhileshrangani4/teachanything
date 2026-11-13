@@ -115,6 +115,14 @@ export const publicStudyResponseRateLimit = createLimiter({
   prefix: "@ratelimit/study-response-public",
 });
 
+// Rate limiter for rating assistant messages on public/shared links
+// 30 per minute per (IP, shareToken). A rating is one upserted row with no LLM
+// cost, so like study responses it bounds write spam per source only.
+export const publicMessageRatingRateLimit = createLimiter({
+  window: [30, "1 m"],
+  prefix: "@ratelimit/message-rating-public",
+});
+
 // Rate limiter for password reset requests
 // 2 requests per 2 minutes per email (prevents email bombing)
 export const passwordResetRateLimit = createLimiter({
