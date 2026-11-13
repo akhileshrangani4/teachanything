@@ -10,6 +10,35 @@ export type SourceCitation = {
   pageNumber?: number | null;
 };
 
+/**
+ * A passage the answer actually cited, as the chat displays it.
+ *
+ * The public shape of a resolved `[n]` marker: no chunk index or similarity
+ * ever reaches a student. `fileId` is present only on owner-authenticated
+ * surfaces, so its presence is what decides whether a page link renders.
+ */
+export type Citation = {
+  /** The number shown in the answer text, e.g. 2 for "[2]". */
+  ref: number;
+  fileName: string;
+  pageNumber?: number | null;
+  /** At most 280 characters of the cited passage, cut at a word boundary. */
+  excerpt: string;
+  fileId?: string;
+};
+
+/**
+ * Where an owner opens a cited file: the session-checked download route, which
+ * serves PDFs inline, so the `#page=` fragment lands the viewer on the page.
+ */
+export function citationFileHref(
+  fileId: string,
+  pageNumber?: number | null,
+): string {
+  const path = `/api/files/${encodeURIComponent(fileId)}/download`;
+  return pageNumber == null ? path : `${path}#page=${pageNumber}`;
+}
+
 /** A file's citations collapsed into one badge. */
 export type GroupedSource = {
   fileName: string;
