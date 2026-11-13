@@ -18,6 +18,9 @@ import { groupSourcesByFile } from "@/lib/message-sources";
 import { SourceList } from "./source-list";
 import { extractText } from "@/lib/chat/ui-messages";
 import { useTranslation } from "react-i18next";
+import { MessageRating, type MessageRatingValue } from "./MessageRating";
+import { RatingMark } from "./rating-mark";
+import type { RateMessage } from "@/hooks/use-message-ratings";
 
 interface ChatMessageProps {
   message: StudyUIMessage;
@@ -36,6 +39,18 @@ interface ChatMessageProps {
    * the dashboard reveal can show what the student submitted per attempt.
    */
   studyAttempts?: Record<string, StudyResponsePayload[]>;
+  /**
+   * The student's rating of this assistant message. With `onRate` it drives
+   * the thumbs; in read-only mode it shows as a mark on the transcript.
+   */
+  ratingValue?: MessageRatingValue | null;
+  /** A rating save is in flight; the thumbs are disabled meanwhile. */
+  isRatingSaving?: boolean;
+  /**
+   * Shows the thumbs. Pass it only once the assistant message has finished
+   * streaming. Must be stable (memoized), like `onStudyAttempt`.
+   */
+  onRate?: RateMessage;
 }
 
 /**
@@ -73,6 +88,9 @@ function ChatMessageImpl({
   readOnly = false,
   onStudyAttempt,
   studyAttempts,
+  ratingValue = null,
+  isRatingSaving = false,
+  onRate,
 }: ChatMessageProps) {
   const { t } = useTranslation();
   const isUser = message.role === "user";
@@ -84,6 +102,7 @@ function ChatMessageImpl({
   const textContent = extractText(message.parts);
   const hasContent = textContent.trim().length > 0;
   const hasVisiblePart = message.parts.some(isVisiblePart);
+  const showRatingMark = readOnly && ratingValue !== null;
 
   if (
     !isUser &&
@@ -214,17 +233,27 @@ function ChatMessageImpl({
           )}
         </div>
       </Message>
-      {hasContent && (
-        <div className="pl-9 md:pl-12">
-          <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <MessageAction tooltip={t("chat.message.copy")}>
-              <CopyButton
-                text={textContent}
-                successMessage={t("chat.message.copied")}
-                errorMessage={t("chat.message.copyFailed")}
-              />
-            </MessageAction>
-          </MessageActions>
+      {(hasContent || onRate || showRatingMark) && (
+        <div className="pl-9 md:pl-12 flex flex-wrap items-center gap-1">
+          {onRate && (
+            <MessageRating
+              value={ratingValue}
+              onRate={(rating) => onRate(message.id, rating)}
+              disabled={isRatingSaving}
+            />
+          )}
+          {showRatingMark && <RatingMark rating={ratingValue} />}
+          {hasContent && (
+            <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <MessageAction tooltip={t("chat.message.copy")}>
+                <CopyButton
+                  text={textContent}
+                  successMessage={t("chat.message.copied")}
+                  errorMessage={t("chat.message.copyFailed")}
+                />
+              </MessageAction>
+            </MessageActions>
+          )}
         </div>
       )}
     </div>

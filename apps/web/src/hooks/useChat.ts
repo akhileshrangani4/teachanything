@@ -12,6 +12,7 @@ import {
   type StudyResponsePayload,
 } from "@/lib/submit-study-response";
 import { useTranslation } from "react-i18next";
+import { useMessageRatings } from "@/hooks/use-message-ratings";
 
 /**
  * Chat with a shared/public chatbot (share-token pages + embed widget), backed
@@ -30,6 +31,10 @@ export function useChat(shareToken: string) {
     Record<string, StudyResponsePayload[]>
   >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { ratings, rateMessage, resetRatings } = useMessageRatings(
+    shareToken,
+    sessionId,
+  );
   // The last message sent, to hand back to the student if the server refuses it.
   const lastSentRef = useRef("");
 
@@ -108,6 +113,7 @@ export function useChat(shareToken: string) {
     chat.setMessages([]);
     setCurrentMessage("");
     setStudyAttempts({});
+    resetRatings();
     // Start a fresh server-side conversation (matches the prior behavior). The
     // new id also re-keys useChat, so the transport no longer reloads the
     // old conversation's history on the next send.
@@ -129,5 +135,7 @@ export function useChat(shareToken: string) {
     error,
     onStudyAttempt,
     studyAttempts,
+    ratings,
+    rateMessage,
   };
 }

@@ -144,6 +144,7 @@ export function ConversationDetail({
                     message={rowToUIMessage(msg)}
                     showSources
                     readOnly
+                    ratingValue={msg.rating}
                     studyAttempts={studyAttempts}
                   />
                 ))}

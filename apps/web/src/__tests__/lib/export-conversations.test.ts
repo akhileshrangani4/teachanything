@@ -53,6 +53,36 @@ describe("buildCsv", () => {
     expect(lines).toHaveLength(3);
   });
 
+  it("appends a rating column with each assistant turn's rating", () => {
+    const base = makeExport();
+    const [conversation] = base.conversations;
+    const csv = buildCsv({
+      ...base,
+      conversations: [
+        {
+          ...conversation!,
+          messages: [
+            { ...conversation!.messages[0]!, rating: null },
+            { ...conversation!.messages[1]!, rating: "down" },
+          ],
+        },
+      ],
+    });
+    const [header, studentRow, assistantRow] = csv
+      .replace("\uFEFF", "")
+      .split("\r\n");
+    // Last column, so existing column positions are unchanged.
+    expect(header!.endsWith('"study_tools","rating"')).toBe(true);
+    expect(studentRow!.endsWith(',""')).toBe(true);
+    expect(assistantRow!.endsWith(',"down"')).toBe(true);
+  });
+
+  it("leaves the rating cell empty for payloads without ratings", () => {
+    const lines = buildCsv(makeExport()).replace("\uFEFF", "").split("\r\n");
+    expect(lines[0]!.endsWith('"rating"')).toBe(true);
+    expect(lines.slice(1).every((line) => line.endsWith(',""'))).toBe(true);
+  });
+
   it("labels roles as Student / Assistant", () => {
     const csv = buildCsv(makeExport());
     expect(csv).toContain('"Student"');

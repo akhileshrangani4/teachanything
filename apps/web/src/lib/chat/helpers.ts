@@ -150,3 +150,17 @@ export function deriveStatusLine(
   }
   return t("chat.status.generating");
 }
+
+/**
+ * An assistant message can be rated once it has finished: any but the last
+ * while a reply streams, since only the last one is still being written.
+ */
+export function isRateable(
+  message: StudyUIMessage,
+  lastMessage: StudyUIMessage | undefined,
+  isStreaming: boolean,
+): boolean {
+  return (
+    message.role === "assistant" && !(isStreaming && message === lastMessage)
+  );
+}

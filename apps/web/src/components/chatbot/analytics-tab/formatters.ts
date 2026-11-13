@@ -27,3 +27,18 @@ export function formatChartDate(date: string, locale: string): string {
     timeZone: "UTC",
   });
 }
+
+/** Thumbs up / down totals for one chatbot over the card's reporting window. */
+export interface RatingsSummary {
+  up: number;
+  down: number;
+}
+
+/** Share of ratings that are thumbs up (0–1), or null when nothing was rated. */
+export function positiveRatingShare({
+  up,
+  down,
+}: RatingsSummary): number | null {
+  const total = up + down;
+  return total > 0 ? up / total : null;
+}

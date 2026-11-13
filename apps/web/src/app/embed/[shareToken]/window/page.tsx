@@ -33,6 +33,8 @@ export default function EmbedWindowPage() {
     error,
     onStudyAttempt,
     studyAttempts,
+    ratings,
+    rateMessage,
   } = useChat(shareToken);
 
   if (!isMounted || chatbotLoading) {
@@ -99,6 +101,8 @@ export default function EmbedWindowPage() {
             voiceInputEnabled={voiceInputEnabled}
             onStudyAttempt={onStudyAttempt}
             studyAttempts={studyAttempts}
+            ratings={ratings}
+            onRate={rateMessage}
           />
         </ErrorBoundary>
       </div>

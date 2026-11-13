@@ -17,6 +17,9 @@ export interface ExportMessage {
   // Study-tool widgets shown in this (assistant) turn, with student attempts.
   // Optional so older payloads without study tools stay valid.
   studyTools?: ExportStudyTool[];
+  // The student's rating of this (assistant) turn, or null when unrated.
+  // Optional so older payloads without ratings stay valid.
+  rating?: "up" | "down" | null;
 }
 
 export interface ExportConversation {

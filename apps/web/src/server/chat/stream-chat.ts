@@ -1,8 +1,4 @@
-import {
-  convertToModelMessages,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-} from "ai";
+import { convertToModelMessages, createUIMessageStreamResponse } from "ai";
 import { nanoid } from "nanoid";
 import {
   createOpenRouterClient,
@@ -30,6 +26,7 @@ import {
 import { buildTurnPrompts, searchedPassageBudget } from "./prompt-assembly";
 import { executeTurn, type TurnState } from "./turn-execution";
 import { beginUserMessageInsert, persistTurn } from "./turn-persistence";
+import { createAssistantMessageStream } from "./assistant-message-stream";
 import type { RagTiming } from "./turn-timing";
 import { claimTurn, type TurnLease } from "./turn-lease";
 import { ChatRequestError } from "./request";
@@ -280,7 +277,7 @@ async function streamClaimedTurn(
     return "Failed to generate a response. Please try again.";
   };
 
-  const stream = createUIMessageStream<StudyUIMessage>({
+  const stream = createAssistantMessageStream({
     originalMessages: uiMessages,
     onError: onStreamError,
     execute: ({ writer }) =>

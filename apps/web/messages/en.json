@@ -702,6 +702,18 @@
       "description": "Messages that did not use RAG context",
       "empty": "No low-confidence queries found",
       "session": "Session {id}..."
+    },
+    "ratings": {
+      "title": "Response Ratings",
+      "description": "How students rated AI responses",
+      "period": "Last 30 days",
+      "up": "Thumbs up",
+      "down": "Thumbs down",
+      "positive": "Positive",
+      "count": "{count, number}",
+      "positiveValue": "{rate, number, ::percent}",
+      "empty": "No ratings in the last 30 days",
+      "emptyHint": "Ratings appear here when students rate a response."
     }
   },
   "conversations": {
@@ -1146,7 +1158,15 @@
       "copy": "Copy message",
       "copied": "Message copied to clipboard",
       "copyFailed": "Failed to copy message",
-      "cutOff": "Response was cut off at the token limit. Try raising max tokens or asking a shorter question."
+      "cutOff": "Response was cut off at the token limit. Try raising max tokens or asking a shorter question.",
+      "rating": {
+        "group": "Rate this response",
+        "up": "Helpful response",
+        "down": "Unhelpful response",
+        "failed": "Couldn't save your rating. Please try again.",
+        "ratedUp": "Student rating: helpful response",
+        "ratedDown": "Student rating: unhelpful response"
+      }
     },
     "status": {
       "searchingFor": "Searching documents for “{query}”",

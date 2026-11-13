@@ -5,9 +5,19 @@ import {
   messages,
   chatbots,
   studyToolResponses,
+  messageRatings,
 } from "@teachanything/db/schema";
 import type { SQL } from "drizzle-orm";
-import { eq, and, sql, desc, asc, inArray, ilike } from "drizzle-orm";
+import {
+  eq,
+  and,
+  sql,
+  desc,
+  asc,
+  inArray,
+  ilike,
+  getTableColumns,
+} from "drizzle-orm";
 import { escapeLikePattern, formatPreview } from "@/server/utils";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import {
@@ -127,9 +137,18 @@ export const getConversationMessagesProcedure = protectedProcedure
       .from(messages)
       .where(eq(messages.conversationId, input.conversationId));
 
+    // Each message carries the student's rating, if any. Ratings are keyed by
+    // (message, session); only this conversation's own session counts.
     const conversationMessages = await ctx.db
-      .select()
+      .select({ ...getTableColumns(messages), rating: messageRatings.rating })
       .from(messages)
+      .leftJoin(
+        messageRatings,
+        and(
+          eq(messageRatings.messageId, messages.id),
+          eq(messageRatings.sessionId, row.conversation.sessionId),
+        ),
+      )
       .where(eq(messages.conversationId, input.conversationId))
       .orderBy(asc(messages.createdAt))
       .limit(input.limit)
