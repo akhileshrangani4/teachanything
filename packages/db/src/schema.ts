@@ -721,19 +721,16 @@ export const messagesRelations = relations(messages, ({ one, many }) => ({
   ratings: many(messageRatings),
 }));
 
-export const messageRatingsRelations = relations(
-  messageRatings,
-  ({ one }) => ({
-    message: one(messages, {
-      fields: [messageRatings.messageId],
-      references: [messages.id],
-    }),
-    chatbot: one(chatbots, {
-      fields: [messageRatings.chatbotId],
-      references: [chatbots.id],
-    }),
+export const messageRatingsRelations = relations(messageRatings, ({ one }) => ({
+  message: one(messages, {
+    fields: [messageRatings.messageId],
+    references: [messages.id],
   }),
-);
+  chatbot: one(chatbots, {
+    fields: [messageRatings.chatbotId],
+    references: [chatbots.id],
+  }),
+}));
 
 export const studyToolResponsesRelations = relations(
   studyToolResponses,
