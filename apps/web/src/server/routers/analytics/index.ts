@@ -12,6 +12,7 @@ import { getConversationMessagesProcedure } from "./procedures/conversations";
 import { searchConversationsProcedure } from "./procedures/conversations";
 import { deleteConversationsProcedure } from "./procedures/conversations";
 import { exportConversationsProcedure } from "./procedures/export-conversations";
+import { getRatingsSummaryProcedure } from "./procedures/ratings";
 
 export const analyticsRouter = router({
   getChatbotStats: getChatbotStatsProcedure,
@@ -27,4 +28,5 @@ export const analyticsRouter = router({
   searchConversations: searchConversationsProcedure,
   deleteConversations: deleteConversationsProcedure,
   exportConversations: exportConversationsProcedure,
+  getRatingsSummary: getRatingsSummaryProcedure,
 });
