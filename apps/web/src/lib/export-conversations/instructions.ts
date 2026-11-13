@@ -64,7 +64,10 @@ export function buildInstructions(
       "  for the conversation number/id, session, turn, role, timestamp,",
     );
     lines.push(
-      "  message text and cited sources — handy for filtering and analysis.",
+      "  message text, cited sources, study tools and the student's rating",
+    );
+    lines.push(
+      "  (up/down) of each response — handy for filtering and analysis.",
     );
   }
   if (formats.includes("text")) {
