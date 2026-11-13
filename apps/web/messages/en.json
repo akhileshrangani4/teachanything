@@ -1323,7 +1323,8 @@
       "updatePasswordFailed": "Failed to update password",
       "passwordUpdatedSignInAgain": "Password updated successfully. Please sign in again on other devices.",
       "adminSelfDelete": "Admin accounts cannot be self-deleted. Please contact another admin to demote your account first.",
-      "deleteFailed": "Failed to delete account"
+      "deleteFailed": "Failed to delete account",
+      "storageCleanupFailed": "Couldn't remove your files — please try again"
     },
     "chat": {
       "sendFailed": "Failed to send message. Please try again.",

@@ -10,7 +10,10 @@ import {
   sendAccountDisabledEmail,
   sendAccountEnabledEmail,
 } from "@/server/email";
-import { deleteUserAccount } from "@/server/services/user-deletion";
+import {
+  deleteUserAccount,
+  StorageCleanupError,
+} from "@/server/services/user-deletion";
 import { requireExistingUser, sendOptionalEmail } from "../helpers";
 
 /**
@@ -223,7 +226,11 @@ export const deleteUserProcedure = adminProcedure
       });
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to delete user account",
+        // The account is intact after a storage failure, so say it can be retried.
+        message:
+          error instanceof StorageCleanupError
+            ? "Couldn't remove this user's files — please try again"
+            : "Failed to delete user account",
       });
     }
   });

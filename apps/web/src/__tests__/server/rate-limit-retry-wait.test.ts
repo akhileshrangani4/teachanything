@@ -27,6 +27,7 @@ jest.unstable_mockModule("@/server/supabase", () => ({
 }));
 jest.unstable_mockModule("@/server/services/user-deletion", () => ({
   deleteUserAccount: jest.fn(),
+  StorageCleanupError: class StorageCleanupError extends Error {},
 }));
 
 const { updatePasswordProcedure } =
