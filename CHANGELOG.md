@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.38.0](https://github.com/akhileshrangani4/teachanything/compare/v1.37.0...v1.38.0) (2026-11-13)
+
+
+### Features
+
+* **analytics:** normalize Common Questions grouping ([#315](https://github.com/akhileshrangani4/teachanything/issues/315)) ([#565](https://github.com/akhileshrangani4/teachanything/issues/565)) ([722ac96](https://github.com/akhileshrangani4/teachanything/commit/722ac968ddcb5ecf73a4ed2791fda2a79bcb9229))
+* **chat:** let students rate AI responses ([#559](https://github.com/akhileshrangani4/teachanything/issues/559)) ([#564](https://github.com/akhileshrangani4/teachanything/issues/564)) ([b53dcb0](https://github.com/akhileshrangani4/teachanything/commit/b53dcb0c271627765fcb4992e515126b41f16ab5))
+* **db:** check live schema drift before production deploy ([#566](https://github.com/akhileshrangani4/teachanything/issues/566)) ([941e97f](https://github.com/akhileshrangani4/teachanything/commit/941e97f8df536bb1be9a82eff3ff5cc7efcdc1b4))
+* **i18n:** translate the dashboard into French, Spanish and German ([#560](https://github.com/akhileshrangani4/teachanything/issues/560)) ([e54a72b](https://github.com/akhileshrangani4/teachanything/commit/e54a72b3b668748471e8c8956ce4f47b608b4a84))
+* **security:** add app-wide security headers with embed-aware framing ([#579](https://github.com/akhileshrangani4/teachanything/issues/579)) ([a079d17](https://github.com/akhileshrangani4/teachanything/commit/a079d1750a8b6fd9f9d6ba2cc660e149ec52dfb9))
+
+
+### Bug Fixes
+
+* **account:** fail closed when storage cleanup fails on account deletion ([#571](https://github.com/akhileshrangani4/teachanything/issues/571)) ([8fe6199](https://github.com/akhileshrangani4/teachanything/commit/8fe61997c2c48d3b6cb9cdc50f2cfcd1732ee141))
+* **auth:** key login and registration rate limits on trusted client IP ([#576](https://github.com/akhileshrangani4/teachanything/issues/576)) ([5f03da4](https://github.com/akhileshrangani4/teachanything/commit/5f03da4c31ea90bc614932ca6ad67fa885c69270))
+* **auth:** remove anonymous account status lookup ([#569](https://github.com/akhileshrangani4/teachanything/issues/569)) ([7fee02e](https://github.com/akhileshrangani4/teachanything/commit/7fee02ec09836029a7cd8bbbbe47d95110c55701))
+* **chat:** allow only one turn at a time per chat session ([#465](https://github.com/akhileshrangani4/teachanything/issues/465)) ([#572](https://github.com/akhileshrangani4/teachanything/issues/572)) ([aadeb95](https://github.com/akhileshrangani4/teachanything/commit/aadeb959c7ef304b5c7b9713a46a750cba2196b3))
+* **chat:** recover and log quiz JSON leaked on the fallback turn ([#562](https://github.com/akhileshrangani4/teachanything/issues/562)) ([01fecf6](https://github.com/akhileshrangani4/teachanything/commit/01fecf6dd473843f7ab2e42c66fa3e619bf62c53))
+
 ## [1.37.0](https://github.com/akhileshrangani4/teachanything/compare/v1.36.0...v1.37.0) (2026-10-31)
 
 
