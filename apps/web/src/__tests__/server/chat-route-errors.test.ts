@@ -126,6 +126,15 @@ describe("POST /api/chat errors", () => {
     );
   });
 
+  it("reports a turn already in progress", async () => {
+    streamFailure = new ChatRequestError("turn_in_progress", 409);
+    await expectError(
+      await authed.POST(request(authedBody)),
+      409,
+      "turn_in_progress",
+    );
+  });
+
   it("reports an unexpected failure", async () => {
     streamFailure = new Error("boom");
     await expectError(
@@ -173,6 +182,15 @@ describe("POST /api/chat/shared errors", () => {
       await shared.POST(request(sharedBody)),
       409,
       "conversation_start_failed",
+    );
+  });
+
+  it("reports a turn already in progress", async () => {
+    streamFailure = new ChatRequestError("turn_in_progress", 409);
+    await expectError(
+      await shared.POST(request(sharedBody)),
+      409,
+      "turn_in_progress",
     );
   });
 

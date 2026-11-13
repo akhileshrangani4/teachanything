@@ -2,7 +2,7 @@ import { describe, it, expect } from "@jest/globals";
 import en from "../../../messages/en.json";
 import fr from "../../../messages/fr.json";
 import { createI18n } from "@/i18n/create-i18n";
-import { describeChatError } from "@/lib/chat-error-message";
+import { chatErrorCodeOf, describeChatError } from "@/lib/chat-error-message";
 
 const english = createI18n("en", en);
 const french = createI18n("fr", fr, en);
@@ -22,6 +22,7 @@ describe("describeChatError", () => {
     ["chatbot_not_found", fr.errors.notFoundItems.chatbot],
     ["chatbot_not_shared", fr.errors.notFoundItems.chatbotNotShared],
     ["send_failed", fr.errors.chat.sendFailed],
+    ["turn_in_progress", fr.errors.chat.turnInProgress],
   ])("translates the route code %s", (code, expected) => {
     expect(describeChatError(bodyWithCode(code), french.t)).toBe(expected);
   });
@@ -40,4 +41,19 @@ describe("describeChatError", () => {
       "Network down",
     );
   });
+});
+
+describe("chatErrorCodeOf", () => {
+  it("reads the route's code", () => {
+    expect(chatErrorCodeOf(bodyWithCode("turn_in_progress"))).toBe(
+      "turn_in_progress",
+    );
+  });
+
+  it.each(["Network down", '{"code":"unknown"}'])(
+    "has no code for %s",
+    (body) => {
+      expect(chatErrorCodeOf(new Error(body))).toBeNull();
+    },
+  );
 });
