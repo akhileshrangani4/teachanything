@@ -16,7 +16,7 @@ jobs:
       # Docker Hub, whose outages and rate limits used to fail this check (and
       # block every merge) without ever reading the title.
       - name: PR Conventional Commit Validation
-        uses: amannn/action-semantic-pull-request@v6.1.1
+        uses: amannn/action-semantic-pull-request@v6.1.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
