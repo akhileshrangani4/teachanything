@@ -1,6 +1,6 @@
 # Handoff: remaining work after the issue sweep
 
-State checked against GitHub with `gh` on 2026-11-17 (latest `main` at the time: `b53dcb0`). GitHub is authoritative; re-check before acting on anything below. Decisions come from [`spec-open-issue-sweep.md`](spec-open-issue-sweep.md). Dates are UTC.
+State checked against GitHub with `gh` on 2026-11-17 and re-checked after #584 merged (latest `main` at the time: `54008ea`). GitHub is authoritative; re-check before acting on anything below. Decisions come from [`spec-open-issue-sweep.md`](spec-open-issue-sweep.md). Dates are UTC.
 
 ## Shipped
 
@@ -33,7 +33,6 @@ State checked against GitHub with `gh` on 2026-11-17 (latest `main` at the time:
 
 - **#563** `chore(main): release 1.38.0` (release-please). Open and mergeable. Merging it creates the v1.38.0 release, and the `deploy-production` job in `release-please.yml` then runs. The last release is v1.37.0 (2026-10-31).
 - **#575** `Release: trustworthy answers (eval harness, retrieval precision, citations)`. Draft release PR from `release/trustworthy-answers` to `main`, from the separate Platform Research track. The branch contains one child PR, #578 (citation components, merged into the branch 2026-11-13). No PRs exist for the eval harness, retrieval precision, citation protocol or citation wiring. #583's description records that the eval harness was worked on locally but never pushed, and that the other three were not built. Its `validate-pr-title` check fails because the title is not a conventional-commit title; the other checks pass or are skipped. The PR body's subtask table still shows every row as "planned". Decision needed from the owner: finish it or close it. The track's two security fixes merged to `main` separately: #576 (2026-11-13) and #579 (2026-11-13).
-- **#583** `docs: export platform research, spec and build history`. Open, opened 2026-11-17. Adds the Platform Research records under `docs/design/`.
 - **Dependabot:** #567, #580, #581, #582.
 
 ## Bugs found but not fixed
@@ -49,4 +48,4 @@ State checked against GitHub with `gh` on 2026-11-17 (latest `main` at the time:
 
 ## Elsewhere
 
-The Platform Research records (research, the "Trustworthy answers" spec and build history) are not in this folder. They are proposed for `docs/design/` in open PR #583.
+The Platform Research records (research, the "Trustworthy answers" spec and build history) are not in this folder. They are on `main` under `docs/design/`, added by #583 (`docs: export platform research, spec and build history`, merged 2026-11-17T22:08:41Z).
