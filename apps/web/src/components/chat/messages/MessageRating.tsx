@@ -10,7 +10,8 @@ export type MessageRatingValue = "up" | "down";
 interface MessageRatingProps {
   /** The student's current rating for this message, or null if unrated. */
   value: MessageRatingValue | null;
-  onRate: (rating: MessageRatingValue) => void;
+  /** Called with the new rating, or null when the current one is removed. */
+  onRate: (rating: MessageRatingValue | null) => void;
   disabled?: boolean;
   className?: string;
 }
@@ -26,8 +27,8 @@ const OPTIONS: ReadonlyArray<{
 
 /**
  * Thumbs up / down for one assistant message. Presentational only: the caller
- * owns the value and persists it. Re-selecting the current rating is a no-op,
- * since ratings can be changed but not cleared.
+ * owns the value and persists it. Clicking the selected thumb again removes
+ * the rating, as students expect from most rating buttons.
  */
 export function MessageRating({
   value,
@@ -54,9 +55,7 @@ export function MessageRating({
             aria-pressed={isSelected}
             title={t(labelKey)}
             disabled={disabled}
-            onClick={() => {
-              if (!isSelected) onRate(rating);
-            }}
+            onClick={() => onRate(isSelected ? null : rating)}
             className={cn(
               "h-7 w-7 text-muted-foreground hover:bg-transparent hover:text-foreground",
               isSelected && "text-foreground",
