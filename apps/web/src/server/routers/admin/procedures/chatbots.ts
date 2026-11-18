@@ -88,6 +88,8 @@ export const getAllChatbotsProcedure = adminProcedure
         sharingEnabled: chatbots.sharingEnabled,
         customAuthorName: chatbots.customAuthorName,
         dailyMessageLimit: chatbots.dailyMessageLimit,
+        paused: chatbots.paused,
+        ownerChatbotsPaused: user.chatbotsPaused,
         userName: user.name,
         userEmail: user.email,
         userRole: user.role,

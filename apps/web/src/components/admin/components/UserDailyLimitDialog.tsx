@@ -41,7 +41,7 @@ export function UserDailyLimitDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Daily message limit"
-      description={`Student messages all of ${userName}'s chatbots together may receive per day. Each chatbot's own limit still applies. 0 pauses all of their chatbots.`}
+      description={`Student messages all of ${userName}'s chatbots together may receive per day. Each chatbot's own limit still applies.`}
       defaultLimit={OWNER_DAILY_MESSAGE_LIMIT}
       currentLimit={dailyMessageLimit}
       isPending={setLimit.isPending}

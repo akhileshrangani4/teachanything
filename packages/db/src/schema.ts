@@ -104,6 +104,8 @@ export const user = pgTable("user", {
   // Student messages all of this user's chatbots together may receive per
   // day. null: the platform default. Set by an admin, never by the user.
   dailyMessageLimit: integer("daily_message_limit"),
+  // Admin switch that turns off every chatbot this user owns.
+  chatbotsPaused: boolean("chatbots_paused").default(false).notNull(),
   status: userStatusEnum("status").default("pending").notNull(),
   role: userRoleEnum("role").default("user").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -182,6 +184,8 @@ export const chatbots = pgTable("chatbots", {
   // Student messages this chatbot may receive per day. null: the platform
   // default. Set by an admin, never by the owner.
   dailyMessageLimit: integer("daily_message_limit"),
+  // Admin switch that turns this chatbot off for students.
+  paused: boolean("paused").default(false).notNull(),
   welcomeMessage: text("welcome_message"),
   suggestedQuestions: jsonb("suggested_questions")
     .$type<string[]>()

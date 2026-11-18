@@ -79,7 +79,7 @@ function DailyLimitForm({
           id="daily-message-limit"
           type="number"
           inputMode="numeric"
-          min={0}
+          min={1}
           max={MAX_DAILY_MESSAGE_LIMIT}
           placeholder={`${defaultLimit} (default)`}
           value={value}
@@ -95,8 +95,8 @@ function DailyLimitForm({
           }
         >
           {parsed.ok
-            ? `Leave empty to use the default of ${defaultLimit}. Enter 0 to pause. Resets at midnight US Eastern.`
-            : `Enter a whole number from 0 to ${MAX_DAILY_MESSAGE_LIMIT.toLocaleString()}.`}
+            ? `Leave empty to use the default of ${defaultLimit}. Resets at midnight US Eastern.`
+            : `Enter a whole number from 1 to ${MAX_DAILY_MESSAGE_LIMIT.toLocaleString()}.`}
         </p>
       </div>
       <DialogFooter className="gap-2">

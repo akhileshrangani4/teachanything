@@ -17,6 +17,7 @@ import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
 import { validateAuthorName } from "./utils/author-name-validation";
 import { ChatbotDailyLimitCell } from "./components/ChatbotDailyLimitCell";
+import { ChatbotPauseButton } from "./components/ChatbotPauseButton";
 
 type Chatbot = RouterOutputs["admin"]["getAllChatbots"]["chatbots"][number];
 
@@ -208,6 +209,8 @@ export function ChatbotTableRow({
           chatbotId={chatbot.id}
           chatbotName={chatbot.name}
           dailyMessageLimit={chatbot.dailyMessageLimit}
+          paused={chatbot.paused}
+          ownerChatbotsPaused={chatbot.ownerChatbotsPaused ?? false}
           onRefetch={onRefetch}
         />
       </TableCell>
@@ -251,20 +254,27 @@ export function ChatbotTableRow({
         </div>
       </TableCell>
       <TableCell>
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() =>
-            onDelete(
-              chatbot.id,
-              chatbot.name,
-              chatbot.userName || "Unknown User",
-            )
-          }
-          disabled={toggleFeatured.isPending}
-        >
-          Delete
-        </Button>
+        <div className="flex items-center gap-2">
+          <ChatbotPauseButton
+            chatbotId={chatbot.id}
+            paused={chatbot.paused}
+            onRefetch={onRefetch}
+          />
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() =>
+              onDelete(
+                chatbot.id,
+                chatbot.name,
+                chatbot.userName || "Unknown User",
+              )
+            }
+            disabled={toggleFeatured.isPending}
+          >
+            Delete
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );

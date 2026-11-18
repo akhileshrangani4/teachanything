@@ -7,7 +7,6 @@ describe("parseDailyLimitInput", () => {
   });
 
   it.each([
-    ["0", 0],
     ["1", 1],
     [" 500 ", 500],
     ["10000", 10_000],
@@ -15,7 +14,7 @@ describe("parseDailyLimitInput", () => {
     expect(parseDailyLimitInput(value)).toEqual({ ok: true, limit });
   });
 
-  it.each(["10001", "-5", "1.5", "1e3", "abc"])("rejects %j", (value) => {
+  it.each(["0", "10001", "-5", "1.5", "1e3", "abc"])("rejects %j", (value) => {
     expect(parseDailyLimitInput(value)).toEqual({ ok: false });
   });
 });

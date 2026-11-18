@@ -20,9 +20,12 @@ import {
   ChevronDown,
   Eye,
   Gauge,
+  Pause,
+  Play,
 } from "lucide-react";
 import { UserAvatarCell, UserEmailCell } from "../components/UserCells";
 import { UserDailyLimitDialog } from "./UserDailyLimitDialog";
+import { useSetUserChatbotsPaused } from "../hooks/use-set-user-chatbots-paused";
 
 interface UserData {
   id: string;
@@ -36,6 +39,7 @@ interface UserData {
   facultyWebpage: string | null;
   country: string | null;
   dailyMessageLimit: number | null;
+  chatbotsPaused: boolean;
   createdAt: Date | string;
 }
 
@@ -64,6 +68,7 @@ export function UserTableRow({
 }: UserTableRowProps) {
   const isAdmin = user.role === "admin";
   const [isLimitDialogOpen, setIsLimitDialogOpen] = useState(false);
+  const setChatbotsPaused = useSetUserChatbotsPaused();
 
   return (
     <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
@@ -98,18 +103,25 @@ export function UserTableRow({
         </Badge>
       </TableCell>
       <TableCell>
-        <Badge
-          variant={
-            user.status === "approved"
-              ? "default"
-              : user.status === "pending"
-                ? "secondary"
-                : "destructive"
-          }
-          className="font-medium capitalize"
-        >
-          {user.status}
-        </Badge>
+        <div className="flex flex-col gap-1">
+          <Badge
+            variant={
+              user.status === "approved"
+                ? "default"
+                : user.status === "pending"
+                  ? "secondary"
+                  : "destructive"
+            }
+            className="w-fit font-medium capitalize"
+          >
+            {user.status}
+          </Badge>
+          {user.chatbotsPaused && (
+            <Badge variant="destructive" className="w-fit text-[10px]">
+              Chatbots paused
+            </Badge>
+          )}
+        </div>
       </TableCell>
       <TableCell className="hidden md:table-cell">
         <div className="text-sm">
@@ -141,7 +153,7 @@ export function UserTableRow({
               <DropdownMenuContent
                 align="end"
                 side="bottom"
-                className="w-[180px]"
+                className="w-[210px]"
                 sideOffset={5}
                 collisionPadding={16}
               >
@@ -160,6 +172,24 @@ export function UserTableRow({
                 >
                   <Gauge className="h-4 w-4 mr-2" />
                   Daily Message Limit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    setChatbotsPaused.mutate({
+                      userId: user.id,
+                      paused: !user.chatbotsPaused,
+                    })
+                  }
+                  className="cursor-pointer"
+                >
+                  {user.chatbotsPaused ? (
+                    <Play className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Pause className="h-4 w-4 mr-2" />
+                  )}
+                  {user.chatbotsPaused
+                    ? "Resume All Chatbots"
+                    : "Pause All Chatbots"}
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />

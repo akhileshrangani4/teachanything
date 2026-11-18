@@ -1,5 +1,5 @@
 {
-  "id": "43d50d68-7219-4928-a6a9-21b82d14375e",
+  "id": "4ae0aafe-92e2-426d-a455-56b9550ab260",
   "prevId": "ac3631dd-d7c4-4b56-98c9-bfd715889950",
   "version": "7",
   "dialect": "postgresql",
@@ -593,6 +593,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "paused": {
+          "name": "paused",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "welcome_message": {
           "name": "welcome_message",
@@ -1837,6 +1844,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "chatbots_paused": {
+          "name": "chatbots_paused",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "status": {
           "name": "status",

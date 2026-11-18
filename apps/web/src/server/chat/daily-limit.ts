@@ -10,22 +10,38 @@ import { ChatRequestError } from "./request";
 
 type LimitedChatbot = Pick<
   typeof chatbots.$inferSelect,
-  "id" | "userId" | "dailyMessageLimit"
+  "id" | "userId" | "dailyMessageLimit" | "paused"
 >;
+
+type OwnerSettings = Pick<
+  typeof user.$inferSelect,
+  "dailyMessageLimit" | "chatbotsPaused"
+>;
+
+/** The admin-set limit and pause switch on `chatbot`'s owner. */
+async function readOwnerSettings(
+  database: typeof DbType,
+  chatbot: LimitedChatbot,
+): Promise<OwnerSettings | undefined> {
+  const [owner] = await database
+    .select({
+      dailyMessageLimit: user.dailyMessageLimit,
+      chatbotsPaused: user.chatbotsPaused,
+    })
+    .from(user)
+    .where(eq(user.id, chatbot.userId))
+    .limit(1);
+  return owner;
+}
 
 /**
  * The daily limits that apply to `chatbot`: its own and its owner's, each an
  * admin override when one is set, else the platform default.
  */
-export async function resolveDailyLimits(
-  database: typeof DbType,
+export function dailyLimitsFor(
   chatbot: LimitedChatbot,
-): Promise<{ chatbot: number; owner: number }> {
-  const [owner] = await database
-    .select({ dailyMessageLimit: user.dailyMessageLimit })
-    .from(user)
-    .where(eq(user.id, chatbot.userId))
-    .limit(1);
+  owner: OwnerSettings | undefined,
+): { chatbot: number; owner: number } {
   return {
     chatbot: chatbot.dailyMessageLimit ?? CHATBOT_DAILY_MESSAGE_LIMIT,
     owner: owner?.dailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT,
@@ -33,22 +49,23 @@ export async function resolveDailyLimits(
 }
 
 /**
- * Count one student message against `chatbot`'s daily limits. Throws
- * `ChatRequestError("chatbot_paused", 403)` when an admin has paused the
- * chatbot or its owner (a limit of 0), and
- * `ChatRequestError("daily_limit_reached", 429)` when either limit is used up.
+ * Admit one student message to `chatbot`, or throw:
+ * - `ChatRequestError("chatbot_paused", 403)` when an admin has paused the
+ *   chatbot or all of its owner's chatbots;
+ * - `ChatRequestError("daily_limit_reached", 429)` when the chatbot's or the
+ *   owner's daily limit is used up. Otherwise the message is counted.
  */
 export async function enforceDailyLimit(
   database: typeof DbType,
   chatbot: LimitedChatbot,
 ): Promise<void> {
-  const limits = await resolveDailyLimits(database, chatbot);
-  if (limits.chatbot === 0 || limits.owner === 0) {
+  const owner = await readOwnerSettings(database, chatbot);
+  if (chatbot.paused || owner?.chatbotsPaused) {
     throw new ChatRequestError("chatbot_paused", 403);
   }
   const isWithinLimits = await consumeDailyMessage(
     { id: chatbot.id, ownerId: chatbot.userId },
-    limits,
+    dailyLimitsFor(chatbot, owner),
   );
   if (!isWithinLimits) {
     throw new ChatRequestError("daily_limit_reached", 429);

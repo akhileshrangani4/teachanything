@@ -24,10 +24,14 @@ jest.unstable_mockModule("@/server/trpc", () => ({
   adminProcedure: t.procedure,
 }));
 
-const { resolveDailyLimits, enforceDailyLimit } =
+const { dailyLimitsFor, enforceDailyLimit } =
   await import("@/server/chat/daily-limit");
-const { setChatbotDailyLimitProcedure, setUserDailyLimitProcedure } =
-  await import("@/server/routers/admin/procedures/daily-limits");
+const {
+  setChatbotDailyLimitProcedure,
+  setUserDailyLimitProcedure,
+  setChatbotPausedProcedure,
+  setUserChatbotsPausedProcedure,
+} = await import("@/server/routers/admin/procedures/daily-limits");
 const { ChatRequestError } = await import("@/server/chat/request");
 
 /** A db whose `select ... limit` resolves to `rows`. */
@@ -53,29 +57,36 @@ function dbUpdating(rows: unknown[]) {
   return { db, sets };
 }
 
-const chatbot = { id: "bot-1", userId: "owner-1", dailyMessageLimit: null };
+const chatbot = {
+  id: "bot-1",
+  userId: "owner-1",
+  dailyMessageLimit: null,
+  paused: false,
+};
+const owner = { dailyMessageLimit: null, chatbotsPaused: false };
 
-describe("resolveDailyLimits", () => {
-  it("uses the defaults when no override is set", async () => {
-    const db = dbReturning([{ dailyMessageLimit: null }]);
-    await expect(resolveDailyLimits(db, chatbot)).resolves.toEqual({
+describe("dailyLimitsFor", () => {
+  it("uses the defaults when no override is set", () => {
+    expect(dailyLimitsFor(chatbot, owner)).toEqual({
       chatbot: 150,
       owner: 300,
     });
   });
 
-  it("uses the chatbot's and the owner's overrides", async () => {
-    const db = dbReturning([{ dailyMessageLimit: 900 }]);
-    await expect(
-      resolveDailyLimits(db, { ...chatbot, dailyMessageLimit: 450 }),
-    ).resolves.toEqual({ chatbot: 450, owner: 900 });
+  it("uses the chatbot's and the owner's overrides", () => {
+    expect(
+      dailyLimitsFor(
+        { ...chatbot, dailyMessageLimit: 450 },
+        { ...owner, dailyMessageLimit: 900 },
+      ),
+    ).toEqual({ chatbot: 450, owner: 900 });
   });
 });
 
 describe("enforceDailyLimit", () => {
   it("passes the resolved limits to the counter", async () => {
     isWithinLimits = true;
-    const db = dbReturning([{ dailyMessageLimit: 900 }]);
+    const db = dbReturning([{ ...owner, dailyMessageLimit: 900 }]);
     await enforceDailyLimit(db, chatbot);
     expect(counterCalls.at(-1)).toEqual([
       { id: "bot-1", ownerId: "owner-1" },
@@ -84,16 +95,21 @@ describe("enforceDailyLimit", () => {
   });
 
   it.each([
-    ["the chatbot", { ...chatbot, dailyMessageLimit: 0 }, null],
-    ["the owner", chatbot, 0],
+    ["the chatbot", { ...chatbot, paused: true }, owner],
+    [
+      "all of the owner's chatbots",
+      chatbot,
+      { ...owner, chatbotsPaused: true },
+    ],
   ])(
     "throws chatbot_paused (403) when %s is paused",
-    async (_name, bot, ownerLimit) => {
+    async (_name, bot, own) => {
+      isWithinLimits = true;
       const callsBefore = counterCalls.length;
-      const error = await enforceDailyLimit(
-        dbReturning([{ dailyMessageLimit: ownerLimit }]),
-        bot,
-      ).catch((e: unknown) => e);
+      const error = await enforceDailyLimit(dbReturning([own]), bot).catch(
+        (e: unknown) => e,
+      );
+      expect(error).toBeInstanceOf(ChatRequestError);
       expect(error).toMatchObject({ code: "chatbot_paused", status: 403 });
       // A paused chatbot never touches the counters.
       expect(counterCalls.length).toBe(callsBefore);
@@ -102,54 +118,53 @@ describe("enforceDailyLimit", () => {
 
   it("throws daily_limit_reached (429) past the limit", async () => {
     isWithinLimits = false;
-    const error = await enforceDailyLimit(
-      dbReturning([{ dailyMessageLimit: null }]),
-      chatbot,
-    ).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(ChatRequestError);
+    const error = await enforceDailyLimit(dbReturning([owner]), chatbot).catch(
+      (e: unknown) => e,
+    );
     expect(error).toMatchObject({ code: "daily_limit_reached", status: 429 });
   });
 });
 
-describe("admin daily limit procedures", () => {
+describe("admin daily limit and pause procedures", () => {
   const router = t.router({
-    setChatbot: setChatbotDailyLimitProcedure,
-    setUser: setUserDailyLimitProcedure,
+    setChatbotLimit: setChatbotDailyLimitProcedure,
+    setUserLimit: setUserDailyLimitProcedure,
+    setChatbotPaused: setChatbotPausedProcedure,
+    setUserPaused: setUserChatbotsPausedProcedure,
   });
   const chatbotId = "00000000-0000-4000-8000-000000000001";
 
-  it("saves an override and clears it with null", async () => {
+  it("saves and clears limits, and pauses and resumes", async () => {
     const { db, sets } = dbUpdating([{ id: chatbotId }]);
     const caller = t.createCallerFactory(router)({ db });
-    await caller.setChatbot({ chatbotId, limit: 500 });
-    await caller.setUser({ userId: "owner-1", limit: null });
+    await caller.setChatbotLimit({ chatbotId, limit: 500 });
+    await caller.setUserLimit({ userId: "owner-1", limit: null });
+    await caller.setChatbotPaused({ chatbotId, paused: true });
+    await caller.setUserPaused({ userId: "owner-1", paused: false });
     expect(sets).toMatchObject([
       { dailyMessageLimit: 500 },
       { dailyMessageLimit: null },
+      { paused: true },
+      { chatbotsPaused: false },
     ]);
   });
 
-  it("accepts 0, which pauses", async () => {
-    const { db, sets } = dbUpdating([{ id: chatbotId }]);
-    const caller = t.createCallerFactory(router)({ db });
-    await caller.setChatbot({ chatbotId, limit: 0 });
-    expect(sets).toMatchObject([{ dailyMessageLimit: 0 }]);
-  });
-
-  it.each([-1, 1.5, 10_001])("rejects a limit of %p", async (limit) => {
+  it.each([0, -1, 1.5, 10_001])("rejects a limit of %p", async (limit) => {
     const { db } = dbUpdating([{ id: chatbotId }]);
     const caller = t.createCallerFactory(router)({ db });
-    await expect(caller.setChatbot({ chatbotId, limit })).rejects.toThrow();
+    await expect(
+      caller.setChatbotLimit({ chatbotId, limit }),
+    ).rejects.toThrow();
   });
 
   it("reports a missing chatbot or user as NOT_FOUND", async () => {
     const { db } = dbUpdating([]);
     const caller = t.createCallerFactory(router)({ db });
     await expect(
-      caller.setChatbot({ chatbotId, limit: 500 }),
+      caller.setChatbotPaused({ chatbotId, paused: true }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(
-      caller.setUser({ userId: "missing", limit: 500 }),
+      caller.setUserLimit({ userId: "missing", limit: 500 }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
