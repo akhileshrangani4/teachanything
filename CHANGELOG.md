@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.39.0](https://github.com/akhileshrangani4/teachanything/compare/v1.38.0...v1.39.0) (2026-11-18)
+
+
+### Features
+
+* **dashboard:** header language menu, and let students remove a rating ([#587](https://github.com/akhileshrangani4/teachanything/issues/587)) ([46cb3d9](https://github.com/akhileshrangani4/teachanything/commit/46cb3d962eb5a99c887ddc99d832fcb73ea73d26))
+
 ## [1.38.0](https://github.com/akhileshrangani4/teachanything/compare/v1.37.0...v1.38.0) (2026-11-18)
 
 
