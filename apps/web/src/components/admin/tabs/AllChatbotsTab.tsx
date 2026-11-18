@@ -26,6 +26,8 @@ import { TableSkeleton } from "@/components/ui/skeletons";
 import { Bot } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useDeleteChatbot } from "./all-chatbots-tab/use-delete-chatbot";
+import { ChatbotDetailsSheet } from "../components/ChatbotDetailsSheet";
+import { useState } from "react";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -55,6 +57,13 @@ export function AllChatbotsTab() {
   );
 
   const allChatbots = chatbotsData?.chatbots || [];
+  // Looked up from the current page, so the panel shows fresh data after
+  // every refetch.
+  const [selectedChatbotId, setSelectedChatbotId] = useState<string | null>(
+    null,
+  );
+  const selectedChatbot =
+    allChatbots.find((chatbot) => chatbot.id === selectedChatbotId) ?? null;
   const totalCount = chatbotsData?.totalCount || 0;
   const featuredCount = chatbotsData?.featuredCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
@@ -86,9 +95,9 @@ export function AllChatbotsTab() {
             <AlertDescription className="text-xs leading-relaxed">
               <strong>Quick Guide:</strong>
               <ul className="mt-1 list-disc list-inside space-y-0.5">
+                <li>Click a chatbot to see its usage, limits and details</li>
+                <li>Today counts student messages since midnight US Eastern</li>
                 <li>Feature public chatbots for homepage (max 4)</li>
-                <li>Click owner name to edit (your chatbots only)</li>
-                <li>Delete to remove permanently</li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -115,24 +124,18 @@ export function AllChatbotsTab() {
               minWidth={700}
               header={
                 <>
-                  <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-14 shrink-0" />
-                  <Skeleton className="h-4 w-10 shrink-0" />
-                  <Skeleton className="h-4 w-16 shrink-0" />
                   <Skeleton className="h-4 w-20 shrink-0" />
+                  <Skeleton className="h-4 w-12 shrink-0" />
+                  <Skeleton className="h-4 w-12 shrink-0" />
                   <Skeleton className="h-4 w-14 shrink-0" />
                 </>
               }
               row={
                 <>
-                  <Skeleton className="h-4 w-28 shrink-0" />
-                  <Skeleton className="h-4 w-24 shrink-0" />
-                  <Skeleton className="h-4 w-20 shrink-0" />
-                  <Skeleton className="h-4 w-8 shrink-0" />
-                  <Skeleton className="h-4 w-20 shrink-0" />
-                  <Skeleton className="h-5 w-12 rounded-full shrink-0" />
-                  <Skeleton className="h-8 w-16 rounded-md shrink-0" />
+                  <Skeleton className="h-8 w-40 shrink-0" />
+                  <Skeleton className="h-8 w-24 shrink-0" />
+                  <Skeleton className="h-5 w-14 rounded-full shrink-0" />
+                  <Skeleton className="h-5 w-10 rounded-full shrink-0" />
                 </>
               }
             />
@@ -160,43 +163,10 @@ export function AllChatbotsTab() {
                         currentSortDir={state.sortDir}
                         onSort={actions.toggleSort}
                       >
-                        Name
+                        Chatbot
                       </SortableTableHead>
-                      <SortableTableHead
-                        column="owner"
-                        currentSortBy={state.sortBy}
-                        currentSortDir={state.sortDir}
-                        onSort={actions.toggleSort}
-                      >
-                        Owner
-                      </SortableTableHead>
-                      <SortableTableHead
-                        column="model"
-                        currentSortBy={state.sortBy}
-                        currentSortDir={state.sortDir}
-                        onSort={actions.toggleSort}
-                      >
-                        Model
-                      </SortableTableHead>
-                      <SortableTableHead
-                        column="fileCount"
-                        currentSortBy={state.sortBy}
-                        currentSortDir={state.sortDir}
-                        onSort={actions.toggleSort}
-                      >
-                        Files
-                      </SortableTableHead>
-                      <SortableTableHead
-                        column="createdAt"
-                        currentSortBy={state.sortBy}
-                        currentSortDir={state.sortDir}
-                        onSort={actions.toggleSort}
-                      >
-                        Created
-                      </SortableTableHead>
-                      <TableHead className="font-semibold">
-                        Daily limit
-                      </TableHead>
+                      <TableHead className="font-semibold">Today</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
                       <SortableTableHead
                         column="featured"
                         currentSortBy={state.sortBy}
@@ -205,7 +175,9 @@ export function AllChatbotsTab() {
                       >
                         Featured
                       </SortableTableHead>
-                      <TableHead className="font-semibold">Actions</TableHead>
+                      <TableHead className="w-12">
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -213,7 +185,7 @@ export function AllChatbotsTab() {
                       <ChatbotTableRow
                         key={chatbot.id}
                         chatbot={chatbot}
-                        currentUserId={currentUserId}
+                        onOpenDetails={setSelectedChatbotId}
                         onDelete={handleDeleteChatbot}
                         onRefetch={refetchChatbots}
                       />
@@ -233,6 +205,14 @@ export function AllChatbotsTab() {
           )}
         </CardContent>
       </Card>
+
+      <ChatbotDetailsSheet
+        chatbot={selectedChatbot}
+        onOpenChange={(open) => !open && setSelectedChatbotId(null)}
+        currentUserId={currentUserId}
+        onRefetch={refetchChatbots}
+        onDelete={handleDeleteChatbot}
+      />
 
       <ConfirmationDialog
         open={deleteChatbotDialog.isOpen}

@@ -31,6 +31,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserConfirms } from "./all-users-tab/use-user-confirms";
 import { UsersTableSkeleton } from "./all-users-tab/users-table-skeleton";
+import { UserUsageSheet } from "../components/UserUsageSheet";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -62,6 +63,10 @@ export function AllUsersTab() {
   const { data: stats, refetch: refetchStats } = useUserStats();
 
   const allUsers = usersData?.users || [];
+  // Looked up from the current page, so the panel shows fresh data after
+  // every refetch.
+  const [usageUserId, setUsageUserId] = useState<string | null>(null);
+  const usageUser = allUsers.find((u) => u.id === usageUserId) ?? null;
   const totalCount = usersData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
@@ -163,15 +168,6 @@ export function AllUsersTab() {
                         User
                       </SortableTableHead>
                       <SortableTableHead
-                        column="email"
-                        currentSortBy={state.sortBy}
-                        currentSortDir={state.sortDir}
-                        onSort={actions.toggleSort}
-                        className="hidden sm:table-cell"
-                      >
-                        Email
-                      </SortableTableHead>
-                      <SortableTableHead
                         column="role"
                         currentSortBy={state.sortBy}
                         currentSortDir={state.sortDir}
@@ -187,15 +183,7 @@ export function AllUsersTab() {
                       >
                         Status
                       </SortableTableHead>
-                      <SortableTableHead
-                        column="createdAt"
-                        currentSortBy={state.sortBy}
-                        currentSortDir={state.sortDir}
-                        onSort={actions.toggleSort}
-                        className="hidden md:table-cell"
-                      >
-                        Registered
-                      </SortableTableHead>
+                      <TableHead className="font-semibold">Today</TableHead>
                       <TableHead className="font-semibold text-right">
                         Actions
                       </TableHead>
@@ -207,6 +195,7 @@ export function AllUsersTab() {
                         key={user.id}
                         user={user}
                         isCurrentUser={user.id === currentUserId}
+                        onOpenUsage={setUsageUserId}
                         onViewDetails={(u) =>
                           setDetailsDialog({
                             isOpen: true,
@@ -267,6 +256,11 @@ export function AllUsersTab() {
           enable: userActions.enableUser.isPending,
           delete: userActions.deleteUser.isPending,
         }}
+      />
+
+      <UserUsageSheet
+        user={usageUser}
+        onOpenChange={(open) => !open && setUsageUserId(null)}
       />
 
       <UserDetailsDialog

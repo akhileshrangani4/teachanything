@@ -24,6 +24,7 @@ import {
   setUserDailyLimitProcedure,
   setChatbotPausedProcedure,
   setUserChatbotsPausedProcedure,
+  getUserChatbotsProcedure,
 } from "./procedures/daily-limits";
 
 export const adminRouter = router({
@@ -51,4 +52,5 @@ export const adminRouter = router({
   setUserDailyLimit: setUserDailyLimitProcedure,
   setChatbotPaused: setChatbotPausedProcedure,
   setUserChatbotsPaused: setUserChatbotsPausedProcedure,
+  getUserChatbots: getUserChatbotsProcedure,
 });

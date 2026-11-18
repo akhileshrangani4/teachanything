@@ -5,6 +5,7 @@ import type { db as DbType } from "@teachanything/db";
 import { chatbots, user } from "@teachanything/db/schema";
 import { adminProcedure } from "@/server/trpc";
 import { MAX_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
+import { getChatbotUsage, NO_USAGE } from "../usage";
 
 /** A daily message limit override; null returns to the platform default. */
 const dailyLimitSchema = z
@@ -80,3 +81,28 @@ export const setUserChatbotsPausedProcedure = adminProcedure
   .mutation(({ ctx, input }) =>
     updateUser(ctx.db, input.userId, { chatbotsPaused: input.paused }),
   );
+
+/** One professor's chatbots with their limits, pause state and usage. */
+export const getUserChatbotsProcedure = adminProcedure
+  .input(z.object({ userId: userIdSchema }))
+  .query(async ({ ctx, input }) => {
+    const rows = await ctx.db
+      .select({
+        id: chatbots.id,
+        name: chatbots.name,
+        paused: chatbots.paused,
+        sharingEnabled: chatbots.sharingEnabled,
+        dailyMessageLimit: chatbots.dailyMessageLimit,
+      })
+      .from(chatbots)
+      .where(eq(chatbots.userId, input.userId))
+      .orderBy(chatbots.name);
+    const usage = await getChatbotUsage(
+      ctx.db,
+      rows.map((r) => r.id),
+    );
+    return rows.map((row) => ({
+      ...row,
+      usage: usage.get(row.id) ?? NO_USAGE,
+    }));
+  });

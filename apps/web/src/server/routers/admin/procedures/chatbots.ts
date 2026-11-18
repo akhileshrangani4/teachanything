@@ -8,6 +8,7 @@ import {
 import { eq, sql, desc, asc, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern } from "@/server/utils";
+import { getChatbotUsage, getOwnerUsage, NO_USAGE } from "../usage";
 
 /**
  * Get all chatbots (admin view) with owner info and file counts
@@ -90,6 +91,7 @@ export const getAllChatbotsProcedure = adminProcedure
         dailyMessageLimit: chatbots.dailyMessageLimit,
         paused: chatbots.paused,
         ownerChatbotsPaused: user.chatbotsPaused,
+        ownerDailyMessageLimit: user.dailyMessageLimit,
         userName: user.name,
         userEmail: user.email,
         userRole: user.role,
@@ -112,8 +114,20 @@ export const getAllChatbotsProcedure = adminProcedure
       .limit(input.limit)
       .offset(input.offset);
 
+    const [chatbotUsage, ownerUsage] = await Promise.all([
+      getChatbotUsage(
+        ctx.db,
+        allChatbots.map((c) => c.id),
+      ),
+      getOwnerUsage(ctx.db, [...new Set(allChatbots.map((c) => c.userId))]),
+    ]);
+
     return {
-      chatbots: allChatbots,
+      chatbots: allChatbots.map((chatbot) => ({
+        ...chatbot,
+        usage: chatbotUsage.get(chatbot.id) ?? NO_USAGE,
+        ownerUsage: ownerUsage.get(chatbot.userId) ?? NO_USAGE,
+      })),
       totalCount,
       featuredCount,
     };

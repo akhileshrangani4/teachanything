@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,9 +22,10 @@ import {
   Pause,
   Play,
 } from "lucide-react";
-import { UserAvatarCell, UserEmailCell } from "../components/UserCells";
-import { UserDailyLimitDialog } from "./UserDailyLimitDialog";
+import { OWNER_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
+import { UserAvatarCell } from "../components/UserCells";
 import { useSetUserChatbotsPaused } from "../hooks/use-set-user-chatbots-paused";
+import { UsageMeter } from "./UsageMeter";
 
 interface UserData {
   id: string;
@@ -40,6 +40,7 @@ interface UserData {
   country: string | null;
   dailyMessageLimit: number | null;
   chatbotsPaused: boolean;
+  usage: { today: number };
   createdAt: Date | string;
 }
 
@@ -47,6 +48,8 @@ interface UserTableRowProps {
   user: UserData;
   isCurrentUser: boolean;
   onViewDetails: (user: UserData) => void;
+  /** Opens the usage and limits panel for this user. */
+  onOpenUsage: (userId: string) => void;
   onPromote: (userId: string, userName: string, userEmail: string) => void;
   onDemote: (userId: string, userName: string, userEmail: string) => void;
   onDisable: (userId: string, userName: string, userEmail: string) => void;
@@ -59,6 +62,7 @@ export function UserTableRow({
   user,
   isCurrentUser,
   onViewDetails,
+  onOpenUsage,
   onPromote,
   onDemote,
   onDisable,
@@ -67,11 +71,14 @@ export function UserTableRow({
   isAnyActionPending,
 }: UserTableRowProps) {
   const isAdmin = user.role === "admin";
-  const [isLimitDialogOpen, setIsLimitDialogOpen] = useState(false);
   const setChatbotsPaused = useSetUserChatbotsPaused();
 
   return (
-    <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
+    <TableRow
+      key={user.id}
+      className="cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={() => onOpenUsage(user.id)}
+    >
       <TableCell>
         <UserAvatarCell
           name={user.name}
@@ -85,9 +92,6 @@ export function UserTableRow({
             ) : undefined
           }
         />
-      </TableCell>
-      <TableCell className="hidden sm:table-cell">
-        <UserEmailCell email={user.email} />
       </TableCell>
       <TableCell>
         <Badge
@@ -123,15 +127,16 @@ export function UserTableRow({
           )}
         </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell">
-        <div className="text-sm">
-          <p>{new Date(user.createdAt).toLocaleDateString()}</p>
-          <p className="text-xs text-muted-foreground">
-            {new Date(user.createdAt).toLocaleTimeString()}
-          </p>
-        </div>
+      <TableCell>
+        <UsageMeter
+          used={user.usage.today}
+          limit={user.dailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT}
+        />
       </TableCell>
-      <TableCell className="text-right pr-2">
+      <TableCell
+        className="text-right pr-2"
+        onClick={(event) => event.stopPropagation()}
+      >
         {isCurrentUser ? (
           <span className="text-sm text-muted-foreground italic">
             Current user
@@ -167,11 +172,11 @@ export function UserTableRow({
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                  onClick={() => setIsLimitDialogOpen(true)}
+                  onClick={() => onOpenUsage(user.id)}
                   className="cursor-pointer"
                 >
                   <Gauge className="h-4 w-4 mr-2" />
-                  Daily Message Limit
+                  Usage & Limits
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>
@@ -259,13 +264,6 @@ export function UserTableRow({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <UserDailyLimitDialog
-              open={isLimitDialogOpen}
-              onOpenChange={setIsLimitDialogOpen}
-              userId={user.id}
-              userName={user.name || user.email}
-              dailyMessageLimit={user.dailyMessageLimit}
-            />
           </div>
         )}
       </TableCell>

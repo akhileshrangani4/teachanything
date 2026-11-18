@@ -7,6 +7,7 @@ import {
   approveUser as approveUserHelper,
   rejectUser as rejectUserHelper,
 } from "@/server/auth";
+import { getOwnerUsage, NO_USAGE } from "../usage";
 
 /**
  * Get all pending users with pagination, search, and sorting
@@ -149,8 +150,16 @@ export const getAllUsersProcedure = adminProcedure
           .limit(input.limit)
           .offset(input.offset);
 
+    const usage = await getOwnerUsage(
+      ctx.db,
+      allUsers.map((u) => u.id),
+    );
+
     return {
-      users: allUsers,
+      users: allUsers.map((u) => ({
+        ...u,
+        usage: usage.get(u.id) ?? NO_USAGE,
+      })),
       totalCount,
     };
   });
