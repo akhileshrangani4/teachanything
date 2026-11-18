@@ -14,6 +14,7 @@ const CHAT_ERROR_KEYS = {
   chatbot_not_shared: "errors.notFoundItems.chatbotNotShared",
   send_failed: "errors.chat.sendFailed",
   turn_in_progress: "errors.chat.turnInProgress",
+  daily_limit_reached: "errors.chat.dailyLimitReached",
 } as const;
 
 export type ChatErrorCode = keyof typeof CHAT_ERROR_KEYS;

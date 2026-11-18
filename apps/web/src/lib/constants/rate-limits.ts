@@ -23,3 +23,10 @@ export function retryAfterMinutes(reset: number, now: number = Date.now()) {
 export function retryAfterHours(reset: number, now: number = Date.now()) {
   return Math.max(1, Math.ceil((reset - now) / 3_600_000));
 }
+
+/**
+ * Student messages one chatbot may receive per day, across every session and
+ * both chat routes. The day runs midnight to midnight US Eastern. Each sent
+ * question counts once; the assistant's answer does not count.
+ */
+export const CHATBOT_DAILY_MESSAGE_LIMIT = 150;

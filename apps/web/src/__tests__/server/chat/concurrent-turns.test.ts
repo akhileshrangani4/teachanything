@@ -36,6 +36,10 @@ async function fakeSwap(
 /** What each history read saw: the session's marker at that moment. */
 let historyReads: { conversationId: string; marker: string | null }[];
 let contextFailure: Error | null;
+/** What the daily message limit check answers; stubbed per test. */
+let withinDailyLimit: boolean;
+/** Sessions whose conversation was read or created. */
+let resolvedSessions: string[];
 /** Runs as the turn's model call; stubbed per test. */
 let runTurn: (args: TurnArgs) => Promise<void>;
 
@@ -80,6 +84,7 @@ jest.unstable_mockModule("@/server/rate-limit", () => ({
   requireRateLimit: async () => ({ success: true }),
   publicChatRateLimit: null,
   publicChatGlobalRateLimit: null,
+  consumeDailyChatbotMessage: async () => withinDailyLimit,
 }));
 jest.unstable_mockModule("@teachanything/ai", () => ({
   createOpenRouterClient: () => ({}),
@@ -108,6 +113,7 @@ jest.unstable_mockModule("@/server/chat/conversation-resolution", () => ({
     sessionId: string,
   ) => {
     await Promise.resolve();
+    resolvedSessions.push(sessionId);
     const id = conversationIdOf(sessionId);
     const activeTurnAt = markers.get(id) ?? undefined;
     return { id, metadata: activeTurnAt ? { activeTurnAt } : {} };
@@ -195,6 +201,8 @@ beforeEach(() => {
   markers.clear();
   historyReads = [];
   contextFailure = null;
+  withinDailyLimit = true;
+  resolvedSessions = [];
   runTurn = async ({ writer }) => writeAnswer(writer, "An answer.");
 });
 
@@ -312,5 +320,18 @@ describe("releasing the session", () => {
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toEqual({ code: "send_failed" });
     expect(isFree(SESSION)).toBe(true);
+  });
+});
+
+describe("daily message limit", () => {
+  it("refuses with 429 before creating a conversation", async () => {
+    withinDailyLimit = false;
+
+    const res = await send(SESSION);
+
+    expect(res.status).toBe(429);
+    await expect(res.json()).resolves.toEqual({ code: "daily_limit_reached" });
+    expect(resolvedSessions).toEqual([]);
+    expect(historyReads).toEqual([]);
   });
 });

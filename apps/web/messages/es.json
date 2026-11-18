@@ -1354,7 +1354,8 @@
       "conversationStartFailed": "No se pudo iniciar esta conversación. Vuelva a intentarlo.",
       "unauthorized": "Vuelva a iniciar sesión.",
       "streamInterrupted": "La respuesta se interrumpió. Vuelva a intentarlo.",
-      "turnInProgress": "Ya hay una respuesta en curso — espere a que termine."
+      "turnInProgress": "Ya hay una respuesta en curso — espere a que termine.",
+      "dailyLimitReached": "Este chatbot ha alcanzado su límite diario de mensajes. Inténtelo de nuevo mañana."
     }
   }
 }

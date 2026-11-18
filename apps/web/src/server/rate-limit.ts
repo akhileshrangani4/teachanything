@@ -200,6 +200,62 @@ export const conversationSearchRateLimit = createLimiter({
   prefix: "@ratelimit/conversation-search",
 });
 
+/** Day boundary for per-chatbot daily message counts. */
+const DAILY_LIMIT_TIME_ZONE = "America/New_York";
+
+/** Kept past the day's end so a count never vanishes before its day is over. */
+const DAILY_COUNT_TTL_SECONDS = 48 * 60 * 60;
+
+const easternDate = new Intl.DateTimeFormat("en-CA", {
+  timeZone: DAILY_LIMIT_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** The US Eastern calendar date (YYYY-MM-DD) that `now` falls on. */
+export function easternDateKey(now: Date): string {
+  return easternDate.format(now);
+}
+
+/**
+ * Count one student message against a chatbot's daily limit and report
+ * whether it is within the limit. The count resets at midnight US Eastern.
+ *
+ * A calendar-day reset rules out `Ratelimit` windows (sliding windows never
+ * reset, fixed windows align to UTC), so this is a plain counter keyed by date.
+ *
+ * Fails open: with Redis unconfigured or erroring, every chatbot keeps
+ * working. The OpenRouter account budget is the hard backstop on spend.
+ */
+export async function consumeDailyChatbotMessage(
+  chatbotId: string,
+  limit: number,
+  now: Date = new Date(),
+): Promise<boolean> {
+  if (!redis) return true;
+
+  const key = `@ratelimit/chatbot-daily:${chatbotId}:${easternDateKey(now)}`;
+  try {
+    const [count] = await redis
+      .pipeline()
+      .incr(key)
+      .expire(key, DAILY_COUNT_TTL_SECONDS)
+      .exec<[number, number]>();
+    // Logged once, on the first refused message of the day.
+    if (count === limit + 1) {
+      logWarn("Chatbot reached its daily message limit", { chatbotId, limit });
+    }
+    return count <= limit;
+  } catch (err) {
+    logWarn("Daily message limit check failed; allowing message", {
+      chatbotId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return true;
+  }
+}
+
 /** Deny result used when a rate limiter is unavailable and we fail closed. */
 function failClosedResult() {
   return { success: false, limit: 0, remaining: 0, reset: Date.now() + 60000 };
