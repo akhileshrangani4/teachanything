@@ -194,6 +194,9 @@ export function AllChatbotsTab() {
                       >
                         Created
                       </SortableTableHead>
+                      <TableHead className="font-semibold">
+                        Daily limit
+                      </TableHead>
                       <SortableTableHead
                         column="featured"
                         currentSortBy={state.sortBy}

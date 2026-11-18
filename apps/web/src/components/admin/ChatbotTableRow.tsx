@@ -16,6 +16,7 @@ import { Pencil } from "lucide-react";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
 import { validateAuthorName } from "./utils/author-name-validation";
+import { ChatbotDailyLimitCell } from "./components/ChatbotDailyLimitCell";
 
 type Chatbot = RouterOutputs["admin"]["getAllChatbots"]["chatbots"][number];
 
@@ -201,6 +202,14 @@ export function ChatbotTableRow({
             {new Date(chatbot.createdAt).toLocaleTimeString()}
           </p>
         </div>
+      </TableCell>
+      <TableCell>
+        <ChatbotDailyLimitCell
+          chatbotId={chatbot.id}
+          chatbotName={chatbot.name}
+          dailyMessageLimit={chatbot.dailyMessageLimit}
+          onRefetch={onRefetch}
+        />
       </TableCell>
       <TableCell>
         <div className="flex flex-col gap-1.5">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,8 +19,10 @@ import {
   Trash2,
   ChevronDown,
   Eye,
+  Gauge,
 } from "lucide-react";
 import { UserAvatarCell, UserEmailCell } from "../components/UserCells";
+import { UserDailyLimitDialog } from "./UserDailyLimitDialog";
 
 interface UserData {
   id: string;
@@ -32,6 +35,7 @@ interface UserData {
   department: string | null;
   facultyWebpage: string | null;
   country: string | null;
+  dailyMessageLimit: number | null;
   createdAt: Date | string;
 }
 
@@ -59,6 +63,7 @@ export function UserTableRow({
   isAnyActionPending,
 }: UserTableRowProps) {
   const isAdmin = user.role === "admin";
+  const [isLimitDialogOpen, setIsLimitDialogOpen] = useState(false);
 
   return (
     <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
@@ -149,6 +154,14 @@ export function UserTableRow({
                   View Details
                 </DropdownMenuItem>
 
+                <DropdownMenuItem
+                  onClick={() => setIsLimitDialogOpen(true)}
+                  className="cursor-pointer"
+                >
+                  <Gauge className="h-4 w-4 mr-2" />
+                  Daily Message Limit
+                </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
 
                 {/* Role management */}
@@ -216,6 +229,13 @@ export function UserTableRow({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+            <UserDailyLimitDialog
+              open={isLimitDialogOpen}
+              onOpenChange={setIsLimitDialogOpen}
+              userId={user.id}
+              userName={user.name || user.email}
+              dailyMessageLimit={user.dailyMessageLimit}
+            />
           </div>
         )}
       </TableCell>

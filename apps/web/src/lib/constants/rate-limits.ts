@@ -38,3 +38,6 @@ export const CHATBOT_DAILY_MESSAGE_LIMIT = 150;
  * a professor teaching two large courses can use both in full.
  */
 export const OWNER_DAILY_MESSAGE_LIMIT = 300;
+
+/** Highest daily limit an admin may set on one chatbot or professor. */
+export const MAX_DAILY_MESSAGE_LIMIT = 10_000;
