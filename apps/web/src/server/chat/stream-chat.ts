@@ -72,7 +72,8 @@ type StreamChatParams = {
  * A session runs one turn at a time: while one is in flight, another throws
  * `ChatRequestError("turn_in_progress", 409)` (#465). A chatbot past its own
  * daily message limit, or its owner's, throws
- * `ChatRequestError("daily_limit_reached", 429)`.
+ * `ChatRequestError("daily_limit_reached", 429)`; one an admin paused throws
+ * `ChatRequestError("chatbot_paused", 403)`.
  */
 export async function streamChat(params: StreamChatParams): Promise<Response> {
   // Turn clock. `startTime` below only starts at the stream, after retrieval,

@@ -1355,7 +1355,8 @@
       "unauthorized": "Bitte melden Sie sich erneut an.",
       "streamInterrupted": "Die Antwort wurde unterbrochen. Bitte versuchen Sie es erneut.",
       "turnInProgress": "Es wird bereits eine Antwort erstellt — bitte warten Sie, bis sie fertig ist.",
-      "dailyLimitReached": "Dieser Chatbot hat sein tägliches Nachrichtenlimit erreicht. Bitte versuchen Sie es morgen erneut."
+      "dailyLimitReached": "Dieser Chatbot hat sein tägliches Nachrichtenlimit erreicht. Bitte versuchen Sie es morgen erneut.",
+      "chatbotPaused": "Dieser Chatbot ist derzeit nicht verfügbar."
     }
   }
 }

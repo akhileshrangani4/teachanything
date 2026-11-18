@@ -5,11 +5,13 @@ import { extractText } from "./ui-messages";
 
 /**
  * Codes for a message the server refused before saving it: another turn holds
- * the session (#465), or the chatbot is past its daily message limit.
+ * the session (#465), the chatbot is past its daily message limit, or an
+ * admin has paused it.
  */
 const REFUSED_TURN_CODES: ReadonlySet<ChatErrorCode> = new Set([
   "turn_in_progress",
   "daily_limit_reached",
+  "chatbot_paused",
 ]);
 
 /**

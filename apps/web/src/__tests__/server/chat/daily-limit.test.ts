@@ -83,6 +83,23 @@ describe("enforceDailyLimit", () => {
     ]);
   });
 
+  it.each([
+    ["the chatbot", { ...chatbot, dailyMessageLimit: 0 }, null],
+    ["the owner", chatbot, 0],
+  ])(
+    "throws chatbot_paused (403) when %s is paused",
+    async (_name, bot, ownerLimit) => {
+      const callsBefore = counterCalls.length;
+      const error = await enforceDailyLimit(
+        dbReturning([{ dailyMessageLimit: ownerLimit }]),
+        bot,
+      ).catch((e: unknown) => e);
+      expect(error).toMatchObject({ code: "chatbot_paused", status: 403 });
+      // A paused chatbot never touches the counters.
+      expect(counterCalls.length).toBe(callsBefore);
+    },
+  );
+
   it("throws daily_limit_reached (429) past the limit", async () => {
     isWithinLimits = false;
     const error = await enforceDailyLimit(
@@ -112,7 +129,14 @@ describe("admin daily limit procedures", () => {
     ]);
   });
 
-  it.each([0, -1, 1.5, 10_001])("rejects a limit of %p", async (limit) => {
+  it("accepts 0, which pauses", async () => {
+    const { db, sets } = dbUpdating([{ id: chatbotId }]);
+    const caller = t.createCallerFactory(router)({ db });
+    await caller.setChatbot({ chatbotId, limit: 0 });
+    expect(sets).toMatchObject([{ dailyMessageLimit: 0 }]);
+  });
+
+  it.each([-1, 1.5, 10_001])("rejects a limit of %p", async (limit) => {
     const { db } = dbUpdating([{ id: chatbotId }]);
     const caller = t.createCallerFactory(router)({ db });
     await expect(caller.setChatbot({ chatbotId, limit })).rejects.toThrow();

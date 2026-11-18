@@ -5,11 +5,14 @@ import { chatbots, user } from "@teachanything/db/schema";
 import { adminProcedure } from "@/server/trpc";
 import { MAX_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
 
-/** A daily message limit override; null returns to the platform default. */
+/**
+ * A daily message limit override: 0 pauses, null returns to the platform
+ * default.
+ */
 const dailyLimitSchema = z
   .number()
   .int()
-  .min(1)
+  .min(0)
   .max(MAX_DAILY_MESSAGE_LIMIT)
   .nullable();
 

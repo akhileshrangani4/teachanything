@@ -39,5 +39,8 @@ export const CHATBOT_DAILY_MESSAGE_LIMIT = 150;
  */
 export const OWNER_DAILY_MESSAGE_LIMIT = 300;
 
-/** Highest daily limit an admin may set on one chatbot or professor. */
+/**
+ * Highest daily limit an admin may set on one chatbot or professor. The
+ * lowest is 0, which pauses it.
+ */
 export const MAX_DAILY_MESSAGE_LIMIT = 10_000;

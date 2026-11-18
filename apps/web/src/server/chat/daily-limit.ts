@@ -33,14 +33,19 @@ export async function resolveDailyLimits(
 }
 
 /**
- * Count one student message against `chatbot`'s daily limits, or throw
- * `ChatRequestError("daily_limit_reached", 429)` when either is used up.
+ * Count one student message against `chatbot`'s daily limits. Throws
+ * `ChatRequestError("chatbot_paused", 403)` when an admin has paused the
+ * chatbot or its owner (a limit of 0), and
+ * `ChatRequestError("daily_limit_reached", 429)` when either limit is used up.
  */
 export async function enforceDailyLimit(
   database: typeof DbType,
   chatbot: LimitedChatbot,
 ): Promise<void> {
   const limits = await resolveDailyLimits(database, chatbot);
+  if (limits.chatbot === 0 || limits.owner === 0) {
+    throw new ChatRequestError("chatbot_paused", 403);
+  }
   const isWithinLimits = await consumeDailyMessage(
     { id: chatbot.id, ownerId: chatbot.userId },
     limits,

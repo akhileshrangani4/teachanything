@@ -46,7 +46,9 @@ export function ChatbotDailyLimitCell({
         title="Change this chatbot's daily message limit"
       >
         <span className="text-sm font-medium">
-          {dailyMessageLimit ?? CHATBOT_DAILY_MESSAGE_LIMIT}/day
+          {dailyMessageLimit === 0
+            ? "Paused"
+            : `${dailyMessageLimit ?? CHATBOT_DAILY_MESSAGE_LIMIT}/day`}
         </span>
         <span className="text-xs text-muted-foreground">
           {dailyMessageLimit === null ? "Default" : "Custom"}
@@ -56,7 +58,7 @@ export function ChatbotDailyLimitCell({
         open={isOpen}
         onOpenChange={setIsOpen}
         title="Daily message limit"
-        description={`Student messages "${chatbotName}" may receive per day. Its owner's daily total still applies, so raise that too (Users tab) if needed.`}
+        description={`Student messages "${chatbotName}" may receive per day. Its owner's daily total still applies, so raise that too (Users tab) if needed. 0 pauses the chatbot.`}
         defaultLimit={CHATBOT_DAILY_MESSAGE_LIMIT}
         currentLimit={dailyMessageLimit}
         isPending={setLimit.isPending}

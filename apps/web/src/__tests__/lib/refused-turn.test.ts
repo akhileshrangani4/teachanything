@@ -67,21 +67,22 @@ describe("restoreRefusedTurn", () => {
     );
   });
 
-  it("also restores a message refused for the daily limit", () => {
-    const setMessages =
-      jest.fn<(u: SetStateAction<StudyUIMessage[]>) => void>();
-    const setDraft = jest.fn<(u: SetStateAction<string>) => void>();
-    const dailyLimit = new Error(
-      JSON.stringify({ code: "daily_limit_reached" }),
-    );
+  it.each(["daily_limit_reached", "chatbot_paused"])(
+    "also restores a message refused with %s",
+    (code) => {
+      const setMessages =
+        jest.fn<(u: SetStateAction<StudyUIMessage[]>) => void>();
+      const setDraft = jest.fn<(u: SetStateAction<string>) => void>();
+      const error = new Error(JSON.stringify({ code }));
 
-    expect(
-      restoreRefusedTurn(dailyLimit, "What is meiosis?", setMessages, setDraft),
-    ).toBe(true);
-    expect(
-      applied(setMessages.mock.calls[0]![0], [...history, refused]),
-    ).toEqual(history);
-  });
+      expect(
+        restoreRefusedTurn(error, "What is meiosis?", setMessages, setDraft),
+      ).toBe(true);
+      expect(
+        applied(setMessages.mock.calls[0]![0], [...history, refused]),
+      ).toEqual(history);
+    },
+  );
 
   it.each([JSON.stringify({ code: "rate_limited" }), "Network down"])(
     "ignores other errors (%s)",
