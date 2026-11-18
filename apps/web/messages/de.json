@@ -115,6 +115,18 @@
     "card": {
       "openChatbot": "Chatbot öffnen"
     },
+    "usage": {
+      "title": "Studierendennachrichten heute",
+      "total": "Über alle Ihre Chatbots",
+      "meterLabel": "{used, number} von {limit, number} Nachrichten heute",
+      "today": "Heute",
+      "resets": "Jeder Chatbot kann {chatbotLimit, number} Fragen von Studierenden pro Tag beantworten, alle Ihre Chatbots zusammen {limit, number}. Die Limits werden um Mitternacht US-Ostküstenzeit zurückgesetzt.",
+      "learnMore": "So funktionieren die Tageslimits",
+      "limitReached": "Tageslimit erreicht. Studierende können nach Mitternacht US-Ostküstenzeit wieder fragen.",
+      "paused": "Pausiert",
+      "pausedTitle": "Ihre Chatbots sind pausiert",
+      "pausedDescription": "Ein Teach Anything-Administrator hat Ihre Chatbots pausiert, daher sehen Studierende „Dieser Chatbot ist derzeit nicht verfügbar.“ Bei Fragen wenden Sie sich an admin@teachanything.ai."
+    },
     "empty": {
       "title": "Noch keine Chatbots",
       "description": "Erstellen Sie zunächst Ihren ersten KI-Chatbot",

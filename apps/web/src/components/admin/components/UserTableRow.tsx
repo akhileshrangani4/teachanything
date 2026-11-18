@@ -25,7 +25,7 @@ import {
 import { OWNER_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
 import { UserAvatarCell } from "../components/UserCells";
 import { useSetUserChatbotsPaused } from "../hooks/use-set-user-chatbots-paused";
-import { UsageMeter } from "./UsageMeter";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
 
 interface UserData {
   id: string;

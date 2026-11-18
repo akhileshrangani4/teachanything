@@ -19,7 +19,7 @@ import { useSetUserChatbotsPaused } from "../hooks/use-set-user-chatbots-paused"
 import { ChatbotStatusBadges } from "./ChatbotStatusBadges";
 import { LimitValue } from "./LimitValue";
 import { Fact, SheetSection } from "./SheetSections";
-import { UsageMeter } from "./UsageMeter";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
 import { UsageSummary } from "./UsageSummary";
 import { UserDailyLimitDialog } from "./UserDailyLimitDialog";
 

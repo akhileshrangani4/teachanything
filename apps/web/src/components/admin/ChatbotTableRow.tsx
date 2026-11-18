@@ -21,7 +21,7 @@ import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
 import { CHATBOT_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
 import { ChatbotStatusBadges } from "./components/ChatbotStatusBadges";
-import { UsageMeter } from "./components/UsageMeter";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
 import { useSetChatbotPaused } from "./hooks/use-set-chatbot-paused";
 
 type Chatbot = RouterOutputs["admin"]["getAllChatbots"]["chatbots"][number];

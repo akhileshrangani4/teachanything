@@ -7,7 +7,7 @@ import {
   approveUser as approveUserHelper,
   rejectUser as rejectUserHelper,
 } from "@/server/auth";
-import { getOwnerUsage, NO_USAGE } from "../usage";
+import { getOwnerUsage, NO_USAGE } from "@/server/queries/message-usage";
 
 /**
  * Get all pending users with pagination, search, and sorting

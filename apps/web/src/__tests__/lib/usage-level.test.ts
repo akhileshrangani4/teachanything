@@ -1,5 +1,5 @@
 import { describe, it, expect } from "@jest/globals";
-import { usageLevel } from "@/components/admin/utils/usage-level";
+import { usageLevel } from "@/lib/usage-level";
 
 describe("usageLevel", () => {
   it.each([

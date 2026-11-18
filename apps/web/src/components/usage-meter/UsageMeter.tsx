@@ -1,11 +1,13 @@
 import { cn } from "@/lib/utils";
-import { usageLevel } from "../utils/usage-level";
+import { usageLevel } from "@/lib/usage-level";
 
 interface UsageMeterProps {
   /** Student messages so far today. */
   used: number;
   /** The daily limit that applies. */
   limit: number;
+  /** Accessible description of the meter; defaults to English. */
+  label?: string;
   className?: string;
 }
 
@@ -16,7 +18,7 @@ const BAR_COLOR = {
 } as const;
 
 /** "87 / 150" with a thin bar that turns amber near the limit, red at it. */
-export function UsageMeter({ used, limit, className }: UsageMeterProps) {
+export function UsageMeter({ used, limit, label, className }: UsageMeterProps) {
   const level = usageLevel(used, limit);
   const percent = Math.min(100, Math.round((used / limit) * 100));
 
@@ -35,7 +37,7 @@ export function UsageMeter({ used, limit, className }: UsageMeterProps) {
         aria-valuemin={0}
         aria-valuemax={limit}
         aria-valuenow={Math.min(used, limit)}
-        aria-label={`${used} of ${limit} messages today`}
+        aria-label={label ?? `${used} of ${limit} messages today`}
       >
         <div
           className={cn("h-full rounded-full", BAR_COLOR[level])}

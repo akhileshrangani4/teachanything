@@ -115,6 +115,18 @@
     "card": {
       "openChatbot": "Ouvrir le chatbot"
     },
+    "usage": {
+      "title": "Messages des étudiants aujourd’hui",
+      "total": "Pour l’ensemble de vos chatbots",
+      "meterLabel": "{used, number} sur {limit, number} messages aujourd’hui",
+      "today": "Aujourd’hui",
+      "resets": "Chaque chatbot peut répondre à {chatbotLimit, number} questions d’étudiants par jour, et l’ensemble de vos chatbots à {limit, number}. Les limites sont réinitialisées à minuit, heure de l’Est des États-Unis.",
+      "learnMore": "Fonctionnement des limites quotidiennes",
+      "limitReached": "Limite quotidienne atteinte. Les étudiants pourront reposer leurs questions après minuit, heure de l’Est des États-Unis.",
+      "paused": "En pause",
+      "pausedTitle": "Vos chatbots sont en pause",
+      "pausedDescription": "Un administrateur de Teach Anything a mis vos chatbots en pause : les étudiants voient « Ce chatbot est actuellement indisponible. » Pour toute question, écrivez à admin@teachanything.ai."
+    },
     "empty": {
       "title": "Aucun chatbot pour le moment",
       "description": "Commencez par créer votre premier chatbot IA",

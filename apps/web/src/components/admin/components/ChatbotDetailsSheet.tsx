@@ -18,7 +18,7 @@ import { useSetChatbotPaused } from "../hooks/use-set-chatbot-paused";
 import { AuthorNameEditor } from "./AuthorNameEditor";
 import { ChatbotDailyLimitControl } from "./ChatbotDailyLimitControl";
 import { ChatbotStatusBadges } from "./ChatbotStatusBadges";
-import { UsageMeter } from "./UsageMeter";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
 import { UsageSummary } from "./UsageSummary";
 import { Fact, SheetSection } from "./SheetSections";
 

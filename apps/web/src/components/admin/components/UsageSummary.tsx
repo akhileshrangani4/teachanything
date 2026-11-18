@@ -1,5 +1,5 @@
 import type { RouterOutputs } from "@/lib/trpc";
-import { UsageMeter } from "./UsageMeter";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
 
 type MessageUsage =
   RouterOutputs["admin"]["getAllChatbots"]["chatbots"][number]["usage"];

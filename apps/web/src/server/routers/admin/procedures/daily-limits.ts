@@ -5,7 +5,7 @@ import type { db as DbType } from "@teachanything/db";
 import { chatbots, user } from "@teachanything/db/schema";
 import { adminProcedure } from "@/server/trpc";
 import { MAX_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
-import { getChatbotUsage, NO_USAGE } from "../usage";
+import { getChatbotUsage, NO_USAGE } from "@/server/queries/message-usage";
 
 /** A daily message limit override; null returns to the platform default. */
 const dailyLimitSchema = z

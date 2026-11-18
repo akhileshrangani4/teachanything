@@ -8,7 +8,11 @@ import {
 import { eq, sql, desc, asc, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern } from "@/server/utils";
-import { getChatbotUsage, getOwnerUsage, NO_USAGE } from "../usage";
+import {
+  getChatbotUsage,
+  getOwnerUsage,
+  NO_USAGE,
+} from "@/server/queries/message-usage";
 
 /**
  * Get all chatbots (admin view) with owner info and file counts
