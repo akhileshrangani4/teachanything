@@ -13,9 +13,10 @@ export interface MessageRatingState {
 
 export type MessageRatings = Readonly<Record<string, MessageRatingState>>;
 
+/** Rate a message, or remove its rating with null. */
 export type RateMessage = (
   messageId: string,
-  rating: MessageRatingValue,
+  rating: MessageRatingValue | null,
 ) => void;
 
 /** Returns a copy of `ratings` with `messageId` set to `state`. */

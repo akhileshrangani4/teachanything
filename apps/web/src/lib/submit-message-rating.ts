@@ -6,14 +6,15 @@ export type SubmitMessageRatingInput = {
   sessionId: string;
   /** The assistant message id the student was streamed (and is shown). */
   messageId: string;
-  rating: MessageRatingValue;
+  /** null removes the earlier rating. */
+  rating: MessageRatingValue | null;
 };
 
 /**
- * Save a student's thumbs up/down on an assistant message. The thumbs show as
- * soon as the reply finishes streaming, which can beat the server's onFinish
- * commit of that message; the endpoint then answers 404 and
- * `postWithPersistRetry` retries it. Never throws: resolves `false` when the
+ * Save (or, with a null rating, remove) a student's thumbs up/down on an
+ * assistant message. The thumbs show as soon as the reply finishes streaming,
+ * which can beat the server's onFinish commit of that message; the endpoint
+ * then answers 404 and `postWithPersistRetry` retries it. Never throws: resolves `false` when the
  * rating couldn't be saved (already logged), so the caller can roll back its
  * optimistic state.
  */

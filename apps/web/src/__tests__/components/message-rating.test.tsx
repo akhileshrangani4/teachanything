@@ -16,7 +16,7 @@ function renderRating(
   props: { value: MessageRatingValue | null; disabled?: boolean },
   i18n = createI18n("en", en),
 ) {
-  const onRate = jest.fn<(rating: MessageRatingValue) => void>();
+  const onRate = jest.fn<(rating: MessageRatingValue | null) => void>();
   render(
     <I18nextProvider i18n={i18n}>
       <MessageRating {...props} onRate={onRate} />
@@ -50,10 +50,14 @@ describe("MessageRating", () => {
     expect(up.getAttribute("aria-pressed")).toBe("true");
     expect(down.getAttribute("aria-pressed")).toBe("false");
 
-    await userEvent.click(up);
-    expect(onRate).not.toHaveBeenCalled();
     await userEvent.click(down);
     expect(onRate).toHaveBeenCalledWith("down");
+  });
+
+  it("removes the rating when the selected thumb is clicked again", async () => {
+    const { onRate, up } = renderRating({ value: "up" });
+    await userEvent.click(up);
+    expect(onRate).toHaveBeenCalledWith(null);
   });
 
   it("marks thumbs down pressed and lets the student switch to up", async () => {
@@ -61,8 +65,6 @@ describe("MessageRating", () => {
     expect(down.getAttribute("aria-pressed")).toBe("true");
     expect(up.getAttribute("aria-pressed")).toBe("false");
 
-    await userEvent.click(down);
-    expect(onRate).not.toHaveBeenCalled();
     await userEvent.click(up);
     expect(onRate).toHaveBeenCalledWith("up");
   });

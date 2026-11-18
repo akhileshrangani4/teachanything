@@ -65,6 +65,22 @@ describe("useMessageRatings", () => {
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
+  it("clears the rating when the student removes it", async () => {
+    mockSubmit.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+    const { result } = renderRatings();
+
+    await act(async () => result.current.rateMessage(MESSAGE_ID, "up"));
+    await act(async () => result.current.rateMessage(MESSAGE_ID, null));
+
+    expect(mockSubmit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ messageId: MESSAGE_ID, rating: null }),
+    );
+    expect(result.current.ratings[MESSAGE_ID]).toEqual({
+      value: null,
+      isSaving: false,
+    });
+  });
+
   it("ignores a second rating while the first is still saving", () => {
     mockSubmit.mockReturnValueOnce(new Promise(() => {}));
     const { result } = renderRatings();

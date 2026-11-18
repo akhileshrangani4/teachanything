@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +19,7 @@ import {
   LOCALE_LABELS,
   type Locale,
 } from "@/i18n/config";
+import { useSavePreferredLocale } from "@/hooks/use-save-preferred-locale";
 
 const BROWSER_LANGUAGE = "browser";
 type LanguageChoice = Locale | typeof BROWSER_LANGUAGE;
@@ -49,31 +48,11 @@ export function LanguageSection() {
 
 function LanguageForm({ savedLocale }: { savedLocale: Locale | null }) {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
-  const utils = trpc.useUtils();
-  const [isApplying, startApplying] = useTransition();
   const currentLocale = i18n.language as Locale;
   const savedChoice: LanguageChoice = savedLocale ?? BROWSER_LANGUAGE;
   const [draft, setDraft] = useState<LanguageChoice>(savedChoice);
 
-  const save = trpc.auth.updatePreferredLocale.useMutation({
-    onSuccess: async () => {
-      await utils.auth.getProfile.invalidate();
-      startApplying(() => router.refresh());
-    },
-    onError: (error) => {
-      // No response data: the save may have gone through, so ask for a retry.
-      toast.error(
-        t(
-          error.data
-            ? "settings.language.saveFailed"
-            : "settings.language.unconfirmed",
-        ),
-      );
-    },
-  });
-
-  const isBusy = save.isPending || isApplying;
+  const { saveLocale, isBusy } = useSavePreferredLocale();
 
   return (
     <div className="space-y-3">
@@ -107,9 +86,7 @@ function LanguageForm({ savedLocale }: { savedLocale: Locale | null }) {
         </div>
         <Button
           size="sm"
-          onClick={() =>
-            save.mutate({ locale: draft === BROWSER_LANGUAGE ? null : draft })
-          }
+          onClick={() => saveLocale(draft === BROWSER_LANGUAGE ? null : draft)}
           disabled={isBusy || draft === savedChoice}
         >
           {isBusy
