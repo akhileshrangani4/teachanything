@@ -31,7 +31,7 @@ jest.unstable_mockModule("@/lib/env", () => ({
 const logWarn = jest.fn();
 jest.unstable_mockModule("@/lib/logger", () => ({ logWarn }));
 
-const { consumeDailyChatbotMessage, easternDateKey } =
+const { consumeDailyMessage, easternDateKey } =
   await import("@/server/rate-limit");
 
 describe("easternDateKey", () => {
@@ -50,8 +50,17 @@ describe("easternDateKey", () => {
   });
 });
 
-describe("consumeDailyChatbotMessage", () => {
+describe("consumeDailyMessage", () => {
   const now = new Date("2026-11-17T15:00:00Z");
+  const chatbot = { id: "bot-1", ownerId: "owner-1" };
+  const limits = { chatbot: 150, owner: 300 };
+  const chatbotKey = "@ratelimit/chatbot-daily:bot-1:2026-11-17";
+  const ownerKey = "@ratelimit/owner-daily:owner-1:2026-11-17";
+
+  /** Script the counts each INCR returns, in call order. */
+  function counts(...values: number[]) {
+    for (const value of values) exec.mockResolvedValueOnce([value, 1]);
+  }
 
   beforeEach(() => {
     exec.mockReset();
@@ -60,38 +69,45 @@ describe("consumeDailyChatbotMessage", () => {
     logWarn.mockClear();
   });
 
-  it("counts against a key for the chatbot and the Eastern date", async () => {
-    exec.mockResolvedValue([1, 1]);
-    await consumeDailyChatbotMessage("bot-1", 150, now);
-    const key = "@ratelimit/chatbot-daily:bot-1:2026-11-17";
-    expect(incr).toHaveBeenCalledWith(key);
-    expect(expire).toHaveBeenCalledWith(key, 48 * 60 * 60);
+  it("counts against the chatbot, then the owner, for the Eastern date", async () => {
+    counts(1, 1);
+    await consumeDailyMessage(chatbot, limits, now);
+    expect(incr.mock.calls).toEqual([[chatbotKey], [ownerKey]]);
+    expect(expire).toHaveBeenCalledWith(chatbotKey, 48 * 60 * 60);
+    expect(expire).toHaveBeenCalledWith(ownerKey, 48 * 60 * 60);
   });
 
-  it("allows messages up to and including the limit", async () => {
-    exec.mockResolvedValue([150, 1]);
-    await expect(consumeDailyChatbotMessage("bot-1", 150, now)).resolves.toBe(
-      true,
-    );
+  it("allows messages up to and including both limits", async () => {
+    counts(150, 300);
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(true);
     expect(logWarn).not.toHaveBeenCalled();
   });
 
-  it("refuses past the limit and logs only the first refusal", async () => {
-    exec.mockResolvedValueOnce([151, 1]).mockResolvedValueOnce([152, 1]);
-    await expect(consumeDailyChatbotMessage("bot-1", 150, now)).resolves.toBe(
+  it("refuses past the chatbot limit without charging the owner", async () => {
+    counts(151);
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(
       false,
     );
-    await expect(consumeDailyChatbotMessage("bot-1", 150, now)).resolves.toBe(
+    expect(incr.mock.calls).toEqual([[chatbotKey]]);
+  });
+
+  it("refuses past the owner limit", async () => {
+    counts(10, 301);
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(
       false,
     );
+  });
+
+  it("logs only the first refusal of the day", async () => {
+    counts(151, 152);
+    await consumeDailyMessage(chatbot, limits, now);
+    await consumeDailyMessage(chatbot, limits, now);
     expect(logWarn).toHaveBeenCalledTimes(1);
   });
 
   it("fails open when Redis errors", async () => {
     exec.mockRejectedValue(new Error("ECONNREFUSED"));
-    await expect(consumeDailyChatbotMessage("bot-1", 150, now)).resolves.toBe(
-      true,
-    );
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(true);
     expect(logWarn).toHaveBeenCalledTimes(1);
   });
 });

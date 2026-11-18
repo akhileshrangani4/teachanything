@@ -30,8 +30,11 @@ import { createAssistantMessageStream } from "./assistant-message-stream";
 import type { RagTiming } from "./turn-timing";
 import { claimTurn, type TurnLease } from "./turn-lease";
 import { ChatRequestError } from "./request";
-import { consumeDailyChatbotMessage } from "@/server/rate-limit";
-import { CHATBOT_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
+import { consumeDailyMessage } from "@/server/rate-limit";
+import {
+  CHATBOT_DAILY_MESSAGE_LIMIT,
+  OWNER_DAILY_MESSAGE_LIMIT,
+} from "@/lib/constants/rate-limits";
 
 /**
  * Cap a single chat turn's generation. Kept below `maxDuration` (300s) so the
@@ -71,8 +74,9 @@ type StreamChatParams = {
  *   before persistence.
  *
  * A session runs one turn at a time: while one is in flight, another throws
- * `ChatRequestError("turn_in_progress", 409)` (#465). A chatbot past its daily
- * message limit throws `ChatRequestError("daily_limit_reached", 429)`.
+ * `ChatRequestError("turn_in_progress", 409)` (#465). A chatbot past its own
+ * daily message limit, or its owner's, throws
+ * `ChatRequestError("daily_limit_reached", 429)`.
  */
 export async function streamChat(params: StreamChatParams): Promise<Response> {
   // Turn clock. `startTime` below only starts at the stream, after retrieval,
@@ -81,9 +85,9 @@ export async function streamChat(params: StreamChatParams): Promise<Response> {
 
   // Checked before the conversation exists, so a refused student leaves no
   // empty conversation behind.
-  const withinDailyLimit = await consumeDailyChatbotMessage(
-    params.chatbot.id,
-    CHATBOT_DAILY_MESSAGE_LIMIT,
+  const withinDailyLimit = await consumeDailyMessage(
+    { id: params.chatbot.id, ownerId: params.chatbot.userId },
+    { chatbot: CHATBOT_DAILY_MESSAGE_LIMIT, owner: OWNER_DAILY_MESSAGE_LIMIT },
   );
   if (!withinDailyLimit) {
     throw new ChatRequestError("daily_limit_reached", 429);

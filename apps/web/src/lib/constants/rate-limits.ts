@@ -30,3 +30,11 @@ export function retryAfterHours(reset: number, now: number = Date.now()) {
  * question counts once; the assistant's answer does not count.
  */
 export const CHATBOT_DAILY_MESSAGE_LIMIT = 150;
+
+/**
+ * Student messages all of one professor's chatbots together may receive per
+ * day, on the same Eastern day. Without it, a professor could get around the
+ * per-chatbot limit by creating more chatbots. Set to two chatbots' worth, so
+ * a professor teaching two large courses can use both in full.
+ */
+export const OWNER_DAILY_MESSAGE_LIMIT = 300;

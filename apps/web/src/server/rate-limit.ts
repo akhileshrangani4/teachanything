@@ -200,7 +200,7 @@ export const conversationSearchRateLimit = createLimiter({
   prefix: "@ratelimit/conversation-search",
 });
 
-/** Day boundary for per-chatbot daily message counts. */
+/** Day boundary for daily message counts. */
 const DAILY_LIMIT_TIME_ZONE = "America/New_York";
 
 /** Kept past the day's end so a count never vanishes before its day is over. */
@@ -218,38 +218,73 @@ export function easternDateKey(now: Date): string {
   return easternDate.format(now);
 }
 
+/** Whose daily count a message is charged to. */
+type DailyCountScope = "chatbot" | "owner";
+
+/** Add one to a scope's count for `date`; whether it is still within `limit`. */
+async function incrementDailyCount(
+  client: Redis,
+  scope: DailyCountScope,
+  id: string,
+  limit: number,
+  date: string,
+): Promise<boolean> {
+  const key = `@ratelimit/${scope}-daily:${id}:${date}`;
+  const [count] = await client
+    .pipeline()
+    .incr(key)
+    .expire(key, DAILY_COUNT_TTL_SECONDS)
+    .exec<[number, number]>();
+  // Logged once, on the first refused message of the day.
+  if (count === limit + 1) {
+    logWarn("Daily message limit reached", { scope, id, limit });
+  }
+  return count <= limit;
+}
+
 /**
- * Count one student message against a chatbot's daily limit and report
- * whether it is within the limit. The count resets at midnight US Eastern.
+ * Count one student message against its chatbot's daily limit and its
+ * owner's daily limit (all of the owner's chatbots together), and report
+ * whether it is within both. Counts reset at midnight US Eastern.
+ *
+ * The chatbot is counted first, and a message it refuses is not counted
+ * against the owner: otherwise students retrying one full chatbot would use
+ * up the owner's allowance and lock out their other chatbots.
  *
  * A calendar-day reset rules out `Ratelimit` windows (sliding windows never
- * reset, fixed windows align to UTC), so this is a plain counter keyed by date.
+ * reset, fixed windows align to UTC), so these are plain counters keyed by
+ * date.
  *
  * Fails open: with Redis unconfigured or erroring, every chatbot keeps
  * working. The OpenRouter account budget is the hard backstop on spend.
  */
-export async function consumeDailyChatbotMessage(
-  chatbotId: string,
-  limit: number,
+export async function consumeDailyMessage(
+  chatbot: { id: string; ownerId: string },
+  limits: { chatbot: number; owner: number },
   now: Date = new Date(),
 ): Promise<boolean> {
   if (!redis) return true;
 
-  const key = `@ratelimit/chatbot-daily:${chatbotId}:${easternDateKey(now)}`;
+  const date = easternDateKey(now);
   try {
-    const [count] = await redis
-      .pipeline()
-      .incr(key)
-      .expire(key, DAILY_COUNT_TTL_SECONDS)
-      .exec<[number, number]>();
-    // Logged once, on the first refused message of the day.
-    if (count === limit + 1) {
-      logWarn("Chatbot reached its daily message limit", { chatbotId, limit });
-    }
-    return count <= limit;
+    const withinChatbotLimit = await incrementDailyCount(
+      redis,
+      "chatbot",
+      chatbot.id,
+      limits.chatbot,
+      date,
+    );
+    if (!withinChatbotLimit) return false;
+    return await incrementDailyCount(
+      redis,
+      "owner",
+      chatbot.ownerId,
+      limits.owner,
+      date,
+    );
   } catch (err) {
     logWarn("Daily message limit check failed; allowing message", {
-      chatbotId,
+      chatbotId: chatbot.id,
       error: err instanceof Error ? err.message : String(err),
     });
     return true;
