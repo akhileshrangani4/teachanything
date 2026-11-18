@@ -115,6 +115,14 @@ const fakeDb = {
       },
     }),
   }),
+  delete: (table: unknown) => ({
+    where: async (cond: Condition) => {
+      if (table !== messageRatings) throw new Error("unexpected delete");
+      tables.messageRatings = tables.messageRatings.filter(
+        (r) => !matches(qualify("messageRatings", r), cond),
+      );
+    },
+  }),
 };
 
 jest.unstable_mockModule("@teachanything/db", () => ({ db: fakeDb }));
@@ -214,6 +222,24 @@ describe("POST /api/message-rating/shared", () => {
     expect(tables.messageRatings[0]).toEqual(
       expect.objectContaining({ messageId: MESSAGE_A, rating: "down" }),
     );
+  });
+
+  it("removes the rating when the student clears it", async () => {
+    expect((await rate({ rating: "up" })).status).toBe(204);
+    expect((await rate({ rating: null })).status).toBe(204);
+
+    expect(tables.messageRatings).toHaveLength(0);
+  });
+
+  it("clearing only removes the student's own rating", async () => {
+    tables.messageRatings = [
+      { messageId: MESSAGE_A, sessionId: SESSION_B, rating: "down" },
+    ];
+    expect((await rate({ rating: null })).status).toBe(204);
+
+    expect(tables.messageRatings).toEqual([
+      expect.objectContaining({ sessionId: SESSION_B, rating: "down" }),
+    ]);
   });
 
   it("returns 404 for another session's message and saves nothing", async () => {

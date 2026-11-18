@@ -14,10 +14,13 @@ export const sharedMessageRatingSchema = z.object({
   shareToken: z.string().min(1).max(100),
   sessionId: sessionIdSchema,
   messageId: z.string().uuid(),
-  rating: z.enum(messageRatingEnum.enumValues),
+  /** null removes the session's earlier rating of this message. */
+  rating: z.enum(messageRatingEnum.enumValues).nullable(),
 });
 
-export type MessageRating = z.infer<typeof sharedMessageRatingSchema>["rating"];
+export type MessageRating = NonNullable<
+  z.infer<typeof sharedMessageRatingSchema>["rating"]
+>;
 
 export type RecordMessageRatingResult =
   | { status: "saved" }
@@ -26,7 +29,7 @@ export type RecordMessageRatingResult =
 
 /**
  * Save a student's rating of an assistant message, replacing any earlier
- * rating the same session gave it. The message must be an assistant turn of
+ * rating the same session gave it, or remove it when `rating` is null. The message must be an assistant turn of
  * this session's conversation on this chatbot: a session can only rate what it
  * was shown, never another student's conversation.
  *
@@ -37,7 +40,7 @@ export async function recordMessageRating(params: {
   chatbotId: string;
   sessionId: string;
   messageId: string;
-  rating: MessageRating;
+  rating: MessageRating | null;
   db: typeof DbType;
 }): Promise<RecordMessageRatingResult> {
   const { chatbotId, sessionId, messageId, rating, db } = params;
@@ -56,6 +59,18 @@ export async function recordMessageRating(params: {
     )
     .limit(1);
   if (!message) return { status: "message_not_found" };
+
+  if (rating === null) {
+    await db
+      .delete(messageRatings)
+      .where(
+        and(
+          eq(messageRatings.messageId, messageId),
+          eq(messageRatings.sessionId, sessionId),
+        ),
+      );
+    return { status: "saved" };
+  }
 
   await db
     .insert(messageRatings)

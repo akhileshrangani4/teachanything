@@ -15,7 +15,7 @@ import {
 /**
  * Save a student's thumbs up/down on an assistant message from a public shared
  * link. No auth: the session id scopes it, and the message must belong to that
- * session. Re-rating replaces the earlier rating. Rate limiting is fail-open,
+ * session. Re-rating replaces the earlier rating; a null rating removes it. Rate limiting is fail-open,
  * as for study responses: a cheap DB write with no LLM cost isn't worth denying
  * students over during a Redis outage.
  */

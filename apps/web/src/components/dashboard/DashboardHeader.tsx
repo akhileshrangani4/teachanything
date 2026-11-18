@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { useSidebar } from "@/components/dashboard/sidebar-context";
 import { BrandName } from "@/components/brand/BrandName";
 import { useTranslation } from "react-i18next";
+import { LanguageMenu } from "@/components/dashboard/LanguageMenu";
 
 export function DashboardHeader() {
   const { data: session } = useSession();
@@ -94,7 +95,8 @@ export function DashboardHeader() {
         </a>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <LanguageMenu />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
