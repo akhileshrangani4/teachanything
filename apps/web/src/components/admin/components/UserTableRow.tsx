@@ -23,6 +23,7 @@ import {
   Play,
 } from "lucide-react";
 import { OWNER_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
+import { usageLevel } from "@/lib/usage-level";
 import { UserAvatarCell } from "../components/UserCells";
 import { useSetUserChatbotsPaused } from "../hooks/use-set-user-chatbots-paused";
 import { UsageMeter } from "@/components/usage-meter/UsageMeter";
@@ -71,7 +72,13 @@ export function UserTableRow({
   isAnyActionPending,
 }: UserTableRowProps) {
   const isAdmin = user.role === "admin";
-  const setChatbotsPaused = useSetUserChatbotsPaused();
+  const { setPaused: setChatbotsPaused } = useSetUserChatbotsPaused();
+  const displayName = user.name || user.email;
+  const isAtLimit =
+    usageLevel(
+      user.usage.today,
+      user.dailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT,
+    ) === "full";
 
   return (
     <TableRow
@@ -80,18 +87,28 @@ export function UserTableRow({
       onClick={() => onOpenUsage(user.id)}
     >
       <TableCell>
-        <UserAvatarCell
-          name={user.name}
-          email={user.email}
-          showEmail={!!user.name}
-          suffix={
-            isCurrentUser ? (
-              <span className="ml-2 text-xs text-muted-foreground font-normal">
-                (You)
-              </span>
-            ) : undefined
-          }
-        />
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenUsage(user.id);
+          }}
+          aria-label={`Open usage and settings for ${displayName}`}
+          className="rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <UserAvatarCell
+            name={user.name}
+            email={user.email}
+            showEmail={!!user.name}
+            suffix={
+              isCurrentUser ? (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  (You)
+                </span>
+              ) : undefined
+            }
+          />
+        </button>
       </TableCell>
       <TableCell>
         <Badge
@@ -120,10 +137,16 @@ export function UserTableRow({
           >
             {user.status}
           </Badge>
-          {user.chatbotsPaused && (
-            <Badge variant="destructive" className="w-fit text-[10px]">
+          {user.chatbotsPaused ? (
+            <Badge variant="destructive" className="w-fit">
               Chatbots paused
             </Badge>
+          ) : (
+            isAtLimit && (
+              <Badge variant="destructive" className="w-fit">
+                Limit reached
+              </Badge>
+            )
           )}
         </div>
       </TableCell>
@@ -176,14 +199,14 @@ export function UserTableRow({
                   className="cursor-pointer"
                 >
                   <Gauge className="h-4 w-4 mr-2" />
-                  Usage & Limits
+                  Usage & settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>
-                    setChatbotsPaused.mutate({
-                      userId: user.id,
-                      paused: !user.chatbotsPaused,
-                    })
+                    setChatbotsPaused(
+                      { id: user.id, name: displayName },
+                      !user.chatbotsPaused,
+                    )
                   }
                   className="cursor-pointer"
                 >
@@ -193,8 +216,8 @@ export function UserTableRow({
                     <Pause className="h-4 w-4 mr-2" />
                   )}
                   {user.chatbotsPaused
-                    ? "Resume All Chatbots"
-                    : "Pause All Chatbots"}
+                    ? "Resume all chatbots"
+                    : "Pause all chatbots"}
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />

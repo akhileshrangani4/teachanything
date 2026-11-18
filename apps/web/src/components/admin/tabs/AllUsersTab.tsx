@@ -31,7 +31,10 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserConfirms } from "./all-users-tab/use-user-confirms";
 import { UsersTableSkeleton } from "./all-users-tab/users-table-skeleton";
-import { UserUsageSheet } from "../components/UserUsageSheet";
+import {
+  AdminDetailsSheet,
+  type AdminPanelTarget,
+} from "../components/AdminDetailsSheet";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -41,7 +44,7 @@ export function AllUsersTab() {
 
   const { state, searchInput, actions, queryParams } =
     useServerTable<UserSortBy>(
-      { defaultSortBy: "createdAt", defaultSortDir: "desc" },
+      { defaultSortBy: "usageToday", defaultSortDir: "desc" },
       ITEMS_PER_PAGE,
     );
 
@@ -57,16 +60,14 @@ export function AllUsersTab() {
     },
     {
       placeholderData: keepPreviousData,
+      refetchInterval: 60_000,
     },
   );
 
   const { data: stats, refetch: refetchStats } = useUserStats();
 
   const allUsers = usersData?.users || [];
-  // Looked up from the current page, so the panel shows fresh data after
-  // every refetch.
-  const [usageUserId, setUsageUserId] = useState<string | null>(null);
-  const usageUser = allUsers.find((u) => u.id === usageUserId) ?? null;
+  const [panelTarget, setPanelTarget] = useState<AdminPanelTarget>(null);
   const totalCount = usersData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
@@ -107,7 +108,7 @@ export function AllUsersTab() {
         <CardHeader className="pb-4">
           <StatsHeader
             title="All Users"
-            description="Manage user roles, permissions, and account status"
+            description="Busiest professors first. Click one to see their usage, change their limit, or pause their chatbots"
             stats={
               stats
                 ? [
@@ -183,7 +184,14 @@ export function AllUsersTab() {
                       >
                         Status
                       </SortableTableHead>
-                      <TableHead className="font-semibold">Today</TableHead>
+                      <SortableTableHead
+                        column="usageToday"
+                        currentSortBy={state.sortBy}
+                        currentSortDir={state.sortDir}
+                        onSort={actions.toggleSort}
+                      >
+                        Messages today
+                      </SortableTableHead>
                       <TableHead className="font-semibold text-right">
                         Actions
                       </TableHead>
@@ -195,7 +203,9 @@ export function AllUsersTab() {
                         key={user.id}
                         user={user}
                         isCurrentUser={user.id === currentUserId}
-                        onOpenUsage={setUsageUserId}
+                        onOpenUsage={(id) =>
+                          setPanelTarget({ kind: "user", id })
+                        }
                         onViewDetails={(u) =>
                           setDetailsDialog({
                             isOpen: true,
@@ -258,9 +268,10 @@ export function AllUsersTab() {
         }}
       />
 
-      <UserUsageSheet
-        user={usageUser}
-        onOpenChange={(open) => !open && setUsageUserId(null)}
+      <AdminDetailsSheet
+        target={panelTarget}
+        onTargetChange={setPanelTarget}
+        currentUserId={currentUserId}
       />
 
       <UserDetailsDialog

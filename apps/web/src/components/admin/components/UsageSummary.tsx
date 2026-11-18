@@ -13,10 +13,10 @@ interface UsageSummaryProps {
 /** Today against the daily limit, plus 7-day and 30-day totals. */
 export function UsageSummary({ usage, limit }: UsageSummaryProps) {
   return (
-    <div className="grid grid-cols-3 gap-3 rounded-lg border p-3">
+    <div className="grid grid-cols-[auto_1fr_1fr] gap-x-6 gap-y-3 rounded-lg border p-3">
       <div className="flex flex-col gap-1">
         <span className="text-xs text-muted-foreground">Today</span>
-        <UsageMeter used={usage.today} limit={limit} className="w-full" />
+        <UsageMeter used={usage.today} limit={limit} />
       </div>
       <Stat label="Last 7 days" value={usage.last7Days} />
       <Stat label="Last 30 days" value={usage.last30Days} />

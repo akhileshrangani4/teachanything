@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MessageAvatar } from "@/components/ui/message";
 import { TypingLoader } from "@/components/ui/loader";
-import { RotateCcw, Download } from "lucide-react";
+import { RotateCcw, Download, CircleAlert } from "lucide-react";
 import { exportChatAsText } from "@/lib/export-chat";
 import { deriveStatusLine, isRateable } from "@/lib/chat/helpers";
 import type { ChatStatus } from "ai";
@@ -54,6 +54,11 @@ interface ChatInterfaceProps {
   ratings?: MessageRatings;
   /** Student chat only: shows thumbs on each finished assistant message. */
   onRate?: RateMessage;
+  /**
+   * Shown above the input, which is then disabled, when the chatbot can't
+   * answer right now (paused, or past its daily limit).
+   */
+  unavailableNotice?: string | null;
 }
 
 export function ChatInterface({
@@ -80,6 +85,7 @@ export function ChatInterface({
   studyAttempts,
   ratings,
   onRate,
+  unavailableNotice,
 }: ChatInterfaceProps) {
   const { t } = useTranslation();
   const isStreaming = status === "submitted" || status === "streaming";
@@ -218,6 +224,15 @@ export function ChatInterface({
 
       {/* Input */}
       <div className="p-2 md:p-4 border-t flex-shrink-0">
+        {unavailableNotice && (
+          <div
+            role="status"
+            className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
+            <CircleAlert className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span>{unavailableNotice}</span>
+          </div>
+        )}
         <ChatInput
           currentMessage={currentMessage}
           setCurrentMessage={setCurrentMessage}
@@ -227,6 +242,7 @@ export function ChatInterface({
           shareToken={shareToken}
           chatbotId={chatbotId}
           voiceInputEnabled={voiceInputEnabled}
+          disabled={Boolean(unavailableNotice)}
         />
       </div>
     </div>

@@ -1,16 +1,39 @@
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 
-/** Admin mutation that turns all of one professor's chatbots off or on. */
+/**
+ * Turn all of one professor's chatbots off for students, or back on. The
+ * confirmation names the professor and offers Undo.
+ */
 export function useSetUserChatbotsPaused() {
   const utils = trpc.useUtils();
-  return trpc.admin.setUserChatbotsPaused.useMutation({
-    onSuccess: (_data, { paused }) => {
-      void utils.admin.getAllUsers.invalidate();
-      toast.success(paused ? "Chatbots paused" : "Chatbots resumed");
-    },
+  const mutation = trpc.admin.setUserChatbotsPaused.useMutation({
+    onSettled: () => void utils.admin.invalidate(),
     onError: (error) => {
       toast.error("Failed to update chatbots", { description: error.message });
     },
   });
+
+  function setPaused(professor: { id: string; name: string }, paused: boolean) {
+    mutation.mutate(
+      { userId: professor.id, paused },
+      {
+        onSuccess: () => {
+          toast.success(
+            paused
+              ? `Paused all of ${professor.name}'s chatbots. Students now see them as unavailable.`
+              : `${professor.name}'s chatbots are available to students again.`,
+            {
+              action: {
+                label: "Undo",
+                onClick: () => setPaused(professor, !paused),
+              },
+            },
+          );
+        },
+      },
+    );
+  }
+
+  return { setPaused, isPending: mutation.isPending };
 }

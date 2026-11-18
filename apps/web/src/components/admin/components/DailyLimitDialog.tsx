@@ -24,6 +24,8 @@ interface DailyLimitDialogProps {
   defaultLimit: number;
   /** The current override, or null when the default applies. */
   currentLimit: number | null;
+  /** Student messages so far today, for context while choosing. */
+  usedToday: number;
   isPending: boolean;
   /** Save an override, or null to return to the default. */
   onSave: (limit: number | null) => void;
@@ -53,12 +55,13 @@ export function DailyLimitDialog({
 
 type DailyLimitFormProps = Pick<
   DailyLimitDialogProps,
-  "defaultLimit" | "currentLimit" | "isPending" | "onSave"
+  "defaultLimit" | "currentLimit" | "usedToday" | "isPending" | "onSave"
 >;
 
 function DailyLimitForm({
   defaultLimit,
   currentLimit,
+  usedToday,
   isPending,
   onSave,
 }: DailyLimitFormProps) {
@@ -73,8 +76,15 @@ function DailyLimitForm({
         if (parsed.ok) onSave(parsed.limit);
       }}
     >
+      <p className="text-sm text-muted-foreground">
+        Today so far:{" "}
+        <span className="font-medium text-foreground tabular-nums">
+          {usedToday.toLocaleString()}
+        </span>{" "}
+        of {(currentLimit ?? defaultLimit).toLocaleString()}
+      </p>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="daily-message-limit">Messages per day</Label>
+        <Label htmlFor="daily-message-limit">Maximum messages per day</Label>
         <Input
           id="daily-message-limit"
           type="number"

@@ -26,6 +26,7 @@ import {
   setUserChatbotsPausedProcedure,
   getUserChatbotsProcedure,
 } from "./procedures/daily-limits";
+import { getChatbotProcedure, getUserProcedure } from "./procedures/details";
 
 export const adminRouter = router({
   getPendingUsers: getPendingUsersProcedure,
@@ -53,4 +54,6 @@ export const adminRouter = router({
   setChatbotPaused: setChatbotPausedProcedure,
   setUserChatbotsPaused: setUserChatbotsPausedProcedure,
   getUserChatbots: getUserChatbotsProcedure,
+  getChatbot: getChatbotProcedure,
+  getUser: getUserProcedure,
 });

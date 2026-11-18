@@ -4,7 +4,11 @@ import { DefaultChatTransport, type ChatStatus } from "ai";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { describeChatError } from "@/lib/chat-error-message";
+import {
+  chatErrorCodeOf,
+  describeChatError,
+  type ChatErrorCode,
+} from "@/lib/chat-error-message";
 import { restoreRefusedTurn } from "@/lib/chat/refused-turn";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import {
@@ -13,6 +17,16 @@ import {
 } from "@/lib/submit-study-response";
 import { useTranslation } from "react-i18next";
 import { useMessageRatings } from "@/hooks/use-message-ratings";
+
+/** Refusals that mean the chatbot can't answer anyone right now. */
+type UnavailableCode = "daily_limit_reached" | "chatbot_paused";
+const UNAVAILABLE_NOTICE_KEYS = {
+  daily_limit_reached: "errors.chat.dailyLimitReached",
+  chatbot_paused: "errors.chat.chatbotPaused",
+} as const satisfies Record<UnavailableCode, string>;
+const UNAVAILABLE_CODES: ReadonlySet<ChatErrorCode> = new Set(
+  Object.keys(UNAVAILABLE_NOTICE_KEYS) as UnavailableCode[],
+);
 
 /**
  * Chat with a shared/public chatbot (share-token pages + embed widget), backed
@@ -37,6 +51,11 @@ export function useChat(shareToken: string) {
   );
   // The last message sent, to hand back to the student if the server refuses it.
   const lastSentRef = useRef("");
+  // Set when the server refuses a message because the chatbot can't answer
+  // right now; the chat then shows a notice and disables the input.
+  const [unavailableCode, setUnavailableCode] = useState<ChatErrorCode | null>(
+    null,
+  );
 
   const {
     data: chatbot,
@@ -62,7 +81,12 @@ export function useChat(shareToken: string) {
       },
     }),
     onError: (error) => {
-      toast.error(describeChatError(error, t));
+      const code = chatErrorCodeOf(error);
+      if (code && UNAVAILABLE_CODES.has(code)) {
+        setUnavailableCode(code);
+      } else {
+        toast.error(describeChatError(error, t));
+      }
       restoreRefusedTurn(
         error,
         lastSentRef.current,
@@ -120,7 +144,14 @@ export function useChat(shareToken: string) {
     setSessionId(nanoid());
   };
 
+  const effectiveCode: ChatErrorCode | null =
+    unavailableCode ?? (chatbot?.paused ? "chatbot_paused" : null);
+  const unavailableNotice = effectiveCode
+    ? t(UNAVAILABLE_NOTICE_KEYS[effectiveCode as UnavailableCode])
+    : null;
+
   return {
+    unavailableNotice,
     messages: chat.messages,
     currentMessage,
     setCurrentMessage,

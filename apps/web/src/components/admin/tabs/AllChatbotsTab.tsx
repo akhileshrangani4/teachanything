@@ -26,7 +26,10 @@ import { TableSkeleton } from "@/components/ui/skeletons";
 import { Bot } from "lucide-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useDeleteChatbot } from "./all-chatbots-tab/use-delete-chatbot";
-import { ChatbotDetailsSheet } from "../components/ChatbotDetailsSheet";
+import {
+  AdminDetailsSheet,
+  type AdminPanelTarget,
+} from "../components/AdminDetailsSheet";
 import { useState } from "react";
 
 const ITEMS_PER_PAGE = 10;
@@ -37,7 +40,7 @@ export function AllChatbotsTab() {
 
   const { state, searchInput, actions, queryParams } =
     useServerTable<AdminChatbotSortBy>(
-      { defaultSortBy: "createdAt", defaultSortDir: "desc" },
+      { defaultSortBy: "usageToday", defaultSortDir: "desc" },
       ITEMS_PER_PAGE,
     );
 
@@ -53,17 +56,12 @@ export function AllChatbotsTab() {
     },
     {
       placeholderData: keepPreviousData,
+      refetchInterval: 60_000,
     },
   );
 
   const allChatbots = chatbotsData?.chatbots || [];
-  // Looked up from the current page, so the panel shows fresh data after
-  // every refetch.
-  const [selectedChatbotId, setSelectedChatbotId] = useState<string | null>(
-    null,
-  );
-  const selectedChatbot =
-    allChatbots.find((chatbot) => chatbot.id === selectedChatbotId) ?? null;
+  const [panelTarget, setPanelTarget] = useState<AdminPanelTarget>(null);
   const totalCount = chatbotsData?.totalCount || 0;
   const featuredCount = chatbotsData?.featuredCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
@@ -95,8 +93,14 @@ export function AllChatbotsTab() {
             <AlertDescription className="text-xs leading-relaxed">
               <strong>Quick Guide:</strong>
               <ul className="mt-1 list-disc list-inside space-y-0.5">
-                <li>Click a chatbot to see its usage, limits and details</li>
-                <li>Today counts student messages since midnight US Eastern</li>
+                <li>
+                  Busiest chatbots first. Click one to see its usage, change its
+                  limit, or pause it
+                </li>
+                <li>
+                  Messages today counts student questions since midnight US
+                  Eastern, when limits reset
+                </li>
                 <li>Feature public chatbots for homepage (max 4)</li>
               </ul>
             </AlertDescription>
@@ -165,7 +169,14 @@ export function AllChatbotsTab() {
                       >
                         Chatbot
                       </SortableTableHead>
-                      <TableHead className="font-semibold">Today</TableHead>
+                      <SortableTableHead
+                        column="usageToday"
+                        currentSortBy={state.sortBy}
+                        currentSortDir={state.sortDir}
+                        onSort={actions.toggleSort}
+                      >
+                        Messages today
+                      </SortableTableHead>
                       <TableHead className="font-semibold">Status</TableHead>
                       <SortableTableHead
                         column="featured"
@@ -185,7 +196,9 @@ export function AllChatbotsTab() {
                       <ChatbotTableRow
                         key={chatbot.id}
                         chatbot={chatbot}
-                        onOpenDetails={setSelectedChatbotId}
+                        onOpenDetails={(id) =>
+                          setPanelTarget({ kind: "chatbot", id })
+                        }
                         onDelete={handleDeleteChatbot}
                         onRefetch={refetchChatbots}
                       />
@@ -206,12 +219,14 @@ export function AllChatbotsTab() {
         </CardContent>
       </Card>
 
-      <ChatbotDetailsSheet
-        chatbot={selectedChatbot}
-        onOpenChange={(open) => !open && setSelectedChatbotId(null)}
+      <AdminDetailsSheet
+        target={panelTarget}
+        onTargetChange={setPanelTarget}
         currentUserId={currentUserId}
-        onRefetch={refetchChatbots}
-        onDelete={handleDeleteChatbot}
+        onDeleteChatbot={(...args) => {
+          setPanelTarget(null);
+          handleDeleteChatbot(...args);
+        }}
       />
 
       <ConfirmationDialog

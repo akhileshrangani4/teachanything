@@ -12,6 +12,7 @@ interface UserDailyLimitDialogProps {
   userName: string;
   /** The admin override, or null when the default applies. */
   dailyMessageLimit: number | null;
+  usedToday: number;
 }
 
 /** Lets an admin change a professor's daily total across their chatbots. */
@@ -21,13 +22,14 @@ export function UserDailyLimitDialog({
   userId,
   userName,
   dailyMessageLimit,
+  usedToday,
 }: UserDailyLimitDialogProps) {
   const utils = trpc.useUtils();
   const setLimit = trpc.admin.setUserDailyLimit.useMutation({
     onSuccess: () => {
       onOpenChange(false);
-      void utils.admin.getAllUsers.invalidate();
-      toast.success("Daily limit updated");
+      void utils.admin.invalidate();
+      toast.success(`Daily limit updated for ${userName}`);
     },
     onError: (error) => {
       toast.error("Failed to update daily limit", {
@@ -41,9 +43,10 @@ export function UserDailyLimitDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Daily message limit"
-      description={`Student messages all of ${userName}'s chatbots together may receive per day. Each chatbot's own limit still applies.`}
+      description={`Maximum student messages per day across all of ${userName}'s chatbots. Each chatbot's own limit still applies.`}
       defaultLimit={OWNER_DAILY_MESSAGE_LIMIT}
       currentLimit={dailyMessageLimit}
+      usedToday={usedToday}
       isPending={setLimit.isPending}
       onSave={(limit) => setLimit.mutate({ userId, limit })}
     />

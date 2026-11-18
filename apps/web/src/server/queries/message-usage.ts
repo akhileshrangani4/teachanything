@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql, type AnyColumn } from "drizzle-orm";
 import type { db as DbType } from "@teachanything/db";
 import { chatbots, conversations, messages } from "@teachanything/db/schema";
 
@@ -75,4 +75,33 @@ export async function getOwnerUsage(
     .where(and(inArray(chatbots.userId, ownerIds), recentStudentMessages()))
     .groupBy(chatbots.userId);
   return toUsageMap(rows);
+}
+
+/**
+ * Today's student message count for the chatbot in `chatbotId`, as a
+ * correlated subquery the admin lists can sort by.
+ */
+export function chatbotTodayCountSql(chatbotId: AnyColumn) {
+  return sql<number>`(
+    select count(*) from ${messages}
+    join ${conversations} on ${conversations.id} = ${messages.conversationId}
+    where ${conversations.chatbotId} = ${chatbotId}
+      and ${messages.role} = 'user'
+      and ${messages.createdAt} >= ${easternDayStart}
+  )`;
+}
+
+/**
+ * Today's student message count across all chatbots of the user in
+ * `ownerId`, as a correlated subquery the admin lists can sort by.
+ */
+export function ownerTodayCountSql(ownerId: AnyColumn) {
+  return sql<number>`(
+    select count(*) from ${messages}
+    join ${conversations} on ${conversations.id} = ${messages.conversationId}
+    join ${chatbots} on ${chatbots.id} = ${conversations.chatbotId}
+    where ${chatbots.userId} = ${ownerId}
+      and ${messages.role} = 'user'
+      and ${messages.createdAt} >= ${easternDayStart}
+  )`;
 }

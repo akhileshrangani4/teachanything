@@ -23,6 +23,8 @@ interface ChatInputProps {
   chatbotId?: string;
   /** Hide voice input on surfaces where mic capture is unreliable (e.g. embeds). */
   voiceInputEnabled?: boolean;
+  /** Blocks typing and sending, e.g. while the chatbot is unavailable. */
+  disabled?: boolean;
 }
 
 export function ChatInput({
@@ -34,6 +36,7 @@ export function ChatInput({
   shareToken,
   chatbotId,
   voiceInputEnabled = true,
+  disabled = false,
 }: ChatInputProps) {
   const { t } = useTranslation();
   // Global kill switch — when off, voice is hidden everywhere regardless
@@ -60,7 +63,7 @@ export function ChatInput({
   };
 
   const handleSubmit = () => {
-    if (!currentMessage.trim() || isStreaming) return;
+    if (!currentMessage.trim() || isStreaming || disabled) return;
     if (currentMessage.length > VALIDATION_LIMITS.MESSAGE_MAX_LENGTH) {
       toast.error(
         t("chat.input.tooLong", { max: VALIDATION_LIMITS.MESSAGE_MAX_LENGTH }),
@@ -106,6 +109,7 @@ export function ChatInput({
         onValueChange={setCurrentMessage}
         onSubmit={handleSubmit}
         isLoading={isStreaming}
+        disabled={disabled}
         className="w-full"
       >
         <div className="flex items-end gap-2 w-full">
@@ -125,7 +129,7 @@ export function ChatInput({
               // STARTING a new recording; stop/cancel and an in-flight
               // transcript still complete and append to the input.
               <VoiceInputButton
-                disabled={isStreaming}
+                disabled={isStreaming || disabled}
                 shareToken={shareToken}
                 chatbotId={chatbotId}
                 onTranscript={handleTranscript}
@@ -147,7 +151,7 @@ export function ChatInput({
               <Button
                 type="submit"
                 size="icon"
-                disabled={isStreaming || !currentMessage.trim()}
+                disabled={isStreaming || disabled || !currentMessage.trim()}
                 onClick={handleSubmit}
                 aria-label={t("chat.input.send")}
                 className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-foreground text-background hover:bg-foreground/90"

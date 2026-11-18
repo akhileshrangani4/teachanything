@@ -19,7 +19,11 @@ import {
 import { Eye, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
-import { CHATBOT_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
+import {
+  CHATBOT_DAILY_MESSAGE_LIMIT,
+  OWNER_DAILY_MESSAGE_LIMIT,
+} from "@/lib/constants/rate-limits";
+import { usageLevel } from "@/lib/usage-level";
 import { ChatbotStatusBadges } from "./components/ChatbotStatusBadges";
 import { UsageMeter } from "@/components/usage-meter/UsageMeter";
 import { useSetChatbotPaused } from "./hooks/use-set-chatbot-paused";
@@ -48,10 +52,19 @@ export function ChatbotTableRow({
       onClick={() => onOpenDetails(chatbot.id)}
     >
       <TableCell>
-        <p className="font-medium">{chatbot.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {ownerName} · {chatbot.userEmail}
-        </p>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenDetails(chatbot.id);
+          }}
+          className="flex flex-col rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="font-medium hover:underline">{chatbot.name}</span>
+          <span className="text-xs text-muted-foreground">
+            {ownerName} · {chatbot.userEmail}
+          </span>
+        </button>
       </TableCell>
       <TableCell>
         <UsageMeter
@@ -64,6 +77,18 @@ export function ChatbotTableRow({
           paused={chatbot.paused}
           ownerChatbotsPaused={chatbot.ownerChatbotsPaused ?? false}
           sharingEnabled={chatbot.sharingEnabled}
+          isAtLimit={
+            usageLevel(
+              chatbot.usage.today,
+              chatbot.dailyMessageLimit ?? CHATBOT_DAILY_MESSAGE_LIMIT,
+            ) === "full"
+          }
+          isOwnerAtLimit={
+            usageLevel(
+              chatbot.ownerUsage.today,
+              chatbot.ownerDailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT,
+            ) === "full"
+          }
         />
       </TableCell>
       <TableCell onClick={(event) => event.stopPropagation()}>
@@ -78,7 +103,6 @@ export function ChatbotTableRow({
           ownerName={ownerName}
           onOpenDetails={onOpenDetails}
           onDelete={onDelete}
-          onRefetch={onRefetch}
         />
       </TableCell>
     </TableRow>
@@ -131,9 +155,8 @@ function ChatbotActionsMenu({
   ownerName,
   onOpenDetails,
   onDelete,
-  onRefetch,
-}: ChatbotTableRowProps & { ownerName: string }) {
-  const setPaused = useSetChatbotPaused(onRefetch);
+}: Omit<ChatbotTableRowProps, "onRefetch"> & { ownerName: string }) {
+  const { setPaused, isPending } = useSetChatbotPaused();
 
   return (
     <DropdownMenu>
@@ -148,9 +171,9 @@ function ChatbotActionsMenu({
           Usage & settings
         </DropdownMenuItem>
         <DropdownMenuItem
-          disabled={setPaused.isPending}
+          disabled={isPending}
           onClick={() =>
-            setPaused.mutate({ chatbotId: chatbot.id, paused: !chatbot.paused })
+            setPaused({ id: chatbot.id, name: chatbot.name }, !chatbot.paused)
           }
         >
           {chatbot.paused ? (
