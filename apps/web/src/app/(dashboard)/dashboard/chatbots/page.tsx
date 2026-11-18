@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { serverErrorMessage } from "@/lib/server-error-message";
+import { DailyUsageCard } from "@/components/dashboard/chatbots/DailyUsageCard";
 
 const ITEMS_PER_PAGE = 4;
 
@@ -48,6 +49,9 @@ export default function ChatbotsPage() {
   );
 
   const chatbots = chatbotsData?.chatbots || [];
+  const { data: dailyUsage } = trpc.chatbot.getDailyUsage.useQuery(undefined, {
+    refetchInterval: 60_000,
+  });
   const totalCount = chatbotsData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
@@ -150,6 +154,7 @@ export default function ChatbotsPage() {
           <EmptyChatbotsState onCreateClick={() => setCreateDialogOpen(true)} />
         ) : (
           <div className="space-y-6">
+            {dailyUsage && <DailyUsageCard usage={dailyUsage.total} />}
             <TableToolbar
               searchValue={searchInput}
               onSearchChange={actions.setSearch}
@@ -172,6 +177,7 @@ export default function ChatbotsPage() {
                       key={chatbot.id}
                       chatbot={chatbot}
                       onDelete={handleDelete}
+                      usage={dailyUsage?.byChatbot[chatbot.id]}
                     />
                   ))}
                 </div>

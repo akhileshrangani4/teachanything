@@ -111,8 +111,12 @@ export const chatbotQueries = {
           shareToken: chatbots.shareToken,
           showSources: chatbots.showSources,
           customAuthorName: chatbots.customAuthorName,
+          // Paused by an admin, directly or through the owner, so the chat
+          // page can say so before a student types anything.
+          paused: sql<boolean>`(${chatbots.paused} or coalesce(${user.chatbotsPaused}, false))`,
         })
         .from(chatbots)
+        .leftJoin(user, eq(user.id, chatbots.userId))
         .where(
           and(
             eq(chatbots.shareToken, input.shareToken),

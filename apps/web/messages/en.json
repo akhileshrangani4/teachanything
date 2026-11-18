@@ -115,6 +115,18 @@
     "card": {
       "openChatbot": "Open Chatbot"
     },
+    "usage": {
+      "title": "Student messages today",
+      "total": "Across all your chatbots",
+      "meterLabel": "{used, number} of {limit, number} messages today",
+      "today": "Today",
+      "resets": "Each chatbot can answer {chatbotLimit, number} student questions a day, and all your chatbots together {limit, number}. Limits reset at midnight US Eastern time.",
+      "learnMore": "How daily limits work",
+      "limitReached": "Daily limit reached. Students can ask again after midnight US Eastern time.",
+      "paused": "Paused",
+      "pausedTitle": "Your chatbots are paused",
+      "pausedDescription": "A Teach Anything administrator has paused your chatbots, so students see \"This chatbot is currently unavailable.\" Contact admin@teachanything.ai with questions."
+    },
     "empty": {
       "title": "No chatbots yet",
       "description": "Get started by creating your first AI chatbot",
@@ -1354,7 +1366,9 @@
       "conversationStartFailed": "Could not start this conversation. Please try again.",
       "unauthorized": "Please sign in again.",
       "streamInterrupted": "The response was interrupted. Please try again.",
-      "turnInProgress": "A response is already in progress — wait for it to finish."
+      "turnInProgress": "A response is already in progress — wait for it to finish.",
+      "dailyLimitReached": "This chatbot has reached its daily message limit. Please try again tomorrow.",
+      "chatbotPaused": "This chatbot is currently unavailable."
     }
   }
 }

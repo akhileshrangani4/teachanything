@@ -19,6 +19,14 @@ import { updateAuthorNameProcedure } from "./procedures/chatbots";
 import { deleteChatbotProcedure } from "./procedures/chatbots";
 import { getAllConversationsProcedure } from "./procedures/conversations";
 import { exportAdminDataProcedure } from "./procedures/export-data";
+import {
+  setChatbotDailyLimitProcedure,
+  setUserDailyLimitProcedure,
+  setChatbotPausedProcedure,
+  setUserChatbotsPausedProcedure,
+  getUserChatbotsProcedure,
+} from "./procedures/daily-limits";
+import { getChatbotProcedure, getUserProcedure } from "./procedures/details";
 
 export const adminRouter = router({
   getPendingUsers: getPendingUsersProcedure,
@@ -41,4 +49,11 @@ export const adminRouter = router({
   enableUser: enableUserProcedure,
   exportAdminData: exportAdminDataProcedure,
   deleteUser: deleteUserProcedure,
+  setChatbotDailyLimit: setChatbotDailyLimitProcedure,
+  setUserDailyLimit: setUserDailyLimitProcedure,
+  setChatbotPaused: setChatbotPausedProcedure,
+  setUserChatbotsPaused: setUserChatbotsPausedProcedure,
+  getUserChatbots: getUserChatbotsProcedure,
+  getChatbot: getChatbotProcedure,
+  getUser: getUserProcedure,
 });

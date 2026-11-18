@@ -8,6 +8,8 @@ import {
 import { eq, sql, desc, asc, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern } from "@/server/utils";
+import { chatbotTodayCountSql } from "@/server/queries/message-usage";
+import { selectAdminChatbots, withChatbotUsage } from "../chatbot-rows";
 
 /**
  * Get all chatbots (admin view) with owner info and file counts
@@ -20,8 +22,16 @@ export const getAllChatbotsProcedure = adminProcedure
       offset: z.number().min(0).default(0),
       search: z.string().max(200).optional(),
       sortBy: z
-        .enum(["name", "owner", "model", "createdAt", "featured", "fileCount"])
-        .default("createdAt"),
+        .enum([
+          "name",
+          "owner",
+          "model",
+          "createdAt",
+          "featured",
+          "fileCount",
+          "usageToday",
+        ])
+        .default("usageToday"),
       sortDir: z.enum(["asc", "desc"]).default("desc"),
     }),
   )
@@ -70,34 +80,14 @@ export const getAllChatbotsProcedure = adminProcedure
               ? chatbots.featured
               : input.sortBy === "fileCount"
                 ? fileCountExpr
-                : chatbots.createdAt;
+                : input.sortBy === "usageToday"
+                  ? chatbotTodayCountSql(chatbots.id)
+                  : chatbots.createdAt;
     const orderBy =
       input.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
     // Get paginated chatbots
-    const baseQuery = ctx.db
-      .select({
-        id: chatbots.id,
-        name: chatbots.name,
-        description: chatbots.description,
-        model: chatbots.model,
-        createdAt: chatbots.createdAt,
-        updatedAt: chatbots.updatedAt,
-        userId: chatbots.userId,
-        featured: chatbots.featured,
-        sharingEnabled: chatbots.sharingEnabled,
-        customAuthorName: chatbots.customAuthorName,
-        userName: user.name,
-        userEmail: user.email,
-        userRole: user.role,
-        fileCount: sql<number>`cast(count(distinct ${chatbotFileAssociations.id}) as int)`,
-      })
-      .from(chatbots)
-      .leftJoin(user, eq(chatbots.userId, user.id))
-      .leftJoin(
-        chatbotFileAssociations,
-        eq(chatbots.id, chatbotFileAssociations.chatbotId),
-      );
+    const baseQuery = selectAdminChatbots(ctx.db);
 
     const queryWithFilter = searchCondition
       ? baseQuery.where(searchCondition)
@@ -105,12 +95,12 @@ export const getAllChatbotsProcedure = adminProcedure
 
     const allChatbots = await queryWithFilter
       .groupBy(chatbots.id, user.id)
-      .orderBy(orderBy)
+      .orderBy(orderBy, desc(chatbots.createdAt), asc(chatbots.id))
       .limit(input.limit)
       .offset(input.offset);
 
     return {
-      chatbots: allChatbots,
+      chatbots: await withChatbotUsage(ctx.db, allChatbots),
       totalCount,
       featuredCount,
     };

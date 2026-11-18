@@ -28,6 +28,7 @@ export default function SharedChatPage() {
     chatbot,
     chatbotLoading,
     handleSendMessage,
+    unavailableNotice,
     resetChat,
     stop,
     error,
@@ -100,6 +101,7 @@ export default function SharedChatPage() {
             studyAttempts={studyAttempts}
             ratings={ratings}
             onRate={rateMessage}
+            unavailableNotice={unavailableNotice}
             brandingText={<PoweredBy modelId={chatbot.model} />}
           />
         </ErrorBoundary>

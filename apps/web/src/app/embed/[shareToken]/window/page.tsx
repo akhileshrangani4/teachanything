@@ -28,6 +28,7 @@ export default function EmbedWindowPage() {
     chatbot,
     chatbotLoading,
     handleSendMessage,
+    unavailableNotice,
     resetChat,
     stop,
     error,
@@ -103,6 +104,7 @@ export default function EmbedWindowPage() {
             studyAttempts={studyAttempts}
             ratings={ratings}
             onRate={rateMessage}
+            unavailableNotice={unavailableNotice}
           />
         </ErrorBoundary>
       </div>

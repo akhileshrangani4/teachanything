@@ -23,3 +23,21 @@ export function retryAfterMinutes(reset: number, now: number = Date.now()) {
 export function retryAfterHours(reset: number, now: number = Date.now()) {
   return Math.max(1, Math.ceil((reset - now) / 3_600_000));
 }
+
+/**
+ * Student messages one chatbot may receive per day, across every session and
+ * both chat routes. The day runs midnight to midnight US Eastern. Each sent
+ * question counts once; the assistant's answer does not count.
+ */
+export const CHATBOT_DAILY_MESSAGE_LIMIT = 150;
+
+/**
+ * Student messages all of one professor's chatbots together may receive per
+ * day, on the same Eastern day. Without it, a professor could get around the
+ * per-chatbot limit by creating more chatbots. Set to two chatbots' worth, so
+ * a professor teaching two large courses can use both in full.
+ */
+export const OWNER_DAILY_MESSAGE_LIMIT = 300;
+
+/** Highest daily limit an admin may set on one chatbot or professor. */
+export const MAX_DAILY_MESSAGE_LIMIT = 10_000;

@@ -67,6 +67,23 @@ describe("restoreRefusedTurn", () => {
     );
   });
 
+  it.each(["daily_limit_reached", "chatbot_paused"])(
+    "also restores a message refused with %s",
+    (code) => {
+      const setMessages =
+        jest.fn<(u: SetStateAction<StudyUIMessage[]>) => void>();
+      const setDraft = jest.fn<(u: SetStateAction<string>) => void>();
+      const error = new Error(JSON.stringify({ code }));
+
+      expect(
+        restoreRefusedTurn(error, "What is meiosis?", setMessages, setDraft),
+      ).toBe(true);
+      expect(
+        applied(setMessages.mock.calls[0]![0], [...history, refused]),
+      ).toEqual(history);
+    },
+  );
+
   it.each([JSON.stringify({ code: "rate_limited" }), "Network down"])(
     "ignores other errors (%s)",
     (body) => {

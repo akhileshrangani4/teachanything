@@ -115,6 +115,18 @@
     "card": {
       "openChatbot": "Abrir el chatbot"
     },
+    "usage": {
+      "title": "Mensajes de estudiantes hoy",
+      "total": "Entre todos sus chatbots",
+      "meterLabel": "{used, number} de {limit, number} mensajes hoy",
+      "today": "Hoy",
+      "resets": "Cada chatbot puede responder {chatbotLimit, number} preguntas de estudiantes al día, y todos sus chatbots juntos {limit, number}. Los límites se reinician a la medianoche, hora del este de EE. UU.",
+      "learnMore": "Cómo funcionan los límites diarios",
+      "limitReached": "Límite diario alcanzado. Los estudiantes pueden volver a preguntar después de la medianoche, hora del este de EE. UU.",
+      "paused": "En pausa",
+      "pausedTitle": "Sus chatbots están en pausa",
+      "pausedDescription": "Un administrador de Teach Anything ha pausado sus chatbots, así que los estudiantes ven \"Este chatbot no está disponible en este momento.\" Escriba a admin@teachanything.ai si tiene preguntas."
+    },
     "empty": {
       "title": "Todavía no hay chatbots",
       "description": "Empiece por crear su primer chatbot de IA",
@@ -1354,7 +1366,9 @@
       "conversationStartFailed": "No se pudo iniciar esta conversación. Vuelva a intentarlo.",
       "unauthorized": "Vuelva a iniciar sesión.",
       "streamInterrupted": "La respuesta se interrumpió. Vuelva a intentarlo.",
-      "turnInProgress": "Ya hay una respuesta en curso — espere a que termine."
+      "turnInProgress": "Ya hay una respuesta en curso — espere a que termine.",
+      "dailyLimitReached": "Este chatbot ha alcanzado su límite diario de mensajes. Inténtelo de nuevo mañana.",
+      "chatbotPaused": "Este chatbot no está disponible en este momento."
     }
   }
 }
