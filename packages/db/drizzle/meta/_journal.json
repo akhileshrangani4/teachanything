@@ -169,6 +169,13 @@
       "when": 1794963669018,
       "tag": "0023_daily_message_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795012108983,
+      "tag": "0024_parallel_sebastian_shaw",
+      "breakpoints": true
     }
   ]
 }

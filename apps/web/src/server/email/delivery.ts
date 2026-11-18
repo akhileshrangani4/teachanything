@@ -22,6 +22,8 @@ export async function queueEmail(params: {
   subject: string;
   reactComponent: React.ReactElement;
   replyTo?: string;
+  /** Stored on the delivery row, e.g. which admin sent a message and why. */
+  metadata?: Record<string, unknown>;
 }): Promise<{ deliveryId: string }> {
   const idempotencyKey = randomUUID();
   const html = await render(params.reactComponent);
@@ -39,6 +41,7 @@ export async function queueEmail(params: {
       subject: params.subject,
       idempotencyKey,
       deliveryStatus: "queued",
+      ...(params.metadata && { metadata: params.metadata }),
     })
     .returning({ id: emailDeliveries.id });
 

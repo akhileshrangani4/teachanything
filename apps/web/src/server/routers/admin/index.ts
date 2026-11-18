@@ -27,11 +27,13 @@ import {
   getUserChatbotsProcedure,
 } from "./procedures/daily-limits";
 import { getChatbotProcedure, getUserProcedure } from "./procedures/details";
+import { sendRegistrationEmailProcedure } from "./procedures/registration-email";
 
 export const adminRouter = router({
   getPendingUsers: getPendingUsersProcedure,
   approveUser: approveUserProcedure,
   rejectUser: rejectUserProcedure,
+  sendRegistrationEmail: sendRegistrationEmailProcedure,
   listDomains: listDomainsProcedure,
   getEnvDomains: getEnvDomainsProcedure,
   addDomain: addDomainProcedure,

@@ -4,10 +4,11 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { EMPTY_USER_DIALOG, type UserDialogState } from "./types";
+import type { SendEmailRequest } from "./send-email-dialog";
 
 const ITEMS_PER_PAGE = 10;
 
-// Owns the approve/reject dialog state and their tRPC mutations.
+// Owns the approve/reject/send-email dialog state and their tRPC mutations.
 export function usePendingUsersActions({
   totalCount,
   currentPage,
@@ -26,6 +27,23 @@ export function usePendingUsersActions({
 
   const [rejectDialog, setRejectDialog] =
     useState<UserDialogState>(EMPTY_USER_DIALOG);
+
+  const [sendEmailDialog, setSendEmailDialog] =
+    useState<UserDialogState>(EMPTY_USER_DIALOG);
+
+  const sendRegistrationEmail = trpc.admin.sendRegistrationEmail.useMutation({
+    onSuccess: () => {
+      setSendEmailDialog(EMPTY_USER_DIALOG);
+      toast.success("Email queued", {
+        description: "The user will receive it shortly.",
+      });
+    },
+    onError: (error) => {
+      toast.error("Failed to send email", {
+        description: error.message,
+      });
+    },
+  });
 
   const approveUser = trpc.admin.approveUser.useMutation({
     onSuccess: () => {
@@ -95,6 +113,27 @@ export function usePendingUsersActions({
     });
   };
 
+  const handleSendEmail = (
+    userId: string,
+    userName: string,
+    userEmail: string,
+  ) => {
+    setSendEmailDialog({
+      isOpen: true,
+      userId,
+      userName,
+      userEmail,
+    });
+  };
+
+  const confirmSendEmail = (request: SendEmailRequest) => {
+    if (!sendEmailDialog.userId) return;
+    sendRegistrationEmail.mutate({
+      userId: sendEmailDialog.userId,
+      ...request,
+    });
+  };
+
   const confirmApprove = async () => {
     if (!approveDialog.userId) return;
     await approveUser.mutateAsync({ userId: approveDialog.userId });
@@ -112,13 +151,18 @@ export function usePendingUsersActions({
     setApproveDialog,
     rejectDialog,
     setRejectDialog,
+    sendEmailDialog,
+    setSendEmailDialog,
     isApproving: approveUser.isPending,
     isRejecting: rejectUser.isPending,
+    isSendingEmail: sendRegistrationEmail.isPending,
     approveError: approveUser.error,
     rejectError: rejectUser.error,
     handleApprove,
     handleReject,
+    handleSendEmail,
     confirmApprove,
     confirmReject,
+    confirmSendEmail,
   };
 }
