@@ -12,6 +12,7 @@ import { ConversationListItem } from "./conversation-list-item";
 import { DeleteConversationsDialog } from "./delete-conversations-dialog";
 import { ExportDialog } from "./export-dialog";
 import { useConversationExport } from "./use-conversation-export";
+import { useTranslation } from "react-i18next";
 
 export function ConversationListView({
   chatbotId,
@@ -30,6 +31,7 @@ export function ConversationListView({
   onSelectConversation: (id: string) => void;
   onOffsetChange: (offset: number) => void;
 }) {
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Pending delete: a specific list of ids (single trash or bulk). null = closed.
@@ -37,9 +39,7 @@ export function ConversationListView({
 
   const deleteMutation = trpc.analytics.deleteConversations.useMutation({
     onSuccess: async ({ deletedCount }) => {
-      toast.success(
-        `Deleted ${deletedCount} chat${deletedCount !== 1 ? "s" : ""}`,
-      );
+      toast.success(t("conversations.list.deleted", { count: deletedCount }));
       setSelected(new Set());
       setPendingIds(null);
       // If the current page may now be empty, step back to the previous one.
@@ -53,7 +53,7 @@ export function ConversationListView({
     },
     onError: (err) => {
       logError(err, "[conversations] delete failed", { chatbotId });
-      toast.error("Failed to delete. Please try again.");
+      toast.error(t("conversations.list.deleteFailed"));
       setPendingIds(null);
     },
   });
@@ -93,9 +93,11 @@ export function ConversationListView({
               className="h-4 w-4 cursor-pointer accent-primary"
               checked={allVisibleSelected}
               onChange={toggleAllVisible}
-              aria-label="Select all on this page"
+              aria-label={t("conversations.list.selectAllOnPage")}
             />
-            {selected.size > 0 ? `${selected.size} selected` : "Select all"}
+            {selected.size > 0
+              ? t("conversations.list.selectedCount", { count: selected.size })
+              : t("conversations.list.selectAll")}
           </label>
           <div className="flex items-center gap-1">
             {selected.size > 0 && (
@@ -106,7 +108,7 @@ export function ConversationListView({
                 onClick={() => openExport("selected")}
               >
                 <Download className="h-3.5 w-3.5 mr-1" />
-                Export selected
+                {t("conversations.list.exportSelected")}
               </Button>
             )}
             <Button
@@ -116,7 +118,7 @@ export function ConversationListView({
               onClick={() => openExport("all")}
             >
               <Download className="h-3.5 w-3.5 mr-1" />
-              Export all
+              {t("conversations.list.exportAll")}
             </Button>
             {selected.size > 0 && (
               <Button
@@ -126,7 +128,7 @@ export function ConversationListView({
                 onClick={() => setPendingIds([...selected])}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1" />
-                Delete selected
+                {t("conversations.list.deleteSelected")}
               </Button>
             )}
           </div>
@@ -171,8 +173,11 @@ export function ConversationListView({
       {totalCount > limit && (
         <div className="flex items-center justify-between px-1 shrink-0">
           <span className="text-xs text-muted-foreground">
-            Showing {offset + 1}-{Math.min(offset + limit, totalCount)} of{" "}
-            {totalCount}
+            {t("conversations.list.range", {
+              from: offset + 1,
+              to: Math.min(offset + limit, totalCount),
+              total: totalCount,
+            })}
           </span>
           <div className="flex gap-1">
             <Button
@@ -181,7 +186,7 @@ export function ConversationListView({
               onClick={() => onOffsetChange(Math.max(0, offset - limit))}
               disabled={offset === 0}
             >
-              Previous
+              {t("common.actions.previous")}
             </Button>
             <Button
               variant="ghost"
@@ -189,7 +194,7 @@ export function ConversationListView({
               onClick={() => onOffsetChange(offset + limit)}
               disabled={offset + limit >= totalCount}
             >
-              Next
+              {t("common.actions.next")}
             </Button>
           </div>
         </div>

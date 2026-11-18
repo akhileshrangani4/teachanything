@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import type { AppRouter } from "@/server/routers/_app";
 import type { inferRouterInputs } from "@trpc/server";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 type RouterInputs = inferRouterInputs<AppRouter>;
 
@@ -74,13 +76,14 @@ interface UseCrawlerMutationsOptions {
 export function useCrawlerMutations(
   options: UseCrawlerMutationsOptions,
 ): CrawlerMutations {
+  const { t } = useTranslation();
   const {
     refresh,
     refreshAttachments,
     attachSuccessMessage,
     detachSuccessMessage,
     refreshAfterRename,
-    formatError = (error) => error.message,
+    formatError = (error) => serverErrorMessage(t, error),
   } = options;
 
   const showError = (fallback: string, error: { message: string }) =>
@@ -94,7 +97,7 @@ export function useCrawlerMutations(
       }
       return Promise.all([refresh(), attachments]);
     },
-    onError: (error) => showError("Failed to attach", error),
+    onError: (error) => showError(t("webSources.toasts.attachFailed"), error),
   });
 
   const detach = trpc.crawler.detachFromChatbot.useMutation({
@@ -105,31 +108,35 @@ export function useCrawlerMutations(
       }
       return Promise.all([refresh(), attachments]);
     },
-    onError: (error) => showError("Failed to remove", error),
+    onError: (error) => showError(t("webSources.toasts.removeFailed"), error),
   });
 
   const recrawl = trpc.crawler.recrawl.useMutation({
     onSuccess: () => {
       void refresh();
-      toast.success("Re-crawl started");
+      toast.success(t("webSources.toasts.recrawlStarted"));
     },
-    onError: (error) => showError("Failed to start re-crawl", error),
+    onError: (error) => showError(t("webSources.toasts.recrawlFailed"), error),
   });
 
   const cancelCrawlSource = trpc.crawler.cancelCrawlSource.useMutation({
     onSuccess: () => {
       void refresh();
-      toast.success("Crawl stopped");
+      toast.success(t("webSources.toasts.crawlStopped"));
     },
-    onError: (error) => showError("Failed to stop crawl", error),
+    onError: (error) => showError(t("webSources.toasts.stopFailed"), error),
   });
 
   const toggleCrawlSource = trpc.crawler.toggleCrawlSource.useMutation({
     onSuccess: (_data, variables) => {
       void refresh();
-      toast.success(variables.enabled ? "Source enabled" : "Source disabled");
+      toast.success(
+        variables.enabled
+          ? t("webSources.toasts.sourceEnabled")
+          : t("webSources.toasts.sourceDisabled"),
+      );
     },
-    onError: (error) => showError("Failed to toggle source", error),
+    onError: (error) => showError(t("webSources.toasts.toggleFailed"), error),
   });
 
   const renameCrawlSource = trpc.crawler.renameCrawlSource.useMutation({
@@ -139,17 +146,17 @@ export function useCrawlerMutations(
       } else {
         void refresh();
       }
-      toast.success("Web source renamed");
+      toast.success(t("webSources.toasts.renamed"));
     },
-    onError: (error) => showError("Failed to rename source", error),
+    onError: (error) => showError(t("webSources.toasts.renameFailed"), error),
   });
 
   const removeCrawlSource = trpc.crawler.removeCrawlSource.useMutation({
     onSuccess: () => {
       void refresh();
-      toast.success("Web source deleted");
+      toast.success(t("webSources.toasts.deleted"));
     },
-    onError: (error) => showError("Failed to delete source", error),
+    onError: (error) => showError(t("webSources.toasts.deleteFailed"), error),
   });
 
   return {

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface CopyButtonProps {
   text: string;
@@ -22,12 +23,13 @@ export function CopyButton({
   className,
   size = "icon",
   variant = "ghost",
-  successMessage = "Copied to clipboard",
-  errorMessage = "Failed to copy",
-  tooltip = "Copy",
-  tooltipCopied = "Copied!",
+  successMessage,
+  errorMessage,
+  tooltip,
+  tooltipCopied,
   disabled = false,
 }: CopyButtonProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -37,7 +39,7 @@ export function CopyButton({
       // Try the modern Clipboard API first
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      toast.success(successMessage);
+      toast.success(successMessage ?? t("common.clipboard.copied"));
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback for cross-origin iframes where Clipboard API is blocked
@@ -53,14 +55,14 @@ export function CopyButton({
         textarea.select();
         const success = document.execCommand("copy");
         if (!success) {
-          toast.error(errorMessage);
+          toast.error(errorMessage ?? t("common.clipboard.failed"));
           return;
         }
         setCopied(true);
-        toast.success(successMessage);
+        toast.success(successMessage ?? t("common.clipboard.copied"));
         setTimeout(() => setCopied(false), 2000);
       } catch {
-        toast.error(errorMessage);
+        toast.error(errorMessage ?? t("common.clipboard.failed"));
       } finally {
         document.body.removeChild(textarea);
       }
@@ -80,7 +82,11 @@ export function CopyButton({
       )}
       onClick={handleCopy}
       disabled={disabled || !text}
-      title={copied ? tooltipCopied : tooltip}
+      title={
+        copied
+          ? (tooltipCopied ?? t("common.actions.copied"))
+          : (tooltip ?? t("common.actions.copy"))
+      }
     >
       {copied ? (
         <Check className="h-3.5 w-3.5" />

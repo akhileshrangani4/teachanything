@@ -147,9 +147,21 @@ export const getSessionLengthDistributionProcedure = protectedProcedure
       .from(sessionEvents);
 
     return [
-      { bucket: "1 message", count: distribution?.one ?? 0 },
-      { bucket: "2-5 messages", count: distribution?.twoToFive ?? 0 },
-      { bucket: "6-10 messages", count: distribution?.sixToTen ?? 0 },
-      { bucket: "10+ messages", count: distribution?.tenPlus ?? 0 },
+      {
+        bucketKey: "one" as const,
+        count: distribution?.one ?? 0,
+      },
+      {
+        bucketKey: "twoToFive" as const,
+        count: distribution?.twoToFive ?? 0,
+      },
+      {
+        bucketKey: "sixToTen" as const,
+        count: distribution?.sixToTen ?? 0,
+      },
+      {
+        bucketKey: "tenPlus" as const,
+        count: distribution?.tenPlus ?? 0,
+      },
     ];
   });

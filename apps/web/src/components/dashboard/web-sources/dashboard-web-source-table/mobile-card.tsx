@@ -8,6 +8,7 @@ import { isActiveSource } from "@/components/chatbot/web-sources/utils";
 import { ChatbotAttachButton, EnabledSwitch, NameCell } from "./row-cells";
 import { SourceActions } from "./source-actions";
 import { ZERO_PAGE_COUNTS, type RowProps } from "./types";
+import { useTranslation } from "react-i18next";
 
 export function DashboardSourceCardMobile({
   source,
@@ -30,6 +31,7 @@ export function DashboardSourceCardMobile({
   isTogglingEnabled,
   isRenaming,
 }: RowProps) {
+  const { t, i18n } = useTranslation();
   const isActive = isActiveSource(source);
 
   return (
@@ -44,7 +46,9 @@ export function DashboardSourceCardMobile({
           checked={isSelected}
           onChange={() => onToggleSelect(source.id)}
           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer flex-shrink-0"
-          aria-label={`Select ${getSourceDisplayName(source)}`}
+          aria-label={t("common.table.selectRow", {
+            name: getSourceDisplayName(source),
+          })}
         />
         <div className="min-w-0 flex-1">
           <NameCell
@@ -69,11 +73,15 @@ export function DashboardSourceCardMobile({
       <div className="flex items-center gap-2 flex-wrap">
         <SourceStatusBadge status={source.status} />
         <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
-          {source.pageCount} page{source.pageCount !== 1 ? "s" : ""}
+          {t("webSources.table.pageCount", { count: source.pageCount })}
         </span>
         {source.lastCrawledAt && (
           <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
-            Last: {new Date(source.lastCrawledAt).toLocaleDateString()}
+            {t("webSources.table.lastCrawledShort", {
+              date: new Date(source.lastCrawledAt).toLocaleDateString(
+                i18n.language,
+              ),
+            })}
           </span>
         )}
       </div>
@@ -85,7 +93,9 @@ export function DashboardSourceCardMobile({
             onToggleEnabled={onToggleEnabled}
             isTogglingEnabled={isTogglingEnabled}
           />
-          {source.enabled ? "Enabled" : "Disabled"}
+          {source.enabled
+            ? t("webSources.table.enabled")
+            : t("webSources.statusFilter.disabled")}
         </label>
         <ChatbotAttachButton
           source={source}

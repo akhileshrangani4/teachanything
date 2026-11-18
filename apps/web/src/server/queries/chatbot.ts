@@ -12,7 +12,7 @@
 import { db } from "@teachanything/db";
 import { chatbots } from "@teachanything/db/schema";
 import { and, eq } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
+import { appError } from "@/server/app-error";
 
 export type ChatbotDb = typeof db;
 
@@ -44,10 +44,7 @@ export async function assertOwnedChatbot(
     .limit(1);
 
   if (!chatbot) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Chatbot not found",
-    });
+    throw appError("NOT_FOUND", "errors.notFoundItems.chatbot");
   }
 
   return chatbot;

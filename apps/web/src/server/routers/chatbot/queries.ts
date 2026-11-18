@@ -6,9 +6,9 @@ import {
   chatbotFileAssociations,
 } from "@teachanything/db/schema";
 import { eq, and, sql, desc, asc, ilike, or } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { escapeLikePattern } from "@/server/utils";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
+import { appError } from "@/server/app-error";
 
 export const chatbotQueries = {
   /**
@@ -111,8 +111,12 @@ export const chatbotQueries = {
           shareToken: chatbots.shareToken,
           showSources: chatbots.showSources,
           customAuthorName: chatbots.customAuthorName,
+          // Paused by an admin, directly or through the owner, so the chat
+          // page can say so before a student types anything.
+          paused: sql<boolean>`(${chatbots.paused} or coalesce(${user.chatbotsPaused}, false))`,
         })
         .from(chatbots)
+        .leftJoin(user, eq(user.id, chatbots.userId))
         .where(
           and(
             eq(chatbots.shareToken, input.shareToken),
@@ -122,10 +126,7 @@ export const chatbotQueries = {
         .limit(1);
 
       if (!chatbot) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found or not shared",
-        });
+        throw appError("NOT_FOUND", "errors.notFoundItems.chatbotNotShared");
       }
 
       return chatbot;

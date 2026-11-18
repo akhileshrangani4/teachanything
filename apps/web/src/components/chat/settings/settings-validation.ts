@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import {
   validateName,
   validateDescription,
@@ -16,6 +17,7 @@ export interface SettingsValidationIssue {
  */
 export function validateSettingsDraft(
   draft: SettingsDraft,
+  t: TFunction,
 ): SettingsValidationIssue | null {
   const {
     name,
@@ -26,7 +28,7 @@ export function validateSettingsDraft(
     systemPrompt,
   } = draft;
 
-  const nameValidation = validateName(name);
+  const nameValidation = validateName(name, t);
   if (!nameValidation.isValid) {
     return {
       title: nameValidation.error!,
@@ -34,7 +36,7 @@ export function validateSettingsDraft(
     };
   }
 
-  const descriptionValidation = validateDescription(description);
+  const descriptionValidation = validateDescription(description, t);
   if (!descriptionValidation.isValid) {
     return {
       title: descriptionValidation.error!,
@@ -44,31 +46,39 @@ export function validateSettingsDraft(
 
   if (welcomeMessage.length > VALIDATION_LIMITS.WELCOME_MESSAGE_MAX_LENGTH) {
     return {
-      title: "Welcome message is too long",
-      description: `Welcome message must be ${VALIDATION_LIMITS.WELCOME_MESSAGE_MAX_LENGTH} characters or less`,
+      title: t("chatbots.validation.welcomeTooLong"),
+      description: t("chatbots.validation.welcomeTooLongHint", {
+        max: VALIDATION_LIMITS.WELCOME_MESSAGE_MAX_LENGTH,
+      }),
     };
   }
 
   const tempValue = parseFloat(temperature);
   if (isNaN(tempValue) || tempValue < 0 || tempValue > 100) {
     return {
-      title: "Invalid temperature",
-      description: "Temperature must be between 0 and 100",
+      title: t("chatbots.validation.invalidTemperature"),
+      description: t("chatbots.validation.invalidTemperatureHint", {
+        min: 0,
+        max: 100,
+      }),
     };
   }
 
   const tokensValue = parseInt(maxTokens);
   if (isNaN(tokensValue) || tokensValue < 100 || tokensValue > 4000) {
     return {
-      title: "Invalid max tokens",
-      description: "Max tokens must be between 100 and 4000",
+      title: t("chatbots.validation.invalidMaxTokens"),
+      description: t("chatbots.validation.invalidMaxTokensHint", {
+        min: 100,
+        max: 4000,
+      }),
     };
   }
 
   if (!systemPrompt.trim()) {
     return {
-      title: "System prompt is required",
-      description: "Please provide a system prompt for your chatbot",
+      title: t("chatbots.validation.systemPromptRequired"),
+      description: t("chatbots.validation.systemPromptRequiredHint"),
     };
   }
 

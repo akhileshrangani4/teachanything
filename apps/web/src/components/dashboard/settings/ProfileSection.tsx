@@ -8,24 +8,29 @@ import { useSession } from "@/lib/auth-client";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Save, CheckCircle2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 export function ProfileSection() {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const [name, setName] = useState(session?.user.name || "");
 
   const updateName = trpc.auth.updateName.useMutation({
     onSuccess: () => {
-      toast.success("Name updated");
+      toast.success(t("settings.profile.nameUpdated"));
       window.location.reload();
     },
     onError: (error) => {
-      toast.error("Failed to update name", { description: error.message });
+      toast.error(t("settings.profile.nameUpdateFailed"), {
+        description: serverErrorMessage(t, error),
+      });
     },
   });
 
   const handleUpdateName = () => {
     if (!name.trim()) {
-      toast.error("Name cannot be empty");
+      toast.error(t("settings.profile.nameEmpty"));
       return;
     }
     updateName.mutate({ name: name.trim() });
@@ -34,13 +39,13 @@ export function ProfileSection() {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
+        <Label htmlFor="name">{t("settings.profile.name")}</Label>
         <div className="flex gap-2">
           <Input
             id="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
+            placeholder={t("settings.profile.namePlaceholder")}
             className="flex-1"
           />
           <Button
@@ -62,20 +67,22 @@ export function ProfileSection() {
         {name === session?.user.name && name.trim() && (
           <p className="text-xs text-green-600 flex items-center gap-1">
             <CheckCircle2 className="h-3 w-3" />
-            Up to date
+            {t("settings.profile.upToDate")}
           </p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("settings.profile.email")}</Label>
         <Input
           id="email"
           value={session?.user.email || ""}
           disabled
           className="bg-muted/50"
         />
-        <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+        <p className="text-xs text-muted-foreground">
+          {t("settings.profile.emailLocked")}
+        </p>
       </div>
     </div>
   );

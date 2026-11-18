@@ -1,43 +1,118 @@
 "use client";
 
-import { useState } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Pencil } from "lucide-react";
+import { Eye, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
 import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
-import { validateAuthorName } from "./utils/author-name-validation";
+import {
+  CHATBOT_DAILY_MESSAGE_LIMIT,
+  OWNER_DAILY_MESSAGE_LIMIT,
+} from "@/lib/constants/rate-limits";
+import { usageLevel } from "@/lib/usage-level";
+import { ChatbotStatusBadges } from "./components/ChatbotStatusBadges";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
+import { useSetChatbotPaused } from "./hooks/use-set-chatbot-paused";
 
 type Chatbot = RouterOutputs["admin"]["getAllChatbots"]["chatbots"][number];
 
 interface ChatbotTableRowProps {
   chatbot: Chatbot;
-  currentUserId?: string;
+  onOpenDetails: (chatbotId: string) => void;
   onDelete: (chatbotId: string, chatbotName: string, ownerName: string) => void;
   onRefetch: () => void;
 }
 
+/** One chatbot: who owns it, today's usage, status, and quick actions. */
 export function ChatbotTableRow({
   chatbot,
-  currentUserId,
+  onOpenDetails,
   onDelete,
   onRefetch,
 }: ChatbotTableRowProps) {
-  const [editingAuthorName, setEditingAuthorName] = useState<{
-    chatbotId: string;
-    value: string;
-  } | null>(null);
-  const [authorNameError, setAuthorNameError] = useState<string | null>(null);
+  const ownerName = chatbot.userName || "Unknown";
 
+  return (
+    <TableRow
+      className="cursor-pointer"
+      onClick={() => onOpenDetails(chatbot.id)}
+    >
+      <TableCell>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenDetails(chatbot.id);
+          }}
+          className="flex flex-col rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="font-medium hover:underline">{chatbot.name}</span>
+          <span className="text-xs text-muted-foreground">
+            {ownerName} · {chatbot.userEmail}
+          </span>
+        </button>
+      </TableCell>
+      <TableCell>
+        <UsageMeter
+          used={chatbot.usage.today}
+          limit={chatbot.dailyMessageLimit ?? CHATBOT_DAILY_MESSAGE_LIMIT}
+        />
+      </TableCell>
+      <TableCell>
+        <ChatbotStatusBadges
+          paused={chatbot.paused}
+          ownerChatbotsPaused={chatbot.ownerChatbotsPaused ?? false}
+          sharingEnabled={chatbot.sharingEnabled}
+          isAtLimit={
+            usageLevel(
+              chatbot.usage.today,
+              chatbot.dailyMessageLimit ?? CHATBOT_DAILY_MESSAGE_LIMIT,
+            ) === "full"
+          }
+          isOwnerAtLimit={
+            usageLevel(
+              chatbot.ownerUsage.today,
+              chatbot.ownerDailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT,
+            ) === "full"
+          }
+        />
+      </TableCell>
+      <TableCell onClick={(event) => event.stopPropagation()}>
+        <FeaturedSwitch chatbot={chatbot} onRefetch={onRefetch} />
+      </TableCell>
+      <TableCell
+        className="text-right"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <ChatbotActionsMenu
+          chatbot={chatbot}
+          ownerName={ownerName}
+          onOpenDetails={onOpenDetails}
+          onDelete={onDelete}
+        />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function FeaturedSwitch({
+  chatbot,
+  onRefetch,
+}: Pick<ChatbotTableRowProps, "chatbot" | "onRefetch">) {
   const toggleFeatured = trpc.admin.toggleFeatured.useMutation({
     onSuccess: () => {
       onRefetch();
@@ -50,213 +125,73 @@ export function ChatbotTableRow({
     },
   });
 
-  const updateAuthorName = trpc.admin.updateAuthorName.useMutation({
-    onSuccess: () => {
-      onRefetch();
-      setEditingAuthorName(null);
-      setAuthorNameError(null);
-      toast.success("Author name updated");
-    },
-    onError: (error) => {
-      setAuthorNameError(error.message);
-      toast.error("Failed to update author name", {
-        description: error.message,
-      });
-    },
-  });
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="w-fit">
+            <Switch
+              checked={chatbot.featured ?? false}
+              onCheckedChange={(featured) =>
+                toggleFeatured.mutate({ chatbotId: chatbot.id, featured })
+              }
+              disabled={toggleFeatured.isPending || !chatbot.sharingEnabled}
+              aria-label="Featured on homepage"
+            />
+          </div>
+        </TooltipTrigger>
+        {!chatbot.sharingEnabled && (
+          <TooltipContent>
+            <p>Only public chatbots (with sharing enabled) can be featured</p>
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
-  const handleSaveAuthorName = (chatbotId: string, value: string) => {
-    const error = validateAuthorName(value);
-    if (error) {
-      setAuthorNameError(error);
-      return;
-    }
-    setAuthorNameError(null);
-    updateAuthorName.mutate({
-      chatbotId,
-      authorName: value.trim() || null,
-    });
-  };
-
-  const handleStartEditing = () => {
-    if (chatbot.userId === currentUserId) {
-      setEditingAuthorName({
-        chatbotId: chatbot.id,
-        value: chatbot.customAuthorName || "",
-      });
-      setAuthorNameError(null);
-    }
-  };
-
-  const handleCancelEditing = () => {
-    setEditingAuthorName(null);
-    setAuthorNameError(null);
-  };
-
-  const isOwner = chatbot.userId === currentUserId;
-  const displayAuthorName =
-    chatbot.customAuthorName || chatbot.userName || "Unknown";
+function ChatbotActionsMenu({
+  chatbot,
+  ownerName,
+  onOpenDetails,
+  onDelete,
+}: Omit<ChatbotTableRowProps, "onRefetch"> & { ownerName: string }) {
+  const { setPaused, isPending } = useSetChatbotPaused();
 
   return (
-    <TableRow>
-      <TableCell>
-        <div>
-          <p className="font-medium">{chatbot.name}</p>
-          {chatbot.description && (
-            <p className="text-xs text-muted-foreground truncate max-w-xs">
-              {chatbot.description}
-            </p>
-          )}
-        </div>
-      </TableCell>
-      <TableCell>
-        <div>
-          {editingAuthorName?.chatbotId === chatbot.id ? (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={editingAuthorName.value}
-                  onChange={(e) => {
-                    const newValue = e.target.value;
-                    setEditingAuthorName({
-                      chatbotId: chatbot.id,
-                      value: newValue,
-                    });
-                    if (authorNameError) {
-                      const error = validateAuthorName(newValue);
-                      setAuthorNameError(error);
-                    }
-                  }}
-                  onBlur={() => {
-                    handleSaveAuthorName(chatbot.id, editingAuthorName.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSaveAuthorName(chatbot.id, editingAuthorName.value);
-                    } else if (e.key === "Escape") {
-                      handleCancelEditing();
-                    }
-                  }}
-                  placeholder={chatbot.userName || "Unknown"}
-                  className={`h-8 text-sm ${
-                    authorNameError
-                      ? "border-destructive focus-visible:ring-destructive"
-                      : ""
-                  }`}
-                  maxLength={100}
-                  autoFocus
-                  disabled={updateAuthorName.isPending}
-                />
-              </div>
-              {authorNameError && (
-                <p className="text-xs text-destructive">{authorNameError}</p>
-              )}
-            </div>
-          ) : (
-            <div
-              className={
-                isOwner
-                  ? "cursor-pointer hover:bg-muted/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group"
-                  : ""
-              }
-              onClick={handleStartEditing}
-              title={
-                isOwner
-                  ? "Click to edit author name"
-                  : "You can only edit author names for chatbots you created"
-              }
-            >
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">{displayAuthorName}</p>
-                {isOwner && (
-                  <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
-                )}
-              </div>
-              {chatbot.customAuthorName && (
-                <p className="text-xs text-muted-foreground">
-                  Original: {chatbot.userName || "Unknown"}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {chatbot.userEmail}
-              </p>
-            </div>
-          )}
-        </div>
-      </TableCell>
-      <TableCell>
-        <Badge variant="secondary" className="text-xs">
-          {chatbot.model.split("/").pop()}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline">
-          {chatbot.fileCount} file{chatbot.fileCount !== 1 ? "s" : ""}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <div className="text-sm">
-          <p>{new Date(chatbot.createdAt).toLocaleDateString()}</p>
-          <p className="text-xs text-muted-foreground">
-            {new Date(chatbot.createdAt).toLocaleTimeString()}
-          </p>
-        </div>
-      </TableCell>
-      <TableCell>
-        <div className="flex flex-col gap-1.5">
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="w-fit">
-                  <Switch
-                    checked={chatbot.featured ?? false}
-                    onCheckedChange={(checked) => {
-                      toggleFeatured.mutate({
-                        chatbotId: chatbot.id,
-                        featured: checked,
-                      });
-                    }}
-                    disabled={
-                      toggleFeatured.isPending || !chatbot.sharingEnabled
-                    }
-                  />
-                </div>
-              </TooltipTrigger>
-              {!chatbot.sharingEnabled && (
-                <TooltipContent>
-                  <p>
-                    Only public chatbots (with sharing enabled) can be featured
-                  </p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-          {!chatbot.sharingEnabled && (
-            <Badge
-              variant="outline"
-              className="text-[10px] py-0 px-1.5 h-4 w-fit text-muted-foreground"
-            >
-              Private
-            </Badge>
-          )}
-        </div>
-      </TableCell>
-      <TableCell>
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() =>
-            onDelete(
-              chatbot.id,
-              chatbot.name,
-              chatbot.userName || "Unknown User",
-            )
-          }
-          disabled={toggleFeatured.isPending}
-        >
-          Delete
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Chatbot actions">
+          <MoreHorizontal className="h-4 w-4" />
         </Button>
-      </TableCell>
-    </TableRow>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => onOpenDetails(chatbot.id)}>
+          <Eye className="mr-2 h-4 w-4" />
+          Usage & settings
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={isPending}
+          onClick={() =>
+            setPaused({ id: chatbot.id, name: chatbot.name }, !chatbot.paused)
+          }
+        >
+          {chatbot.paused ? (
+            <Play className="mr-2 h-4 w-4" />
+          ) : (
+            <Pause className="mr-2 h-4 w-4" />
+          )}
+          {chatbot.paused ? "Resume chatbot" : "Pause chatbot"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => onDelete(chatbot.id, chatbot.name, ownerName)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete chatbot
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

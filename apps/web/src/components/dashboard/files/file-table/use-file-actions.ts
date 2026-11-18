@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import type { BaseFile } from "./types";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 // ── Shared hook: computed file state + download handler ──────────────
 export function useFileActions<T extends BaseFile>(file: T) {
+  const { t } = useTranslation();
   const [isDownloading, setIsDownloading] = useState(false);
 
   const isStuck =
@@ -29,8 +32,8 @@ export function useFileActions<T extends BaseFile>(file: T) {
   ) => {
     e.stopPropagation();
     if (!canView) {
-      toast.error("File is not ready", {
-        description: "Please wait for the file to finish processing",
+      toast.error(t("files.toasts.notReady"), {
+        description: t("files.toasts.notReadyDescription"),
       });
       return;
     }
@@ -46,14 +49,16 @@ export function useFileActions<T extends BaseFile>(file: T) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast.success("Download started");
+        toast.success(t("files.toasts.downloadStarted"));
       } else {
         window.open(url, "_blank");
       }
     } catch (error) {
-      toast.error("Failed to access file", {
+      toast.error(t("files.toasts.accessFailed"), {
         description:
-          error instanceof Error ? error.message : "Please try again",
+          error instanceof Error
+            ? serverErrorMessage(t, error)
+            : t("files.toasts.pleaseTryAgain"),
       });
     } finally {
       setIsDownloading(false);

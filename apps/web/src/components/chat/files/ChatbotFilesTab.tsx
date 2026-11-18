@@ -22,6 +22,7 @@ import { FileTableSkeleton } from "@/components/ui/skeletons";
 import { getFilePollingInterval } from "@/hooks/file-polling";
 import { keepPreviousData } from "@tanstack/react-query";
 import { useChatbotFileAssociations } from "./use-chatbot-file-associations";
+import { useTranslation, Trans } from "react-i18next";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -36,6 +37,7 @@ export function ChatbotFilesTab({
   filesLoading,
   onRefetch,
 }: ChatbotFilesTabProps) {
+  const { t } = useTranslation();
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   const { state, searchInput, actions, queryParams } =
@@ -134,13 +136,19 @@ export function ChatbotFilesTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Associated Files</CardTitle>
+        <CardTitle>{t("files.chatbot.title")}</CardTitle>
         <CardDescription>
-          Files that provide context for this chatbot. Manage files from the{" "}
-          <Link href="/dashboard/files" className="text-primary underline">
-            Files page
-          </Link>
-          .
+          <Trans
+            i18nKey="files.chatbot.description"
+            components={{
+              a: (
+                <Link
+                  href="/dashboard/files"
+                  className="text-primary underline"
+                />
+              ),
+            }}
+          />
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -163,7 +171,7 @@ export function ChatbotFilesTab({
                 <TableToolbar
                   searchValue={searchInput}
                   onSearchChange={actions.setSearch}
-                  placeholder="Search associated files..."
+                  placeholder={t("files.chatbot.searchPlaceholder")}
                   isLoading={isFetching && !associatedFilesLoading}
                   className="mb-0 flex-1"
                 />
@@ -178,19 +186,22 @@ export function ChatbotFilesTab({
                       disabled={isRemovingFile}
                     >
                       <X className="h-4 w-4 mr-2" />
-                      Remove Selected ({selectedFiles.size})
+                      {t("files.chatbot.removeSelected", {
+                        count: selectedFiles.size,
+                      })}
                     </Button>
                   )}
                   <p className="text-sm text-muted-foreground whitespace-nowrap">
-                    Showing {associatedFiles.length} of{" "}
-                    {associatedFilesTotalCount} file
-                    {associatedFilesTotalCount !== 1 ? "s" : ""}
+                    {t("files.page.showing", {
+                      visible: associatedFiles.length,
+                      total: associatedFilesTotalCount,
+                    })}
                   </p>
                 </div>
               </div>
               {associatedFiles.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  No files match your search
+                  {t("files.page.noSearchResults")}
                 </div>
               ) : (
                 <>

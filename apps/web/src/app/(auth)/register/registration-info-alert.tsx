@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Trans } from "react-i18next";
 
 /**
  * Admin-approval notice shown above the registration form. Surfaces the
@@ -8,30 +9,37 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
  * know what to expect and where to reach out.
  */
 export function RegistrationInfoAlert() {
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
   return (
     <Alert className="mb-4">
       <AlertDescription>
-        All accounts require admin approval before you can log in. You&apos;ll
-        receive an email once your account is approved. After signing up, please
-        check your inbox and spam folder for approval emails from{" "}
-        <a
-          href="mailto:admin@teachanything.ai"
-          className="text-primary hover:underline"
-        >
-          admin@teachanything.ai
-        </a>
-        . To make sure you receive updates, please add this address to your
-        contacts.
-        {process.env.NEXT_PUBLIC_CONTACT_EMAIL && (
+        <Trans
+          i18nKey="auth.register.infoAlert"
+          values={{ adminEmail: "admin@teachanything.ai" }}
+          components={{
+            a: (
+              <a
+                href="mailto:admin@teachanything.ai"
+                className="text-primary hover:underline"
+              />
+            ),
+          }}
+        />
+        {contactEmail && (
           <>
             {" "}
-            If you have any questions, please contact us at{" "}
-            <a
-              href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`}
-              className="text-primary hover:underline"
-            >
-              {process.env.NEXT_PUBLIC_CONTACT_EMAIL}
-            </a>
+            <Trans
+              i18nKey="auth.register.infoContact"
+              values={{ email: contactEmail }}
+              components={{
+                a: (
+                  <a
+                    href={`mailto:${contactEmail}`}
+                    className="text-primary hover:underline"
+                  />
+                ),
+              }}
+            />
           </>
         )}
       </AlertDescription>

@@ -18,6 +18,7 @@ import type {
   DashboardSource,
   RowProps,
 } from "./dashboard-web-source-table/types";
+import { useTranslation } from "react-i18next";
 
 export type { DashboardSortBy } from "./dashboard-web-source-table/types";
 
@@ -74,6 +75,7 @@ export function DashboardWebSourceTable({
   sortDir,
   onSort,
 }: DashboardWebSourceTableProps) {
+  const { t } = useTranslation();
   // 8 columns: checkbox, name, pages, status, enabled, chatbots, last, actions
   const colSpan = 8;
 
@@ -104,7 +106,7 @@ export function DashboardWebSourceTable({
       selectAll={{
         checked: allSelected,
         onChange: onSelectAll,
-        ariaLabel: "Select all web sources",
+        ariaLabel: t("webSources.table.selectAll"),
       }}
       desktop={
         <Table style={{ tableLayout: "fixed" }}>
@@ -126,7 +128,7 @@ export function DashboardWebSourceTable({
                   checked={allSelected}
                   onChange={onSelectAll}
                   className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                  aria-label="Select all web sources"
+                  aria-label={t("webSources.table.selectAll")}
                 />
               </TableHead>
               <SortableTableHead
@@ -135,9 +137,11 @@ export function DashboardWebSourceTable({
                 currentSortDir={sortDir}
                 onSort={onSort}
               >
-                Name
+                {t("webSources.table.name")}
               </SortableTableHead>
-              <TableHead className="whitespace-nowrap">Pages</TableHead>
+              <TableHead className="whitespace-nowrap">
+                {t("webSources.table.pages")}
+              </TableHead>
               <SortableTableHead
                 column="status"
                 currentSortBy={sortBy}
@@ -145,10 +149,14 @@ export function DashboardWebSourceTable({
                 onSort={onSort}
                 className="whitespace-nowrap"
               >
-                Status
+                {t("webSources.table.status")}
               </SortableTableHead>
-              <TableHead className="whitespace-nowrap">Enabled</TableHead>
-              <TableHead className="whitespace-nowrap">Chatbots</TableHead>
+              <TableHead className="whitespace-nowrap">
+                {t("webSources.table.enabled")}
+              </TableHead>
+              <TableHead className="whitespace-nowrap">
+                {t("webSources.table.chatbots")}
+              </TableHead>
               <SortableTableHead
                 column="lastCrawledAt"
                 currentSortBy={sortBy}
@@ -156,10 +164,10 @@ export function DashboardWebSourceTable({
                 onSort={onSort}
                 className="whitespace-nowrap"
               >
-                Last Crawled
+                {t("webSources.table.lastCrawled")}
               </SortableTableHead>
               <TableHead className="whitespace-nowrap text-right">
-                Actions
+                {t("webSources.table.actions")}
               </TableHead>
             </TableRow>
           </TableHeader>

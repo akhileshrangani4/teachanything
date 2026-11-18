@@ -24,15 +24,17 @@ import {
 import { toast } from "sonner";
 import { useSidebar } from "@/components/dashboard/sidebar-context";
 import { BrandName } from "@/components/brand/BrandName";
+import { useTranslation } from "react-i18next";
 
 export function DashboardHeader() {
   const { data: session } = useSession();
   const router = useRouter();
   const { setIsOpen } = useSidebar();
+  const { t } = useTranslation();
 
   const handleSignOut = async () => {
     await signOut();
-    toast.success("Signed out successfully");
+    toast.success(t("nav.signedOut"));
     router.push("/login");
   };
 
@@ -56,7 +58,7 @@ export function DashboardHeader() {
         <button
           onClick={() => setIsOpen(true)}
           className="lg:hidden p-2 -ml-2 rounded-md hover:bg-muted transition-colors"
-          aria-label="Open navigation menu"
+          aria-label={t("nav.openMenu")}
         >
           <Menu className="h-5 w-5 text-foreground" />
         </button>
@@ -80,7 +82,7 @@ export function DashboardHeader() {
           href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || ""}`}
           className="ml-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium hidden md:inline-block"
         >
-          Support
+          {t("nav.support")}
         </Link>
         <a
           href="/docs"
@@ -88,14 +90,17 @@ export function DashboardHeader() {
           rel="noopener noreferrer"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium hidden md:inline-block"
         >
-          Docs
+          {t("nav.docs")}
         </a>
       </div>
 
       <div className="flex items-center gap-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full">
+            <button
+              aria-label={t("nav.userMenu")}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-full"
+            >
               <Avatar className="h-9 w-9 ring-2 ring-border hover:ring-primary/50 transition-all">
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-sm font-semibold">
                   {getInitials(session?.user.name)}
@@ -110,7 +115,7 @@ export function DashboardHeader() {
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <LayoutDashboard className="h-4 w-4" />
-                Dashboard
+                {t("nav.dashboard")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -119,7 +124,7 @@ export function DashboardHeader() {
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Bot className="h-4 w-4" />
-                Chatbots
+                {t("nav.chatbots")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -128,7 +133,7 @@ export function DashboardHeader() {
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <FileText className="h-4 w-4" />
-                Files
+                {t("nav.files")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -137,7 +142,7 @@ export function DashboardHeader() {
                 className="flex items-center gap-2 cursor-pointer"
               >
                 <Settings className="h-4 w-4" />
-                Settings
+                {t("nav.settings")}
               </Link>
             </DropdownMenuItem>
             {isAdmin && (
@@ -149,7 +154,7 @@ export function DashboardHeader() {
                     className="flex items-center gap-2 cursor-pointer"
                   >
                     <Shield className="h-4 w-4" />
-                    Admin
+                    {t("nav.admin")}
                   </Link>
                 </DropdownMenuItem>
               </>
@@ -160,7 +165,7 @@ export function DashboardHeader() {
               className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
             >
               <LogOut className="h-4 w-4" />
-              Sign Out
+              {t("nav.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

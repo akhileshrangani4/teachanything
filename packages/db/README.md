@@ -51,6 +51,26 @@ npm run db:setup-rls
 
 ---
 
+### 3. Schema Drift Check (`scripts/check-schema-drift.ts` + `src/schema-drift.ts`)
+
+**Purpose**: Fail when the live database is missing a table or column that `src/schema.ts` declares
+
+**What it does**:
+
+- Reads every column of every base table in `public` from `information_schema`, inside a read-only transaction
+- Lists each missing table and each missing `table.column`, and exits 1 if there are any
+- Ignores tables and columns the database has but the code does not declare
+
+**Usage**:
+
+```bash
+npm run db:check-drift
+```
+
+**Auto-run**: The release workflow runs it after `db:migrate` and before deploying to production
+
+---
+
 ## Setup Workflow
 
 For a fresh database setup:

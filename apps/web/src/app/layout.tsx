@@ -3,6 +3,7 @@ import { Inter, Instrument_Serif } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
+import { getRootMessages } from "@/server/i18n/root-messages";
 import { BRAND_NAME_WITH_MARK } from "@/components/brand/BrandName";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -95,10 +96,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Fixed so public pages stay static: reading the user's language here would
+  // render every page per request. Localized layouts mark their content with
+  // `lang` in the server HTML and update this attribute after hydration.
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body className={`${inter.className} ${instrumentSerif.variable}`}>
-        <Providers>{children}</Providers>
+        <Providers messages={getRootMessages()}>{children}</Providers>
         <Analytics />
       </body>
     </html>

@@ -1,5 +1,5 @@
-import { TRPCError } from "@trpc/server";
 import { env } from "@/lib/env";
+import { appError } from "@/server/app-error";
 
 /**
  * Supported MIME types for file uploads
@@ -61,19 +61,12 @@ export function validateFileName(fileName: string): void {
   );
 
   if (invalidChars.test(fileName) || hasControlChars) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message:
-        "File name contains invalid characters. Please use only letters, numbers, spaces, and common punctuation.",
-    });
+    throw appError("BAD_REQUEST", "files.validation.nameInvalidCharacters");
   }
 
   // Check length
   if (fileName.length > 255) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "File name must be less than 255 characters",
-    });
+    throw appError("BAD_REQUEST", "files.validation.nameTooLong", { max: 255 });
   }
 }
 
@@ -82,19 +75,16 @@ export function validateFileName(fileName: string): void {
  */
 export function validateFileSize(fileSize: number): void {
   if (fileSize === 0) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Cannot upload empty file",
-    });
+    throw appError("BAD_REQUEST", "files.upload.emptyFile");
   }
 
   const maxSizeMB = Number(env.NEXT_PUBLIC_MAX_FILE_SIZE_MB) || 50;
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
   if (fileSize > maxSizeBytes) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `File size exceeds ${maxSizeMB}MB limit. Current file size: ${(fileSize / 1024 / 1024).toFixed(2)}MB`,
+    throw appError("BAD_REQUEST", "errors.files.tooLarge", {
+      maxMb: maxSizeMB,
+      sizeMb: Number((fileSize / 1024 / 1024).toFixed(2)),
     });
   }
 }
@@ -109,9 +99,8 @@ export function validateFileType(fileType: string): void {
     )
   ) {
     const displayName = FILE_TYPE_DISPLAY_NAMES[fileType] || fileType;
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Unsupported file type: ${displayName}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV`,
+    throw appError("BAD_REQUEST", "errors.files.unsupportedType", {
+      type: displayName,
     });
   }
 }
@@ -130,9 +119,9 @@ export function validateExtensionMatchesMimeType(
 
   if (extension && validMimeTypes && !validMimeTypes.includes(fileType)) {
     const displayName = FILE_TYPE_DISPLAY_NAMES[fileType] || fileType;
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `File extension (.${extension}) does not match file type (${displayName}). This may indicate a renamed or corrupted file.`,
+    throw appError("BAD_REQUEST", "errors.files.extensionMismatch", {
+      extension,
+      type: displayName,
     });
   }
 }

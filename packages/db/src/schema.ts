@@ -96,6 +96,16 @@ export const user = pgTable("user", {
   department: text("department"),
   facultyWebpage: text("faculty_webpage"),
   country: text("country"),
+  // `enum` only narrows the TypeScript type; Postgres accepts any text. The app
+  // validates on write and ignores unknown values on read (`isEnabledLocale`).
+  preferredLocale: text("preferred_locale", {
+    enum: ["en", "fr", "es", "de"],
+  }), // null: follow the browser's language
+  // Student messages all of this user's chatbots together may receive per
+  // day. null: the platform default. Set by an admin, never by the user.
+  dailyMessageLimit: integer("daily_message_limit"),
+  // Admin switch that turns off every chatbot this user owns.
+  chatbotsPaused: boolean("chatbots_paused").default(false).notNull(),
   status: userStatusEnum("status").default("pending").notNull(),
   role: userRoleEnum("role").default("user").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -171,6 +181,11 @@ export const chatbots = pgTable("chatbots", {
   model: text("model").notNull().default("meta-llama/llama-3.3-70b-instruct"),
   temperature: integer("temperature").default(70), // 0-100, will be divided by 100
   maxTokens: integer("max_tokens").default(2000),
+  // Student messages this chatbot may receive per day. null: the platform
+  // default. Set by an admin, never by the owner.
+  dailyMessageLimit: integer("daily_message_limit"),
+  // Admin switch that turns this chatbot off for students.
+  paused: boolean("paused").default(false).notNull(),
   welcomeMessage: text("welcome_message"),
   suggestedQuestions: jsonb("suggested_questions")
     .$type<string[]>()
@@ -315,6 +330,8 @@ export const conversations = pgTable(
       .$type<{
         userAgent?: string;
         referrer?: string;
+        /** ISO time a chat turn claimed this session; absent when idle (#465). */
+        activeTurnAt?: string;
       }>()
       .default({}),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -424,6 +441,41 @@ export const studyToolResponses = pgTable(
       table.conversationId,
       table.toolCallId,
       table.attempt,
+    ),
+  ],
+);
+
+export const messageRatingEnum = pgEnum("message_rating", ["up", "down"]);
+
+// A student's thumbs up/down on one assistant message. Anonymous: keyed by the
+// chat session, not a user. One row per (message, session) -- re-rating updates
+// it in place, so the professor's totals count each student's latest opinion
+// once. `chatbotId` is denormalized from the message's conversation so the
+// analytics card can count a chatbot's ratings without joining messages.
+export const messageRatings = pgTable(
+  "message_ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    messageId: uuid("message_id")
+      .references(() => messages.id, { onDelete: "cascade" })
+      .notNull(),
+    chatbotId: uuid("chatbot_id")
+      .references(() => chatbots.id, { onDelete: "cascade" })
+      .notNull(),
+    sessionId: text("session_id").notNull(),
+    rating: messageRatingEnum("rating").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("message_ratings_message_id_session_id_unique").on(
+      table.messageId,
+      table.sessionId,
+    ),
+    // The professor's ratings card: one chatbot, a recent time window.
+    index("message_ratings_chatbot_id_updated_at_idx").on(
+      table.chatbotId,
+      table.updatedAt,
     ),
   ],
 );
@@ -627,6 +679,7 @@ export const chatbotsRelations = relations(chatbots, ({ one, many }) => ({
   fileAssociations: many(chatbotFileAssociations),
   conversations: many(conversations),
   analytics: many(analytics),
+  messageRatings: many(messageRatings),
   crawlSourceAssociations: many(chatbotCrawlSourceAssociations),
 }));
 
@@ -672,10 +725,22 @@ export const conversationsRelations = relations(
   }),
 );
 
-export const messagesRelations = relations(messages, ({ one }) => ({
+export const messagesRelations = relations(messages, ({ one, many }) => ({
   conversation: one(conversations, {
     fields: [messages.conversationId],
     references: [conversations.id],
+  }),
+  ratings: many(messageRatings),
+}));
+
+export const messageRatingsRelations = relations(messageRatings, ({ one }) => ({
+  message: one(messages, {
+    fields: [messageRatings.messageId],
+    references: [messages.id],
+  }),
+  chatbot: one(chatbots, {
+    fields: [messageRatings.chatbotId],
+    references: [chatbots.id],
   }),
 }));
 

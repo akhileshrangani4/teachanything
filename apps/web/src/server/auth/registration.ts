@@ -69,6 +69,7 @@ export async function registerPendingUserAndNotify(user: {
 
     // Re-throw error to fail the registration
     throw new APIError("INTERNAL_SERVER_ERROR", {
+      code: "REGISTRATION_UNAVAILABLE",
       message:
         "Unable to complete registration. Please try again later or contact support.",
     });

@@ -1,13 +1,52 @@
 import { nanoid } from "nanoid";
+import { logWarn } from "@/lib/logger";
 import { parseQuizFromText } from "@/lib/quiz";
 import type { Chunk } from "./ui-chunks";
 import {
   findMarker,
   isQuizInProgress,
+  leakFormOf,
   stillPlausible,
   MARKER_LOOKBACK,
   MAX_HELD_CHARS,
 } from "./quiz-leak-detection";
+
+/**
+ * Who the recovery is running for, so every recovery can be attributed to a
+ * model. The leak rate per model is what decides whether a model needs
+ * remapping (#398), and it cannot be measured without this.
+ */
+export type QuizRecoveryContext = {
+  chatbotId: string;
+  modelId: string;
+  /** The tool-capable primary turn, or the no-tools fallback turn. */
+  turn: "primary" | "fallback";
+};
+
+/**
+ * How a leak ended: rebuilt into a quiz, or -- once the placeholder was up --
+ * replaced with an error notice because the held text never parsed.
+ */
+type RecoveryOutcome = "recovered" | "unparseable";
+
+/**
+ * Log one recovery. Only metadata is logged: the held text is the model's
+ * quiz, answer key included, and may echo what the student wrote, so none of
+ * it goes to the logs.
+ */
+function logRecovery(
+  context: QuizRecoveryContext,
+  held: string,
+  outcome: RecoveryOutcome,
+): void {
+  logWarn("Recovered a showQuiz call the model leaked into text", {
+    chatbotId: context.chatbotId,
+    modelId: context.modelId,
+    turn: context.turn,
+    form: leakFormOf(held),
+    outcome,
+  });
+}
 
 /**
  * Recover a quiz a model emitted as text instead of a native `showQuiz` tool
@@ -45,8 +84,13 @@ import {
  * real leak after it, recovery drops everything from the first marker on, so the
  * intervening content is lost with the leak. A quiz turn that also contains an
  * unrelated JSON blob isn't a shape worth the extra state.
+ *
+ * Every recovery logs exactly one warning (see `logRecovery`); text that is
+ * streamed through untouched logs nothing.
  */
-export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
+export function recoverLeakedQuiz(
+  context: QuizRecoveryContext,
+): TransformStream<Chunk, Chunk> {
   /** null between blocks; otherwise the id of the block being processed. */
   let blockId: string | null = null;
   let startChunk: Chunk | null = null;
@@ -96,6 +140,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     controller: TransformStreamDefaultController<Chunk>,
   ) => {
     if (placeholderCallId) {
+      logRecovery(context, pendingText.slice(markerAt), "unparseable");
       controller.enqueue({
         type: "tool-output-error",
         toolCallId: placeholderCallId,
@@ -174,6 +219,7 @@ export function recoverLeakedQuiz(): TransformStream<Chunk, Chunk> {
     const quiz =
       markerAt === -1 ? null : parseQuizFromText(pendingText.slice(markerAt));
     if (!quiz) return false;
+    logRecovery(context, pendingText.slice(markerAt), "recovered");
     // Drop the leaked call. Keep any preamble before it as text -- it is a
     // real part of the answer -- and close the block only if text was
     // emitted, so a leak-only block leaves no empty bubble behind.

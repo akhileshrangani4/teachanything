@@ -22,6 +22,7 @@ import { useExportSource } from "@/hooks/use-export-source";
 import { ConfirmDialogContent } from "@/components/chatbot/web-sources/ConfirmDialogContent";
 import { isActiveSource } from "@/components/chatbot/web-sources/utils";
 import type { DashboardSource } from "./types";
+import { useTranslation } from "react-i18next";
 
 // Expand chevron + overflow menu (recrawl, export, delete).
 export function SourceActions({
@@ -45,6 +46,7 @@ export function SourceActions({
   isDeleting: boolean;
   isStopping: boolean;
 }) {
+  const { t } = useTranslation();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
   const handleExport = useExportSource(source.id, source.rootUrl);
@@ -58,7 +60,11 @@ export function SourceActions({
         size="icon"
         className="h-8 w-8 text-muted-foreground hover:text-foreground"
         onClick={() => onToggleExpand(source.id)}
-        aria-label={isExpanded ? "Hide crawled pages" : "Show crawled pages"}
+        aria-label={
+          isExpanded
+            ? t("webSources.table.hidePages")
+            : t("webSources.table.showPages")
+        }
       >
         <ChevronDown
           className={`h-4 w-4 transition-transform ${
@@ -73,7 +79,7 @@ export function SourceActions({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            aria-label="More actions"
+            aria-label={t("common.actions.moreActions")}
           >
             <MoreVertical className="h-4 w-4" />
           </Button>
@@ -88,7 +94,7 @@ export function SourceActions({
               }}
             >
               <CircleStop className="mr-2 h-4 w-4" />
-              Stop crawl
+              {t("webSources.actions.stopCrawl")}
             </DropdownMenuItem>
           )}
           {(source.status === "completed" || source.status === "failed") && (
@@ -97,13 +103,15 @@ export function SourceActions({
               onClick={() => onRecrawl(source.id)}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
-              {source.status === "failed" ? "Retry" : "Re-crawl"}
+              {source.status === "failed"
+                ? t("common.actions.retry")
+                : t("webSources.actions.recrawl")}
             </DropdownMenuItem>
           )}
           {source.status === "completed" && (
             <DropdownMenuItem onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
-              Export JSON
+              {t("webSources.actions.exportJson")}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -116,27 +124,27 @@ export function SourceActions({
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {t("common.actions.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <AlertDialog open={confirmStop} onOpenChange={setConfirmStop}>
         <ConfirmDialogContent
-          title="Stop crawl"
-          description="Stop this crawl now. Pages already crawled are kept; the rest are skipped. You can re-crawl or delete the source afterwards."
-          cancelLabel="Keep crawling"
-          confirmLabel="Stop crawl"
+          title={t("webSources.actions.stopCrawl")}
+          description={t("webSources.actions.stopDescriptionDashboard")}
+          cancelLabel={t("webSources.actions.keepCrawling")}
+          confirmLabel={t("webSources.actions.stopCrawl")}
           onConfirm={() => onStop(source.id)}
         />
       </AlertDialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <ConfirmDialogContent
-          title="Delete web source"
-          description="Permanently delete this web source and all of its crawled pages. It will be detached from every chatbot. This cannot be undone."
-          cancelLabel="Cancel"
-          confirmLabel="Delete permanently"
+          title={t("webSources.actions.deleteTitle")}
+          description={t("webSources.actions.deleteDescription")}
+          cancelLabel={t("common.actions.cancel")}
+          confirmLabel={t("webSources.actions.deletePermanently")}
           destructive
           onConfirm={() => onDelete(source.id)}
         />

@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TITLE_OPTIONS } from "@/lib/constants/title-options";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 /**
  * Resolves a stored title to dropdown selection + custom value.
@@ -47,6 +49,7 @@ function resolveTitleFromForm(selection: string, custom: string): string {
  * This pattern ensures the form initializes with correct values.
  */
 export function InstitutionalSection() {
+  const { t } = useTranslation();
   const { data: profile, isLoading } = trpc.auth.getProfile.useQuery();
 
   if (isLoading) {
@@ -63,7 +66,11 @@ export function InstitutionalSection() {
   }
 
   if (!profile) {
-    return <p className="text-sm text-destructive">Failed to load profile</p>;
+    return (
+      <p className="text-sm text-destructive">
+        {t("settings.institutional.loadFailed")}
+      </p>
+    );
   }
 
   const titleData = parseTitleForForm(profile.title);
@@ -118,16 +125,19 @@ function InstitutionalForm({
   initial: FormValues;
   saved: SavedValues;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<FormValues>(initial);
   const utils = trpc.useUtils();
 
   const updateProfile = trpc.auth.updateProfile.useMutation({
     onSuccess: () => {
-      toast.success("Information updated");
+      toast.success(t("settings.institutional.updated"));
       utils.auth.getProfile.invalidate();
     },
     onError: (error) =>
-      toast.error("Failed to update", { description: error.message }),
+      toast.error(t("settings.institutional.updateFailed"), {
+        description: serverErrorMessage(t, error),
+      }),
   });
 
   // Derive current title and check for changes
@@ -154,29 +164,29 @@ function InstitutionalForm({
 
     // Validation
     if (!form.titleSelection) {
-      return toast.error("Title is required");
+      return toast.error(t("settings.institutional.titleRequired"));
     }
     if (form.titleSelection === "other" && !form.customTitle.trim()) {
-      return toast.error("Please enter your title");
+      return toast.error(t("settings.institutional.enterYourTitle"));
     }
     if (!form.institution.trim()) {
-      return toast.error("Institution is required");
+      return toast.error(t("settings.institutional.institutionRequired"));
     }
     if (!form.department.trim()) {
-      return toast.error("Department is required");
+      return toast.error(t("settings.institutional.departmentRequired"));
     }
     if (!form.country.trim()) {
-      return toast.error("Country is required");
+      return toast.error(t("settings.institutional.countryRequired"));
     }
     if (!form.webpage.trim()) {
-      return toast.error("University webpage is required");
+      return toast.error(t("settings.institutional.webpageRequired"));
     }
 
     // URL validation
     try {
       new URL(form.webpage.trim());
     } catch {
-      return toast.error("Please enter a valid URL");
+      return toast.error(t("settings.institutional.invalidUrl"));
     }
 
     updateProfile.mutate({
@@ -195,7 +205,7 @@ function InstitutionalForm({
       <div className="grid sm:grid-cols-2 gap-4">
         {/* Title */}
         <div className="space-y-2">
-          <Label>Title</Label>
+          <Label>{t("settings.institutional.title")}</Label>
           <Select
             value={form.titleSelection}
             onValueChange={(value) => {
@@ -205,19 +215,21 @@ function InstitutionalForm({
             disabled={isPending}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select title" />
+              <SelectValue
+                placeholder={t("settings.institutional.selectTitle")}
+              />
             </SelectTrigger>
             <SelectContent>
               {TITLE_OPTIONS.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {t(`settings.titles.${opt.value}`)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           {form.titleSelection === "other" && (
             <Input
-              placeholder="Enter title"
+              placeholder={t("settings.institutional.enterTitle")}
               value={form.customTitle}
               onChange={(e) => updateField("customTitle", e.target.value)}
               disabled={isPending}
@@ -227,9 +239,9 @@ function InstitutionalForm({
 
         {/* Institution */}
         <div className="space-y-2">
-          <Label>Institution</Label>
+          <Label>{t("settings.institutional.institution")}</Label>
           <Input
-            placeholder="University of Example"
+            placeholder={t("settings.institutional.institutionPlaceholder")}
             value={form.institution}
             onChange={(e) => updateField("institution", e.target.value)}
             disabled={isPending}
@@ -238,9 +250,9 @@ function InstitutionalForm({
 
         {/* Department */}
         <div className="space-y-2">
-          <Label>Department</Label>
+          <Label>{t("settings.institutional.department")}</Label>
           <Input
-            placeholder="Computer Science"
+            placeholder={t("settings.institutional.departmentPlaceholder")}
             value={form.department}
             onChange={(e) => updateField("department", e.target.value)}
             disabled={isPending}
@@ -249,7 +261,7 @@ function InstitutionalForm({
 
         {/* Country */}
         <div className="space-y-2">
-          <Label>Country</Label>
+          <Label>{t("settings.institutional.country")}</Label>
           <CountryCombobox
             value={form.country}
             onValueChange={(value) => updateField("country", value)}
@@ -259,10 +271,10 @@ function InstitutionalForm({
 
         {/* University Webpage */}
         <div className="space-y-2">
-          <Label>University webpage about you</Label>
+          <Label>{t("settings.institutional.webpage")}</Label>
           <Input
             type="url"
-            placeholder="university.edu/your-name"
+            placeholder={t("auth.register.webpagePlaceholder")}
             value={form.webpage}
             onChange={(e) => updateField("webpage", e.target.value)}
             onBlur={(e) => {
@@ -280,12 +292,12 @@ function InstitutionalForm({
         {isPending ? (
           <>
             <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-            Saving...
+            {t("common.actions.saving")}
           </>
         ) : (
           <>
             <Save className="h-4 w-4 mr-2" />
-            Save Changes
+            {t("common.actions.saveChanges")}
           </>
         )}
       </Button>

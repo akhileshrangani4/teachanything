@@ -2,12 +2,14 @@
 
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { useTranslation } from "react-i18next";
 
 /**
  * Builds the JSON export handler for a single crawl source: fetches the
  * export, triggers a browser download and toasts the outcome.
  */
 export function useExportSource(crawlSourceId: string, rootUrl: string) {
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   return async () => {
     try {
@@ -23,9 +25,9 @@ export function useExportSource(crawlSourceId: string, rootUrl: string) {
       a.download = `crawl-${new URL(rootUrl).hostname}-${new Date().toISOString().split("T")[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("JSON exported");
+      toast.success(t("webSources.toasts.jsonExported"));
     } catch {
-      toast.error("Failed to export JSON");
+      toast.error(t("webSources.toasts.jsonExportFailed"));
     }
   };
 }

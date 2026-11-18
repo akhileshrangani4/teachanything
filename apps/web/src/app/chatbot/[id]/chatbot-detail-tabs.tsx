@@ -20,6 +20,7 @@ import { ChatbotAnalyticsTab } from "@/components/chatbot/AnalyticsTab";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import type { StudyResponsePayload } from "@/lib/submit-study-response";
 import type { ChatStatus } from "ai";
+import { useTranslation } from "react-i18next";
 
 type Chatbot = NonNullable<RouterOutputs["chatbot"]["get"]>;
 
@@ -63,17 +64,28 @@ export function ChatbotDetailTabs({
   onStudyAttempt,
   studyAttempts,
 }: ChatbotDetailTabsProps) {
+  const { t } = useTranslation();
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-6">
       <TabsList className="h-auto flex-wrap justify-start gap-1 bg-muted-foreground/10 border border-border">
-        <TabsTrigger value="chat">Chat</TabsTrigger>
-        <TabsTrigger value="files">Files</TabsTrigger>
-        <TabsTrigger value="web-sources">Web Sources</TabsTrigger>
-        <TabsTrigger value="conversations">Student Chats</TabsTrigger>
-        <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsTrigger value="chat">{t("chatbotDetail.tabs.chat")}</TabsTrigger>
+        <TabsTrigger value="files">{t("chatbotDetail.tabs.files")}</TabsTrigger>
+        <TabsTrigger value="web-sources">
+          {t("chatbotDetail.tabs.webSources")}
+        </TabsTrigger>
+        <TabsTrigger value="conversations">
+          {t("chatbotDetail.tabs.conversations")}
+        </TabsTrigger>
+        <TabsTrigger value="analytics">
+          {t("chatbotDetail.tabs.analytics")}
+        </TabsTrigger>
+        <TabsTrigger value="settings">
+          {t("chatbotDetail.tabs.settings")}
+        </TabsTrigger>
         {chatbot.sharingEnabled && chatbot.shareToken && (
-          <TabsTrigger value="embed">Embed</TabsTrigger>
+          <TabsTrigger value="embed">
+            {t("chatbotDetail.tabs.embed")}
+          </TabsTrigger>
         )}
       </TabsList>
 
@@ -87,7 +99,7 @@ export function ChatbotDetailTabs({
             setCurrentMessage={setCurrentMessage}
             handleSendMessage={handleSendMessage}
             messagesEndRef={messagesEndRef}
-            chatbotName={chatbot.name || "Chatbot"}
+            chatbotName={chatbot.name || t("chatbotDetail.nameFallback")}
             welcomeMessage={chatbot.welcomeMessage}
             resetChat={resetChat}
             stop={stop}
@@ -126,8 +138,10 @@ export function ChatbotDetailTabs({
       <TabsContent value="settings" className="mt-6">
         <Card>
           <CardHeader>
-            <CardTitle>Chatbot Settings</CardTitle>
-            <CardDescription>Configure your chatbot</CardDescription>
+            <CardTitle>{t("chatbotDetail.settingsCard.title")}</CardTitle>
+            <CardDescription>
+              {t("chatbotDetail.settingsCard.description")}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ChatbotSettings
@@ -153,12 +167,9 @@ export function ChatbotDetailTabs({
         <TabsContent value="embed" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Embed On Website</CardTitle>
+              <CardTitle>{t("chatbotDetail.embed.cardTitle")}</CardTitle>
               <CardDescription>
-                Add your chatbot to any website. Choose between a floating
-                widget button (recommended for most sites) or an always-visible
-                chat window. Works with HTML, WordPress, React, Next.js, and any
-                web platform.
+                {t("chatbotDetail.embed.cardDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>

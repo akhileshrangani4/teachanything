@@ -14,6 +14,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTranslation } from "react-i18next";
+import { storedFileErrorMessage } from "@/lib/stored-file-error";
 
 interface ProcessingProgress {
   stage: "downloading" | "extracting" | "chunking" | "embedding" | "storing";
@@ -36,14 +38,6 @@ interface FileStatusBadgeProps {
   size?: "sm" | "md";
 }
 
-const STAGE_LABELS: Record<ProcessingProgress["stage"], string> = {
-  downloading: "Downloading",
-  extracting: "Extracting content",
-  chunking: "Chunking text",
-  embedding: "Generating embeddings",
-  storing: "Storing data",
-};
-
 const TIMEOUT_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 
 function isStuck(progress?: ProcessingProgress): boolean {
@@ -59,6 +53,7 @@ export function FileStatusBadge({
   showProgress = true,
   size = "md",
 }: FileStatusBadgeProps) {
+  const { t, i18n } = useTranslation();
   const progress = metadata?.processingProgress;
   const stuck = status === "processing" && isStuck(progress);
 
@@ -70,7 +65,7 @@ export function FileStatusBadge({
       case "completed":
         return {
           icon: CheckCircle2,
-          label: "Completed",
+          label: t("files.status.completed"),
           color: "text-green-600",
           bgColor: "bg-green-50",
           borderColor: "border-green-200",
@@ -78,7 +73,7 @@ export function FileStatusBadge({
       case "failed":
         return {
           icon: XCircle,
-          label: "Failed",
+          label: t("files.status.failed"),
           color: "text-red-600",
           bgColor: "bg-red-50",
           borderColor: "border-red-200",
@@ -86,7 +81,7 @@ export function FileStatusBadge({
       case "stuck":
         return {
           icon: AlertTriangle,
-          label: "Stuck",
+          label: t("files.status.stuck"),
           color: "text-amber-600",
           bgColor: "bg-amber-50",
           borderColor: "border-amber-200",
@@ -94,7 +89,7 @@ export function FileStatusBadge({
       case "pending":
         return {
           icon: Clock,
-          label: "Pending",
+          label: t("files.status.pending"),
           color: "text-gray-600",
           bgColor: "bg-gray-50",
           borderColor: "border-gray-200",
@@ -102,7 +97,7 @@ export function FileStatusBadge({
       case "processing":
         return {
           icon: Loader2,
-          label: "Processing",
+          label: t("files.status.processing"),
           color: "text-blue-600",
           bgColor: "bg-blue-50",
           borderColor: "border-blue-200",
@@ -125,17 +120,22 @@ export function FileStatusBadge({
     if (displayStatus === "stuck") {
       return (
         <div className="space-y-1">
-          <p className="font-medium">File processing appears to be stuck</p>
+          <p className="font-medium">{t("files.status.stuckTitle")}</p>
           <p className="text-xs">
-            Last updated:{" "}
-            {progress?.lastUpdatedAt
-              ? new Date(progress.lastUpdatedAt).toLocaleString()
-              : "Unknown"}
+            {t("files.status.lastUpdated", {
+              time: progress?.lastUpdatedAt
+                ? new Date(progress.lastUpdatedAt).toLocaleString(i18n.language)
+                : t("files.status.unknown"),
+            })}
           </p>
           <p className="text-xs">
-            Stage: {progress?.stage ? STAGE_LABELS[progress.stage] : "Unknown"}
+            {t("files.status.stage", {
+              stage: progress?.stage
+                ? t(`files.status.stages.${progress.stage}`)
+                : t("files.status.unknown"),
+            })}
           </p>
-          <p className="text-xs text-amber-200">Try retrying this file</p>
+          <p className="text-xs text-amber-200">{t("files.status.tryRetry")}</p>
         </div>
       );
     }
@@ -143,8 +143,10 @@ export function FileStatusBadge({
     if (displayStatus === "failed" && metadata?.error) {
       return (
         <div className="space-y-1">
-          <p className="font-medium">Processing failed</p>
-          <p className="text-xs">{metadata.error}</p>
+          <p className="font-medium">{t("files.status.failedTitle")}</p>
+          <p className="text-xs">
+            {storedFileErrorMessage(i18n, metadata.error)}
+          </p>
         </div>
       );
     }
@@ -152,11 +154,13 @@ export function FileStatusBadge({
     if (displayStatus === "completed" && metadata?.chunkCount) {
       return (
         <div className="space-y-1">
-          <p className="font-medium">Processing completed</p>
-          <p className="text-xs">{metadata.chunkCount} chunks created</p>
+          <p className="font-medium">{t("files.status.completedTitle")}</p>
+          <p className="text-xs">
+            {t("files.status.chunksCreated", { count: metadata.chunkCount })}
+          </p>
           {metadata.processedAt && (
             <p className="text-xs">
-              {new Date(metadata.processedAt).toLocaleString()}
+              {new Date(metadata.processedAt).toLocaleString(i18n.language)}
             </p>
           )}
         </div>
@@ -166,14 +170,25 @@ export function FileStatusBadge({
     if (displayStatus === "processing" && progress) {
       return (
         <div className="space-y-1">
-          <p className="font-medium">Processing in progress</p>
-          <p className="text-xs">Stage: {STAGE_LABELS[progress.stage]}</p>
+          <p className="font-medium">{t("files.status.inProgressTitle")}</p>
+          <p className="text-xs">
+            {t("files.status.stage", {
+              stage: t(`files.status.stages.${progress.stage}`),
+            })}
+          </p>
           {progress.totalChunks && (
             <p className="text-xs">
-              Chunk {progress.currentChunk || 0} of {progress.totalChunks}
+              {t("files.status.chunkProgress", {
+                current: progress.currentChunk || 0,
+                total: progress.totalChunks,
+              })}
             </p>
           )}
-          <p className="text-xs">Progress: {progress.percentage.toFixed(0)}%</p>
+          <p className="text-xs">
+            {t("files.status.progress", {
+              progress: progress.percentage / 100,
+            })}
+          </p>
         </div>
       );
     }
@@ -238,7 +253,9 @@ export function FileStatusBadge({
                     </span>
                   )}
                 <span className="text-xs font-medium text-foreground tabular-nums min-w-[35px] text-right">
-                  {progress.percentage.toFixed(0)}%
+                  {t("files.status.percent", {
+                    progress: progress.percentage / 100,
+                  })}
                 </span>
               </div>
             </div>

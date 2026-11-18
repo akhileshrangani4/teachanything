@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import type { FileSortBy } from "@/components/data-table";
 import { useServerTable } from "@/hooks/useServerTable";
 import { keepPreviousData } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -16,6 +18,7 @@ const ITEMS_PER_PAGE = 10;
  * and the batch-delete + retry-confirm flows (toast copy preserved).
  */
 export function useFilesPage() {
+  const { t } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [filesToDelete, setFilesToDelete] = useState<string[]>([]);
   const [retryDialogOpen, setRetryDialogOpen] = useState(false);
@@ -74,8 +77,8 @@ export function useFilesPage() {
       setSelectedFiles(new Set());
     },
     onError: (error) => {
-      toast.error("Failed to delete file", {
-        description: error.message,
+      toast.error(t("files.toasts.deleteFailed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -93,19 +96,19 @@ export function useFilesPage() {
 
       toast.success(
         wasProcessing
-          ? "Processing cancelled and restarted"
-          : "File processing restarted",
+          ? t("files.toasts.restartedAfterCancel")
+          : t("files.toasts.restarted"),
         {
           description: wasProcessing
-            ? "The file will be processed again from the beginning"
-            : "The file will be processed again",
+            ? t("files.toasts.restartedFromStart")
+            : t("files.toasts.restartedDescription"),
         },
       );
       refetch();
     },
     onError: (error) => {
-      toast.error("Failed to retry file", {
-        description: error.message,
+      toast.error(t("files.toasts.retryFailed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -114,7 +117,7 @@ export function useFilesPage() {
     if (filesToDelete.length === 0) return;
 
     const toastId = toast.loading(
-      `Deleting ${filesToDelete.length} file${filesToDelete.length !== 1 ? "s" : ""}...`,
+      t("files.toasts.deleting", { count: filesToDelete.length }),
     );
 
     let successCount = 0;
@@ -136,23 +139,23 @@ export function useFilesPage() {
 
     // Show summary toast
     if (successCount > 0 && errorCount === 0) {
-      toast.success(
-        `Successfully deleted ${successCount} file${successCount !== 1 ? "s" : ""}`,
-        {
-          id: toastId,
-        },
-      );
+      toast.success(t("files.toasts.deletedAll", { count: successCount }), {
+        id: toastId,
+      });
     } else if (successCount > 0 && errorCount > 0) {
       toast.warning(
-        `Deleted ${successCount} file${successCount !== 1 ? "s" : ""}, ${errorCount} failed`,
+        t("files.toasts.deletedPartial", {
+          succeeded: successCount,
+          failed: errorCount,
+        }),
         {
           id: toastId,
         },
       );
     } else {
-      toast.error("Failed to delete files", {
+      toast.error(t("files.toasts.deleteAllFailed"), {
         id: toastId,
-        description: "Please try again",
+        description: t("files.toasts.pleaseTryAgain"),
       });
     }
   };

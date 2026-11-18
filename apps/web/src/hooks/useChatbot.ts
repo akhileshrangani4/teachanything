@@ -5,11 +5,13 @@ import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { describeChatError } from "@/lib/chat-error-message";
+import { restoreRefusedTurn } from "@/lib/chat/refused-turn";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import {
   postStudyResponse,
   type StudyResponsePayload,
 } from "@/lib/submit-study-response";
+import { useTranslation } from "react-i18next";
 
 /**
  * Chat with an authenticated chatbot (the owner's /chatbot/[id] page), backed
@@ -22,6 +24,7 @@ export function useChatbot(
   chatbotId: string,
   session: { user: { id: string } } | null,
 ) {
+  const { t } = useTranslation();
   const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
   // The student's own finished study-tool responses this session, by tool
@@ -30,6 +33,8 @@ export function useChatbot(
     Record<string, StudyResponsePayload[]>
   >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // The last message sent, to hand back to the student if the server refuses it.
+  const lastSentRef = useRef("");
 
   const { data: chatbot, isLoading: chatbotLoading } =
     trpc.chatbot.get.useQuery({ id: chatbotId }, { enabled: !!session });
@@ -48,7 +53,15 @@ export function useChatbot(
         };
       },
     }),
-    onError: (error) => toast.error(describeChatError(error)),
+    onError: (error) => {
+      toast.error(describeChatError(error, t));
+      restoreRefusedTurn(
+        error,
+        lastSentRef.current,
+        chat.setMessages,
+        setCurrentMessage,
+      );
+    },
     experimental_throttle: 50,
   });
 
@@ -61,6 +74,7 @@ export function useChatbot(
   const sendMessage = useCallback(
     (text: string): boolean => {
       if (!text.trim() || isStreaming) return false;
+      lastSentRef.current = text;
       void chat.sendMessage({ text });
       return true;
     },

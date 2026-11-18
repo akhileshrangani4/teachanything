@@ -6,6 +6,7 @@ import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { isActiveSource } from "../utils";
 import { ConfirmDialogContent } from "../ConfirmDialogContent";
 import type { CrawlSource } from "./types";
+import { useTranslation } from "react-i18next";
 
 // ── Shared row actions (export / recrawl / remove) ───────────────────
 export function WebSourceRowActions({
@@ -27,6 +28,7 @@ export function WebSourceRowActions({
   onRemove: () => void;
   onStop: () => void;
 }) {
+  const { t } = useTranslation();
   const isActive = isActiveSource(source);
   return (
     <>
@@ -38,7 +40,7 @@ export function WebSourceRowActions({
             size="icon"
             onClick={onExport}
             className="h-8 w-8"
-            title="Download JSON"
+            title={t("webSources.actions.downloadJson")}
           >
             <Download className="h-4 w-4" />
           </Button>
@@ -49,7 +51,7 @@ export function WebSourceRowActions({
         <RecrawlButton
           onRecrawl={onRecrawl}
           isRecrawling={isRecrawling}
-          title="Retry"
+          title={t("common.actions.retry")}
         />
       )}
       <AlertDialog>
@@ -59,16 +61,16 @@ export function WebSourceRowActions({
             size="icon"
             className="h-8 w-8"
             disabled={isRemoving}
-            title="Remove from chatbot"
+            title={t("webSources.actions.removeFromChatbot")}
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </AlertDialogTrigger>
         <ConfirmDialogContent
-          title="Remove from chatbot"
-          description="Remove this web source from this chatbot? Its content stays available to attach again."
-          cancelLabel="Cancel"
-          confirmLabel="Remove from chatbot"
+          title={t("webSources.actions.removeFromChatbot")}
+          description={t("webSources.actions.removeDescription")}
+          cancelLabel={t("common.actions.cancel")}
+          confirmLabel={t("webSources.actions.removeFromChatbot")}
           onConfirm={onRemove}
         />
       </AlertDialog>
@@ -84,6 +86,7 @@ function StopCrawlButton({
   onStop: () => void;
   isStopping: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -92,16 +95,16 @@ function StopCrawlButton({
           size="icon"
           className="h-8 w-8"
           disabled={isStopping}
-          title="Stop crawl"
+          title={t("webSources.actions.stopCrawl")}
         >
           <CircleStop className="h-4 w-4" />
         </Button>
       </AlertDialogTrigger>
       <ConfirmDialogContent
-        title="Stop crawl"
-        description="Stop this crawl now. Pages already crawled are kept; the rest are skipped. You can re-crawl or remove the source afterwards."
-        cancelLabel="Keep crawling"
-        confirmLabel="Stop crawl"
+        title={t("webSources.actions.stopCrawl")}
+        description={t("webSources.actions.stopDescriptionChatbot")}
+        cancelLabel={t("webSources.actions.keepCrawling")}
+        confirmLabel={t("webSources.actions.stopCrawl")}
         onConfirm={onStop}
       />
     </AlertDialog>

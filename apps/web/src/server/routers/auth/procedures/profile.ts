@@ -2,8 +2,8 @@ import { protectedProcedure } from "@/server/trpc";
 import { z } from "zod";
 import { user } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { logInfo } from "@/lib/logger";
+import { appError } from "@/server/app-error";
 
 /**
  * Get current user's profile including verification fields
@@ -19,6 +19,7 @@ export const getProfileProcedure = protectedProcedure.query(async ({ ctx }) => {
       department: user.department,
       facultyWebpage: user.facultyWebpage,
       country: user.country,
+      preferredLocale: user.preferredLocale,
       status: user.status,
       role: user.role,
     })
@@ -27,10 +28,7 @@ export const getProfileProcedure = protectedProcedure.query(async ({ ctx }) => {
     .limit(1);
 
   if (!userData) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "User not found",
-    });
+    throw appError("NOT_FOUND", "errors.notFoundItems.user");
   }
 
   // Check if profile is complete (all fields required)

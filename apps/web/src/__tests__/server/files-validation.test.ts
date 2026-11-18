@@ -334,7 +334,7 @@ describe("validateFileSize", () => {
         throw new Error("Expected to throw");
       } catch (error) {
         const trpcError = error as TRPCError;
-        expect(trpcError.message).toContain("60.00MB");
+        expect(trpcError.message).toContain("60MB");
       }
     });
   });

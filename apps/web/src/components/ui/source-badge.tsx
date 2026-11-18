@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { FileText, Globe } from "lucide-react";
 import { describeSource, type SourceCitation } from "@/lib/message-sources";
+import { useTranslation } from "react-i18next";
 
 interface SourceBadgeProps {
   source: SourceCitation;
@@ -24,6 +25,7 @@ export function SourceBadge({
   showSimilarityTooltip = false,
   className = "text-xs",
 }: SourceBadgeProps) {
+  const { t } = useTranslation();
   const { isWeb, label } = describeSource(source);
   // Web sources have no page concept; only file sources get a page suffix.
   const pages =
@@ -32,14 +34,17 @@ export function SourceBadge({
     isWeb || pages.length === 0
       ? ""
       : pages.length === 1
-        ? ` · Page ${pages[0]}`
-        : ` · ${pages.length} pages`;
+        ? ` · ${t("chat.sources.page", { page: pages[0] })}`
+        : ` · ${t("chat.sources.pageCount", { count: pages.length })}`;
   const displayLabel = `${label}${pageSuffix}`;
 
   const similarityNote = showSimilarityTooltip
-    ? `Similarity: ${(source.similarity * 100).toFixed(1)}%`
+    ? t("chat.sources.similarity", { similarity: source.similarity })
     : "";
-  const pagesNote = pages.length > 1 ? `Pages ${pages.join(", ")}` : "";
+  const pagesNote =
+    pages.length > 1
+      ? t("chat.sources.pagesList", { list: pages.join(", ") })
+      : "";
   const title = [pagesNote, similarityNote].filter(Boolean).join(" · ");
 
   return (

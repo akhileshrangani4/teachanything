@@ -6,7 +6,7 @@ import {
   crawledPages,
   chatbotCrawlSourceAssociations,
 } from "@teachanything/db/schema";
-import { verifyUrlReachable } from "@teachanything/ai/crawler";
+import { assertUrlReachable } from "../url-reachability";
 import {
   dispatchCrawlJob,
   processCrawlPage,
@@ -16,9 +16,10 @@ import { checkRateLimit, manualUrlRateLimit } from "@/server/rate-limit";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import {
   MANUAL_URLS_PER_HOUR,
-  formatRetryAfter,
+  retryAfterMinutes,
 } from "@/lib/constants/rate-limits";
 import { manualUrlInput } from "../validation";
+import { appError } from "@/server/app-error";
 
 export const addManualUrlProcedure = protectedProcedure
   .input(manualUrlInput)
@@ -33,9 +34,9 @@ export const addManualUrlProcedure = protectedProcedure
       { action: "addManualUrl" },
     );
     if (!success) {
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: `You've reached the hourly limit of ${MANUAL_URLS_PER_HOUR} single webpages. This is an hourly limit, not a total cap on web sources. You can add another page in ${formatRetryAfter(reset)}.`,
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.singlePages", {
+        limit: MANUAL_URLS_PER_HOUR,
+        minutes: retryAfterMinutes(reset),
       });
     }
 
@@ -51,23 +52,10 @@ export const addManualUrlProcedure = protectedProcedure
       .limit(1);
 
     if (existingSource) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: "You've already added this URL as a web source",
-      });
+      throw appError("CONFLICT", "errors.crawler.duplicateUrl");
     }
 
-    try {
-      await verifyUrlReachable(input.url);
-    } catch (e) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message:
-          e instanceof Error
-            ? e.message
-            : "Could not reach that URL. Please check it's correct and publicly accessible.",
-      });
-    }
+    await assertUrlReachable(input.url);
 
     const { source, page } = await ctx.db.transaction(async (tx) => {
       const [createdSource] = await tx
@@ -85,10 +73,7 @@ export const addManualUrlProcedure = protectedProcedure
         .returning();
 
       if (!createdSource) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create crawl source",
-        });
+        throw appError("INTERNAL_SERVER_ERROR", "errors.crawler.createFailed");
       }
 
       if (input.chatbotId) {

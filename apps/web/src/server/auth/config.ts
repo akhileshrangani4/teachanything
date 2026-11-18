@@ -10,6 +10,7 @@ import { enforceAllowedDomain } from "./domain-check";
 import { registerPendingUserAndNotify } from "./registration";
 import { gateSessionCreation } from "./session-gate";
 import { rejectDuplicateSignUp } from "./sign-up-guard";
+import { syncLocaleCookie } from "./locale-cookie";
 import { userAdditionalFields } from "./user-fields";
 
 export const auth = betterAuth({
@@ -103,6 +104,7 @@ export const auth = betterAuth({
 
   hooks: {
     before: rejectDuplicateSignUp,
+    after: syncLocaleCookie,
   },
 
   // Database hooks for approval workflow

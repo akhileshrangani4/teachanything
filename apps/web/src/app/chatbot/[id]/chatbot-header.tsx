@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { WrappableText } from "@/components/ui/wrappable-text";
 import { ShareLinkSection } from "@/components/chat/sharing/ShareLinkSection";
+import { useTranslation } from "react-i18next";
 
 interface ChatbotHeaderProps {
   name: string | null;
@@ -24,6 +25,7 @@ export function ChatbotHeader({
   onEnableSharing,
   isEnabling,
 }: ChatbotHeaderProps) {
+  const { t } = useTranslation();
   return (
     <div>
       <div className="flex items-center gap-3 mb-2">
@@ -36,7 +38,11 @@ export function ChatbotHeader({
       </p>
       <div className="flex flex-wrap items-center gap-2 mt-4">
         <Badge>{model}</Badge>
-        {sharingEnabled && <Badge variant="outline">Sharing Enabled</Badge>}
+        {sharingEnabled && (
+          <Badge variant="outline">
+            {t("chatbotDetail.header.sharingEnabled")}
+          </Badge>
+        )}
       </div>
 
       {/* Share Link Section */}

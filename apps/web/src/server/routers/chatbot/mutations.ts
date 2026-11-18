@@ -3,10 +3,11 @@ import { z } from "zod";
 import { chatbots } from "@teachanything/db/schema";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { TRPCError } from "@trpc/server";
 import { checkRateLimit, chatbotCreationRateLimit } from "@/server/rate-limit";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { createChatbotSchema } from "./schemas";
+import { appError } from "@/server/app-error";
+import { retryAfterHours } from "@/lib/constants/rate-limits";
 
 export const chatbotMutations = {
   /**
@@ -26,11 +27,13 @@ export const chatbotMutations = {
       );
 
       if (!success) {
-        const retryAfter = Math.ceil((reset - Date.now()) / 1000);
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: `Too many chatbot creations. Please try again in ${Math.ceil(retryAfter / 3600)} hour(s).`,
-        });
+        throw appError(
+          "TOO_MANY_REQUESTS",
+          "errors.rateLimits.chatbotCreation",
+          {
+            hours: retryAfterHours(reset),
+          },
+        );
       }
 
       // Generate shareToken automatically since sharing is enabled by default
@@ -140,10 +143,7 @@ export const chatbotMutations = {
         .returning();
 
       if (!updated) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Chatbot not found",
-        });
+        throw appError("NOT_FOUND", "errors.notFoundItems.chatbot");
       }
 
       return {

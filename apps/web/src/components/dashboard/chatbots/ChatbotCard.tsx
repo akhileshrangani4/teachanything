@@ -13,13 +13,24 @@ import { Bot, MoreVertical, Trash2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import type { Chatbot } from "@/types/database";
 import { MODELS, formatDate } from "./chatbot-constants";
+import { useTranslation } from "react-i18next";
+import { Badge } from "@/components/ui/badge";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
+import { usageLevel } from "@/lib/usage-level";
+import type { RouterOutputs } from "@/lib/trpc";
+
+type DailyUsage =
+  RouterOutputs["chatbot"]["getDailyUsage"]["byChatbot"][string];
 
 interface ChatbotCardProps {
   chatbot: Chatbot;
   onDelete: (chatbotId: string) => void;
+  /** Today's student messages for this chatbot; absent while loading. */
+  usage?: DailyUsage;
 }
 
-export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
+export function ChatbotCard({ chatbot, onDelete, usage }: ChatbotCardProps) {
+  const { t, i18n } = useTranslation();
   return (
     <Card className="border border-border/60 bg-card card-hover-lift shadow-xs group">
       <CardContent className="p-6">
@@ -47,8 +58,9 @@ export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
                 {chatbot.id.slice(0, 8)}...
               </span>
               <span>•</span>
-              <span>{formatDate(chatbot.createdAt)}</span>
+              <span>{formatDate(chatbot.createdAt, i18n.language)}</span>
             </div>
+            {usage && <ChatbotUsageLine usage={usage} />}
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -68,7 +80,7 @@ export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  Open Chatbot
+                  {t("chatbots.card.openChatbot")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -80,12 +92,41 @@ export function ChatbotCard({ chatbot, onDelete }: ChatbotCardProps) {
                 className="text-destructive focus:text-destructive cursor-pointer"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {t("common.actions.delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** "Today 87 / 150" with a meter, plus a badge when paused or at the limit. */
+function ChatbotUsageLine({ usage }: { usage: DailyUsage }) {
+  const { t } = useTranslation();
+  const isFull = usageLevel(usage.today, usage.limit) === "full";
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 pl-0 text-xs text-muted-foreground sm:pl-[52px]">
+      <span>{t("chatbots.usage.today")}</span>
+      <UsageMeter
+        used={usage.today}
+        limit={usage.limit}
+        label={t("chatbots.usage.meterLabel", {
+          used: usage.today,
+          limit: usage.limit,
+        })}
+      />
+      {usage.paused ? (
+        <Badge variant="destructive">{t("chatbots.usage.paused")}</Badge>
+      ) : (
+        isFull && (
+          <span className="font-medium text-destructive">
+            {t("chatbots.usage.limitReached")}
+          </span>
+        )
+      )}
+    </div>
   );
 }

@@ -16,6 +16,7 @@ import {
 } from "@/components/dashboard/web-sources/DashboardWebSourceTable";
 import { X } from "lucide-react";
 import { STATUS_OPTIONS, type StatusFilter } from "./status-filter";
+import { useTranslation } from "react-i18next";
 
 interface WebSourcesListProps {
   searchValue: string;
@@ -93,13 +94,14 @@ export function WebSourcesList({
   sortDir,
   onSort,
 }: WebSourcesListProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <TableToolbar
           searchValue={searchValue}
           onSearchChange={onSearchChange}
-          placeholder="Search web sources..."
+          placeholder={t("webSources.page.searchPlaceholder")}
           isLoading={showInlineLoading}
           className="mb-0 flex-1"
         />
@@ -108,9 +110,9 @@ export function WebSourcesList({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
+            {STATUS_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {t(`webSources.statusFilter.${option}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -124,19 +126,23 @@ export function WebSourcesList({
               disabled={deletePending}
             >
               <X className="h-4 w-4 mr-2" />
-              Delete Selected ({selectedSources.size})
+              {t("webSources.page.deleteSelected", {
+                count: selectedSources.size,
+              })}
             </Button>
           )}
           <p className="text-sm text-muted-foreground whitespace-nowrap">
-            Showing {sources.length} of {totalCount} source
-            {totalCount !== 1 ? "s" : ""}
+            {t("webSources.page.showing", {
+              visible: sources.length,
+              total: totalCount,
+            })}
           </p>
         </div>
       </div>
 
       {sources.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
-          No web sources match your filters.
+          {t("webSources.page.noFilterResults")}
         </div>
       ) : (
         <>

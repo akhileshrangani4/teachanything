@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
       <main className="max-w-3xl mx-auto px-6 py-12">
         <article className={s.prose}>
           <h1>Privacy Policy</h1>
-          <p data-legal-meta>Last updated September 22, 2026</p>
+          <p data-legal-meta>Last updated November 13, 2026</p>
 
           <p>
             This Privacy Notice for <BrandName /> (&ldquo;we,&rdquo;
@@ -258,6 +258,11 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul>
             <li>Chat messages you send to AI chatbots</li>
+            <li>
+              Thumbs-up or thumbs-down ratings you give to AI responses, which
+              are stored with the conversation and shown to the chatbot&apos;s
+              owner
+            </li>
             <li>
               Files you upload (such as PDFs, Word documents, PowerPoint
               presentations, and text files), which are processed to enable
@@ -690,6 +695,10 @@ export default function PrivacyPolicyPage() {
             <li>
               Your messages and the AI&apos;s responses are stored in our
               database as part of your conversation history.
+            </li>
+            <li>
+              If you rate a response, the rating is stored with that response
+              and the chatbot&apos;s owner can see it.
             </li>
           </ol>
           <p>When files are uploaded:</p>

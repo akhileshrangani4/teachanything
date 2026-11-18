@@ -7,8 +7,10 @@ import { useFilesPage } from "./use-files-page";
 import { UploadSection } from "./upload-section";
 import { FilesTableSection } from "./files-table-section";
 import { FilesPageDialogs } from "./files-page-dialogs";
+import { useTranslation } from "react-i18next";
 
 export default function FilesPage() {
+  const { t } = useTranslation();
   const files = useFilesPage();
   const {
     table,
@@ -33,13 +35,13 @@ export default function FilesPage() {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
-              Files
+              {t("files.page.title")}
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              List of all of your imported and crawled files.
+              {t("files.page.subtitle")}
               {totalCount > 0 && (
                 <span className="ml-2 font-medium text-foreground">
-                  ({totalCount} {totalCount === 1 ? "file" : "files"})
+                  {t("files.page.count", { count: totalCount })}
                 </span>
               )}
             </p>

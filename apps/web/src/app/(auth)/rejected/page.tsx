@@ -12,8 +12,10 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function RejectedPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -50,26 +52,25 @@ export default function RejectedPage() {
     <div className="min-h-screen flex items-center justify-center bg-secondary">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Account Registration Not Approved</CardTitle>
-          <CardDescription>Your registration has been reviewed</CardDescription>
+          <CardTitle>{t("auth.rejected.title")}</CardTitle>
+          <CardDescription>{t("auth.rejected.description")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
             <AlertDescription>
-              <p className="mb-4">
-                Unfortunately, your account registration was not approved at
-                this time.
-              </p>
+              <p className="mb-4">{t("auth.rejected.body")}</p>
             </AlertDescription>
           </Alert>
 
           <div className="mt-6 space-y-4">
             <div className="bg-muted p-4 rounded-lg">
-              <p className="text-sm font-medium mb-2">Why might this happen?</p>
+              <p className="text-sm font-medium mb-2">
+                {t("auth.rejected.why")}
+              </p>
               <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Registration may be limited to specific institutions</li>
-                <li>Your email domain may not be on the approved list</li>
-                <li>Additional verification may be required</li>
+                <li>{t("auth.rejected.reasonInstitutions")}</li>
+                <li>{t("auth.rejected.reasonDomain")}</li>
+                <li>{t("auth.rejected.reasonVerification")}</li>
               </ul>
             </div>
 
@@ -79,13 +80,14 @@ export default function RejectedPage() {
               className="w-full"
               disabled={isRedirecting}
             >
-              {isRedirecting ? "Redirecting..." : "Back to Login"}
+              {isRedirecting
+                ? t("auth.pending.redirecting")
+                : t("auth.forgotPassword.backToLogin")}
             </Button>
 
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                If you believe this decision was made in error, please contact
-                your institution&apos;s administrator.
+                {t("auth.rejected.contact")}
               </p>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { publishFileProcessingJob } from "@/server/qstash";
 import { env } from "@/lib/env";
 import { logInfo, logError } from "@/lib/logger";
 import { processFile } from "@/server/file-processor";
+import { appError } from "@/server/app-error";
 
 export const retryProcedure = protectedProcedure
   .input(
@@ -29,10 +30,7 @@ export const retryProcedure = protectedProcedure
         .limit(1);
 
       if (!file) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "File not found or you don't have permission to retry it",
-        });
+        throw appError("NOT_FOUND", "errors.files.retryNotFound");
       }
 
       // Allow retry for failed, stuck, pending, or processing files
@@ -42,10 +40,7 @@ export const retryProcedure = protectedProcedure
         file.processingStatus !== "pending" &&
         file.processingStatus !== "processing"
       ) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Can only retry failed, stuck, or processing files",
-        });
+        throw appError("BAD_REQUEST", "errors.files.retryNotAllowed");
       }
 
       // Delete existing chunks before retry to prevent stale accumulation
@@ -127,9 +122,6 @@ export const retryProcedure = protectedProcedure
         throw error;
       }
 
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to retry file processing",
-      });
+      throw appError("INTERNAL_SERVER_ERROR", "errors.files.retryFailed");
     }
   });

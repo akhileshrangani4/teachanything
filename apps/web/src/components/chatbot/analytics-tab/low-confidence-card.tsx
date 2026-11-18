@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HelpCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type LowConfidenceData = RouterOutputs["analytics"]["getLowConfidenceQueries"];
 
@@ -20,14 +21,17 @@ export function LowConfidenceCard({
   isLoading: boolean;
   data: LowConfidenceData | undefined;
 }) {
+  const { t, i18n } = useTranslation();
   return (
     <Card className="border border-border/60 shadow-xs">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <HelpCircle className="h-5 w-5" />
-          Low-Confidence Queries
+          {t("analytics.lowConfidence.title")}
         </CardTitle>
-        <CardDescription>Messages that did not use RAG context</CardDescription>
+        <CardDescription>
+          {t("analytics.lowConfidence.description")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -38,7 +42,7 @@ export function LowConfidenceCard({
           </div>
         ) : !data || data.queries.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            No low-confidence queries found
+            {t("analytics.lowConfidence.empty")}
           </div>
         ) : (
           <div className="space-y-3">
@@ -49,14 +53,21 @@ export function LowConfidenceCard({
                 </p>
                 <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                   <span>
-                    {new Date(query.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {new Date(query.createdAt).toLocaleDateString(
+                      i18n.language,
+                      {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      },
+                    )}
                   </span>
                   {query.sessionId && (
-                    <span>Session {query.sessionId.slice(0, 8)}...</span>
+                    <span>
+                      {t("analytics.lowConfidence.session", {
+                        id: query.sessionId.slice(0, 8),
+                      })}
+                    </span>
                   )}
                 </div>
               </div>

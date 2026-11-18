@@ -100,21 +100,6 @@ export function getPasswordStrengthColor(
 }
 
 /**
- * Get password strength label
- */
-export function getPasswordStrengthLabel(
-  strength: PasswordValidationResult["strength"],
-): string {
-  const labels = {
-    weak: "Weak",
-    medium: "Medium",
-    strong: "Strong",
-    "very-strong": "Very Strong",
-  };
-  return labels[strength] || "";
-}
-
-/**
  * Get password strength background color for progress bar
  */
 export function getPasswordStrengthBgColor(

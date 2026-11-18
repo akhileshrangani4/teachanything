@@ -3,6 +3,7 @@ import { and, eq, ne } from "drizzle-orm";
 import type { db as database } from "@teachanything/db";
 import { userFiles } from "@teachanything/db/schema";
 import { logWarn } from "@/lib/logger";
+import { appError } from "@/server/app-error";
 
 /**
  * The database step of finalizeUpload, retried.
@@ -88,9 +89,8 @@ async function createOnce(
     .limit(1);
 
   if (duplicate) {
-    throw new TRPCError({
-      code: "CONFLICT",
-      message: `A file with the name "${file.fileName}" already exists. Please rename your file or delete the existing one.`,
+    throw appError("CONFLICT", "files.upload.duplicateName", {
+      name: file.fileName,
     });
   }
 

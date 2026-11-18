@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Clock, MessageSquare, Trash2 } from "lucide-react";
 import { formatDuration, formatTimestamp } from "@/lib/conversation-format";
 import type { ConversationRow } from "./constants";
+import { useTranslation } from "react-i18next";
 
 export function ConversationListItem({
   conversation,
@@ -18,6 +19,7 @@ export function ConversationListItem({
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t, i18n } = useTranslation();
   return (
     <div className="flex items-start gap-2 px-4 py-3 hover:bg-muted/50 transition-colors">
       <input
@@ -25,7 +27,7 @@ export function ConversationListItem({
         className="h-4 w-4 mt-0.5 shrink-0 cursor-pointer accent-primary"
         checked={isSelected}
         onChange={() => onToggle(conversation.id)}
-        aria-label="Select chat"
+        aria-label={t("conversations.list.selectChat")}
       />
       <button
         type="button"
@@ -34,22 +36,26 @@ export function ConversationListItem({
       >
         <div className="min-w-0 flex-1 mr-3">
           <p className="text-sm font-medium truncate">
-            {conversation.preview || "No messages"}
+            {conversation.preview || t("conversations.list.noMessagesPreview")}
           </p>
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <MessageSquare className="h-3 w-3" />
-              {conversation.messageCount} message
-              {conversation.messageCount !== 1 ? "s" : ""}
+              {t("conversations.list.messageCount", {
+                count: conversation.messageCount,
+              })}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {formatDuration(
                 conversation.firstMessageAt,
                 conversation.lastMessageAt,
+                t,
               )}
             </span>
-            <span>{formatTimestamp(conversation.createdAt)}</span>
+            <span>
+              {formatTimestamp(conversation.createdAt, t, i18n.language)}
+            </span>
           </div>
         </div>
       </button>
@@ -58,7 +64,7 @@ export function ConversationListItem({
         size="icon"
         className="h-8 w-8 shrink-0 self-center text-muted-foreground hover:text-destructive"
         onClick={() => onDelete(conversation.id)}
-        aria-label="Delete chat"
+        aria-label={t("conversations.list.deleteChat")}
       >
         <Trash2 className="h-4 w-4" />
       </Button>
