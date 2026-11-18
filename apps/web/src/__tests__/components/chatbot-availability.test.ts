@@ -16,7 +16,7 @@ describe("chatbotBlockedReason", () => {
   it.each([
     [{ isOwnerAtLimit: true }, "Professor limit reached"],
     [{ isAtLimit: true, isOwnerAtLimit: true }, "Limit reached"],
-    [{ ownerChatbotsPaused: true, isAtLimit: true }, "Paused via professor"],
+    [{ ownerChatbotsPaused: true, isAtLimit: true }, "Paused (all chatbots)"],
     [{ paused: true, ownerChatbotsPaused: true }, "Paused"],
   ])(
     "puts pauses before limits and the chatbot before its professor: %o",

@@ -19,7 +19,7 @@ export function chatbotBlockedReason({
   isOwnerAtLimit,
 }: ChatbotAvailabilityInput): string | null {
   if (paused) return "Paused";
-  if (ownerChatbotsPaused) return "Paused via professor";
+  if (ownerChatbotsPaused) return "Paused (all chatbots)";
   if (isAtLimit) return "Limit reached";
   if (isOwnerAtLimit) return "Professor limit reached";
   return null;
