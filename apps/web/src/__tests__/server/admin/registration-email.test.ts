@@ -166,12 +166,12 @@ describe("sendRegistrationEmailInputSchema", () => {
     });
   });
 
-  it("caps the customMessage at 1000 characters", () => {
+  it("caps the customMessage at 10,000 characters", () => {
     const base = { userId: "u", templateId: "generic_admin_message" };
-    expect(parse({ ...base, customMessage: "a".repeat(1000) }).success).toBe(
+    expect(parse({ ...base, customMessage: "a".repeat(10_000) }).success).toBe(
       true,
     );
-    expect(parse({ ...base, customMessage: "a".repeat(1001) }).success).toBe(
+    expect(parse({ ...base, customMessage: "a".repeat(10_001) }).success).toBe(
       false,
     );
   });
