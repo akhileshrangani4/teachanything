@@ -4,7 +4,10 @@ import {
   type DailyMessageResult,
 } from "@/server/rate-limit";
 import { sendDailyLimitWarningEmail } from "@/server/email/daily-limit-warning";
-import type { LimitWarningThreshold } from "@/lib/daily-limit-warning-copy";
+import {
+  LIMIT_WARNING_PERCENT,
+  type LimitWarningThreshold,
+} from "@/lib/constants/rate-limits";
 import { logWarn } from "@/lib/logger";
 
 /** One limit a message just brought to a warning threshold. */
@@ -22,7 +25,8 @@ export type WarnedOwner = { name: string | null; email: string | null };
 
 /**
  * The threshold `count` lands exactly on, if any: 100 on the last allowed
- * message, 80 on the message that reaches 80% (rounded up). Exact matches
+ * message, `LIMIT_WARNING_PERCENT` (80) on the message that reaches that share
+ * (rounded up). Exact matches
  * only, so each threshold is crossed by exactly one message a day. For
  * limits of 1 to 4, 80% rounds up to the limit itself, so only 100 applies.
  */
@@ -31,7 +35,9 @@ export function warningThreshold(
   limit: number,
 ): LimitWarningThreshold | null {
   if (count === limit) return 100;
-  if (count === Math.ceil(limit * 0.8)) return 80;
+  if (count === Math.ceil((limit * LIMIT_WARNING_PERCENT) / 100)) {
+    return LIMIT_WARNING_PERCENT;
+  }
   return null;
 }
 
@@ -76,7 +82,7 @@ async function sendOneWarning(
 }
 
 /**
- * Email the chatbot's owner for every limit this message brought to 80% or
+ * Email the chatbot's owner for every limit this message brought to its warning share or
  * 100%. Never throws: each failure is logged, and the chat goes on.
  */
 export async function sendLimitWarnings(

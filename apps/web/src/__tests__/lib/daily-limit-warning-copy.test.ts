@@ -47,4 +47,20 @@ describe("dailyLimitWarningCopy", () => {
       next: "Students will see the daily-limit message until midnight US Eastern time, when the count resets.",
     });
   });
+
+  it("shows the real share when 80% of the limit is not a whole number", () => {
+    // A limit of 7 warns at 6 messages (80% of 7 is 5.6, rounded up).
+    const copy = dailyLimitWarningCopy({
+      chatbotName: "Biology",
+      count: 6,
+      limit: 7,
+      threshold: 80,
+    });
+    expect(copy.subject).toBe(
+      'Heads-up: "Biology" has used 86% of today\'s messages',
+    );
+    expect(copy.usage).toContain(
+      "6 of its 7 daily student messages today, 86% of the limit.",
+    );
+  });
 });

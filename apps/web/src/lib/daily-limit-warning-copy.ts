@@ -1,5 +1,4 @@
-/** Share of a daily limit, in percent, at which the owner is emailed. */
-export type LimitWarningThreshold = 80 | 100;
+import type { LimitWarningThreshold } from "@/lib/constants/rate-limits";
 
 /** What a daily limit warning email reports. */
 export type LimitWarningFacts = {
@@ -49,9 +48,12 @@ export function dailyLimitWarningCopy(
       next: "Students will see the daily-limit message until midnight US Eastern time, when the count resets.",
     };
   }
+  // The real share, which can sit above the threshold when 80% of the limit
+  // is not a whole number (6 of 7 is 86%).
+  const percent = Math.round((count / limit) * 100);
   return {
-    subject: `Heads-up: ${words.subject} used 80% of today's messages`,
-    usage: `${words.sentence} received ${count} of ${words.whose} ${limit} daily student messages today, 80% of the limit.`,
+    subject: `Heads-up: ${words.subject} used ${percent}% of today's messages`,
+    usage: `${words.sentence} received ${count} of ${words.whose} ${limit} daily student messages today, ${percent}% of the limit.`,
     next: "The count resets at midnight US Eastern time.",
   };
 }

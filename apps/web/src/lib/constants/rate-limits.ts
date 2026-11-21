@@ -39,5 +39,14 @@ export const CHATBOT_DAILY_MESSAGE_LIMIT = 150;
  */
 export const OWNER_DAILY_MESSAGE_LIMIT = 300;
 
+/**
+ * Share of a daily limit, in percent, at which the owner gets a heads-up
+ * email. They get a second one when the limit itself is reached.
+ */
+export const LIMIT_WARNING_PERCENT = 80;
+
+/** The points at which an owner is emailed: the heads-up, and the limit. */
+export type LimitWarningThreshold = typeof LIMIT_WARNING_PERCENT | 100;
+
 /** Highest daily limit an admin may set on one chatbot or professor. */
 export const MAX_DAILY_MESSAGE_LIMIT = 10_000;
