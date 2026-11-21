@@ -14,8 +14,12 @@ export const REGISTRATION_EMAIL_TEMPLATE_IDS = [
 export type RegistrationEmailTemplateId =
   (typeof REGISTRATION_EMAIL_TEMPLATE_IDS)[number];
 
-/** Upper bound on the admin-written text in a generic admin message. */
-export const MAX_CUSTOM_MESSAGE_LENGTH = 1000;
+/**
+ * Upper bound on the admin-written text in a generic admin message: room
+ * for a long email (about 1,500 words), while still bounding what one
+ * request can store in the delivery audit metadata.
+ */
+export const MAX_CUSTOM_MESSAGE_LENGTH = 10_000;
 
 export const REGISTRATION_EMAIL_TEMPLATES: Record<
   RegistrationEmailTemplateId,
