@@ -31,7 +31,7 @@
     "jest": "^30.5.1",
     "jest-environment-jsdom": "^30.5.1",
     "lint-staged": "^16.4.0",
-    "prettier": "3.9.10",
+    "prettier": "3.10.0",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "turbo": "^2.10.12",
