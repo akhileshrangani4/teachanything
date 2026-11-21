@@ -10,11 +10,3 @@ export const DEFAULT_DONATION_URL =
 export function getDonationUrl(): string {
   return process.env.NEXT_PUBLIC_DONATION_URL || DEFAULT_DONATION_URL;
 }
-
-/**
- * A `mailto:` link to `email`. The address itself is resolved on the server
- * (see `getAdminContactEmail`), since its fallback is a server-only env var.
- */
-export function contactHref(email: string): string {
-  return `mailto:${email}`;
-}

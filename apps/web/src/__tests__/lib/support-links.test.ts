@@ -1,9 +1,5 @@
 import { describe, it, expect, afterEach } from "@jest/globals";
-import {
-  DEFAULT_DONATION_URL,
-  contactHref,
-  getDonationUrl,
-} from "@/lib/support-links";
+import { DEFAULT_DONATION_URL, getDonationUrl } from "@/lib/support-links";
 
 const originalDonationUrl = process.env.NEXT_PUBLIC_DONATION_URL;
 
@@ -32,11 +28,5 @@ describe("getDonationUrl", () => {
   it("ignores an empty NEXT_PUBLIC_DONATION_URL", () => {
     process.env.NEXT_PUBLIC_DONATION_URL = "";
     expect(getDonationUrl()).toBe(DEFAULT_DONATION_URL);
-  });
-});
-
-describe("contactHref", () => {
-  it("builds a mailto link", () => {
-    expect(contactHref("admin@example.org")).toBe("mailto:admin@example.org");
   });
 });
