@@ -10,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useTranslation } from "react-i18next";
 
 export function DeleteConversationsDialog({
   pendingIds,
@@ -22,6 +23,7 @@ export function DeleteConversationsDialog({
   onClose: () => void;
   onConfirm: (conversationIds: string[]) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <AlertDialog
       open={pendingIds !== null}
@@ -32,17 +34,20 @@ export function DeleteConversationsDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Delete {pendingIds?.length ?? 0} chat
-            {(pendingIds?.length ?? 0) !== 1 ? "s" : ""}?
+            {t("conversations.deleteDialog.title", {
+              count: pendingIds?.length ?? 0,
+            })}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently deletes the selected student chat
-            {(pendingIds?.length ?? 0) !== 1 ? "s" : ""} and all their messages.
-            This cannot be undone.
+            {t("conversations.deleteDialog.description", {
+              count: pendingIds?.length ?? 0,
+            })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>
+            {t("common.actions.cancel")}
+          </AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             disabled={isPending}
@@ -53,7 +58,9 @@ export function DeleteConversationsDialog({
               }
             }}
           >
-            {isPending ? "Deleting..." : "Delete"}
+            {isPending
+              ? t("conversations.deleteDialog.deleting")
+              : t("common.actions.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

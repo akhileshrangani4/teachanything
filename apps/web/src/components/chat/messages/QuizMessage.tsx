@@ -20,6 +20,7 @@ import { Check, X } from "lucide-react";
 import { QuizSkeleton } from "./quiz-skeleton";
 import { QuizReadOnlyView } from "./quiz-read-only-view";
 import { QuizScoreView } from "./quiz-score-view";
+import { useTranslation } from "react-i18next";
 
 export { QuizSkeleton };
 
@@ -52,6 +53,7 @@ export function QuizMessage({
   onAttempt,
   attempts,
 }: QuizMessageProps) {
+  const { t } = useTranslation();
   const total = quiz.questions.length;
 
   // Seed once from any completed attempt so a remount (e.g. the embed widget
@@ -137,13 +139,16 @@ export function QuizMessage({
             {quiz.quiz_title}
           </CardTitle>
           <span className="text-xs text-muted-foreground whitespace-nowrap">
-            Question {currentIndex + 1} of {total}
+            {t("chat.quiz.questionOf", { current: currentIndex + 1, total })}
           </span>
         </div>
         <Progress
           value={((currentIndex + 1) / total) * 100}
           className="h-2"
-          aria-label={`Question ${currentIndex + 1} of ${total}`}
+          aria-label={t("chat.quiz.questionOf", {
+            current: currentIndex + 1,
+            total,
+          })}
         />
       </CardHeader>
 
@@ -162,9 +167,9 @@ export function QuizMessage({
             const isChosen = optionIndex === chosen;
             const answerState =
               answered && isCorrect
-                ? " (correct answer)"
+                ? t("chat.quiz.correctAnswerSuffix")
                 : answered && isChosen && !isCorrect
-                  ? " (your answer, incorrect)"
+                  ? t("chat.quiz.yourAnswerIncorrectSuffix")
                   : "";
 
             return (
@@ -214,7 +219,9 @@ export function QuizMessage({
             aria-live="polite"
           >
             <span className="font-medium text-foreground">
-              {chosen === question.correct_index ? "Correct! " : "Not quite. "}
+              {chosen === question.correct_index
+                ? t("chat.quiz.correctFeedback")
+                : t("chat.quiz.incorrectFeedback")}{" "}
             </span>
             <span dir="auto">{question.explanation}</span>
           </div>
@@ -223,7 +230,7 @@ export function QuizMessage({
 
       <CardFooter className="justify-end">
         <Button size="sm" onClick={handleNext} disabled={!answered}>
-          {isLast ? "Finish" : "Next"}
+          {isLast ? t("chat.quiz.finish") : t("common.actions.next")}
         </Button>
       </CardFooter>
     </Card>

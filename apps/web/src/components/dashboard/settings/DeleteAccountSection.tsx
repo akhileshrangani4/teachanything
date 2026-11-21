@@ -16,8 +16,11 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { useTranslation, Trans } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 export function DeleteAccountSection() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [showDialog, setShowDialog] = useState(false);
   const [password, setPassword] = useState("");
@@ -25,9 +28,8 @@ export function DeleteAccountSection() {
 
   const deleteAccount = trpc.auth.deleteOwnAccount.useMutation({
     onSuccess: async () => {
-      toast.success("Account deleted", {
-        description:
-          "Your account and all associated data have been permanently removed.",
+      toast.success(t("settings.deleteAccount.success"), {
+        description: t("settings.deleteAccount.successDescription"),
       });
       try {
         await authClient.signOut();
@@ -38,14 +40,15 @@ export function DeleteAccountSection() {
       }
     },
     onError: (error) => {
-      toast.error("Failed to delete account", {
-        description: error.message,
+      toast.error(t("settings.deleteAccount.failed"), {
+        description: serverErrorMessage(t, error),
       });
       setPassword("");
     },
   });
 
-  const canConfirm = password.length > 0 && confirmText === "DELETE";
+  const confirmWord = t("settings.deleteAccount.confirmWord");
+  const canConfirm = password.length > 0 && confirmText === confirmWord;
 
   const handleConfirm = async () => {
     if (!canConfirm) return;
@@ -64,10 +67,11 @@ export function DeleteAccountSection() {
     <>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-destructive">Delete Account</p>
+          <p className="text-sm font-medium text-destructive">
+            {t("settings.deleteAccount.title")}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Permanently delete your account, chatbots, files, and all associated
-            data.
+            {t("settings.deleteAccount.description")}
           </p>
         </div>
         <Button
@@ -75,53 +79,57 @@ export function DeleteAccountSection() {
           size="sm"
           onClick={() => setShowDialog(true)}
         >
-          Delete Account
+          {t("settings.deleteAccount.title")}
         </Button>
       </div>
 
       <Dialog open={showDialog} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete your account?</DialogTitle>
+            <DialogTitle>{t("settings.deleteAccount.dialogTitle")}</DialogTitle>
             <DialogDescription>
-              This action is permanent and cannot be undone.
+              {t("settings.deleteAccount.dialogDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
-              All of the following will be deleted:
+              {t("settings.deleteAccount.willDelete")}
             </div>
             <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
-              <li>Your chatbots and their configurations</li>
-              <li>All uploaded files</li>
-              <li>Conversation history and analytics</li>
-              <li>Your profile and account data</li>
+              <li>{t("settings.deleteAccount.itemChatbots")}</li>
+              <li>{t("settings.deleteAccount.itemFiles")}</li>
+              <li>{t("settings.deleteAccount.itemHistory")}</li>
+              <li>{t("settings.deleteAccount.itemProfile")}</li>
             </ul>
             <div className="space-y-3 pt-2">
               <div className="space-y-2">
                 <Label htmlFor="delete-password" className="text-sm">
-                  Enter your password to confirm
+                  {t("settings.deleteAccount.enterPassword")}
                 </Label>
                 <Input
                   id="delete-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Your password"
+                  placeholder={t("settings.deleteAccount.passwordPlaceholder")}
                   disabled={deleteAccount.isPending}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="delete-confirm" className="text-sm">
-                  Type <strong>DELETE</strong> to confirm
+                  <Trans
+                    i18nKey="settings.deleteAccount.typeToConfirm"
+                    values={{ word: confirmWord }}
+                    components={{ strong: <strong /> }}
+                  />
                 </Label>
                 <Input
                   id="delete-confirm"
                   type="text"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder="DELETE"
+                  placeholder={t("settings.deleteAccount.confirmWord")}
                   disabled={deleteAccount.isPending}
                 />
               </div>
@@ -134,14 +142,16 @@ export function DeleteAccountSection() {
               onClick={() => handleClose(false)}
               disabled={deleteAccount.isPending}
             >
-              Cancel
+              {t("common.actions.cancel")}
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirm}
               disabled={deleteAccount.isPending || !canConfirm}
             >
-              {deleteAccount.isPending ? "Deleting..." : "Delete My Account"}
+              {deleteAccount.isPending
+                ? t("settings.deleteAccount.deleting")
+                : t("settings.deleteAccount.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

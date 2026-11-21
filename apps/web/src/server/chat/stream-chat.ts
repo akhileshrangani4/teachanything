@@ -1,8 +1,4 @@
-import {
-  convertToModelMessages,
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-} from "ai";
+import { convertToModelMessages, createUIMessageStreamResponse } from "ai";
 import { nanoid } from "nanoid";
 import {
   createOpenRouterClient,
@@ -30,7 +26,11 @@ import {
 import { buildTurnPrompts, searchedPassageBudget } from "./prompt-assembly";
 import { executeTurn, type TurnState } from "./turn-execution";
 import { beginUserMessageInsert, persistTurn } from "./turn-persistence";
+import { createAssistantMessageStream } from "./assistant-message-stream";
 import type { RagTiming } from "./turn-timing";
+import { claimTurn, type TurnLease } from "./turn-lease";
+import { ChatRequestError } from "./request";
+import { enforceDailyLimit } from "./daily-limit";
 
 /**
  * Cap a single chat turn's generation. Kept below `maxDuration` (300s) so the
@@ -43,6 +43,16 @@ const STREAM_TIMEOUT_MS = 290_000;
 export function newSessionId(): string {
   return nanoid();
 }
+
+type StreamChatParams = {
+  chatbot: typeof chatbots.$inferSelect;
+  userMessage: StudyUIMessage;
+  sessionId: string;
+  db: typeof DbType;
+  eventType: "message_sent" | "shared_message_sent";
+  /** Request abort signal so a client disconnect / stop() halts generation. */
+  signal?: AbortSignal;
+};
 
 /**
  * Shared streaming orchestrator for both the authenticated and public chat
@@ -58,20 +68,65 @@ export function newSessionId(): string {
  *   files; retrieval tools require files + a healthy RAG pipeline.
  * - Retrieval tool RESULTS never reach the browser (privacy) and are stripped
  *   before persistence.
+ *
+ * A session runs one turn at a time: while one is in flight, another throws
+ * `ChatRequestError("turn_in_progress", 409)` (#465). A chatbot past its own
+ * daily message limit, or its owner's, throws
+ * `ChatRequestError("daily_limit_reached", 429)`; one an admin paused throws
+ * `ChatRequestError("chatbot_paused", 403)`.
  */
-export async function streamChat(params: {
-  chatbot: typeof chatbots.$inferSelect;
-  userMessage: StudyUIMessage;
-  sessionId: string;
-  db: typeof DbType;
-  eventType: "message_sent" | "shared_message_sent";
-  /** Request abort signal so a client disconnect / stop() halts generation. */
-  signal?: AbortSignal;
-}): Promise<Response> {
-  const { chatbot, userMessage, sessionId, db: database, eventType } = params;
+export async function streamChat(params: StreamChatParams): Promise<Response> {
   // Turn clock. `startTime` below only starts at the stream, after retrieval,
   // so everything before it is measured from here (see turn-timing.ts).
   const turnStart = Date.now();
+
+  // Checked before the conversation exists, so a refused student leaves no
+  // empty conversation behind.
+  await enforceDailyLimit(params.db, params.chatbot);
+
+  // Get or create the conversation for this session.
+  const conversation = await resolveConversation(
+    params.db,
+    params.chatbot.id,
+    params.sessionId,
+  );
+
+  // Claimed before the history read: a second turn would otherwise build its
+  // prompt from history missing the first turn's messages, and the two turns'
+  // rows would interleave in the transcript.
+  const lease = await claimTurn(params.db, conversation);
+  if (!lease) throw new ChatRequestError("turn_in_progress", 409);
+  releaseOnAbort(params.signal, lease);
+
+  try {
+    return await streamClaimedTurn(params, {
+      conversationId: conversation.id,
+      lease,
+      turnStart,
+    });
+  } catch (error) {
+    // Thrown before the stream exists, so its onFinish will never release.
+    await lease.release();
+    throw error;
+  }
+}
+
+/**
+ * Free the session the moment the client stops or disconnects, so Stop and an
+ * immediate resend isn't refused while the aborted turn winds down.
+ */
+function releaseOnAbort(signal: AbortSignal | undefined, lease: TurnLease) {
+  const release = () => void lease.release();
+  if (signal?.aborted) release();
+  else signal?.addEventListener("abort", release, { once: true });
+}
+
+async function streamClaimedTurn(
+  params: StreamChatParams,
+  turn: { conversationId: string; lease: TurnLease; turnStart: number },
+): Promise<Response> {
+  const { chatbot, userMessage, sessionId, db: database, eventType } = params;
+  const { conversationId, lease, turnStart } = turn;
 
   // Stop the LLM when the client disconnects/aborts OR the turn runs too long.
   // Without this, an aborted request keeps the model generating server-side
@@ -81,14 +136,6 @@ export async function streamChat(params: {
     ? AbortSignal.any([params.signal, timeoutSignal])
     : timeoutSignal;
   const messageText = extractText(userMessage.parts);
-
-  // Get or create the conversation for this session.
-  const conversation = await resolveConversation(
-    database,
-    chatbot.id,
-    sessionId,
-  );
-  const conversationId = conversation.id;
 
   // Lazily reprocess old files into page-aware chunks. Fire-and-forget (#271).
   void maybeEnqueueReprocess(database, chatbot.id);
@@ -238,7 +285,7 @@ export async function streamChat(params: {
     return "Failed to generate a response. Please try again.";
   };
 
-  const stream = createUIMessageStream<StudyUIMessage>({
+  const stream = createAssistantMessageStream({
     originalMessages: uiMessages,
     onError: onStreamError,
     execute: ({ writer }) =>
@@ -265,32 +312,38 @@ export async function streamChat(params: {
         onStreamError,
         startTime,
       }),
-    onFinish: ({ responseMessage }) =>
-      persistTurn({
-        responseMessage,
-        database,
-        conversationId,
-        chatbotId: chatbot.id,
-        sessionId,
-        eventType,
-        messageText,
-        userMessageInsert,
-        timedOut: timeoutSignal.aborted,
-        clientAborted: abortSignal.aborted && !timeoutSignal.aborted,
-        executeErrored: turnState.executeErrored,
-        finalSources: turnState.finalSources,
-        ragUsedFlag: turnState.ragUsedFlag,
-        truncated: turnState.truncated,
-        responseTime: turnState.responseTime,
-        startTime,
-        modelId,
-        timing: {
-          preStreamMs,
-          contextMs,
-          ...ragTiming,
-          firstTokenMs: turnState.firstTokenMs,
-        },
-      }),
+    // Runs on every stream exit: finish, model error and client abort.
+    onFinish: async ({ responseMessage }) => {
+      try {
+        await persistTurn({
+          responseMessage,
+          database,
+          conversationId,
+          chatbotId: chatbot.id,
+          sessionId,
+          eventType,
+          messageText,
+          userMessageInsert,
+          timedOut: timeoutSignal.aborted,
+          clientAborted: abortSignal.aborted && !timeoutSignal.aborted,
+          executeErrored: turnState.executeErrored,
+          finalSources: turnState.finalSources,
+          ragUsedFlag: turnState.ragUsedFlag,
+          truncated: turnState.truncated,
+          responseTime: turnState.responseTime,
+          startTime,
+          modelId,
+          timing: {
+            preStreamMs,
+            contextMs,
+            ...ragTiming,
+            firstTokenMs: turnState.firstTokenMs,
+          },
+        });
+      } finally {
+        await lease.release();
+      }
+    },
   });
 
   return createUIMessageStreamResponse({ stream });

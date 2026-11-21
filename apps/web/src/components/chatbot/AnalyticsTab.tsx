@@ -19,17 +19,20 @@ import {
 } from "./analytics-tab/charts";
 import { CommonQuestionsCard } from "./analytics-tab/common-questions-card";
 import { LowConfidenceCard } from "./analytics-tab/low-confidence-card";
+import { RatingsCard } from "./analytics-tab/ratings-card";
 import {
   formatChartDate,
   formatDurationSeconds,
 } from "./analytics-tab/formatters";
 import { COMMON_QUESTIONS_PAGE_SIZE } from "./analytics-tab/constants";
+import { useTranslation } from "react-i18next";
 
 interface ChatbotAnalyticsTabProps {
   chatbotId: string;
 }
 
 export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
+  const { t, i18n } = useTranslation();
   const statsQuery = trpc.analytics.getChatbotStats.useQuery(
     { chatbotId },
     { enabled: !!chatbotId },
@@ -64,21 +67,28 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
     { chatbotId, limit: 5, offset: 0 },
     { enabled: !!chatbotId },
   );
+  const ratingsQuery = trpc.analytics.getRatingsSummary.useQuery(
+    { chatbotId },
+    { enabled: !!chatbotId },
+  );
 
   const sessionMetrics = sessionMetricsQuery.data;
   const stats = statsQuery.data;
   const summaryLoading = statsQuery.isLoading || sessionMetricsQuery.isLoading;
   const messagesChartData =
     messageVolumeQuery.data?.map((item) => ({
-      date: formatChartDate(item.date),
+      date: formatChartDate(item.date, i18n.language),
       messages: item.count,
     })) ?? [];
   const sessionsChartData =
     sessionsOverTimeQuery.data?.map((item) => ({
-      date: formatChartDate(item.date),
+      date: formatChartDate(item.date, i18n.language),
       sessions: item.count,
     })) ?? [];
-  const distributionData = distributionQuery.data ?? [];
+  const distributionData = (distributionQuery.data ?? []).map((item) => ({
+    ...item,
+    bucket: t(`analytics.buckets.${item.bucketKey}`),
+  }));
   const hasError =
     statsQuery.isError ||
     sessionMetricsQuery.isError ||
@@ -86,7 +96,8 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
     sessionsOverTimeQuery.isError ||
     distributionQuery.isError ||
     commonQuestionsQuery.isError ||
-    lowConfidenceQuery.isError;
+    lowConfidenceQuery.isError ||
+    ratingsQuery.isError;
 
   if (hasError) {
     return (
@@ -94,10 +105,10 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
           <AlertCircle className="h-10 w-10 text-destructive mb-3" />
           <p className="text-lg font-medium text-destructive">
-            Analytics failed to load
+            {t("analytics.loadFailed")}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            Please refresh and try again.
+            {t("analytics.loadFailedHint")}
           </p>
         </CardContent>
       </Card>
@@ -108,32 +119,37 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <MetricCard
-          title="Unique Sessions"
+          title={t("analytics.metrics.uniqueSessions")}
           value={sessionMetrics?.totalUniqueSessions ?? 0}
-          description="Student chat sessions"
+          description={t("analytics.metrics.uniqueSessionsDescription")}
           icon={Users}
           isLoading={summaryLoading}
         />
         <MetricCard
-          title="Avg Msgs/Session"
-          value={sessionMetrics?.avgMessagesPerSession ?? 0}
-          description="Student messages per session"
+          title={t("analytics.metrics.avgMessages")}
+          value={new Intl.NumberFormat(i18n.language).format(
+            sessionMetrics?.avgMessagesPerSession ?? 0,
+          )}
+          description={t("analytics.metrics.avgMessagesDescription")}
           icon={MessageSquare}
           isLoading={summaryLoading}
         />
         <MetricCard
-          title="Avg Duration"
+          title={t("analytics.metrics.avgDuration")}
           value={formatDurationSeconds(
             sessionMetrics?.avgSessionDurationSeconds ?? 0,
+            t,
           )}
-          description="First to last message"
+          description={t("analytics.metrics.avgDurationDescription")}
           icon={Clock}
           isLoading={summaryLoading}
         />
         <MetricCard
-          title="RAG Hit Rate"
-          value={`${stats?.ragUsagePercentage ?? 0}%`}
-          description="Messages using source context"
+          title={t("analytics.metrics.ragHitRate")}
+          value={t("analytics.metrics.ragHitRateValue", {
+            rate: (stats?.ragUsagePercentage ?? 0) / 100,
+          })}
+          description={t("analytics.metrics.ragHitRateDescription")}
           icon={Database}
           isLoading={summaryLoading}
         />
@@ -153,6 +169,11 @@ export function ChatbotAnalyticsTab({ chatbotId }: ChatbotAnalyticsTabProps) {
         <SessionLengthsCard
           isLoading={distributionQuery.isLoading}
           data={distributionData}
+        />
+
+        <RatingsCard
+          isLoading={ratingsQuery.isLoading}
+          data={ratingsQuery.data}
         />
       </div>
 

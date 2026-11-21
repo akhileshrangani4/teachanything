@@ -27,6 +27,9 @@ jest.unstable_mockModule("@/lib/trpc", () => ({
     ),
   },
 }));
+jest.unstable_mockModule("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
 jest.unstable_mockModule("sonner", () => ({
   toast: { success: jest.fn(), error: jest.fn() },
 }));

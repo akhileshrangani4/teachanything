@@ -63,6 +63,15 @@ jobs:
         run: npm run db:migrate
         working-directory: packages/db
 
+      # Blocks the deploy when the migrated DB still lacks a table or column
+      # that schema.ts declares (a migration marked applied that never ran, or
+      # a column dropped by hand). Read-only; extra DB columns are ignored.
+      - name: Check schema drift
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run db:check-drift
+        working-directory: packages/db
+
       - name: Setup Git User
         run: |
           git config user.name "GitHub Actions Bot"

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Trophy, RotateCcw } from "lucide-react";
 import { QuizAttemptsViewer } from "./QuizAttemptsViewer";
+import { useTranslation } from "react-i18next";
 
 interface QuizScoreViewProps {
   quiz: Quiz;
@@ -27,6 +28,7 @@ export function QuizScoreView({
   attempts,
   onRetake,
 }: QuizScoreViewProps) {
+  const { t } = useTranslation();
   return (
     <Card className="bg-secondary">
       <CardHeader>
@@ -45,7 +47,7 @@ export function QuizScoreView({
           <span className="text-muted-foreground text-xl"> / {total}</span>
         </p>
         <p className="text-sm text-muted-foreground">
-          You answered {score} of {total} correctly.
+          {t("chat.quiz.scoreSummary", { score, total })}
         </p>
       </CardContent>
       {attempts && attempts.length > 0 && (
@@ -53,14 +55,14 @@ export function QuizScoreView({
           <QuizAttemptsViewer
             quiz={quiz}
             attempts={attempts}
-            label="Your answers"
+            label={t("chat.quiz.yourAnswers")}
           />
         </CardContent>
       )}
       <CardFooter>
         <Button variant="outline" size="sm" onClick={onRetake}>
           <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-          Retake quiz
+          {t("chat.quiz.retake")}
         </Button>
       </CardFooter>
     </Card>

@@ -5,6 +5,7 @@ import type { Quiz, QuizResponse } from "@/lib/quiz";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Check, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface QuizAttemptsViewerProps {
   quiz: Quiz;
@@ -25,6 +26,7 @@ export function QuizAttemptsViewer({
   attempts,
   label,
 }: QuizAttemptsViewerProps) {
+  const { t } = useTranslation();
   // Default to the latest attempt; clamp in case `attempts` shrinks while
   // mounted. When a NEW attempt arrives while mounted (e.g. the professor's
   // dashboard query refetches on window focus after a student retake), jump to
@@ -57,12 +59,15 @@ export function QuizAttemptsViewer({
               className="h-7 w-7"
               disabled={current === 0}
               onClick={() => setIndex(current - 1)}
-              aria-label="Previous attempt"
+              aria-label={t("chat.quiz.previousAttempt")}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
-              Attempt {current + 1} / {attempts.length}
+              {t("chat.quiz.attemptOf", {
+                current: current + 1,
+                total: attempts.length,
+              })}
             </span>
             <Button
               type="button"
@@ -71,7 +76,7 @@ export function QuizAttemptsViewer({
               className="h-7 w-7"
               disabled={current === attempts.length - 1}
               onClick={() => setIndex(current + 1)}
-              aria-label="Next attempt"
+              aria-label={t("chat.quiz.nextAttempt")}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -84,8 +89,16 @@ export function QuizAttemptsViewer({
         role="status"
         aria-live="polite"
       >
-        {hasPager ? `Attempt ${current + 1}: ` : ""}scored {attempt.score}/
-        {attempt.total}
+        {hasPager
+          ? t("chat.quiz.attemptScore", {
+              attempt: current + 1,
+              score: attempt.score,
+              total: attempt.total,
+            })
+          : t("chat.quiz.score", {
+              score: attempt.score,
+              total: attempt.total,
+            })}
       </p>
 
       <div className="flex flex-col gap-1">
@@ -96,7 +109,7 @@ export function QuizAttemptsViewer({
             typeof choiceIndex === "number" &&
             q.options[choiceIndex] !== undefined
               ? q.options[choiceIndex]
-              : "(no answer)";
+              : t("chat.quiz.noAnswer");
           return (
             <div
               key={qi}
@@ -110,7 +123,9 @@ export function QuizAttemptsViewer({
               <span className="min-w-0 truncate">
                 Q{qi + 1}: {chosenText}
                 <span className="sr-only">
-                  {isCorrect ? " (correct)" : " (incorrect)"}
+                  {isCorrect
+                    ? t("chat.quiz.correctSuffix")
+                    : t("chat.quiz.incorrectSuffix")}
                 </span>
               </span>
               {isCorrect ? (

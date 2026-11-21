@@ -13,6 +13,7 @@ export default defineMeta({
     "choose-a-model",
     "customize",
     "share-and-embed",
+    "daily-message-limits",
     "review-conversations",
     "export-chat-records",
     "account-and-privacy",

@@ -21,6 +21,7 @@ import {
 import { getPageDisplayTitle } from "@/lib/crawler-metadata";
 import { getFriendlyError } from "./utils";
 import { PageStatusBadge } from "./StatusBadges";
+import { useTranslation } from "react-i18next";
 
 type CrawledPage = RouterOutputs["crawler"]["getCrawledPages"]["pages"][number];
 
@@ -31,6 +32,7 @@ export function CrawledPagesList({
   crawlSourceId: string;
   isExpanded: boolean;
 }) {
+  const { t } = useTranslation();
   const [offset, setOffset] = useState(0);
   const limit = 10;
   const utils = trpc.useUtils();
@@ -47,11 +49,11 @@ export function CrawledPagesList({
         utils.crawler.getCrawledPages.invalidate(pageQueryInput),
         utils.crawler.getCrawlSources.invalidate(),
       ]);
-      toast.success("Page removed");
+      toast.success(t("webSources.pages.removed"));
     },
     onError: (error) => {
-      toast.error("Failed to remove page", {
-        description: getFriendlyError(error),
+      toast.error(t("webSources.pages.removeFailed"), {
+        description: getFriendlyError(error, t),
       });
     },
   });
@@ -65,11 +67,11 @@ export function CrawledPagesList({
         utils.files.list.invalidate(),
         utils.files.listForChatbot.invalidate(),
       ]);
-      toast.success("Page renamed");
+      toast.success(t("webSources.pages.renamed"));
     },
     onError: (error) => {
-      toast.error("Failed to rename page", {
-        description: getFriendlyError(error),
+      toast.error(t("webSources.pages.renameFailed"), {
+        description: getFriendlyError(error, t),
       });
     },
   });
@@ -81,7 +83,7 @@ export function CrawledPagesList({
   if (data.pages.length === 0) {
     return (
       <div className="px-4 pb-4 text-sm text-muted-foreground">
-        No pages crawled yet.
+        {t("webSources.pages.empty")}
       </div>
     );
   }
@@ -110,8 +112,11 @@ export function CrawledPagesList({
       {data.totalCount > limit && (
         <div className="flex items-center justify-between px-4 py-2 border-t bg-muted/50">
           <span className="text-xs text-muted-foreground">
-            Showing {offset + 1}-{Math.min(offset + limit, data.totalCount)} of{" "}
-            {data.totalCount}
+            {t("webSources.pages.range", {
+              from: offset + 1,
+              to: Math.min(offset + limit, data.totalCount),
+              total: data.totalCount,
+            })}
           </span>
           <div className="flex gap-1">
             <Button
@@ -120,7 +125,7 @@ export function CrawledPagesList({
               onClick={() => setOffset(Math.max(0, offset - limit))}
               disabled={offset === 0}
             >
-              Previous
+              {t("common.actions.previous")}
             </Button>
             <Button
               variant="ghost"
@@ -128,7 +133,7 @@ export function CrawledPagesList({
               onClick={() => setOffset(offset + limit)}
               disabled={offset + limit >= data.totalCount}
             >
-              Next
+              {t("common.actions.next")}
             </Button>
           </div>
         </div>
@@ -171,6 +176,7 @@ function CrawledPageRow({
   onRemove: () => void;
   onRename: (title: string) => Promise<unknown>;
 }) {
+  const { t } = useTranslation();
   const displayTitle = getPageDisplayTitle(page);
   return (
     <div className="flex items-center justify-between px-4 py-2.5">
@@ -178,7 +184,7 @@ function CrawledPageRow({
         <EditableName
           value={displayTitle}
           fallback={page.url}
-          ariaLabel="Rename crawled page"
+          ariaLabel={t("webSources.pages.rename")}
           isSaving={isRenaming}
           onSave={onRename}
           className="text-sm"
@@ -195,7 +201,9 @@ function CrawledPageRow({
           </a>
           {typeof page.metadata?.wordCount === "number" && (
             <span className="text-xs text-muted-foreground shrink-0">
-              {page.metadata.wordCount.toLocaleString()} words
+              {t("webSources.pages.wordCount", {
+                count: page.metadata.wordCount,
+              })}
             </span>
           )}
         </div>
@@ -209,27 +217,31 @@ function CrawledPageRow({
               size="icon"
               className="h-7 w-7"
               disabled={isRemoving}
-              title="Remove page"
+              title={t("webSources.pages.remove")}
             >
               <Trash2 className="h-3.5 w-3.5 text-destructive" />
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove page</AlertDialogTitle>
+              <AlertDialogTitle>
+                {t("webSources.pages.remove")}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                Remove &quot;{displayTitle}&quot; from this chatbot&apos;s
-                knowledge? This deletes the page and its embeddings. This action
-                cannot be undone.
+                {t("webSources.pages.removeDescription", {
+                  title: displayTitle,
+                })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>
+                {t("common.actions.cancel")}
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={onRemove}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Remove
+                {t("common.actions.remove")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

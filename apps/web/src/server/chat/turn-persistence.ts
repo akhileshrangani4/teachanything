@@ -135,6 +135,10 @@ export async function persistTurn(args: {
     if (content.trim() || hasStudyPart) {
       inserts.push(
         args.database.insert(messages).values({
+          // The id the client received in the stream's `start` chunk (a UUID,
+          // see createAssistantMessageStream), so the message on screen and
+          // this row are the same message.
+          id: args.responseMessage.id,
           conversationId: args.conversationId,
           role: "assistant",
           content,

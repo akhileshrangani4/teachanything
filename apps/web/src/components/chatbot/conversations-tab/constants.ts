@@ -26,28 +26,4 @@ export const MAX_LIMIT = 50;
 
 // Export format order is fixed here so the README/bundle always lists files
 // consistently regardless of the order the professor toggles the checkboxes.
-export const EXPORT_FORMAT_OPTIONS: Array<{
-  value: ExportFormat;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "html",
-    label: "Visual transcript (HTML)",
-    description: "Open in a browser — chat-style, easy to read.",
-  },
-  {
-    value: "csv",
-    label: "Spreadsheet (CSV)",
-    description: "Open in Excel / Google Sheets for analysis.",
-  },
-  {
-    value: "text",
-    label: "Plain text (TXT)",
-    description: "Portable transcript for any text editor.",
-  },
-];
-
-export const ALL_EXPORT_FORMATS: ExportFormat[] = EXPORT_FORMAT_OPTIONS.map(
-  (o) => o.value,
-);
+export const EXPORT_FORMAT_OPTIONS: ExportFormat[] = ["html", "csv", "text"];

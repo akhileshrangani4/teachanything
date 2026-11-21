@@ -13,6 +13,7 @@ import { ResponsiveTableShell } from "@/components/chatbot/web-sources/Responsiv
 import { FileTableRow } from "./file-table/desktop-row";
 import { FileCardMobile } from "./file-table/mobile-card";
 import type { ActionType, BaseFile } from "./file-table/types";
+import { useTranslation } from "react-i18next";
 
 // ── Main FileTable component ─────────────────────────────────────────
 interface FileTableProps<T extends BaseFile> {
@@ -47,11 +48,12 @@ export function FileTable<T extends BaseFile>({
   onRetry,
   retryDisabled = false,
   showCreatedDate = false,
-  emptyMessage = "No files found",
+  emptyMessage,
   sortBy,
   sortDir,
   onSort,
 }: FileTableProps<T>) {
+  const { t } = useTranslation();
   const isSortable =
     sortBy !== undefined && sortDir !== undefined && onSort !== undefined;
 
@@ -79,7 +81,9 @@ export function FileTable<T extends BaseFile>({
   if (files.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground">{emptyMessage}</p>
+        <p className="text-muted-foreground">
+          {emptyMessage ?? t("files.table.empty")}
+        </p>
       </div>
     );
   }
@@ -97,7 +101,7 @@ export function FileTable<T extends BaseFile>({
           ? {
               checked: allSelected,
               onChange: onSelectAll,
-              ariaLabel: "Select all files",
+              ariaLabel: t("files.table.selectAll"),
             }
           : undefined
       }
@@ -121,22 +125,34 @@ export function FileTable<T extends BaseFile>({
                     checked={allSelected}
                     onChange={onSelectAll}
                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                    aria-label="Select all files"
+                    aria-label={t("files.table.selectAll")}
                   />
                 </TableHead>
               )}
-              {renderColumnHeader("fileName", "File Name")}
-              {renderColumnHeader("fileType", "Type", "whitespace-nowrap")}
-              {renderColumnHeader("fileSize", "Size", "whitespace-nowrap")}
+              {renderColumnHeader("fileName", t("files.table.fileName"))}
+              {renderColumnHeader(
+                "fileType",
+                t("files.table.type"),
+                "whitespace-nowrap",
+              )}
+              {renderColumnHeader(
+                "fileSize",
+                t("files.table.size"),
+                "whitespace-nowrap",
+              )}
               {renderColumnHeader(
                 "processingStatus",
-                "Status",
+                t("files.table.status"),
                 "whitespace-nowrap",
               )}
               {showCreatedDate &&
-                renderColumnHeader("createdAt", "Created", "whitespace-nowrap")}
+                renderColumnHeader(
+                  "createdAt",
+                  t("files.table.created"),
+                  "whitespace-nowrap",
+                )}
               <TableHead className="whitespace-nowrap text-right">
-                Actions
+                {t("webSources.table.actions")}
               </TableHead>
             </TableRow>
           </TableHeader>

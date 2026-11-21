@@ -5,7 +5,11 @@ import { recoverLeakedQuiz } from "@/server/chat/recover-quiz";
 type Chunk = Record<string, unknown>;
 
 async function pump(chunks: Chunk[]): Promise<Chunk[]> {
-  const stream = recoverLeakedQuiz();
+  const stream = recoverLeakedQuiz({
+    chatbotId: "cb1",
+    modelId: "test-model",
+    turn: "primary",
+  });
   const writer = stream.writable.getWriter();
   const out: Chunk[] = [];
   const drained = (async () => {

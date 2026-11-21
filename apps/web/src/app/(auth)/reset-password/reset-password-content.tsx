@@ -21,6 +21,13 @@ import { validatePasswordStrength } from "@/lib/password/password-strength";
 import { PasswordStrengthIndicator } from "@/components/dashboard/settings/PasswordStrengthIndicator";
 import { PasswordRequirementsList } from "@/components/dashboard/settings/PasswordRequirementsList";
 import { TokenErrorCard, SuccessCard, MissingTokenCard } from "./status-cards";
+import { useTranslation } from "react-i18next";
+import { authErrorMessage } from "@/lib/auth-error-message";
+import { logError } from "@/lib/logger";
+import {
+  failedPasswordErrors,
+  firstPasswordError,
+} from "@/lib/password/password-messages";
 
 /**
  * Checks if an error message indicates a token-related issue (invalid, expired, etc.)
@@ -35,13 +42,8 @@ function isTokenRelatedError(errorMessage: string): boolean {
   );
 }
 
-const LINK_EXPIRED_TOAST = {
-  title: "Link expired",
-  description:
-    "This password reset link has already been used or has expired. Please request a new one.",
-} as const;
-
 export function ResetPasswordContent() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
@@ -79,10 +81,9 @@ export function ResetPasswordContent() {
 
     // Validate password strength
     if (passwordValidation && !passwordValidation.isValid) {
-      const firstError =
-        passwordValidation.errors[0] || "Password does not meet requirements";
+      const firstError = firstPasswordError(t, passwordValidation.requirements);
       setError(firstError);
-      toast.error("Invalid password", {
+      toast.error(t("auth.resetPassword.invalidPassword"), {
         description: firstError,
       });
       return;
@@ -90,12 +91,12 @@ export function ResetPasswordContent() {
 
     // Check passwords match
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("settings.password.mismatch"));
       return;
     }
 
     if (!token) {
-      setError("Invalid or missing reset token");
+      setError(t("auth.resetPassword.missingToken"));
       return;
     }
 
@@ -113,37 +114,36 @@ export function ResetPasswordContent() {
 
         if (isTokenRelatedError(errorMsg)) {
           setTokenError(true);
-          toast.error(LINK_EXPIRED_TOAST.title, {
-            description: LINK_EXPIRED_TOAST.description,
+          toast.error(t("auth.resetPassword.linkExpiredTitle"), {
+            description: t("auth.resetPassword.linkExpiredDescription"),
           });
         } else {
-          setError(resetError.message || "Failed to reset password");
-          toast.error("Error", {
-            description: resetError.message || "Failed to reset password",
-          });
+          const message = authErrorMessage(
+            t,
+            resetError,
+            t("auth.resetPassword.failed"),
+          );
+          setError(message);
+          toast.error(message);
         }
       } else {
         setSuccess(true);
-        toast.success("Password reset!", {
-          description: "Your password has been successfully reset",
+        toast.success(t("auth.resetPassword.success"), {
+          description: t("auth.resetPassword.successDescription"),
         });
       }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "An error occurred. Please try again.";
+      const errorMessage = err instanceof Error ? err.message : "";
 
       if (isTokenRelatedError(errorMessage)) {
         setTokenError(true);
-        toast.error(LINK_EXPIRED_TOAST.title, {
-          description: LINK_EXPIRED_TOAST.description,
+        toast.error(t("auth.resetPassword.linkExpiredTitle"), {
+          description: t("auth.resetPassword.linkExpiredDescription"),
         });
       } else {
-        setError(errorMessage);
-        toast.error("Error", {
-          description: errorMessage,
-        });
+        logError(err, "Password reset failed");
+        setError(t("errors.generic"));
+        toast.error(t("errors.generic"));
       }
     } finally {
       setLoading(false);
@@ -166,8 +166,10 @@ export function ResetPasswordContent() {
     <div className="min-h-screen flex items-center justify-center bg-secondary">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Reset Password</CardTitle>
-          <CardDescription>Enter your new password below</CardDescription>
+          <CardTitle>{t("auth.resetPassword.title")}</CardTitle>
+          <CardDescription>
+            {t("auth.resetPassword.description")}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {error && (
@@ -179,7 +181,9 @@ export function ResetPasswordContent() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">New Password</Label>
+              <Label htmlFor="password">
+                {t("auth.resetPassword.newPassword")}
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -228,7 +232,10 @@ export function ResetPasswordContent() {
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription className="text-xs">
                       <ul className="list-disc list-inside space-y-1">
-                        {passwordValidation.errors.map((error, idx) => (
+                        {failedPasswordErrors(
+                          t,
+                          passwordValidation.requirements,
+                        ).map((error, idx) => (
                           <li key={idx}>{error}</li>
                         ))}
                       </ul>
@@ -238,7 +245,9 @@ export function ResetPasswordContent() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Label htmlFor="confirmPassword">
+                {t("auth.resetPassword.confirmNewPassword")}
+              </Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -263,7 +272,7 @@ export function ResetPasswordContent() {
               </div>
               {confirmPassword && password !== confirmPassword && (
                 <p className="text-xs text-destructive">
-                  Passwords do not match
+                  {t("settings.password.mismatch")}
                 </p>
               )}
             </div>
@@ -277,13 +286,15 @@ export function ResetPasswordContent() {
                 password !== confirmPassword
               }
             >
-              {loading ? "Resetting..." : "Reset Password"}
+              {loading
+                ? t("auth.resetPassword.submitting")
+                : t("auth.resetPassword.submit")}
             </Button>
           </form>
 
           <p className="mt-4 text-center text-sm text-muted-foreground">
             <Link href="/login" className="text-primary hover:underline">
-              Back to Login
+              {t("auth.forgotPassword.backToLogin")}
             </Link>
           </p>
         </CardContent>

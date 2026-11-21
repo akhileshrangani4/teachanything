@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 const SELECT_ALL_CHECKBOX_CLASS =
   "h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer";
@@ -31,6 +32,7 @@ export function ResponsiveTableShell({
   desktop,
   mobile,
 }: ResponsiveTableShellProps) {
+  const { t } = useTranslation();
   return (
     <>
       {/* Desktop table view */}
@@ -47,7 +49,9 @@ export function ResponsiveTableShell({
               className={SELECT_ALL_CHECKBOX_CLASS}
               aria-label={selectAll.ariaLabel}
             />
-            <span className="text-sm text-muted-foreground">Select all</span>
+            <span className="text-sm text-muted-foreground">
+              {t("webSources.table.selectAllShort")}
+            </span>
           </div>
         )}
         {mobile}

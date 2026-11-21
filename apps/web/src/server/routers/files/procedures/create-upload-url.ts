@@ -13,6 +13,8 @@ import {
   validateExtensionMatchesMimeType,
 } from "../validation";
 import { randomUUID } from "crypto";
+import { appError } from "@/server/app-error";
+import { retryAfterMinutes } from "@/lib/constants/rate-limits";
 
 /**
  * Generate a signed upload URL for direct client-to-Supabase uploads
@@ -44,10 +46,8 @@ export const createUploadUrlProcedure = protectedProcedure
     );
 
     if (!success) {
-      const retryAfter = Math.ceil((reset - Date.now()) / 1000);
-      throw new TRPCError({
-        code: "TOO_MANY_REQUESTS",
-        message: `Too many upload requests. Please try again in ${Math.ceil(retryAfter / 60)} minute(s).`,
+      throw appError("TOO_MANY_REQUESTS", "errors.rateLimits.upload", {
+        minutes: retryAfterMinutes(reset),
       });
     }
 
@@ -70,9 +70,8 @@ export const createUploadUrlProcedure = protectedProcedure
       .limit(1);
 
     if (existingFiles.length > 0) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: `A file with the name "${input.fileName}" already exists. Please rename your file or delete the existing one.`,
+      throw appError("CONFLICT", "files.upload.duplicateName", {
+        name: input.fileName,
       });
     }
 

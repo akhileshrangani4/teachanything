@@ -17,6 +17,7 @@ import { CrawledPagesList } from "../CrawledPagesList";
 import { SourceStatusBadge } from "../StatusBadges";
 import { WebSourceRowActions } from "./row-actions";
 import type { WebSourceRowProps } from "./types";
+import { useTranslation } from "react-i18next";
 
 // ── Mobile card view ─────────────────────────────────────────────────
 export function WebSourceCardMobile({
@@ -37,6 +38,7 @@ export function WebSourceCardMobile({
   isTogglingEnabled = false,
   isRenaming = false,
 }: WebSourceRowProps) {
+  const { t, i18n } = useTranslation();
   const handleExport = useExportSource(source.id, source.rootUrl);
   const isActive = isActiveSource(source);
   const pageCount = getSourcePageCount(source);
@@ -55,7 +57,9 @@ export function WebSourceCardMobile({
             checked={isSelected}
             onChange={() => onToggleSelect(source.id)}
             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer flex-shrink-0"
-            aria-label={`Select ${getSourceDisplayName(source)}`}
+            aria-label={t("common.table.selectRow", {
+              name: getSourceDisplayName(source),
+            })}
           />
         )}
         <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
@@ -64,7 +68,7 @@ export function WebSourceCardMobile({
         <EditableName
           value={getSourceDisplayName(source)}
           fallback={source.rootUrl}
-          ariaLabel="Rename web source"
+          ariaLabel={t("webSources.table.rename")}
           isSaving={isRenaming}
           onSave={(name) => onRename(source.id, name)}
           className="text-sm font-medium flex-1 min-w-0"
@@ -75,19 +79,25 @@ export function WebSourceCardMobile({
         {source.enabled ? (
           <SourceStatusBadge status={source.status} />
         ) : (
-          <Badge variant="secondary">Disabled</Badge>
+          <Badge variant="secondary">
+            {t("webSources.statusFilter.disabled")}
+          </Badge>
         )}
         <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
-          {pageCount} page{pageCount !== 1 ? "s" : ""}
+          {t("webSources.table.pageCount", { count: pageCount })}
         </span>
         {source.status === "completed" && errorCount > 0 && (
           <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
-            {errorCount} error{errorCount !== 1 ? "s" : ""}
+            {t("webSources.table.errorCount", { count: errorCount })}
           </span>
         )}
         {source.lastCrawledAt && (
           <span className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground">
-            Last: {new Date(source.lastCrawledAt).toLocaleDateString()}
+            {t("webSources.table.lastCrawledShort", {
+              date: new Date(source.lastCrawledAt).toLocaleDateString(
+                i18n.language,
+              ),
+            })}
           </span>
         )}
       </div>
@@ -96,15 +106,15 @@ export function WebSourceCardMobile({
         <div
           title={
             source.enabled
-              ? "Disable this source (keeps data, excludes from chat context)"
-              : "Enable this source"
+              ? t("webSources.table.disableThisSource")
+              : t("webSources.table.enableThisSource")
           }
         >
           <Switch
             checked={source.enabled}
             onCheckedChange={(enabled) => onToggleEnabled(source.id, enabled)}
             disabled={isTogglingEnabled}
-            aria-label="Toggle source"
+            aria-label={t("webSources.table.toggleSource")}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -126,7 +136,9 @@ export function WebSourceCardMobile({
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
               onClick={() => onToggleExpand(source.id)}
               aria-label={
-                isExpanded ? "Hide crawled pages" : "Show crawled pages"
+                isExpanded
+                  ? t("webSources.table.hidePages")
+                  : t("webSources.table.showPages")
               }
             >
               <ChevronDown

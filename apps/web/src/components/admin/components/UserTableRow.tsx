@@ -18,8 +18,15 @@ import {
   Trash2,
   ChevronDown,
   Eye,
+  Gauge,
+  Pause,
+  Play,
 } from "lucide-react";
-import { UserAvatarCell, UserEmailCell } from "../components/UserCells";
+import { OWNER_DAILY_MESSAGE_LIMIT } from "@/lib/constants/rate-limits";
+import { usageLevel } from "@/lib/usage-level";
+import { UserAvatarCell } from "../components/UserCells";
+import { useSetUserChatbotsPaused } from "../hooks/use-set-user-chatbots-paused";
+import { UsageMeter } from "@/components/usage-meter/UsageMeter";
 
 interface UserData {
   id: string;
@@ -32,6 +39,9 @@ interface UserData {
   department: string | null;
   facultyWebpage: string | null;
   country: string | null;
+  dailyMessageLimit: number | null;
+  chatbotsPaused: boolean;
+  usage: { today: number };
   createdAt: Date | string;
 }
 
@@ -39,6 +49,8 @@ interface UserTableRowProps {
   user: UserData;
   isCurrentUser: boolean;
   onViewDetails: (user: UserData) => void;
+  /** Opens the usage and limits panel for this user. */
+  onOpenUsage: (userId: string) => void;
   onPromote: (userId: string, userName: string, userEmail: string) => void;
   onDemote: (userId: string, userName: string, userEmail: string) => void;
   onDisable: (userId: string, userName: string, userEmail: string) => void;
@@ -51,6 +63,7 @@ export function UserTableRow({
   user,
   isCurrentUser,
   onViewDetails,
+  onOpenUsage,
   onPromote,
   onDemote,
   onDisable,
@@ -59,25 +72,43 @@ export function UserTableRow({
   isAnyActionPending,
 }: UserTableRowProps) {
   const isAdmin = user.role === "admin";
+  const { setPaused: setChatbotsPaused } = useSetUserChatbotsPaused();
+  const displayName = user.name || user.email;
+  const isAtLimit =
+    usageLevel(
+      user.usage.today,
+      user.dailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT,
+    ) === "full";
 
   return (
-    <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
+    <TableRow
+      key={user.id}
+      className="cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={() => onOpenUsage(user.id)}
+    >
       <TableCell>
-        <UserAvatarCell
-          name={user.name}
-          email={user.email}
-          showEmail={!!user.name}
-          suffix={
-            isCurrentUser ? (
-              <span className="ml-2 text-xs text-muted-foreground font-normal">
-                (You)
-              </span>
-            ) : undefined
-          }
-        />
-      </TableCell>
-      <TableCell className="hidden sm:table-cell">
-        <UserEmailCell email={user.email} />
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenUsage(user.id);
+          }}
+          aria-label={`Open usage and settings for ${displayName}`}
+          className="rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <UserAvatarCell
+            name={user.name}
+            email={user.email}
+            showEmail={!!user.name}
+            suffix={
+              isCurrentUser ? (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  (You)
+                </span>
+              ) : undefined
+            }
+          />
+        </button>
       </TableCell>
       <TableCell>
         <Badge
@@ -93,28 +124,42 @@ export function UserTableRow({
         </Badge>
       </TableCell>
       <TableCell>
-        <Badge
-          variant={
-            user.status === "approved"
-              ? "default"
-              : user.status === "pending"
-                ? "secondary"
-                : "destructive"
-          }
-          className="font-medium capitalize"
-        >
-          {user.status}
-        </Badge>
-      </TableCell>
-      <TableCell className="hidden md:table-cell">
-        <div className="text-sm">
-          <p>{new Date(user.createdAt).toLocaleDateString()}</p>
-          <p className="text-xs text-muted-foreground">
-            {new Date(user.createdAt).toLocaleTimeString()}
-          </p>
+        <div className="flex flex-col gap-1">
+          <Badge
+            variant={
+              user.status === "approved"
+                ? "default"
+                : user.status === "pending"
+                  ? "secondary"
+                  : "destructive"
+            }
+            className="w-fit font-medium capitalize"
+          >
+            {user.status}
+          </Badge>
+          {user.chatbotsPaused ? (
+            <Badge variant="destructive" className="w-fit">
+              Chatbots paused
+            </Badge>
+          ) : (
+            isAtLimit && (
+              <Badge variant="destructive" className="w-fit">
+                Limit reached
+              </Badge>
+            )
+          )}
         </div>
       </TableCell>
-      <TableCell className="text-right pr-2">
+      <TableCell>
+        <UsageMeter
+          used={user.usage.today}
+          limit={user.dailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT}
+        />
+      </TableCell>
+      <TableCell
+        className="text-right pr-2"
+        onClick={(event) => event.stopPropagation()}
+      >
         {isCurrentUser ? (
           <span className="text-sm text-muted-foreground italic">
             Current user
@@ -136,7 +181,7 @@ export function UserTableRow({
               <DropdownMenuContent
                 align="end"
                 side="bottom"
-                className="w-[180px]"
+                className="w-[210px]"
                 sideOffset={5}
                 collisionPadding={16}
               >
@@ -147,6 +192,32 @@ export function UserTableRow({
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   View Details
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => onOpenUsage(user.id)}
+                  className="cursor-pointer"
+                >
+                  <Gauge className="h-4 w-4 mr-2" />
+                  Usage & settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    setChatbotsPaused(
+                      { id: user.id, name: displayName },
+                      !user.chatbotsPaused,
+                    )
+                  }
+                  className="cursor-pointer"
+                >
+                  {user.chatbotsPaused ? (
+                    <Play className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Pause className="h-4 w-4 mr-2" />
+                  )}
+                  {user.chatbotsPaused
+                    ? "Resume all chatbots"
+                    : "Pause all chatbots"}
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />

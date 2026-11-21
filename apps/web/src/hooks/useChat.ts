@@ -4,12 +4,29 @@ import { DefaultChatTransport, type ChatStatus } from "ai";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { describeChatError } from "@/lib/chat-error-message";
+import {
+  chatErrorCodeOf,
+  describeChatError,
+  type ChatErrorCode,
+} from "@/lib/chat-error-message";
+import { restoreRefusedTurn } from "@/lib/chat/refused-turn";
 import type { StudyUIMessage } from "@/server/chat/study-tools";
 import {
   postStudyResponse,
   type StudyResponsePayload,
 } from "@/lib/submit-study-response";
+import { useTranslation } from "react-i18next";
+import { useMessageRatings } from "@/hooks/use-message-ratings";
+
+/** Refusals that mean the chatbot can't answer anyone right now. */
+type UnavailableCode = "daily_limit_reached" | "chatbot_paused";
+const UNAVAILABLE_NOTICE_KEYS = {
+  daily_limit_reached: "errors.chat.dailyLimitReached",
+  chatbot_paused: "errors.chat.chatbotPaused",
+} as const satisfies Record<UnavailableCode, string>;
+const UNAVAILABLE_CODES: ReadonlySet<ChatErrorCode> = new Set(
+  Object.keys(UNAVAILABLE_NOTICE_KEYS) as UnavailableCode[],
+);
 
 /**
  * Chat with a shared/public chatbot (share-token pages + embed widget), backed
@@ -19,6 +36,7 @@ import {
  * no cross-reload history rehydration in this phase).
  */
 export function useChat(shareToken: string) {
+  const { t } = useTranslation();
   const [sessionId, setSessionId] = useState(() => nanoid());
   const [currentMessage, setCurrentMessage] = useState("");
   // The student's own finished study-tool responses this session, by tool
@@ -27,6 +45,17 @@ export function useChat(shareToken: string) {
     Record<string, StudyResponsePayload[]>
   >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { ratings, rateMessage, resetRatings } = useMessageRatings(
+    shareToken,
+    sessionId,
+  );
+  // The last message sent, to hand back to the student if the server refuses it.
+  const lastSentRef = useRef("");
+  // Set when the server refuses a message because the chatbot can't answer
+  // right now; the chat then shows a notice and disables the input.
+  const [unavailableCode, setUnavailableCode] = useState<ChatErrorCode | null>(
+    null,
+  );
 
   const {
     data: chatbot,
@@ -51,7 +80,20 @@ export function useChat(shareToken: string) {
         };
       },
     }),
-    onError: (error) => toast.error(describeChatError(error)),
+    onError: (error) => {
+      const code = chatErrorCodeOf(error);
+      if (code && UNAVAILABLE_CODES.has(code)) {
+        setUnavailableCode(code);
+      } else {
+        toast.error(describeChatError(error, t));
+      }
+      restoreRefusedTurn(
+        error,
+        lastSentRef.current,
+        chat.setMessages,
+        setCurrentMessage,
+      );
+    },
     experimental_throttle: 50,
   });
 
@@ -64,6 +106,7 @@ export function useChat(shareToken: string) {
   const sendMessage = useCallback(
     (text: string): boolean => {
       if (!text.trim() || isStreaming) return false;
+      lastSentRef.current = text;
       void chat.sendMessage({ text });
       return true;
     },
@@ -94,13 +137,21 @@ export function useChat(shareToken: string) {
     chat.setMessages([]);
     setCurrentMessage("");
     setStudyAttempts({});
+    resetRatings();
     // Start a fresh server-side conversation (matches the prior behavior). The
     // new id also re-keys useChat, so the transport no longer reloads the
     // old conversation's history on the next send.
     setSessionId(nanoid());
   };
 
+  const effectiveCode: ChatErrorCode | null =
+    unavailableCode ?? (chatbot?.paused ? "chatbot_paused" : null);
+  const unavailableNotice = effectiveCode
+    ? t(UNAVAILABLE_NOTICE_KEYS[effectiveCode as UnavailableCode])
+    : null;
+
   return {
+    unavailableNotice,
     messages: chat.messages,
     currentMessage,
     setCurrentMessage,
@@ -115,5 +166,7 @@ export function useChat(shareToken: string) {
     error,
     onStudyAttempt,
     studyAttempts,
+    ratings,
+    rateMessage,
   };
 }

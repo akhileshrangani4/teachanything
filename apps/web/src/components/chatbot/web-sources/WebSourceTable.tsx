@@ -16,6 +16,7 @@ import { ResponsiveTableShell } from "./ResponsiveTableShell";
 import { WebSourceTableRow } from "./web-source-table/desktop-row";
 import { WebSourceCardMobile } from "./web-source-table/mobile-card";
 import type { CrawlSource } from "./web-source-table/types";
+import { useTranslation } from "react-i18next";
 
 // ── Main WebSourceTable component ────────────────────────────────────
 interface WebSourceTableProps {
@@ -62,11 +63,12 @@ export function WebSourceTable({
   isStopping = false,
   isTogglingEnabled = false,
   isRenaming = false,
-  emptyMessage = "No web sources found",
+  emptyMessage,
   sortBy,
   sortDir,
   onSort,
 }: WebSourceTableProps) {
+  const { t } = useTranslation();
   const isSortable =
     sortBy !== undefined && sortDir !== undefined && onSort !== undefined;
 
@@ -94,7 +96,9 @@ export function WebSourceTable({
   if (sources.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground">{emptyMessage}</p>
+        <p className="text-muted-foreground">
+          {emptyMessage ?? t("webSources.table.empty")}
+        </p>
       </div>
     );
   }
@@ -112,7 +116,7 @@ export function WebSourceTable({
           ? {
               checked: allSelected,
               onChange: onSelectAll,
-              ariaLabel: "Select all web sources",
+              ariaLabel: t("webSources.table.selectAll"),
             }
           : undefined
       }
@@ -135,20 +139,28 @@ export function WebSourceTable({
                     checked={allSelected}
                     onChange={onSelectAll}
                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                    aria-label="Select all web sources"
+                    aria-label={t("webSources.table.selectAll")}
                   />
                 </TableHead>
               )}
-              {renderColumnHeader("name", "Name")}
-              {renderColumnHeader("pageCount", "Pages", "whitespace-nowrap")}
-              {renderColumnHeader("status", "Status", "whitespace-nowrap")}
+              {renderColumnHeader("name", t("webSources.table.name"))}
+              {renderColumnHeader(
+                "pageCount",
+                t("webSources.table.pages"),
+                "whitespace-nowrap",
+              )}
+              {renderColumnHeader(
+                "status",
+                t("webSources.table.status"),
+                "whitespace-nowrap",
+              )}
               {renderColumnHeader(
                 "lastCrawledAt",
-                "Last Crawled",
+                t("webSources.table.lastCrawled"),
                 "whitespace-nowrap",
               )}
               <TableHead className="whitespace-nowrap text-right">
-                Actions
+                {t("webSources.table.actions")}
               </TableHead>
             </TableRow>
           </TableHeader>

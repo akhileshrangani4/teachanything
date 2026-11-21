@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, X, Loader2 } from "lucide-react";
 import { formatFileSize } from "../file-constants";
 import type { FileUploadState } from "./use-upload-queue";
+import { useTranslation } from "react-i18next";
 
 const getFileIcon = () => {
   return <FileText className="h-8 w-8 text-blue-600" />;
@@ -21,12 +22,12 @@ export function SelectedFileList({
   onRemoveFile: (fileName: string) => void;
   onClearAll: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   return (
     <div className="space-y-3 w-full flex-1 flex flex-col min-h-0">
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <p className="text-sm font-medium">
-          {selectedFiles.length} file
-          {selectedFiles.length !== 1 ? "s" : ""} selected
+          {t("files.upload.selectedCount", { count: selectedFiles.length })}
         </p>
         {!isUploading && (
           <Button
@@ -35,7 +36,7 @@ export function SelectedFileList({
             onClick={onClearAll}
             className="h-7 text-xs"
           >
-            Clear all
+            {t("files.upload.clearAll")}
           </Button>
         )}
       </div>
@@ -80,7 +81,7 @@ export function SelectedFileList({
                 {fileState.file.name}
               </p>
               <p className="text-xs text-muted-foreground mt-1 truncate">
-                {formatFileSize(fileState.file.size)}
+                {formatFileSize(fileState.file.size, i18n.language)}
                 {fileState.status === "error" && fileState.error && (
                   <span className="text-red-600 ml-2">• {fileState.error}</span>
                 )}
@@ -95,7 +96,9 @@ export function SelectedFileList({
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {fileState.progress}%
+                      {t("files.status.percent", {
+                        progress: fileState.progress / 100,
+                      })}
                     </p>
                   </div>
                 )}

@@ -4,6 +4,10 @@ import {
   settingsFromChatbot,
   type SettingsDraft,
 } from "@/components/chat/settings/settings-draft";
+import en from "../../../messages/en.json";
+import { createI18n } from "@/i18n/create-i18n";
+
+const { t } = createI18n("en", en);
 
 const draft = (over: Partial<SettingsDraft> = {}): SettingsDraft => ({
   name: "Study Bot",
@@ -19,80 +23,89 @@ const draft = (over: Partial<SettingsDraft> = {}): SettingsDraft => ({
 
 describe("validateSettingsDraft", () => {
   it("accepts a valid draft", () => {
-    expect(validateSettingsDraft(draft())).toBeNull();
+    expect(validateSettingsDraft(draft(), t)).toBeNull();
   });
 
   it("accepts the temperature and token boundaries", () => {
     expect(
-      validateSettingsDraft(draft({ temperature: "0", maxTokens: "100" })),
+      validateSettingsDraft(draft({ temperature: "0", maxTokens: "100" }), t),
     ).toBeNull();
     expect(
-      validateSettingsDraft(draft({ temperature: "100", maxTokens: "4000" })),
+      validateSettingsDraft(
+        draft({ temperature: "100", maxTokens: "4000" }),
+        t,
+      ),
     ).toBeNull();
   });
 
   it("rejects a temperature outside 0-100", () => {
-    expect(validateSettingsDraft(draft({ temperature: "101" }))?.title).toBe(
+    expect(validateSettingsDraft(draft({ temperature: "101" }), t)?.title).toBe(
       "Invalid temperature",
     );
-    expect(validateSettingsDraft(draft({ temperature: "-1" }))?.title).toBe(
+    expect(validateSettingsDraft(draft({ temperature: "-1" }), t)?.title).toBe(
       "Invalid temperature",
     );
   });
 
   it("rejects an unparseable temperature", () => {
-    expect(validateSettingsDraft(draft({ temperature: "" }))?.title).toBe(
+    expect(validateSettingsDraft(draft({ temperature: "" }), t)?.title).toBe(
       "Invalid temperature",
     );
-    expect(validateSettingsDraft(draft({ temperature: "abc" }))?.title).toBe(
+    expect(validateSettingsDraft(draft({ temperature: "abc" }), t)?.title).toBe(
       "Invalid temperature",
     );
   });
 
   it("rejects max tokens outside 100-4000", () => {
-    expect(validateSettingsDraft(draft({ maxTokens: "99" }))?.title).toBe(
+    expect(validateSettingsDraft(draft({ maxTokens: "99" }), t)?.title).toBe(
       "Invalid max tokens",
     );
-    expect(validateSettingsDraft(draft({ maxTokens: "4001" }))?.title).toBe(
+    expect(validateSettingsDraft(draft({ maxTokens: "4001" }), t)?.title).toBe(
       "Invalid max tokens",
     );
   });
 
   it("rejects an unparseable max tokens", () => {
-    expect(validateSettingsDraft(draft({ maxTokens: "" }))?.title).toBe(
+    expect(validateSettingsDraft(draft({ maxTokens: "" }), t)?.title).toBe(
       "Invalid max tokens",
     );
   });
 
   it("rejects a whitespace-only system prompt", () => {
-    expect(validateSettingsDraft(draft({ systemPrompt: "   " }))?.title).toBe(
-      "System prompt is required",
-    );
+    expect(
+      validateSettingsDraft(draft({ systemPrompt: "   " }), t)?.title,
+    ).toBe("System prompt is required");
   });
 
   // The inputs are `type="number"` in the UI, but the draft holds raw strings,
   // so parseFloat/parseInt's prefix parsing is the real contract. Pinned so a
   // future switch to Number() (which rejects these) is a deliberate change.
   it("accepts a numeric prefix the way parseFloat/parseInt do", () => {
-    expect(validateSettingsDraft(draft({ temperature: "70abc" }))).toBeNull();
-    expect(validateSettingsDraft(draft({ maxTokens: "2000abc" }))).toBeNull();
+    expect(
+      validateSettingsDraft(draft({ temperature: "70abc" }), t),
+    ).toBeNull();
+    expect(
+      validateSettingsDraft(draft({ maxTokens: "2000abc" }), t),
+    ).toBeNull();
   });
 
   it("accepts a welcome message at the length limit", () => {
     expect(
-      validateSettingsDraft(draft({ welcomeMessage: "a".repeat(500) })),
+      validateSettingsDraft(draft({ welcomeMessage: "a".repeat(500) }), t),
     ).toBeNull();
   });
 
   it("rejects a welcome message over the length limit", () => {
     expect(
-      validateSettingsDraft(draft({ welcomeMessage: "a".repeat(501) }))?.title,
+      validateSettingsDraft(draft({ welcomeMessage: "a".repeat(501) }), t)
+        ?.title,
     ).toBe("Welcome message is too long");
   });
 
   it("reports problems in field order, name first", () => {
     const issue = validateSettingsDraft(
       draft({ name: "", temperature: "999", systemPrompt: "" }),
+      t,
     );
     expect(issue?.title).not.toBe("Invalid temperature");
     expect(issue?.title).not.toBe("System prompt is required");
@@ -100,8 +113,10 @@ describe("validateSettingsDraft", () => {
 
   it("checks temperature before max tokens", () => {
     expect(
-      validateSettingsDraft(draft({ temperature: "999", maxTokens: "999999" }))
-        ?.title,
+      validateSettingsDraft(
+        draft({ temperature: "999", maxTokens: "999999" }),
+        t,
+      )?.title,
     ).toBe("Invalid temperature");
   });
 });

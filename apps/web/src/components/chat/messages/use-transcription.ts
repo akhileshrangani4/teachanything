@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { mimeToExtension } from "@/lib/transcription-validation";
 import { logError } from "@/lib/logger";
+import { useTranslation } from "react-i18next";
 
 // Client-side ceiling for the transcription request, just above the
 // server's 90s provider timeout, so a stalled response doesn't pin the
@@ -30,6 +31,7 @@ export function useTranscription({
   chatbotId,
   onTranscript,
 }: UseTranscriptionOptions) {
+  const { t } = useTranslation();
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mountedRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -79,7 +81,6 @@ export function useTranscription({
         // component.
         if (!mountedRef.current) return;
         if (!res.ok) {
-          let rateLimitMessage: string | null = null;
           let code: string | undefined;
           let serverMessage: string | undefined;
           try {
@@ -89,10 +90,6 @@ export function useTranscription({
             };
             if (typeof data.code === "string") code = data.code;
             if (typeof data.error === "string") serverMessage = data.error;
-
-            if (code === "rate_limited" && serverMessage) {
-              rateLimitMessage = serverMessage;
-            }
           } catch {
             // ignore JSON parse errors
           }
@@ -101,46 +98,40 @@ export function useTranscription({
             "Voice transcription request failed",
             { code, status: res.status, serverMessage },
           );
-          if (rateLimitMessage) {
-            toast.error(rateLimitMessage);
+          if (code === "rate_limited") {
+            toast.error(
+              t("chat.transcription.rateLimited", {
+                seconds: Number(res.headers.get("Retry-After")) || 60,
+              }),
+            );
           } else if (code === "audio_duration_exceeded") {
-            toast.error("Recording is too long. Please record a shorter clip.");
+            toast.error(t("chat.transcription.tooLong"));
           } else if (
             code === "audio_too_large" ||
             code === "request_too_large"
           ) {
-            toast.error(
-              "Recording is too large. Please record a shorter clip.",
-            );
+            toast.error(t("chat.transcription.tooLarge"));
           } else if (code === "audio_invalid") {
-            toast.error(
-              "That recording couldn't be processed. Please try again.",
-            );
+            toast.error(t("chat.transcription.invalid"));
           } else if (
             code === "provider_timeout" ||
             code === "provider_unavailable" ||
             code === "provider_error"
           ) {
-            toast.error(
-              "Voice transcription is temporarily unavailable. Please type your question.",
-            );
+            toast.error(t("chat.transcription.unavailable"));
           } else if (code === "feature_disabled") {
-            toast.error(
-              "Voice input is currently disabled. Please type your question.",
-            );
+            toast.error(t("chat.transcription.disabled"));
           } else if (code === "unauthorized") {
-            toast.error("Please sign in again to use voice input.");
+            toast.error(t("chat.transcription.unauthorized"));
           } else {
-            toast.error(
-              "Voice input failed. Please try again or type your question.",
-            );
+            toast.error(t("chat.transcription.failed"));
           }
           return;
         }
         const data = (await res.json()) as { text?: unknown };
         if (!mountedRef.current) return;
         if (typeof data.text !== "string" || !data.text.trim()) {
-          toast.error("No speech detected. Please try again.");
+          toast.error(t("chat.transcription.noSpeech"));
           return;
         }
         onTranscript(data.text.trim());
@@ -152,7 +143,7 @@ export function useTranscription({
         }
         logError(err, "Voice transcription request failed");
         if (mountedRef.current) {
-          toast.error("Network error. Please try again.");
+          toast.error(t("chat.transcription.network"));
         }
       } finally {
         clearTimeout(timeoutId);
@@ -164,7 +155,7 @@ export function useTranscription({
         }
       }
     },
-    [onTranscript, shareToken, chatbotId],
+    [onTranscript, shareToken, chatbotId, t],
   );
 
   return { isTranscribing, transcribe };

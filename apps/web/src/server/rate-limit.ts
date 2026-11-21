@@ -71,6 +71,13 @@ export const passwordUpdateRateLimit = createLimiter({
   prefix: "@ratelimit/password-update",
 });
 
+// Rate limiter for saving the dashboard language
+// 30 saves per hour per user
+export const localeUpdateRateLimit = createLimiter({
+  window: [30, "1 h"],
+  prefix: "@ratelimit/locale-update",
+});
+
 // Rate limiter for login attempts
 // 5 attempts per 15 minutes per IP (prevents brute force)
 export const loginRateLimit = createLimiter({
@@ -106,6 +113,14 @@ export const studyResponseRateLimit = createLimiter({
 export const publicStudyResponseRateLimit = createLimiter({
   window: [30, "1 m"],
   prefix: "@ratelimit/study-response-public",
+});
+
+// Rate limiter for rating assistant messages on public/shared links
+// 30 per minute per (IP, shareToken). A rating is one upserted row with no LLM
+// cost, so like study responses it bounds write spam per source only.
+export const publicMessageRatingRateLimit = createLimiter({
+  window: [30, "1 m"],
+  prefix: "@ratelimit/message-rating-public",
 });
 
 // Rate limiter for password reset requests
@@ -185,13 +200,96 @@ export const conversationSearchRateLimit = createLimiter({
   prefix: "@ratelimit/conversation-search",
 });
 
-// Rate limiter for the public user-status probe (login error handling).
-// The endpoint reveals whether an email is registered and its approval
-// state, so it must not be scannable: strict per-IP cap, fail closed.
-export const userStatusProbeRateLimit = createLimiter({
-  window: [10, "1 m"],
-  prefix: "@ratelimit/user-status-probe",
+/** Day boundary for daily message counts. */
+const DAILY_LIMIT_TIME_ZONE = "America/New_York";
+
+/** Kept past the day's end so a count never vanishes before its day is over. */
+const DAILY_COUNT_TTL_SECONDS = 48 * 60 * 60;
+
+const easternDate = new Intl.DateTimeFormat("en-CA", {
+  timeZone: DAILY_LIMIT_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
 });
+
+/** The US Eastern calendar date (YYYY-MM-DD) that `now` falls on. */
+export function easternDateKey(now: Date): string {
+  return easternDate.format(now);
+}
+
+/** Whose daily count a message is charged to. */
+type DailyCountScope = "chatbot" | "owner";
+
+/** Add one to a scope's count for `date`; whether it is still within `limit`. */
+async function incrementDailyCount(
+  client: Redis,
+  scope: DailyCountScope,
+  id: string,
+  limit: number,
+  date: string,
+): Promise<boolean> {
+  const key = `@ratelimit/${scope}-daily:${id}:${date}`;
+  const [count] = await client
+    .pipeline()
+    .incr(key)
+    .expire(key, DAILY_COUNT_TTL_SECONDS)
+    .exec<[number, number]>();
+  // Logged once, on the first refused message of the day.
+  if (count === limit + 1) {
+    logWarn("Daily message limit reached", { scope, id, limit });
+  }
+  return count <= limit;
+}
+
+/**
+ * Count one student message against its chatbot's daily limit and its
+ * owner's daily limit (all of the owner's chatbots together), and report
+ * whether it is within both. Counts reset at midnight US Eastern.
+ *
+ * The chatbot is counted first, and a message it refuses is not counted
+ * against the owner: otherwise students retrying one full chatbot would use
+ * up the owner's allowance and lock out their other chatbots.
+ *
+ * A calendar-day reset rules out `Ratelimit` windows (sliding windows never
+ * reset, fixed windows align to UTC), so these are plain counters keyed by
+ * date.
+ *
+ * Fails open: with Redis unconfigured or erroring, every chatbot keeps
+ * working. The OpenRouter account budget is the hard backstop on spend.
+ */
+export async function consumeDailyMessage(
+  chatbot: { id: string; ownerId: string },
+  limits: { chatbot: number; owner: number },
+  now: Date = new Date(),
+): Promise<boolean> {
+  if (!redis) return true;
+
+  const date = easternDateKey(now);
+  try {
+    const withinChatbotLimit = await incrementDailyCount(
+      redis,
+      "chatbot",
+      chatbot.id,
+      limits.chatbot,
+      date,
+    );
+    if (!withinChatbotLimit) return false;
+    return await incrementDailyCount(
+      redis,
+      "owner",
+      chatbot.ownerId,
+      limits.owner,
+      date,
+    );
+  } catch (err) {
+    logWarn("Daily message limit check failed; allowing message", {
+      chatbotId: chatbot.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return true;
+  }
+}
 
 /** Deny result used when a rate limiter is unavailable and we fail closed. */
 function failClosedResult() {

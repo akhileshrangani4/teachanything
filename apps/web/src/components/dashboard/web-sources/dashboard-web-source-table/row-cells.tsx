@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getSourceDisplayName } from "@/lib/crawler-metadata";
 import type { Chatbot, DashboardSource } from "./types";
+import { useTranslation } from "react-i18next";
 
 // A single button summarising attachment count; opens a checklist of chatbots.
 // Scales to many chatbots (shows a count, not a row of badges).
@@ -30,6 +31,7 @@ export function ChatbotAttachButton({
   onDetach: (sourceId: string, chatbotId: string) => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
   const count = source.chatbots.length;
   const attachedNames = source.chatbots.map((c) => c.name).join(", ");
 
@@ -41,19 +43,21 @@ export function ChatbotAttachButton({
           size="sm"
           className="h-8 w-36 justify-between"
           title={
-            count > 0 ? `Attached to: ${attachedNames}` : "Attach to chatbots"
+            count > 0
+              ? t("webSources.table.attachedTo", { names: attachedNames })
+              : t("webSources.table.attachToChatbots")
           }
         >
           <span className="flex items-center">
             {count > 0 ? (
               <>
                 <Bot className="mr-1.5 h-3.5 w-3.5" />
-                {count} chatbot{count !== 1 ? "s" : ""}
+                {t("webSources.table.attachedCount", { count })}
               </>
             ) : (
               <>
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Attach
+                {t("webSources.table.attach")}
               </>
             )}
           </span>
@@ -61,11 +65,13 @@ export function ChatbotAttachButton({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel>Attach to chatbots</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {t("webSources.table.attachToChatbots")}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {chatbots.length === 0 ? (
           <div className="px-2 py-1.5 text-sm text-muted-foreground">
-            No chatbots yet. Create one to attach this source.
+            {t("webSources.table.noChatbots")}
           </div>
         ) : (
           chatbots.map((chatbot) => {
@@ -103,19 +109,24 @@ export function EnabledSwitch({
   onToggleEnabled: (sourceId: string, enabled: boolean) => void;
   isTogglingEnabled: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       title={
         source.enabled
-          ? "Enabled — included in chat context. Toggle to disable."
-          : "Disabled — kept but excluded from chat context. Toggle to enable."
+          ? t("webSources.table.enabledTooltip")
+          : t("webSources.table.disabledTooltip")
       }
     >
       <Switch
         checked={source.enabled}
         onCheckedChange={(enabled) => onToggleEnabled(source.id, enabled)}
         disabled={isTogglingEnabled}
-        aria-label={source.enabled ? "Disable source" : "Enable source"}
+        aria-label={
+          source.enabled
+            ? t("webSources.table.disableSource")
+            : t("webSources.table.enableSource")
+        }
       />
     </div>
   );
@@ -130,6 +141,7 @@ export function NameCell({
   isRenaming: boolean;
   onRename: (sourceId: string, name: string) => Promise<unknown>;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-3 min-w-0">
       <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -139,7 +151,7 @@ export function NameCell({
         <EditableName
           value={getSourceDisplayName(source)}
           fallback={source.rootUrl}
-          ariaLabel="Rename web source"
+          ariaLabel={t("webSources.table.rename")}
           isSaving={isRenaming}
           onSave={(name) => onRename(source.id, name)}
           className="text-sm font-medium"

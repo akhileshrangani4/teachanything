@@ -2,18 +2,24 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import type { StudyUIMessage } from "./study-tools";
 import { sessionIdSchema } from "@/server/utils";
+import type { ChatErrorCode } from "@/lib/chat-error-message";
 
 /** Matches the prior tRPC `message` bound (z.string().min(1).max(16000)). */
 const MAX_MESSAGE_CHARS = 16000;
 
 export class ChatRequestError extends Error {
   constructor(
-    message: string,
+    readonly code: ChatErrorCode,
     readonly status: number,
   ) {
-    super(message);
+    super(code);
     this.name = "ChatRequestError";
   }
+}
+
+/** A chat route's error. The client translates the code. */
+export function chatErrorResponse(code: ChatErrorCode, status: number) {
+  return Response.json({ code }, { status });
 }
 
 /**

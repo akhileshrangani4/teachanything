@@ -7,6 +7,11 @@ import {
   approveUser as approveUserHelper,
   rejectUser as rejectUserHelper,
 } from "@/server/auth";
+import {
+  getOwnerUsage,
+  NO_USAGE,
+  ownerTodayCountSql,
+} from "@/server/queries/message-usage";
 
 /**
  * Get all pending users with pagination, search, and sorting
@@ -98,8 +103,8 @@ export const getAllUsersProcedure = adminProcedure
       offset: z.number().min(0).default(0),
       search: z.string().max(200).optional(),
       sortBy: z
-        .enum(["name", "email", "role", "status", "createdAt"])
-        .default("createdAt"),
+        .enum(["name", "email", "role", "status", "createdAt", "usageToday"])
+        .default("usageToday"),
       sortDir: z.enum(["asc", "desc"]).default("desc"),
     }),
   )
@@ -132,7 +137,9 @@ export const getAllUsersProcedure = adminProcedure
             ? user.role
             : input.sortBy === "status"
               ? user.status
-              : user.createdAt;
+              : input.sortBy === "usageToday"
+                ? ownerTodayCountSql(user.id)
+                : user.createdAt;
     const orderBy =
       input.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
@@ -141,16 +148,24 @@ export const getAllUsersProcedure = adminProcedure
     const allUsers = searchCondition
       ? await baseUsersQuery
           .where(searchCondition)
-          .orderBy(orderBy)
+          .orderBy(orderBy, desc(user.createdAt), asc(user.id))
           .limit(input.limit)
           .offset(input.offset)
       : await baseUsersQuery
-          .orderBy(orderBy)
+          .orderBy(orderBy, desc(user.createdAt), asc(user.id))
           .limit(input.limit)
           .offset(input.offset);
 
+    const usage = await getOwnerUsage(
+      ctx.db,
+      allUsers.map((u) => u.id),
+    );
+
     return {
-      users: allUsers,
+      users: allUsers.map((u) => ({
+        ...u,
+        usage: usage.get(u.id) ?? NO_USAGE,
+      })),
       totalCount,
     };
   });

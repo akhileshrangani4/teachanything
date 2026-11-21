@@ -126,17 +126,6 @@ export function resolveModel(modelId: string): SupportedModel {
   return DEFAULT_MODEL;
 }
 
-/**
- * Format a token count for display in the UI.
- * Examples: 131072 -> "128K context", 1048576 -> "1M context"
- */
-export function formatContextWindow(tokens: number): string {
-  if (tokens >= 1_000_000) {
-    return `${Math.round(tokens / 1_000_000)}M context`;
-  }
-  return `${Math.round(tokens / 1024)}K context`;
-}
-
 /** Models whose tool-calling is reliable enough for agentic retrieval. */
 export function toolCapableModels(): ModelMetadata[] {
   return (Object.values(MODEL_REGISTRY) as ModelMetadata[]).filter(

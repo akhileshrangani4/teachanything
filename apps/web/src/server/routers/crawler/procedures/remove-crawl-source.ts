@@ -1,10 +1,10 @@
 import { protectedProcedure } from "@/server/trpc";
 import { eq, and, isNotNull } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { crawlSources, crawledPages } from "@teachanything/db/schema";
 import { logInfo, logError } from "@/lib/logger";
 import { crawlSourceIdInput } from "../validation";
 import { assertOwnedCrawlSource, deleteAllCrawlFileIds } from "../helpers";
+import { appError } from "@/server/app-error";
 
 export const removeCrawlSourceProcedure = protectedProcedure
   .input(crawlSourceIdInput)
@@ -61,9 +61,9 @@ export const removeCrawlSourceProcedure = protectedProcedure
       logError(error, "Failed to remove crawl source", {
         crawlSourceId: input.crawlSourceId,
       });
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to remove crawl source",
-      });
+      throw appError(
+        "INTERNAL_SERVER_ERROR",
+        "errors.crawler.removeSourceFailed",
+      );
     }
   });

@@ -18,6 +18,7 @@ import { CrawledPagesList } from "../CrawledPagesList";
 import { SourceStatusBadge } from "../StatusBadges";
 import { WebSourceRowActions } from "./row-actions";
 import type { WebSourceRowProps } from "./types";
+import { useTranslation } from "react-i18next";
 
 // ── Desktop table row (+ optional expanded pages row) ────────────────
 export function WebSourceTableRow({
@@ -39,6 +40,7 @@ export function WebSourceTableRow({
   isTogglingEnabled = false,
   isRenaming = false,
 }: WebSourceRowProps & { colSpan: number }) {
+  const { t, i18n } = useTranslation();
   const handleExport = useExportSource(source.id, source.rootUrl);
   const isActive = isActiveSource(source);
   const pageCount = getSourcePageCount(source);
@@ -54,7 +56,9 @@ export function WebSourceTableRow({
               checked={isSelected}
               onChange={() => onToggleSelect(source.id)}
               className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-              aria-label={`Select ${getSourceDisplayName(source)}`}
+              aria-label={t("common.table.selectRow", {
+                name: getSourceDisplayName(source),
+              })}
             />
           </TableCell>
         )}
@@ -66,7 +70,7 @@ export function WebSourceTableRow({
             <EditableName
               value={getSourceDisplayName(source)}
               fallback={source.rootUrl}
-              ariaLabel="Rename web source"
+              ariaLabel={t("webSources.table.rename")}
               isSaving={isRenaming}
               onSave={(name) => onRename(source.id, name)}
               className="text-sm font-medium min-w-0"
@@ -75,7 +79,7 @@ export function WebSourceTableRow({
         </TableCell>
         <TableCell>
           <span className="text-sm whitespace-nowrap">
-            {pageCount} page{pageCount !== 1 ? "s" : ""}
+            {t("webSources.table.pageCount", { count: pageCount })}
           </span>
         </TableCell>
         <TableCell>
@@ -83,11 +87,13 @@ export function WebSourceTableRow({
             {source.enabled ? (
               <SourceStatusBadge status={source.status} />
             ) : (
-              <Badge variant="secondary">Disabled</Badge>
+              <Badge variant="secondary">
+                {t("webSources.statusFilter.disabled")}
+              </Badge>
             )}
             {source.status === "completed" && errorCount > 0 && (
               <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {errorCount} error{errorCount !== 1 ? "s" : ""}
+                {t("webSources.table.errorCount", { count: errorCount })}
               </span>
             )}
           </div>
@@ -95,7 +101,7 @@ export function WebSourceTableRow({
         <TableCell>
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             {source.lastCrawledAt
-              ? new Date(source.lastCrawledAt).toLocaleDateString()
+              ? new Date(source.lastCrawledAt).toLocaleDateString(i18n.language)
               : "—"}
           </span>
         </TableCell>
@@ -104,8 +110,8 @@ export function WebSourceTableRow({
             <div
               title={
                 source.enabled
-                  ? "Disable this source (keeps data, excludes from chat context)"
-                  : "Enable this source"
+                  ? t("webSources.table.disableThisSource")
+                  : t("webSources.table.enableThisSource")
               }
             >
               <Switch
@@ -114,7 +120,7 @@ export function WebSourceTableRow({
                   onToggleEnabled(source.id, enabled)
                 }
                 disabled={isTogglingEnabled}
-                aria-label="Toggle source"
+                aria-label={t("webSources.table.toggleSource")}
               />
             </div>
             <WebSourceRowActions
@@ -134,11 +140,12 @@ export function WebSourceTableRow({
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
                 onClick={() => onToggleExpand(source.id)}
-                aria-label={
+                aria-label={t(
                   isExpanded
-                    ? `Hide crawled pages for ${getSourceDisplayName(source)}`
-                    : `Show crawled pages for ${getSourceDisplayName(source)}`
-                }
+                    ? "webSources.table.hidePagesFor"
+                    : "webSources.table.showPagesFor",
+                  { name: getSourceDisplayName(source) },
+                )}
               >
                 <ChevronDown
                   className={`h-4 w-4 transition-transform ${

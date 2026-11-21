@@ -4,6 +4,7 @@
  * This bypasses API body size limits and provides better performance
  */
 
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 
 export interface UploadProgress {
@@ -23,6 +24,7 @@ export interface DirectUploadResult {
  * Provides progress tracking and bypasses API body size limits
  */
 export function useDirectUpload() {
+  const { t } = useTranslation();
   const createUploadUrl = trpc.files.createUploadUrl.useMutation();
   const finalizeUpload = trpc.files.finalizeUpload.useMutation();
 
@@ -60,24 +62,22 @@ export function useDirectUpload() {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
+          reject(
+            new Error(t("files.upload.httpFailed", { status: xhr.status })),
+          );
         }
       });
 
       xhr.addEventListener("error", () => {
-        reject(new Error("Network error during upload"));
+        reject(new Error(t("files.upload.networkError")));
       });
 
       xhr.addEventListener("abort", () => {
-        reject(new Error("Upload was cancelled"));
+        reject(new Error(t("files.upload.cancelled")));
       });
 
       xhr.addEventListener("timeout", () => {
-        reject(
-          new Error(
-            "Upload timed out after 10 minutes. Please try a smaller file or check your connection.",
-          ),
-        );
+        reject(new Error(t("files.upload.timedOut", { minutes: 10 })));
       });
 
       xhr.open("PUT", uploadUrl);

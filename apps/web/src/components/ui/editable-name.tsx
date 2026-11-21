@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Loader2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTranslation } from "react-i18next";
 
 interface EditableNameProps {
   value: string;
@@ -22,6 +23,7 @@ export function EditableName({
   onSave,
   className,
 }: EditableNameProps) {
+  const { t } = useTranslation();
   const displayValue = value.trim() || fallback;
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(displayValue);
@@ -75,7 +77,7 @@ export function EditableName({
           size="icon"
           className="h-8 w-8 shrink-0"
           disabled={isSaving || !draft.trim()}
-          aria-label="Save name"
+          aria-label={t("common.editableName.save")}
         >
           {isSaving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -90,7 +92,7 @@ export function EditableName({
           className="h-8 w-8 shrink-0"
           onClick={cancelEditing}
           disabled={isSaving}
-          aria-label="Cancel rename"
+          aria-label={t("common.editableName.cancel")}
         >
           <X className="h-4 w-4" />
         </Button>

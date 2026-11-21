@@ -148,6 +148,27 @@
       "when": 1790130857978,
       "tag": "0020_user_files_user_id_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793744300287,
+      "tag": "0021_user_preferred_locale",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794609775909,
+      "tag": "0022_message_ratings",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794963669018,
+      "tag": "0023_daily_message_limits",
+      "breakpoints": true
     }
   ]
 }

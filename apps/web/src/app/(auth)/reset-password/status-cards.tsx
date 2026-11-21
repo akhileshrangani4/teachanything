@@ -10,9 +10,11 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { CheckCircle2, XCircle, ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /** Shown when the reset link is invalid or expired. */
 export function TokenErrorCard() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary">
       <Card className="w-full max-w-md">
@@ -20,24 +22,25 @@ export function TokenErrorCard() {
           <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
             <XCircle className="w-6 h-6 text-red-600" />
           </div>
-          <CardTitle>Invalid or Expired Link</CardTitle>
+          <CardTitle>{t("auth.resetPassword.invalidLinkTitle")}</CardTitle>
           <CardDescription>
-            This password reset link is invalid or has expired.
+            {t("auth.resetPassword.invalidLinkDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground text-center">
-            Password reset links expire after 1 hour for security reasons.
-            Please request a new one.
+            {t("auth.resetPassword.invalidLinkHelp")}
           </p>
           <div className="flex flex-col gap-4 pt-2">
             <Link href="/forgot-password">
-              <Button className="w-full">Request New Reset Link</Button>
+              <Button className="w-full">
+                {t("auth.resetPassword.requestNewLink")}
+              </Button>
             </Link>
             <Link href="/login">
               <Button variant="outline" className="w-full">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Login
+                {t("auth.forgotPassword.backToLogin")}
               </Button>
             </Link>
           </div>
@@ -49,6 +52,7 @@ export function TokenErrorCard() {
 
 /** Shown after the password has been reset successfully. */
 export function SuccessCard({ onContinue }: { onContinue: () => void }) {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary">
       <Card className="w-full max-w-md">
@@ -56,15 +60,14 @@ export function SuccessCard({ onContinue }: { onContinue: () => void }) {
           <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
             <CheckCircle2 className="w-6 h-6 text-green-600" />
           </div>
-          <CardTitle>Password Reset Successfully</CardTitle>
+          <CardTitle>{t("auth.resetPassword.successTitle")}</CardTitle>
           <CardDescription>
-            Your password has been updated. You can now log in with your new
-            password.
+            {t("auth.resetPassword.successBody")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button className="w-full" onClick={onContinue}>
-            Continue to Login
+            {t("auth.resetPassword.continueToLogin")}
           </Button>
         </CardContent>
       </Card>
@@ -74,6 +77,7 @@ export function SuccessCard({ onContinue }: { onContinue: () => void }) {
 
 /** Shown when the token query param is absent. */
 export function MissingTokenCard() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary">
       <Card className="w-full max-w-md">
@@ -81,19 +85,21 @@ export function MissingTokenCard() {
           <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
             <XCircle className="w-6 h-6 text-yellow-600" />
           </div>
-          <CardTitle>Missing Reset Token</CardTitle>
+          <CardTitle>{t("auth.resetPassword.missingTokenTitle")}</CardTitle>
           <CardDescription>
-            No password reset token found. Please use the link from your email.
+            {t("auth.resetPassword.missingTokenBody")}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Link href="/forgot-password">
-            <Button className="w-full">Request Password Reset</Button>
+            <Button className="w-full">
+              {t("auth.resetPassword.requestReset")}
+            </Button>
           </Link>
           <Link href="/login">
             <Button variant="outline" className="w-full">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Login
+              {t("auth.forgotPassword.backToLogin")}
             </Button>
           </Link>
         </CardContent>

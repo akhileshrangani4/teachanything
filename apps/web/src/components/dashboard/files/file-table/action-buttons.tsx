@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Download, Eye, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import type { ActionType, BaseFile } from "./types";
+import { useTranslation } from "react-i18next";
 
 // ── Shared action buttons (view, download, retry, delete/remove/add) ─
 export function FileActionButtons<T extends BaseFile>({
@@ -32,6 +33,7 @@ export function FileActionButtons<T extends BaseFile>({
   isDownloading: boolean;
   handleFileClick: (e: React.MouseEvent, forceDownload?: boolean) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {canView && (
@@ -46,7 +48,7 @@ export function FileActionButtons<T extends BaseFile>({
               }}
               disabled={isDownloading}
               className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
-              title="View in new tab"
+              title={t("files.table.viewInNewTab")}
             >
               <Eye className="h-4 w-4" />
             </Button>
@@ -60,7 +62,7 @@ export function FileActionButtons<T extends BaseFile>({
             }}
             disabled={isDownloading}
             className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
-            title="Download"
+            title={t("files.table.download")}
           >
             <Download className="h-4 w-4" />
           </Button>
@@ -79,8 +81,8 @@ export function FileActionButtons<T extends BaseFile>({
           className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
           title={
             file.processingStatus === "processing" && !isStuck
-              ? "Cancel and restart"
-              : "Retry processing"
+              ? t("files.table.cancelAndRestart")
+              : t("files.table.retryProcessing")
           }
         >
           <RefreshCw className="h-4 w-4" />
@@ -97,7 +99,7 @@ export function FileActionButtons<T extends BaseFile>({
           }}
           disabled={actionDisabled}
           className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title="Delete"
+          title={t("common.actions.delete")}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -115,7 +117,7 @@ export function FileActionButtons<T extends BaseFile>({
           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         >
           <X className="h-4 w-4 mr-1" />
-          Remove
+          {t("common.actions.remove")}
         </Button>
       )}
 
@@ -130,7 +132,7 @@ export function FileActionButtons<T extends BaseFile>({
           disabled={actionDisabled}
         >
           <Plus className="h-4 w-4 mr-1" />
-          Add
+          {t("files.table.add")}
         </Button>
       )}
     </>

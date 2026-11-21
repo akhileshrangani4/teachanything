@@ -10,8 +10,10 @@ import {
   CRAWL_SOURCES_PER_HOUR,
   MANUAL_URLS_PER_HOUR,
 } from "@/lib/constants/rate-limits";
+import { useTranslation } from "react-i18next";
 
 export default function WebSourcesPage() {
+  const { t } = useTranslation();
   const page = useWebSourcesPage();
   const {
     state,
@@ -46,14 +48,13 @@ export default function WebSourcesPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-4xl font-bold text-foreground tracking-tight">
-              Web Sources
+              {t("webSources.page.title")}
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Crawl full websites or add single webpages, then attach them to
-              your chatbots.
+              {t("webSources.page.subtitle")}
               {page.data && (
                 <span className="ml-2 font-medium text-foreground">
-                  ({totalCount} {totalCount === 1 ? "source" : "sources"})
+                  {t("webSources.page.count", { count: totalCount })}
                 </span>
               )}
               {showInlineLoading && (
@@ -61,9 +62,10 @@ export default function WebSourcesPage() {
               )}
             </p>
             <p className="text-muted-foreground mt-2 text-sm">
-              You can add up to {CRAWL_SOURCES_PER_HOUR} full website crawls and{" "}
-              {MANUAL_URLS_PER_HOUR} single webpages per hour. These are hourly
-              limits, not a cap on how many web sources you can have in total.
+              {t("webSources.page.rateLimits", {
+                crawls: CRAWL_SOURCES_PER_HOUR,
+                pages: MANUAL_URLS_PER_HOUR,
+              })}
             </p>
           </div>
           <AddWebSourcePanel />

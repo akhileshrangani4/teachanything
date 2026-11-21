@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface TableToolbarProps {
   /** Current search input value (immediate, not debounced) */
@@ -18,6 +19,8 @@ interface TableToolbarProps {
   visibleCount?: number;
   /** Label for items (e.g., "user", "chatbot") */
   itemLabel?: string;
+  /** Translated count text; replaces the English counts admin pages use. */
+  summary?: string;
   /** Whether data is currently being fetched */
   isLoading?: boolean;
   /** Additional className for the container */
@@ -27,13 +30,15 @@ interface TableToolbarProps {
 export function TableToolbar({
   searchValue,
   onSearchChange,
-  placeholder = "Search...",
+  placeholder,
   totalCount,
   visibleCount,
   itemLabel = "item",
+  summary,
   isLoading = false,
   className,
 }: TableToolbarProps) {
+  const { t } = useTranslation();
   return (
     <div
       className={cn(
@@ -51,7 +56,7 @@ export function TableToolbar({
         </div>
         <Input
           type="text"
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("common.table.searchPlaceholder")}
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-9 pr-9"
@@ -64,15 +69,22 @@ export function TableToolbar({
             onClick={() => onSearchChange("")}
           >
             <X className="h-4 w-4" />
-            <span className="sr-only">Clear search</span>
+            <span className="sr-only">{t("common.table.clearSearch")}</span>
           </Button>
         )}
       </div>
-      {typeof totalCount === "number" && typeof visibleCount === "number" && (
+      {summary ? (
         <p className="text-sm text-muted-foreground whitespace-nowrap">
-          Showing {visibleCount} of {totalCount} {itemLabel}
-          {totalCount !== 1 ? "s" : ""}
+          {summary}
         </p>
+      ) : (
+        typeof totalCount === "number" &&
+        typeof visibleCount === "number" && (
+          <p className="text-sm text-muted-foreground whitespace-nowrap">
+            Showing {visibleCount} of {totalCount} {itemLabel}
+            {totalCount !== 1 ? "s" : ""}
+          </p>
+        )
       )}
     </div>
   );

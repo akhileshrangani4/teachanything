@@ -28,11 +28,14 @@ export default function SharedChatPage() {
     chatbot,
     chatbotLoading,
     handleSendMessage,
+    unavailableNotice,
     resetChat,
     stop,
     error,
     onStudyAttempt,
     studyAttempts,
+    ratings,
+    rateMessage,
   } = useChat(shareToken);
 
   // Error state - show immediately if there's an error
@@ -96,6 +99,9 @@ export default function SharedChatPage() {
             voiceInputEnabled
             onStudyAttempt={onStudyAttempt}
             studyAttempts={studyAttempts}
+            ratings={ratings}
+            onRate={rateMessage}
+            unavailableNotice={unavailableNotice}
             brandingText={<PoweredBy modelId={chatbot.model} />}
           />
         </ErrorBoundary>

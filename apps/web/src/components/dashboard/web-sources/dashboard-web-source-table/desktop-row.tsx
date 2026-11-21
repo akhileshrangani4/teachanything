@@ -9,6 +9,7 @@ import { isActiveSource } from "@/components/chatbot/web-sources/utils";
 import { ChatbotAttachButton, EnabledSwitch, NameCell } from "./row-cells";
 import { SourceActions } from "./source-actions";
 import { ZERO_PAGE_COUNTS, type RowProps } from "./types";
+import { useTranslation } from "react-i18next";
 
 export function DashboardTableRow({
   source,
@@ -32,6 +33,7 @@ export function DashboardTableRow({
   isTogglingEnabled,
   isRenaming,
 }: RowProps & { colSpan: number }) {
+  const { t, i18n } = useTranslation();
   const isActive = isActiveSource(source);
 
   return (
@@ -43,7 +45,9 @@ export function DashboardTableRow({
             checked={isSelected}
             onChange={() => onToggleSelect(source.id)}
             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-            aria-label={`Select ${getSourceDisplayName(source)}`}
+            aria-label={t("common.table.selectRow", {
+              name: getSourceDisplayName(source),
+            })}
           />
         </TableCell>
         <TableCell>
@@ -55,7 +59,7 @@ export function DashboardTableRow({
         </TableCell>
         <TableCell>
           <span className="text-sm whitespace-nowrap">
-            {source.pageCount} page{source.pageCount !== 1 ? "s" : ""}
+            {t("webSources.table.pageCount", { count: source.pageCount })}
           </span>
         </TableCell>
         <TableCell>
@@ -80,7 +84,7 @@ export function DashboardTableRow({
         <TableCell>
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             {source.lastCrawledAt
-              ? new Date(source.lastCrawledAt).toLocaleDateString()
+              ? new Date(source.lastCrawledAt).toLocaleDateString(i18n.language)
               : "—"}
           </span>
         </TableCell>

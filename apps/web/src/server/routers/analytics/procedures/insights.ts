@@ -5,6 +5,7 @@ import { eq, and, sql, desc, asc, inArray } from "drizzle-orm";
 import { formatPreview } from "@/server/utils";
 import { assertOwnedChatbot } from "@/server/queries/chatbot";
 import { MESSAGE_EVENT_TYPES, analyticsSessionId } from "../helpers";
+import { normalizedQuestionSql } from "../question-normalization";
 
 export const getCommonQuestionsProcedure = protectedProcedure
   .input(
@@ -20,8 +21,9 @@ export const getCommonQuestionsProcedure = protectedProcedure
     const firstUserMessages = ctx.db
       .select({
         conversationId: messages.conversationId,
+        askedAt: messages.createdAt,
         question: sql<string>`trim(${messages.content})`.as("question"),
-        normalizedQuestion: sql<string>`lower(trim(${messages.content}))`.as(
+        normalizedQuestion: normalizedQuestionSql(messages.content).as(
           "normalized_question",
         ),
         rowNumber:
@@ -41,9 +43,11 @@ export const getCommonQuestionsProcedure = protectedProcedure
 
     const groupedQuestions = ctx.db
       .select({
-        question: sql<string>`MIN(${firstUserMessages.question})`.as(
-          "question",
-        ),
+        // Label each group with its most recent original wording.
+        question:
+          sql<string>`(array_agg(${firstUserMessages.question} order by ${firstUserMessages.askedAt} desc, ${firstUserMessages.conversationId} desc))[1]`.as(
+            "question",
+          ),
         count: sql<number>`count(*)::int`.as("count"),
       })
       .from(firstUserMessages)

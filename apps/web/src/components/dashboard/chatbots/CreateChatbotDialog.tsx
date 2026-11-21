@@ -31,8 +31,11 @@ import {
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import type React from "react";
-import { MODELS, DEFAULT_FORM_DATA } from "./chatbot-constants";
+import { MODELS, DEFAULT_FORM_FIELDS } from "./chatbot-constants";
 import type { SupportedModel } from "@teachanything/ai/models";
+import { DEFAULT_LOCALE } from "@/i18n/config";
+import { useTranslation } from "react-i18next";
+import { serverErrorMessage } from "@/lib/server-error-message";
 
 interface CreateChatbotDialogProps {
   onSuccess?: () => void;
@@ -47,9 +50,20 @@ export function CreateChatbotDialog({
   onOpenChange: controlledOnOpenChange,
   trigger,
 }: CreateChatbotDialogProps) {
+  const { t, i18n } = useTranslation();
   const router = useRouter();
+  const translatedPrompt = t("chatbots.defaultPrompt.systemPrompt");
+  // A translated prompt pulls replies toward its language, so non-English
+  // defaults tell the chatbot to follow the student's language.
+  const defaultFormData = {
+    ...DEFAULT_FORM_FIELDS,
+    systemPrompt:
+      i18n.language === DEFAULT_LOCALE
+        ? translatedPrompt
+        : `${translatedPrompt} ${t("chatbots.defaultPrompt.replyLanguageClause")}`,
+  };
   const [internalOpen, setInternalOpen] = useState(false);
-  const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
+  const [formData, setFormData] = useState(defaultFormData);
 
   const isControlled = controlledOpen !== undefined;
   const dialogOpen = isControlled ? controlledOpen : internalOpen;
@@ -60,8 +74,8 @@ export function CreateChatbotDialog({
   const createChatbot = trpc.chatbot.create.useMutation({
     onSuccess: (data) => {
       setDialogOpen(false);
-      setFormData(DEFAULT_FORM_DATA);
-      toast.success("Chatbot created successfully!");
+      setFormData(defaultFormData);
+      toast.success(t("chatbots.create.success"));
       onSuccess?.();
       // Redirect to the newly created chatbot
       if (data?.id) {
@@ -69,8 +83,8 @@ export function CreateChatbotDialog({
       }
     },
     onError: (error) => {
-      toast.error("Failed to create chatbot", {
-        description: error.message,
+      toast.error(t("chatbots.create.failed"), {
+        description: serverErrorMessage(t, error),
       });
     },
   });
@@ -78,7 +92,7 @@ export function CreateChatbotDialog({
   const handleCreateChatbot = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const nameValidation = validateName(formData.name);
+    const nameValidation = validateName(formData.name, t);
     if (!nameValidation.isValid) {
       toast.error(nameValidation.error!, {
         description: nameValidation.description,
@@ -88,6 +102,7 @@ export function CreateChatbotDialog({
 
     const descriptionValidation = validateDescription(
       formData.description,
+      t,
       true,
     );
     if (!descriptionValidation.isValid) {
@@ -119,47 +134,49 @@ export function CreateChatbotDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>Create New Chatbot</DialogTitle>
+          <DialogTitle>{t("chatbots.create.title")}</DialogTitle>
           <DialogDescription>
-            Configure your AI chatbot for your course
+            {t("chatbots.create.description")}
           </DialogDescription>
         </DialogHeader>
 
         {createChatbot.error && (
           <Alert variant="destructive">
-            <AlertDescription>{createChatbot.error.message}</AlertDescription>
+            <AlertDescription>
+              {serverErrorMessage(t, createChatbot.error)}
+            </AlertDescription>
           </Alert>
         )}
 
         <form onSubmit={handleCreateChatbot} className="space-y-4">
           <FormFieldWithCounter
             id="name"
-            label="Chatbot Name"
+            label={t("chatbots.fields.chatbotName")}
             value={formData.name}
             onChange={(value) => setFormData({ ...formData, name: value })}
             maxLength={VALIDATION_LIMITS.NAME_MAX_LENGTH}
             warningThreshold={VALIDATION_LIMITS.NAME_WARNING_THRESHOLD}
-            placeholder="CS101 Assistant"
+            placeholder={t("chatbots.create.namePlaceholder")}
             required
           />
 
           <FormFieldWithCounter
             id="description"
-            label="Description"
+            label={t("chatbots.fields.description")}
             value={formData.description}
             onChange={(value) =>
               setFormData({ ...formData, description: value })
             }
             maxLength={VALIDATION_LIMITS.DESCRIPTION_MAX_LENGTH}
             warningThreshold={VALIDATION_LIMITS.DESCRIPTION_WARNING_THRESHOLD}
-            placeholder="AI assistant for Introduction to Computer Science"
+            placeholder={t("chatbots.create.descriptionPlaceholder")}
             type="textarea"
             rows={3}
             required
           />
 
           <div className="space-y-2">
-            <Label htmlFor="model">AI Model *</Label>
+            <Label htmlFor="model">{t("chatbots.fields.aiModel")} *</Label>
             <Select
               value={formData.model}
               onValueChange={(value) =>
@@ -180,10 +197,12 @@ export function CreateChatbotDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="systemPrompt">System Prompt *</Label>
+            <Label htmlFor="systemPrompt">
+              {t("chatbots.fields.systemPrompt")} *
+            </Label>
             <Textarea
               id="systemPrompt"
-              placeholder="You are a helpful teaching assistant..."
+              placeholder={t("chatbots.create.systemPromptPlaceholder")}
               value={formData.systemPrompt}
               onChange={(e) =>
                 setFormData({
@@ -198,7 +217,9 @@ export function CreateChatbotDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="temperature">Temperature</Label>
+              <Label htmlFor="temperature">
+                {t("chatbots.fields.temperature")}
+              </Label>
               <Input
                 id="temperature"
                 type="number"
@@ -214,12 +235,14 @@ export function CreateChatbotDialog({
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                Control randomness (0 = focused, 100 = creative)
+                {t("chatbots.fields.temperatureHelp")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="maxTokens">Max Tokens</Label>
+              <Label htmlFor="maxTokens">
+                {t("chatbots.fields.maxTokens")}
+              </Label>
               <Input
                 id="maxTokens"
                 type="number"
@@ -235,7 +258,7 @@ export function CreateChatbotDialog({
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                Maximum length of responses (100-4000)
+                {t("chatbots.fields.maxTokensHelp", { min: 100, max: 4000 })}
               </p>
             </div>
           </div>
@@ -247,10 +270,12 @@ export function CreateChatbotDialog({
               onClick={() => setDialogOpen(false)}
               disabled={createChatbot.isPending}
             >
-              Cancel
+              {t("common.actions.cancel")}
             </Button>
             <Button type="submit" disabled={createChatbot.isPending}>
-              {createChatbot.isPending ? "Creating..." : "Create Chatbot"}
+              {createChatbot.isPending
+                ? t("chatbots.create.submitting")
+                : t("chatbots.create.submit")}
             </Button>
           </div>
         </form>

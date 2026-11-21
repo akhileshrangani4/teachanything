@@ -2,6 +2,7 @@
 
 import { formatFileSize } from "../file-constants";
 import type { FileUploadState } from "./use-upload-queue";
+import { useTranslation } from "react-i18next";
 
 // Total count/size summary shown under the drop zone while uploading.
 export function UploadSummary({
@@ -9,17 +10,23 @@ export function UploadSummary({
 }: {
   selectedFiles: FileUploadState[];
 }) {
+  const { t, i18n } = useTranslation();
   return (
     <div className="rounded-lg bg-muted/50 p-3 space-y-2 flex-shrink-0">
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Total files:</span>
+        <span className="text-muted-foreground">
+          {t("files.upload.totalFiles")}
+        </span>
         <span className="font-medium">{selectedFiles.length}</span>
       </div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Total size:</span>
+        <span className="text-muted-foreground">
+          {t("files.upload.totalSize")}
+        </span>
         <span className="font-medium">
           {formatFileSize(
             selectedFiles.reduce((sum, f) => sum + f.file.size, 0),
+            i18n.language,
           )}
         </span>
       </div>
@@ -38,7 +45,7 @@ export function UploadSummary({
               d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <span>Scroll to see all files</span>
+          <span>{t("files.upload.scrollHint")}</span>
         </div>
       )}
     </div>

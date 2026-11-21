@@ -7,6 +7,7 @@ import {
   registrationRateLimit,
   checkRateLimit,
 } from "@/server/rate-limit";
+import { getTrustedClientIp } from "@/lib/get-client-ip";
 
 const { GET: authGET, POST: authPOST } = toNextJsHandler(auth);
 
@@ -15,10 +16,9 @@ export { authGET as GET };
 export async function POST(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "unknown";
+  // Key on the edge-derived IP, never the client-supplied leftmost XFF hop:
+  // rotating that hop would otherwise mint a fresh bucket per request.
+  const ip = getTrustedClientIp(request.headers);
 
   // Rate limit login attempts
   if (pathname === "/api/auth/sign-in/email") {

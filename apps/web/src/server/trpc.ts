@@ -4,6 +4,7 @@ import { auth } from "@/server/auth";
 import { db } from "@teachanything/db";
 import { logError, logWarn } from "@/lib/logger";
 import superjson from "superjson";
+import { AppErrorCause, appError } from "@/server/app-error";
 
 /**
  * Create tRPC context from request headers
@@ -35,6 +36,10 @@ const t = initTRPC.context<Context>().create({
         ...shape.data,
         zodError:
           error.cause instanceof ZodError ? error.cause.flatten() : null,
+        i18n:
+          error.cause instanceof AppErrorCause
+            ? { key: error.cause.key as string, values: error.cause.values }
+            : null,
       },
     };
   },
@@ -70,10 +75,7 @@ export const protectedProcedure = t.procedure
       logWarn("[tRPC] Unauthorized access attempt", {
         session: ctx.session,
       });
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "You must be logged in to access this resource",
-      });
+      throw appError("UNAUTHORIZED", "errors.unauthenticated");
     }
 
     // Check if user is approved
@@ -85,10 +87,7 @@ export const protectedProcedure = t.procedure
         userId: user.id,
         status: user.status,
       });
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Your account is pending admin approval",
-      });
+      throw appError("FORBIDDEN", "errors.pendingApproval");
     }
 
     return next({

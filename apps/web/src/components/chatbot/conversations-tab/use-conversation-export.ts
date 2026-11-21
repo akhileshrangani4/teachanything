@@ -9,7 +9,8 @@ import {
   downloadConversationsExport,
   type ExportFormat,
 } from "@/lib/export-conversations";
-import { ALL_EXPORT_FORMATS } from "./constants";
+import { EXPORT_FORMAT_OPTIONS } from "./constants";
+import { useTranslation } from "react-i18next";
 
 // Export: `null` = dialog closed; "all" exports every conversation for the
 // chatbot, "selected" exports only the checked ids. Formats default to all.
@@ -28,11 +29,12 @@ export function useConversationExport({
   toggleFormat: (format: ExportFormat) => void;
   runExport: () => Promise<void>;
 } {
+  const { t } = useTranslation();
   const utils = trpc.useUtils();
   const [exportMode, setExportMode] = useState<"all" | "selected" | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormats, setExportFormats] = useState<Set<ExportFormat>>(
-    () => new Set(ALL_EXPORT_FORMATS),
+    () => new Set(EXPORT_FORMAT_OPTIONS),
   );
 
   const openExport = (mode: "all" | "selected") => setExportMode(mode);
@@ -52,25 +54,27 @@ export function useConversationExport({
         conversationIds,
       });
       if (data.conversations.length === 0) {
-        toast.error("No chat records to export.");
+        toast.error(t("conversations.exportToasts.noRecords"));
         return;
       }
       downloadConversationsExport(
         data,
-        ALL_EXPORT_FORMATS.filter((f) => exportFormats.has(f)),
+        EXPORT_FORMAT_OPTIONS.filter((f) => exportFormats.has(f)),
       );
       const count = data.conversations.length;
       if (data.truncated) {
         toast.warning(
-          `Exported the first ${data.maxConversations} chats. Export smaller selections to capture the rest.`,
+          t("conversations.exportToasts.truncated", {
+            max: data.maxConversations,
+          }),
         );
       } else {
-        toast.success(`Exported ${count} chat${count !== 1 ? "s" : ""}.`);
+        toast.success(t("conversations.exportToasts.exported", { count }));
       }
       setExportMode(null);
     } catch (err) {
       logError(err, "[conversations] export failed", { chatbotId });
-      toast.error("Export failed. Please try again.");
+      toast.error(t("conversations.exportToasts.failed"));
     } finally {
       setIsExporting(false);
     }

@@ -1,10 +1,10 @@
 import { protectedProcedure } from "@/server/trpc";
 import { eq } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { crawledPages } from "@teachanything/db/schema";
 import { logInfo, logError } from "@/lib/logger";
 import { crawledPageIdInput } from "../validation";
 import { assertOwnedCrawledPage, deleteAllCrawlFileIds } from "../helpers";
+import { appError } from "@/server/app-error";
 
 export const removeCrawledPageProcedure = protectedProcedure
   .input(crawledPageIdInput)
@@ -19,11 +19,7 @@ export const removeCrawledPageProcedure = protectedProcedure
       source.status === "crawling" ||
       source.status === "pending"
     ) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message:
-          "Cannot remove this page while a crawl is in progress. Wait for the crawl to finish.",
-      });
+      throw appError("CONFLICT", "errors.crawler.removePageCrawling");
     }
 
     try {
@@ -63,9 +59,9 @@ export const removeCrawledPageProcedure = protectedProcedure
       logError(error, "Failed to remove crawled page", {
         crawledPageId: input.crawledPageId,
       });
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to remove crawled page",
-      });
+      throw appError(
+        "INTERNAL_SERVER_ERROR",
+        "errors.crawler.removePageFailed",
+      );
     }
   });

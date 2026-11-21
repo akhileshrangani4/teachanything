@@ -1,5 +1,4 @@
 import { eq, and, inArray } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import {
   crawlSources,
   crawledPages,
@@ -8,6 +7,7 @@ import {
 } from "@teachanything/db/schema";
 import type { db as dbType } from "@teachanything/db";
 import type { Context } from "@/server/trpc";
+import { appError } from "@/server/app-error";
 
 // Narrowed context for helpers: only called from protectedProcedure, so
 // the auth middleware has already verified session. Narrowing keeps the
@@ -34,10 +34,7 @@ export async function assertOwnedCrawlSource(
     .limit(1);
 
   if (!source) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Crawl source not found",
-    });
+    throw appError("NOT_FOUND", "errors.notFoundItems.crawlSource");
   }
 
   return source;
@@ -68,10 +65,7 @@ export async function assertOwnedCrawledPage(
     .limit(1);
 
   if (!row) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Crawled page not found",
-    });
+    throw appError("NOT_FOUND", "errors.notFoundItems.crawledPage");
   }
 
   return row;

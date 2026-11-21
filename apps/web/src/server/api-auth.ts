@@ -3,7 +3,12 @@ import type { User } from "@/types/better-auth";
 import { logWarn } from "@/lib/logger";
 
 export type ApiAuthResult =
-  { ok: true; user: User } | { ok: false; response: Response };
+  | { ok: true; user: User }
+  | {
+      ok: false;
+      code: "unauthorized" | "pending_approval";
+      response: Response;
+    };
 
 /**
  * Route Handler equivalent of tRPC's session lookup: resolves the Better Auth
@@ -16,6 +21,7 @@ export async function requireApiSession(
   if (!session?.user?.id) {
     return {
       ok: false,
+      code: "unauthorized",
       response: new Response("Unauthorized", { status: 401 }),
     };
   }
@@ -43,6 +49,7 @@ export async function requireApprovedUser(
     });
     return {
       ok: false,
+      code: "pending_approval",
       response: new Response("Your account is pending admin approval", {
         status: 403,
       }),

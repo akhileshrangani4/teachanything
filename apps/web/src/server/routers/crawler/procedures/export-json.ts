@@ -1,6 +1,5 @@
 import { protectedProcedure } from "@/server/trpc";
 import { eq, and, asc, inArray, sql } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
 import { crawledPages, fileChunks } from "@teachanything/db/schema";
 import { crawlSourceIdInput } from "../validation";
 import { assertOwnedCrawlSource } from "../helpers";
@@ -8,6 +7,7 @@ import {
   getPageDisplayTitle,
   getSourceDisplayName,
 } from "@/lib/crawler-metadata";
+import { appError } from "@/server/app-error";
 
 const MAX_EXPORT_PAGES = 200;
 const MAX_EXPORT_CHUNKS = 5000;
@@ -46,9 +46,8 @@ export const exportJsonProcedure = protectedProcedure
         .from(fileChunks)
         .where(inArray(fileChunks.fileId, fileIds));
       if (Number(countResult?.count ?? 0) > MAX_EXPORT_CHUNKS) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Export too large (${Number(countResult?.count)} chunks). Try exporting fewer pages.`,
+        throw appError("BAD_REQUEST", "errors.crawler.exportTooLarge", {
+          count: Number(countResult?.count),
         });
       }
     }
