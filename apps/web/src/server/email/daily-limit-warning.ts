@@ -1,36 +1,17 @@
 import { env } from "@/lib/env";
 import { DailyLimitWarning } from "@/components/emails/DailyLimitWarning";
+import {
+  dailyLimitWarningCopy,
+  type LimitWarningFacts,
+} from "@/lib/daily-limit-warning-copy";
 import { queueEmail } from "./delivery";
 import { getAdminContactEmail } from "./support-email";
 
-/** Share of a daily limit, in percent, at which the owner is emailed. */
-export type LimitWarningThreshold = 80 | 100;
-
-export type DailyLimitWarningParams = {
+export type DailyLimitWarningParams = LimitWarningFacts & {
   to: string;
   /** The professor's name; null when their account has none. */
   name: string | null;
-  /** The chatbot whose own limit this is; null for the professor's total. */
-  chatbotName: string | null;
-  count: number;
-  limit: number;
-  threshold: LimitWarningThreshold;
 };
-
-/** The email's subject line, naming the chatbot for a chatbot limit. */
-export function dailyLimitWarningSubject(
-  params: Pick<DailyLimitWarningParams, "chatbotName" | "threshold">,
-): string {
-  const { chatbotName, threshold } = params;
-  if (chatbotName === null) {
-    return threshold === 100
-      ? "Your chatbots have reached today's message limit"
-      : "Heads-up: your chatbots have used 80% of today's messages";
-  }
-  return threshold === 100
-    ? `"${chatbotName}" has reached today's message limit`
-    : `Heads-up: "${chatbotName}" has used 80% of today's messages`;
-}
 
 /** Tell a professor one of their daily message limits is nearly or fully used. */
 export async function sendDailyLimitWarningEmail(
@@ -40,7 +21,7 @@ export async function sendDailyLimitWarningEmail(
   return queueEmail({
     emailType: "daily_limit_warning",
     to: params.to,
-    subject: dailyLimitWarningSubject(params),
+    subject: dailyLimitWarningCopy(params).subject,
     reactComponent: DailyLimitWarning({
       userName: params.name,
       chatbotName: params.chatbotName,

@@ -1,45 +1,14 @@
 import * as React from "react";
+import {
+  dailyLimitWarningCopy,
+  type LimitWarningFacts,
+} from "@/lib/daily-limit-warning-copy";
 
-interface DailyLimitWarningProps {
+interface DailyLimitWarningProps extends LimitWarningFacts {
   userName: string | null;
-  /** The chatbot whose own limit this is; null for the professor's total. */
-  chatbotName: string | null;
-  count: number;
-  limit: number;
-  threshold: 80 | 100;
   dashboardUrl: string;
   helpUrl: string;
   supportEmail: string;
-}
-
-/**
- * The email's two key sentences: what was used, and what happens next. Each
- * is one string, so it renders as a single text node.
- */
-export function dailyLimitWarningCopy({
-  chatbotName,
-  count,
-  limit,
-  threshold,
-}: Pick<
-  DailyLimitWarningProps,
-  "chatbotName" | "count" | "limit" | "threshold"
->): { usage: string; next: string } {
-  const subject =
-    chatbotName === null
-      ? "All of your chatbots together have"
-      : `Your chatbot "${chatbotName}" has`;
-  const whose = chatbotName === null ? "your" : "its";
-  if (threshold === 100) {
-    return {
-      usage: `${subject} reached ${whose} daily limit of ${limit} student messages.`,
-      next: "Students will see the daily-limit message until midnight US Eastern time, when the count resets.",
-    };
-  }
-  return {
-    usage: `${subject} received ${count} of ${whose} ${limit} daily student messages today, 80% of the limit.`,
-    next: "The count resets at midnight US Eastern time.",
-  };
 }
 
 export function DailyLimitWarning(props: DailyLimitWarningProps) {

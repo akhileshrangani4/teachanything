@@ -22,7 +22,7 @@ jest.unstable_mockModule("@/lib/env", () => ({
   getAdminEmails: () => ["admin@example.org"],
 }));
 
-const { sendDailyLimitWarningEmail, dailyLimitWarningSubject } =
+const { sendDailyLimitWarningEmail } =
   await import("@/server/email/daily-limit-warning");
 
 const base = { to: "ada@example.edu", name: "Ada Lovelace" };
@@ -37,25 +37,17 @@ async function sendAndRender(
   return { subject: email!.subject, html: await render(email!.reactComponent) };
 }
 
-describe("dailyLimitWarningSubject", () => {
-  it.each([
-    ["Biology", 80, 'Heads-up: "Biology" has used 80% of today\'s messages'],
-    ["Biology", 100, '"Biology" has reached today\'s message limit'],
-    [null, 80, "Heads-up: your chatbots have used 80% of today's messages"],
-    [null, 100, "Your chatbots have reached today's message limit"],
-  ] as const)("chatbot %p at %p%%", (chatbotName, threshold, expected) => {
-    expect(dailyLimitWarningSubject({ chatbotName, threshold })).toBe(expected);
-  });
-});
-
 describe("sendDailyLimitWarningEmail", () => {
   it("renders the chatbot 80% heads-up with the key facts and links", async () => {
-    const { html } = await sendAndRender({
+    const { subject, html } = await sendAndRender({
       chatbotName: "Biology",
       count: 120,
       limit: 150,
       threshold: 80,
     });
+    expect(subject).toBe(
+      'Heads-up: "Biology" has used 80% of today\'s messages',
+    );
     expect(html).toContain("Hello Ada Lovelace,");
     expect(html).toContain("Biology");
     expect(html).toContain("120 of its 150 daily student messages");

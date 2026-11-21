@@ -3,10 +3,8 @@ import {
   type DailyCountScope,
   type DailyMessageResult,
 } from "@/server/rate-limit";
-import {
-  sendDailyLimitWarningEmail,
-  type LimitWarningThreshold,
-} from "@/server/email/daily-limit-warning";
+import { sendDailyLimitWarningEmail } from "@/server/email/daily-limit-warning";
+import type { LimitWarningThreshold } from "@/lib/daily-limit-warning-copy";
 import { logWarn } from "@/lib/logger";
 
 /** One limit a message just brought to a warning threshold. */
