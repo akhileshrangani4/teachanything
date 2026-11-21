@@ -1,6 +1,7 @@
 import { access } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Worker } from "tesseract.js";
+import { logWarn } from "@teachanything/logger";
 import { readImageInfo } from "./image-dimensions";
 import { withDetectableOrientation } from "./image-orientation";
 
@@ -172,6 +173,10 @@ export async function recognizeImageText(
     state.isFinished = true;
     // A terminated worker's pending job never settles, which is why the
     // deadline above rejects on its own instead of waiting for it.
-    await state.worker?.terminate().catch(() => {});
+    await state.worker?.terminate().catch((error: unknown) => {
+      logWarn("Failed to terminate the OCR worker", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   }
 }

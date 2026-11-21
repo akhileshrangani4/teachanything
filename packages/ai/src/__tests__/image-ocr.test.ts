@@ -40,6 +40,13 @@ const realModelData = createRequire(import.meta.url)(
 ) as { code: string; gzip: boolean; langPath: string };
 const modelData = { ...realModelData };
 
+const mockLogWarn =
+  jest.fn<(message: string, context?: Record<string, unknown>) => void>();
+
+jest.unstable_mockModule("@teachanything/logger", () => ({
+  logWarn: mockLogWarn,
+}));
+
 jest.unstable_mockModule("@tesseract.js-data/eng", () => ({
   default: modelData,
 }));
@@ -72,6 +79,7 @@ const never = () => new Promise<never>(() => {});
 describe("recognizeImageText", () => {
   beforeEach(() => {
     mockCreateWorker.mockReset();
+    mockLogWarn.mockReset();
     modelData.langPath = realModelData.langPath;
   });
 
@@ -83,6 +91,22 @@ describe("recognizeImageText", () => {
       "Mitosis\n",
     );
     expect(worker.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("still returns the text, and logs a warning, when terminating the worker fails", async () => {
+    const worker = fakeWorker(async () => ({ data: { text: "Meiosis" } }));
+    worker.terminate.mockImplementation(() =>
+      Promise.reject(new Error("worker already gone")),
+    );
+    mockCreateWorker.mockResolvedValue(worker);
+
+    await expect(recognizeImageText(png(), "image/png")).resolves.toBe(
+      "Meiosis",
+    );
+    expect(mockLogWarn).toHaveBeenCalledWith(
+      "Failed to terminate the OCR worker",
+      { error: "worker already gone" },
+    );
   });
 
   it("configures the engine to run offline, without writing to disk or crashing the process", async () => {
