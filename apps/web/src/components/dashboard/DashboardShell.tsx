@@ -1,6 +1,6 @@
 "use client";
 
-/** Signed-in shell shared by the dashboard and chatbot routes: session gate, header, sidebar. */
+/** Signed-in shell shared by the dashboard, chatbot and admin routes: session gate, header, sidebar. */
 
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
@@ -10,12 +10,20 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { MobileSidebarOverlay } from "@/components/dashboard/MobileSidebarOverlay";
 import { SidebarProvider } from "@/components/dashboard/sidebar-context";
+import type { ExtendedUser } from "@/lib/auth-client";
 
 const subscribe = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({
+  children,
+  isAdminOnly = false,
+}: {
+  children: React.ReactNode;
+  /** Send signed-in non-admins to the dashboard instead of rendering. */
+  isAdminOnly?: boolean;
+}) {
   const { data: session, isPending: sessionLoading } = useSession();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -27,17 +35,24 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     serverSnapshot,
   );
 
+  const isBlocked =
+    isAdminOnly &&
+    (session?.user as ExtendedUser | undefined)?.role !== "admin";
+
   useEffect(() => {
-    if (!sessionLoading && !session) {
+    if (sessionLoading) return;
+    if (!session) {
       router.push("/login");
+    } else if (isBlocked) {
+      router.push("/dashboard");
     }
-  }, [session, sessionLoading, router]);
+  }, [session, sessionLoading, isBlocked, router]);
 
   if (!hydrated || sessionLoading) {
     return <DashboardShellSkeleton />;
   }
 
-  if (!session) {
+  if (!session || isBlocked) {
     return null;
   }
 
