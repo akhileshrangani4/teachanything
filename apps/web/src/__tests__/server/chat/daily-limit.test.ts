@@ -15,7 +15,13 @@ const counterCalls: unknown[][] = [];
 jest.unstable_mockModule("@/server/rate-limit", () => ({
   consumeDailyMessage: async (...args: unknown[]) => {
     counterCalls.push(args);
-    return isWithinLimits;
+    return { isAllowed: isWithinLimits, date: "2026-11-20" };
+  },
+}));
+const warningCalls: unknown[][] = [];
+jest.unstable_mockModule("@/server/chat/limit-warnings", () => ({
+  warnOnLimitCrossings: (...args: unknown[]) => {
+    warningCalls.push(args);
   },
 }));
 
@@ -59,6 +65,7 @@ function dbUpdating(rows: unknown[]) {
 
 const chatbot = {
   id: "bot-1",
+  name: "Intro Biology",
   userId: "owner-1",
   dailyMessageLimit: null,
   paused: false,
@@ -94,6 +101,18 @@ describe("enforceDailyLimit", () => {
     ]);
   });
 
+  it("hands an admitted message's result to the limit warnings", async () => {
+    isWithinLimits = true;
+    const db = dbReturning([owner]);
+    await enforceDailyLimit(db, chatbot);
+    expect(warningCalls.at(-1)).toEqual([
+      db,
+      chatbot,
+      { chatbot: 150, owner: 300 },
+      { isAllowed: true, date: "2026-11-20" },
+    ]);
+  });
+
   it.each([
     ["the chatbot", { ...chatbot, paused: true }, owner],
     [
@@ -122,6 +141,13 @@ describe("enforceDailyLimit", () => {
       (e: unknown) => e,
     );
     expect(error).toMatchObject({ code: "daily_limit_reached", status: 429 });
+  });
+
+  it("sends no warnings for a refused message", async () => {
+    isWithinLimits = false;
+    const warningsBefore = warningCalls.length;
+    await enforceDailyLimit(dbReturning([owner]), chatbot).catch(() => {});
+    expect(warningCalls.length).toBe(warningsBefore);
   });
 });
 

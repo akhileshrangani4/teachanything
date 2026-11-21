@@ -48,6 +48,7 @@ export const emailTypeEnum = pgEnum("email_type", [
   "account_enabled",
   "account_deleted",
   "password_reset",
+  "daily_limit_warning",
 ]);
 
 export const crawlStatusEnum = pgEnum("crawl_status", [

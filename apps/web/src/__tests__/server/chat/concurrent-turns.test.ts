@@ -84,7 +84,13 @@ jest.unstable_mockModule("@/server/rate-limit", () => ({
   requireRateLimit: async () => ({ success: true }),
   publicChatRateLimit: null,
   publicChatGlobalRateLimit: null,
-  consumeDailyMessage: async () => withinDailyLimit,
+  consumeDailyMessage: async () => ({
+    isAllowed: withinDailyLimit,
+    date: "2026-11-20",
+  }),
+}));
+jest.unstable_mockModule("@/server/chat/limit-warnings", () => ({
+  warnOnLimitCrossings: () => {},
 }));
 jest.unstable_mockModule("@teachanything/ai", () => ({
   createOpenRouterClient: () => ({}),
