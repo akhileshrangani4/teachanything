@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { SiGithub } from "react-icons/si";
 import { FaHeart } from "react-icons/fa";
 import Image from "next/image";
+import { getDonationUrl } from "@/lib/support-links";
 
 const FEATURED_IN = [
   {
@@ -128,10 +129,7 @@ export default function SupportUsSection() {
                 className="border-2 px-10 py-6 text-base rounded-full font-medium border-red-500/20 text-red-600 hover:border-red-500/40 hover:bg-red-50 hover:text-red-700"
               >
                 <Link
-                  href={
-                    process.env.NEXT_PUBLIC_DONATION_URL ||
-                    "https://www.gofundme.com/f/empower-educators-with-openaccess-ai"
-                  }
+                  href={getDonationUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

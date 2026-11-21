@@ -7,10 +7,11 @@ import {
   OWNER_DAILY_MESSAGE_LIMIT,
 } from "@/lib/constants/rate-limits";
 import { ChatRequestError } from "./request";
+import { warnOnLimitCrossings } from "./limit-warnings";
 
 type LimitedChatbot = Pick<
   typeof chatbots.$inferSelect,
-  "id" | "userId" | "dailyMessageLimit" | "paused"
+  "id" | "name" | "userId" | "dailyMessageLimit" | "paused"
 >;
 
 type OwnerSettings = Pick<
@@ -18,15 +19,24 @@ type OwnerSettings = Pick<
   "dailyMessageLimit" | "chatbotsPaused"
 >;
 
-/** The admin-set limit and pause switch on `chatbot`'s owner. */
+/** The owner's settings, plus the name and email a limit warning goes to. */
+type OwnerRow = OwnerSettings &
+  Pick<typeof user.$inferSelect, "name" | "email">;
+
+/**
+ * The admin-set limit and pause switch on `chatbot`'s owner, with their name
+ * and email, in the one owner read each message makes.
+ */
 async function readOwnerSettings(
   database: typeof DbType,
   chatbot: LimitedChatbot,
-): Promise<OwnerSettings | undefined> {
+): Promise<OwnerRow | undefined> {
   const [owner] = await database
     .select({
       dailyMessageLimit: user.dailyMessageLimit,
       chatbotsPaused: user.chatbotsPaused,
+      name: user.name,
+      email: user.email,
     })
     .from(user)
     .where(eq(user.id, chatbot.userId))
@@ -53,7 +63,9 @@ export function dailyLimitsFor(
  * - `ChatRequestError("chatbot_paused", 403)` when an admin has paused the
  *   chatbot or all of its owner's chatbots;
  * - `ChatRequestError("daily_limit_reached", 429)` when the chatbot's or the
- *   owner's daily limit is used up. Otherwise the message is counted.
+ *   owner's daily limit is used up. Otherwise the message is counted, and the
+ *   owner is emailed (in the background) when it reaches 80% or 100% of a
+ *   limit.
  */
 export async function enforceDailyLimit(
   database: typeof DbType,
@@ -63,11 +75,13 @@ export async function enforceDailyLimit(
   if (chatbot.paused || owner?.chatbotsPaused) {
     throw new ChatRequestError("chatbot_paused", 403);
   }
-  const isWithinLimits = await consumeDailyMessage(
+  const limits = dailyLimitsFor(chatbot, owner);
+  const result = await consumeDailyMessage(
     { id: chatbot.id, ownerId: chatbot.userId },
-    dailyLimitsFor(chatbot, owner),
+    limits,
   );
-  if (!isWithinLimits) {
+  if (!result.isAllowed) {
     throw new ChatRequestError("daily_limit_reached", 429);
   }
+  warnOnLimitCrossings(chatbot, owner, limits, result);
 }
