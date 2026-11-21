@@ -117,6 +117,33 @@ describe("readImageInfo on crafted headers", () => {
     expect(readImageInfo(buf, "image/tiff")).toBeNull();
   });
 
+  it.each([
+    ["width", 0x0100],
+    ["height", 0x0101],
+  ])("returns null for a TIFF that declares its %s twice", (_name, tag) => {
+    // The decoder keeps the first copy (20000) and this check would
+    // otherwise keep the last (100), letting a 400 MP image past the limit.
+    const buf = Buffer.alloc(8 + 2 + 3 * 12 + 4);
+    buf.write("MM", 0, "ascii");
+    buf.writeUInt16BE(42, 2);
+    buf.writeUInt32BE(8, 4);
+    buf.writeUInt16BE(3, 8);
+    const entries: Array<[number, number]> = [
+      [0x0100, 20_000],
+      [0x0101, 20_000],
+      [tag, 100],
+    ];
+    entries.forEach(([entryTag, value], i) => {
+      const at = 10 + i * 12;
+      buf.writeUInt16BE(entryTag, at);
+      buf.writeUInt16BE(4, at + 2);
+      buf.writeUInt32BE(1, at + 4);
+      buf.writeUInt32BE(value, at + 8);
+    });
+    buf.writeUInt32BE(0, 10 + 3 * 12);
+    expect(readImageInfo(buf, "image/tiff")).toBeNull();
+  });
+
   it("returns null for a MIME type it has no reader for", () => {
     expect(readImageInfo(fixture("text.png"), "image/gif")).toBeNull();
   });

@@ -133,8 +133,16 @@ function readTiff(buf: Buffer): ImageInfo | null {
     const type = u16(entry + 2);
     if (type !== TIFF_TYPE_SHORT && type !== TIFF_TYPE_LONG) return null;
     const value = type === TIFF_TYPE_SHORT ? u16(entry + 8) : u32(entry + 8);
-    if (tag === TIFF_TAG_WIDTH) width = value;
-    else height = value;
+    // A repeated tag makes the size ambiguous: libtiff, which decodes the
+    // image, keeps the FIRST copy, so a crafted file could pass the size
+    // check with a small second copy and decode at the huge first one.
+    if (tag === TIFF_TAG_WIDTH) {
+      if (width) return null;
+      width = value;
+    } else {
+      if (height) return null;
+      height = value;
+    }
   }
   return info(width, height, u32(nextIfdOffset) !== 0);
 }
