@@ -2,16 +2,17 @@
  * @jest-environment-options {"customExportConditions": ["node", "node-addons"]}
  */
 import { jest, describe, it, expect } from "@jest/globals";
-import { act } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
 
 let sessionLoading = true;
+let role = "user";
 const push = jest.fn();
 
 jest.unstable_mockModule("@/lib/auth-client", () => ({
   useSession: () => ({
-    data: sessionLoading ? null : { user: { id: "user-1" } },
+    data: sessionLoading ? null : { user: { id: "user-1", role } },
     isPending: sessionLoading,
   }),
 }));
@@ -63,5 +64,29 @@ describe("DashboardShell hydration", () => {
       await act(async () => root?.unmount());
       container.remove();
     }
+  });
+});
+
+describe("DashboardShell admin gate", () => {
+  it("sends a signed-in non-admin to the dashboard without rendering", () => {
+    sessionLoading = false;
+    role = "user";
+    push.mockClear();
+    const { container } = render(
+      <DashboardShell isAdminOnly>Admin content</DashboardShell>,
+    );
+    expect(container.textContent).toBe("");
+    expect(push).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("renders for an admin", () => {
+    sessionLoading = false;
+    role = "admin";
+    push.mockClear();
+    const { container } = render(
+      <DashboardShell isAdminOnly>Admin content</DashboardShell>,
+    );
+    expect(container.querySelector("main")?.textContent).toBe("Admin content");
+    expect(push).not.toHaveBeenCalled();
   });
 });
