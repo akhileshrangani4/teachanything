@@ -1,6 +1,3 @@
-import { eq } from "drizzle-orm";
-import { user } from "@teachanything/db/schema";
-import type { db as DbType } from "@teachanything/db";
 import {
   claimLimitWarning,
   type DailyCountScope,
@@ -21,6 +18,9 @@ export type LimitCrossing = {
 };
 
 type WarnedChatbot = { id: string; name: string; userId: string };
+
+/** The professor a warning is addressed to. */
+export type WarnedOwner = { name: string | null; email: string | null };
 
 /**
  * The threshold `count` lands exactly on, if any: 100 on the last allowed
@@ -50,23 +50,15 @@ export function findLimitCrossings(
   });
 }
 
-/** The professor's name and email, read only when an email goes out. */
-async function readOwnerContact(database: typeof DbType, ownerId: string) {
-  const [owner] = await database
-    .select({ name: user.name, email: user.email })
-    .from(user)
-    .where(eq(user.id, ownerId))
-    .limit(1);
-  return owner;
-}
-
 /** Claim the day's slot for one crossing and, if won, email the owner. */
 async function sendOneWarning(
-  database: typeof DbType,
   chatbot: WarnedChatbot,
+  owner: WarnedOwner,
   crossing: LimitCrossing,
   date: string,
 ): Promise<void> {
+  const { email } = owner;
+  if (!email) return;
   const id = crossing.scope === "chatbot" ? chatbot.id : chatbot.userId;
   const isClaimed = await claimLimitWarning(
     crossing.scope,
@@ -75,10 +67,8 @@ async function sendOneWarning(
     date,
   );
   if (!isClaimed) return;
-  const owner = await readOwnerContact(database, chatbot.userId);
-  if (!owner?.email) return;
   await sendDailyLimitWarningEmail({
-    to: owner.email,
+    to: email,
     name: owner.name,
     chatbotName: crossing.scope === "chatbot" ? chatbot.name : null,
     count: crossing.count,
@@ -92,14 +82,14 @@ async function sendOneWarning(
  * 100%. Never throws: each failure is logged, and the chat goes on.
  */
 export async function sendLimitWarnings(
-  database: typeof DbType,
   chatbot: WarnedChatbot,
+  owner: WarnedOwner,
   crossings: LimitCrossing[],
   date: string,
 ): Promise<void> {
   for (const crossing of crossings) {
     try {
-      await sendOneWarning(database, chatbot, crossing, date);
+      await sendOneWarning(chatbot, owner, crossing, date);
     } catch (err) {
       logWarn("Daily limit warning email failed", {
         chatbotId: chatbot.id,
@@ -116,13 +106,13 @@ export async function sendLimitWarnings(
  * them, so the student's answer is never delayed by email delivery.
  */
 export function warnOnLimitCrossings(
-  database: typeof DbType,
   chatbot: WarnedChatbot,
+  owner: WarnedOwner | undefined,
   limits: { chatbot: number; owner: number },
   result: DailyMessageResult,
 ): void {
-  if (!result.isAllowed || !result.counts) return;
+  if (!owner || !result.isAllowed || !result.counts) return;
   const crossings = findLimitCrossings(result.counts, limits);
   if (crossings.length === 0) return;
-  void sendLimitWarnings(database, chatbot, crossings, result.date);
+  void sendLimitWarnings(chatbot, owner, crossings, result.date);
 }

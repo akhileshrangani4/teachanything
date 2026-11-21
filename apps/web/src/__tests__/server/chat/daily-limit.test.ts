@@ -70,7 +70,12 @@ const chatbot = {
   dailyMessageLimit: null,
   paused: false,
 };
-const owner = { dailyMessageLimit: null, chatbotsPaused: false };
+const owner = {
+  dailyMessageLimit: null,
+  chatbotsPaused: false,
+  name: "Ada Lovelace",
+  email: "ada@example.edu",
+};
 
 describe("dailyLimitsFor", () => {
   it("uses the defaults when no override is set", () => {
@@ -106,8 +111,8 @@ describe("enforceDailyLimit", () => {
     const db = dbReturning([owner]);
     await enforceDailyLimit(db, chatbot);
     expect(warningCalls.at(-1)).toEqual([
-      db,
       chatbot,
+      owner,
       { chatbot: 150, owner: 300 },
       { isAllowed: true, date: "2026-11-20" },
     ]);

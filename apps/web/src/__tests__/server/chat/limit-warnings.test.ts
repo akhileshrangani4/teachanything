@@ -39,24 +39,6 @@ const {
 const chatbot = { id: "bot-1", name: "Intro Biology", userId: "owner-1" };
 const owner = { name: "Ada Lovelace", email: "ada@example.edu" };
 
-/** A db whose owner lookup resolves to `rows`, counting the lookups. */
-function ownerDb(rows: unknown[] = [owner]) {
-  const reads = { count: 0 };
-  const db = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => {
-            reads.count += 1;
-            return rows;
-          },
-        }),
-      }),
-    }),
-  } as never;
-  return { db, reads };
-}
-
 beforeEach(() => {
   claimResult = true;
   sendError = null;
@@ -122,10 +104,9 @@ describe("sendLimitWarnings", () => {
   const date = "2026-11-20";
 
   it("claims the slot, looks up the owner, and emails them", async () => {
-    const { db } = ownerDb();
     await sendLimitWarnings(
-      db,
       chatbot,
+      owner,
       [
         { scope: "chatbot", count: 120, limit: 150, threshold: 80 },
         { scope: "owner", count: 300, limit: 300, threshold: 100 },
@@ -156,17 +137,27 @@ describe("sendLimitWarnings", () => {
     ]);
   });
 
-  it("sends nothing, and reads no owner, when the day's slot is taken", async () => {
+  it("sends nothing when the day's slot is already taken", async () => {
     claimResult = false;
-    const { db, reads } = ownerDb();
     await sendLimitWarnings(
-      db,
       chatbot,
+      owner,
       [{ scope: "chatbot", count: 150, limit: 150, threshold: 100 }],
       date,
     );
+    expect(claims).toHaveLength(1);
     expect(sent).toEqual([]);
-    expect(reads.count).toBe(0);
+  });
+
+  it("claims nothing for an owner without an email", async () => {
+    await sendLimitWarnings(
+      chatbot,
+      { name: "No Email", email: null },
+      [{ scope: "chatbot", count: 150, limit: 150, threshold: 100 }],
+      date,
+    );
+    expect(claims).toEqual([]);
+    expect(sent).toEqual([]);
   });
 
   it.each([
@@ -174,11 +165,10 @@ describe("sendLimitWarnings", () => {
     ["email delivery", () => (sendError = new Error("QStash down"))],
   ])("logs a %s failure instead of throwing", async (_name, fail) => {
     fail();
-    const { db } = ownerDb();
     await expect(
       sendLimitWarnings(
-        db,
         chatbot,
+        owner,
         [{ scope: "owner", count: 240, limit: 300, threshold: 80 }],
         date,
       ),
@@ -194,13 +184,14 @@ describe("warnOnLimitCrossings", () => {
   const settle = () => new Promise((resolve) => setImmediate(resolve));
 
   it("emails in the background for an admitted message on a threshold", async () => {
-    const { db } = ownerDb();
     const result = {
       isAllowed: true,
       counts: { chatbot: 120, owner: 130 },
       date: "2026-11-20",
     };
-    expect(warnOnLimitCrossings(db, chatbot, limits, result)).toBeUndefined();
+    expect(
+      warnOnLimitCrossings(chatbot, owner, limits, result),
+    ).toBeUndefined();
     await settle();
     expect(sent).toHaveLength(1);
   });
@@ -209,16 +200,24 @@ describe("warnOnLimitCrossings", () => {
     ["a refused message", { isAllowed: false, date: "2026-11-20" }],
     ["no counts (Redis unconfigured)", { isAllowed: true, date: "2026-11-20" }],
   ])("does nothing for %s", async (_name, result) => {
-    const { db } = ownerDb();
-    warnOnLimitCrossings(db, chatbot, limits, result);
+    warnOnLimitCrossings(chatbot, owner, limits, result);
+    await settle();
+    expect(claims).toEqual([]);
+  });
+
+  it("does nothing when the owner row is missing", async () => {
+    warnOnLimitCrossings(chatbot, undefined, limits, {
+      isAllowed: true,
+      counts: { chatbot: 150, owner: 150 },
+      date: "2026-11-20",
+    });
     await settle();
     expect(claims).toEqual([]);
   });
 
   it("never rejects into the chat path when sending fails", async () => {
     sendError = new Error("QStash down");
-    const { db } = ownerDb();
-    warnOnLimitCrossings(db, chatbot, limits, {
+    warnOnLimitCrossings(chatbot, owner, limits, {
       isAllowed: true,
       counts: { chatbot: 150, owner: 150 },
       date: "2026-11-20",

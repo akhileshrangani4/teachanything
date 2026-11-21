@@ -19,15 +19,24 @@ type OwnerSettings = Pick<
   "dailyMessageLimit" | "chatbotsPaused"
 >;
 
-/** The admin-set limit and pause switch on `chatbot`'s owner. */
+/** The owner's settings, plus the name and email a limit warning goes to. */
+type OwnerRow = OwnerSettings &
+  Pick<typeof user.$inferSelect, "name" | "email">;
+
+/**
+ * The admin-set limit and pause switch on `chatbot`'s owner, with their name
+ * and email, in the one owner read each message makes.
+ */
 async function readOwnerSettings(
   database: typeof DbType,
   chatbot: LimitedChatbot,
-): Promise<OwnerSettings | undefined> {
+): Promise<OwnerRow | undefined> {
   const [owner] = await database
     .select({
       dailyMessageLimit: user.dailyMessageLimit,
       chatbotsPaused: user.chatbotsPaused,
+      name: user.name,
+      email: user.email,
     })
     .from(user)
     .where(eq(user.id, chatbot.userId))
@@ -74,5 +83,5 @@ export async function enforceDailyLimit(
   if (!result.isAllowed) {
     throw new ChatRequestError("daily_limit_reached", 429);
   }
-  warnOnLimitCrossings(database, chatbot, limits, result);
+  warnOnLimitCrossings(chatbot, owner, limits, result);
 }
