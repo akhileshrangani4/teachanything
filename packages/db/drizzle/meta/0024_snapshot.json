@@ -1,5 +1,5 @@
 {
-  "id": "7f3e5c58-b906-4674-8bf8-c9ac23f65557",
+  "id": "16af9fd4-4e96-4b41-99dd-71d886baa539",
   "prevId": "4ae0aafe-92e2-426d-a455-56b9550ab260",
   "version": "7",
   "dialect": "postgresql",
@@ -1195,6 +1195,27 @@
           "columns": [
             {
               "expression": "resend_message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "email_deliveries_recipient_created_idx": {
+          "name": "email_deliveries_recipient_created_idx",
+          "columns": [
+            {
+              "expression": "recipient_email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

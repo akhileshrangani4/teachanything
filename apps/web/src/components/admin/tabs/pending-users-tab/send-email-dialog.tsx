@@ -26,11 +26,15 @@ import {
   REGISTRATION_EMAIL_TEMPLATES,
   type RegistrationEmailTemplateId,
 } from "@/lib/registration-email-templates";
+import type { SendRegistrationEmailInput } from "@/server/routers/admin/procedures/registration-email";
 import type { UserDialogState } from "./types";
 
-export type SendEmailRequest =
-  | { templateId: "request_more_info" | "incorrect_info" }
-  | { templateId: "generic_admin_message"; customMessage: string };
+/** The procedure's input without the recipient, which the dialog adds. */
+export type SendEmailRequest = SendRegistrationEmailInput extends infer Input
+  ? Input extends unknown
+    ? Omit<Input, "userId">
+    : never
+  : never;
 
 interface SendEmailDialogProps {
   dialog: UserDialogState;
@@ -91,7 +95,7 @@ function SendEmailForm({
     !isSending &&
     (!isCustom ||
       (customMessage.trim().length > 0 &&
-        customMessage.length <= MAX_CUSTOM_MESSAGE_LENGTH));
+        customMessage.trim().length <= MAX_CUSTOM_MESSAGE_LENGTH));
 
   return (
     <form

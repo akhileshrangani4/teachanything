@@ -8,7 +8,9 @@ export {
   sendAccountEnabledEmail,
   sendAccountDeletedEmail,
   sendPasswordResetEmail,
+} from "./notifications";
+export {
   sendRequestMoreInfoEmail,
   sendIncorrectInfoEmail,
   sendGenericAdminEmail,
-} from "./notifications";
+} from "./registration-emails";

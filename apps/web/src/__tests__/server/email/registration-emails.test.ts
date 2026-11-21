@@ -35,7 +35,7 @@ const {
   sendRequestMoreInfoEmail,
   sendIncorrectInfoEmail,
   sendGenericAdminEmail,
-} = await import("@/server/email/notifications");
+} = await import("@/server/email/registration-emails");
 const { REGISTRATION_EMAIL_TEMPLATES } =
   await import("@/lib/registration-email-templates");
 

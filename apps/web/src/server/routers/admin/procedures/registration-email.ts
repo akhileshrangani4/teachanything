@@ -9,7 +9,10 @@ import {
   sendIncorrectInfoEmail,
   sendGenericAdminEmail,
 } from "@/server/email";
-import { MAX_CUSTOM_MESSAGE_LENGTH } from "@/lib/registration-email-templates";
+import {
+  MAX_CUSTOM_MESSAGE_LENGTH,
+  REGISTRATION_EMAIL_TEMPLATE_IDS,
+} from "@/lib/registration-email-templates";
 import { requireExistingUser } from "../helpers";
 
 // Better Auth uses nanoid ids, not UUIDs.
@@ -35,22 +38,22 @@ export const sendRegistrationEmailInputSchema = z.discriminatedUnion(
   ],
 );
 
+export type SendRegistrationEmailInput = z.infer<
+  typeof sendRegistrationEmailInputSchema
+>;
+
 /** Courtesy cap so one pending user is not flooded with registration emails. */
 export const MAX_REGISTRATION_EMAILS_PER_USER_PER_DAY = 5;
 
-// Sends that reached, or are on their way to, the recipient. A failed QStash
-// publish writes a `failed` row and must not use up the user's allowance.
+// Sends that reached, or are on their way to, the recipient, plus ones they
+// marked as spam. A failed QStash publish writes a `failed` row and must not
+// use up the user's allowance.
 const COUNTED_DELIVERY_STATUSES = [
   "queued",
   "sent",
   "delivered",
   "delayed",
-] as const;
-
-const REGISTRATION_EMAIL_TYPES = [
-  "request_more_info",
-  "incorrect_info",
-  "generic_admin_message",
+  "complained",
 ] as const;
 
 /**
@@ -91,7 +94,9 @@ export const sendRegistrationEmailProcedure = adminProcedure
         and(
           eq(emailDeliveries.recipientEmail, recipient.email),
           gte(emailDeliveries.createdAt, since),
-          inArray(emailDeliveries.emailType, [...REGISTRATION_EMAIL_TYPES]),
+          inArray(emailDeliveries.emailType, [
+            ...REGISTRATION_EMAIL_TEMPLATE_IDS,
+          ]),
           inArray(emailDeliveries.deliveryStatus, [
             ...COUNTED_DELIVERY_STATUSES,
           ]),
