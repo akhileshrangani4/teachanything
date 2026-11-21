@@ -127,6 +127,12 @@
       "pausedTitle": "Your chatbots are paused",
       "pausedDescription": "A Teach Anything administrator has paused your chatbots, so students see \"This chatbot is currently unavailable.\" Contact admin@teachanything.ai with questions."
     },
+    "support": {
+      "title": "Support Teach Anything",
+      "description": "Teach Anything is free and open-access, run by a registered 501(c)(3) non-profit. If it helps your teaching, you can support it with a donation, or contact us about sponsorship from your department or school.",
+      "donate": "Donate",
+      "contact": "Contact us"
+    },
     "empty": {
       "title": "No chatbots yet",
       "description": "Get started by creating your first AI chatbot",
