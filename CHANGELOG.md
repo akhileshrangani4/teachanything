@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.41.0](https://github.com/akhileshrangani4/teachanything/compare/v1.40.0...v1.41.0) (2026-11-21)
+
+
+### Features
+
+* **admin:** allow custom registration emails up to 10,000 characters ([#592](https://github.com/akhileshrangani4/teachanything/issues/592)) ([1777a6f](https://github.com/akhileshrangani4/teachanything/commit/1777a6fb374c076404152d882b0f1022de8d3941))
+
 ## [1.40.0](https://github.com/akhileshrangani4/teachanything/compare/v1.39.0...v1.40.0) (2026-11-21)
 
 
