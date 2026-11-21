@@ -13,6 +13,11 @@ export const SUPPORTED_FILE_TYPES = [
   "text/markdown",
   "application/json",
   "text/csv",
+  // Images are read with OCR (see packages/ai/src/image-ocr.ts).
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/tiff",
 ] as const;
 
 /**
@@ -32,6 +37,12 @@ export const EXTENSION_MIME_MAP: Record<string, string[]> = {
   markdown: ["text/markdown"],
   json: ["application/json"],
   csv: ["text/csv"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  png: ["image/png"],
+  webp: ["image/webp"],
+  tif: ["image/tiff"],
+  tiff: ["image/tiff"],
 } as const;
 
 /**
@@ -48,6 +59,10 @@ export const FILE_TYPE_DISPLAY_NAMES: Record<string, string> = {
   "text/markdown": "Markdown",
   "application/json": "JSON",
   "text/csv": "CSV",
+  "image/jpeg": "JPEG image",
+  "image/png": "PNG image",
+  "image/webp": "WebP image",
+  "image/tiff": "TIFF image",
 };
 
 /**
