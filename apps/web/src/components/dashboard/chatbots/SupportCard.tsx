@@ -4,15 +4,15 @@ import { useTranslation } from "react-i18next";
 import { Heart, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { contactHref, getDonationUrl } from "@/lib/support-links";
+import { getDonationUrl } from "@/lib/support-links";
+import { getSupportEmail } from "@/lib/constants/support-email";
 
 /**
  * A quiet note at the foot of the chatbots list: Teach Anything is a free,
  * non-profit service, with a donate link and a contact link for professors
- * whose department or school might sponsor it. `contactEmail` is resolved on
- * the server.
+ * whose department or school might sponsor it.
  */
-export function SupportCard({ contactEmail }: { contactEmail: string }) {
+export function SupportCard() {
   const { t } = useTranslation();
 
   return (
@@ -38,7 +38,7 @@ export function SupportCard({ contactEmail }: { contactEmail: string }) {
             </a>
           </Button>
           <Button asChild size="sm" variant="outline">
-            <a href={contactHref(contactEmail)}>
+            <a href={`mailto:${getSupportEmail()}`}>
               <Mail className="h-4 w-4" />
               {t("chatbots.support.contact")}
             </a>
