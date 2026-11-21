@@ -70,14 +70,19 @@ export function PendingUsersTab() {
     setApproveDialog,
     rejectDialog,
     setRejectDialog,
+    sendEmailDialog,
+    setSendEmailDialog,
     isApproving,
     isRejecting,
+    isSendingEmail,
     approveError,
     rejectError,
     handleApprove,
     handleReject,
+    handleSendEmail,
     confirmApprove,
     confirmReject,
+    confirmSendEmail,
   } = usePendingUsersActions({
     totalCount,
     currentPage: state.page,
@@ -234,6 +239,7 @@ export function PendingUsersTab() {
                         onOpenDetails={openUserDetails}
                         onApprove={handleApprove}
                         onReject={handleReject}
+                        onSendEmail={handleSendEmail}
                       />
                     ))}
                   </TableBody>
@@ -256,14 +262,18 @@ export function PendingUsersTab() {
       <PendingUsersDialogs
         approveDialog={approveDialog}
         rejectDialog={rejectDialog}
+        sendEmailDialog={sendEmailDialog}
         detailsDialog={detailsDialog}
         onCloseApprove={() => setApproveDialog(EMPTY_USER_DIALOG)}
         onCloseReject={() => setRejectDialog(EMPTY_USER_DIALOG)}
+        onCloseSendEmail={() => setSendEmailDialog(EMPTY_USER_DIALOG)}
         onCloseDetails={() => setDetailsDialog({ isOpen: false, user: null })}
         onConfirmApprove={confirmApprove}
         onConfirmReject={confirmReject}
+        onConfirmSendEmail={confirmSendEmail}
         isApproving={isApproving}
         isRejecting={isRejecting}
+        isSendingEmail={isSendingEmail}
       />
     </>
   );

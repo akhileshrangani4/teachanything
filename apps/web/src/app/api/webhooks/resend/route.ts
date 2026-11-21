@@ -198,7 +198,9 @@ export async function POST(req: NextRequest) {
         lastEventAt: new Date(event.created_at),
         updatedAt: new Date(),
         ...(event.data.bounce && {
-          metadata: { bounce: event.data.bounce },
+          // Merge, not replace: the row may carry an audit trail (who sent
+          // an admin-written email, and what it said) that a bounce must keep.
+          metadata: sql`coalesce(${emailDeliveries.metadata}, '{}'::jsonb) || ${JSON.stringify({ bounce: event.data.bounce })}::jsonb`,
           errorMessage: event.data.bounce.message,
         }),
       })
