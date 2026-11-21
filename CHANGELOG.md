@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.40.0](https://github.com/akhileshrangani4/teachanything/compare/v1.39.0...v1.40.0) (2026-11-21)
+
+
+### Features
+
+* **admin:** add registration email templates and admin email actions ([#340](https://github.com/akhileshrangani4/teachanything/issues/340)) ([92610db](https://github.com/akhileshrangani4/teachanything/commit/92610db0807bde2d0a2f1531678b29a8cf8919ca))
+* daily limit heads-up emails and a Support Teach Anything card ([#591](https://github.com/akhileshrangani4/teachanything/issues/591)) ([a586a17](https://github.com/akhileshrangani4/teachanything/commit/a586a171180b35de4c4477757c62cd3b1e449d88))
+* **files:** add OCR for image uploads (phase 1 of [#126](https://github.com/akhileshrangani4/teachanything/issues/126)) ([#561](https://github.com/akhileshrangani4/teachanything/issues/561)) ([8d9cd8f](https://github.com/akhileshrangani4/teachanything/commit/8d9cd8f076e190953131a02ee860032e5ed6c422))
+
+
+### Documentation
+
+* **students:** rename the sources heading to "your guidance" ([#589](https://github.com/akhileshrangani4/teachanything/issues/589)) ([7c34e30](https://github.com/akhileshrangani4/teachanything/commit/7c34e306946e809859c3cef29abff8fd27911d93))
+
 ## [1.39.0](https://github.com/akhileshrangani4/teachanything/compare/v1.38.0...v1.39.0) (2026-11-18)
 
 

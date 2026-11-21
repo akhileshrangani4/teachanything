@@ -127,6 +127,12 @@
       "pausedTitle": "Your chatbots are paused",
       "pausedDescription": "A Teach Anything administrator has paused your chatbots, so students see \"This chatbot is currently unavailable.\" Contact admin@teachanything.ai with questions."
     },
+    "support": {
+      "title": "Support Teach Anything",
+      "description": "Teach Anything is free and open-access, run by a registered 501(c)(3) non-profit. If it helps your teaching, you can support it with a donation, or contact us about sponsorship from your department or school.",
+      "donate": "Donate",
+      "contact": "Contact us"
+    },
     "empty": {
       "title": "No chatbots yet",
       "description": "Get started by creating your first AI chatbot",
@@ -365,9 +371,9 @@
     "upload": {
       "trigger": "Upload File",
       "title": "Upload Files",
-      "description": "Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV files (max {maxMb, number}MB each)",
+      "description": "Upload one or more PDF, Word, PowerPoint, TXT, Markdown, JSON, CSV, or image files (max {maxMb, number}MB each)",
       "dropzone": "<click>Click to upload</click> or drag and drop",
-      "formats": "PDF, Word, PowerPoint, TXT, Markdown, JSON, or CSV (max {maxMb, number}MB each)",
+      "formats": "PDF, Word, PowerPoint, TXT, Markdown, JSON, CSV, or images (max {maxMb, number}MB each)",
       "multipleHint": "You can select multiple files",
       "submit": "{count, plural, =0 {Upload} other {Upload (#)}}",
       "uploading": "Uploading...",
@@ -378,7 +384,7 @@
       "scrollHint": "Scroll to see all files",
       "emptyFile": "Cannot upload empty file",
       "tooLarge": "File size ({sizeMb, number}MB) exceeds the {maxMb, number}MB limit",
-      "unsupportedType": "File type \"{type}\" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, or CSV files.",
+      "unsupportedType": "File type \"{type}\" is not supported. Please upload PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV, or image (JPEG, PNG, WebP, TIFF) files.",
       "duplicateName": "A file with the name \"{name}\" already exists. Please rename your file or delete the existing one.",
       "fileError": "{name}: {error}",
       "duplicateInSelection": "Duplicate file in selection",
@@ -1338,7 +1344,7 @@
       "failedToProcess": "This file failed to process. Please re-upload the file or check the file status on the Files page.",
       "sizeMismatch": "File size mismatch. Expected {expected, number} bytes, got {actual, number} bytes. Upload may have been corrupted.",
       "notInStorage": "File was not found in storage. Upload may have failed.",
-      "unsupportedType": "Unsupported file type: {type}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV",
+      "unsupportedType": "Unsupported file type: {type}. Supported types: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV, and images (JPEG, PNG, WebP, TIFF)",
       "tooLarge": "File size exceeds {maxMb, number}MB limit. Current file size: {sizeMb, number}MB",
       "extensionMismatch": "File extension (.{extension}) does not match file type ({type}). This may indicate a renamed or corrupted file.",
       "retryNotAllowed": "Can only retry failed, stuck, or processing files",

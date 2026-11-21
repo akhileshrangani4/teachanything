@@ -4,30 +4,40 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { UserDetailsDialog } from "../../components/UserDetailsDialog";
 import type { UserDetailsDialogState } from "../../types/user-details";
 import { type UserDialogState } from "./types";
+import { SendEmailDialog, type SendEmailRequest } from "./send-email-dialog";
 
-// Approve / reject confirmations plus the shared user details dialog.
+// Approve / reject confirmations, the send-email dialog, and the shared user
+// details dialog.
 export function PendingUsersDialogs({
   approveDialog,
   rejectDialog,
+  sendEmailDialog,
   detailsDialog,
   onCloseApprove,
   onCloseReject,
+  onCloseSendEmail,
   onCloseDetails,
   onConfirmApprove,
   onConfirmReject,
+  onConfirmSendEmail,
   isApproving,
   isRejecting,
+  isSendingEmail,
 }: {
   approveDialog: UserDialogState;
   rejectDialog: UserDialogState;
+  sendEmailDialog: UserDialogState;
   detailsDialog: UserDetailsDialogState;
   onCloseApprove: () => void;
   onCloseReject: () => void;
+  onCloseSendEmail: () => void;
   onCloseDetails: () => void;
   onConfirmApprove: () => void;
   onConfirmReject: () => void;
+  onConfirmSendEmail: (request: SendEmailRequest) => void;
   isApproving: boolean;
   isRejecting: boolean;
+  isSendingEmail: boolean;
 }) {
   return (
     <>
@@ -66,6 +76,13 @@ export function PendingUsersDialogs({
         confirmText="Reject"
         variant="destructive"
         loading={isRejecting}
+      />
+
+      <SendEmailDialog
+        dialog={sendEmailDialog}
+        onClose={onCloseSendEmail}
+        onSend={onConfirmSendEmail}
+        isSending={isSendingEmail}
       />
 
       {/* User Details Dialog */}

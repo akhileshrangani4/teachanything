@@ -48,6 +48,10 @@ export const emailTypeEnum = pgEnum("email_type", [
   "account_enabled",
   "account_deleted",
   "password_reset",
+  "daily_limit_warning",
+  "request_more_info",
+  "incorrect_info",
+  "generic_admin_message",
 ]);
 
 export const crawlStatusEnum = pgEnum("crawl_status", [
@@ -550,6 +554,11 @@ export const emailDeliveries = pgTable(
   },
   (table) => [
     index("email_deliveries_resend_message_id_idx").on(table.resendMessageId),
+    // Per-recipient lookups: the registration email cap and account deletion.
+    index("email_deliveries_recipient_created_idx").on(
+      table.recipientEmail,
+      table.createdAt,
+    ),
   ],
 );
 

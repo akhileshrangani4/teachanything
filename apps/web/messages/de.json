@@ -127,6 +127,12 @@
       "pausedTitle": "Ihre Chatbots sind pausiert",
       "pausedDescription": "Ein Teach Anything-Administrator hat Ihre Chatbots pausiert, daher sehen Studierende „Dieser Chatbot ist derzeit nicht verfügbar.“ Bei Fragen wenden Sie sich an admin@teachanything.ai."
     },
+    "support": {
+      "title": "Teach Anything unterstützen",
+      "description": "Teach Anything ist kostenlos und frei zugänglich und wird von einer eingetragenen gemeinnützigen 501(c)(3)-Organisation betrieben. Wenn es Ihnen in der Lehre hilft, können Sie es mit einer Spende unterstützen oder uns wegen eines Sponsorings durch Ihr Institut oder Ihre Hochschule kontaktieren.",
+      "donate": "Spenden",
+      "contact": "Kontakt aufnehmen"
+    },
     "empty": {
       "title": "Noch keine Chatbots",
       "description": "Erstellen Sie zunächst Ihren ersten KI-Chatbot",
@@ -365,9 +371,9 @@
     "upload": {
       "trigger": "Datei hochladen",
       "title": "Dateien hochladen",
-      "description": "Laden Sie eine oder mehrere PDF-, Word-, PowerPoint-, TXT-, Markdown-, JSON- oder CSV-Dateien hoch (max. {maxMb, number} MB pro Datei)",
+      "description": "Laden Sie eine oder mehrere PDF-, Word-, PowerPoint-, TXT-, Markdown-, JSON-, CSV- oder Bilddateien hoch (max. {maxMb, number} MB pro Datei)",
       "dropzone": "<click>Zum Hochladen klicken</click> oder per Drag-and-drop ablegen",
-      "formats": "PDF, Word, PowerPoint, TXT, Markdown, JSON oder CSV (max. {maxMb, number} MB pro Datei)",
+      "formats": "PDF, Word, PowerPoint, TXT, Markdown, JSON, CSV oder Bilder (max. {maxMb, number} MB pro Datei)",
       "multipleHint": "Sie können mehrere Dateien auswählen",
       "submit": "{count, plural, =0 {Hochladen} other {Hochladen (#)}}",
       "uploading": "Wird hochgeladen…",
@@ -378,7 +384,7 @@
       "scrollHint": "Scrollen Sie, um alle Dateien zu sehen",
       "emptyFile": "Leere Dateien können nicht hochgeladen werden",
       "tooLarge": "Die Dateigröße ({sizeMb, number} MB) überschreitet das Limit von {maxMb, number} MB",
-      "unsupportedType": "Der Dateityp „{type}“ wird nicht unterstützt. Laden Sie PDF-, Word- (.doc, .docx), PowerPoint- (.pptx), Text-, Markdown-, JSON- oder CSV-Dateien hoch.",
+      "unsupportedType": "Der Dateityp „{type}“ wird nicht unterstützt. Laden Sie PDF-, Word- (.doc, .docx), PowerPoint- (.pptx), Text-, Markdown-, JSON-, CSV- oder Bilddateien (JPEG, PNG, WebP, TIFF) hoch.",
       "duplicateName": "Eine Datei mit dem Namen „{name}“ ist bereits vorhanden. Benennen Sie Ihre Datei um oder löschen Sie die vorhandene Datei.",
       "fileError": "{name}: {error}",
       "duplicateInSelection": "Doppelte Datei in der Auswahl",
@@ -1338,7 +1344,7 @@
       "failedToProcess": "Diese Datei konnte nicht verarbeitet werden. Laden Sie die Datei erneut hoch oder prüfen Sie ihren Status auf der Seite „Dateien“.",
       "sizeMismatch": "Die Dateigröße stimmt nicht überein: {expected, number} Byte erwartet, {actual, number} Byte erhalten. Der Upload ist möglicherweise beschädigt.",
       "notInStorage": "Die Datei wurde im Speicher nicht gefunden. Der Upload ist möglicherweise fehlgeschlagen.",
-      "unsupportedType": "Nicht unterstützter Dateityp: {type}. Unterstützte Typen: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV",
+      "unsupportedType": "Nicht unterstützter Dateityp: {type}. Unterstützte Typen: PDF, Word (.doc, .docx), PowerPoint (.pptx), Text, Markdown, JSON, CSV und Bilder (JPEG, PNG, WebP, TIFF)",
       "tooLarge": "Die Dateigröße überschreitet das Limit von {maxMb, number} MB. Aktuelle Dateigröße: {sizeMb, number} MB",
       "extensionMismatch": "Die Dateiendung (.{extension}) passt nicht zum Dateityp ({type}). Die Datei wurde möglicherweise umbenannt oder ist beschädigt.",
       "retryNotAllowed": "Nur fehlgeschlagene, hängende oder in Verarbeitung befindliche Dateien können erneut verarbeitet werden",

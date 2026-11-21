@@ -127,6 +127,12 @@
       "pausedTitle": "Sus chatbots están en pausa",
       "pausedDescription": "Un administrador de Teach Anything ha pausado sus chatbots, así que los estudiantes ven \"Este chatbot no está disponible en este momento.\" Escriba a admin@teachanything.ai si tiene preguntas."
     },
+    "support": {
+      "title": "Apoye a Teach Anything",
+      "description": "Teach Anything es gratuito y de acceso abierto, y lo gestiona una organización sin fines de lucro registrada como 501(c)(3). Si le resulta útil en su docencia, puede apoyarlo con una donación o contactarnos para hablar de un patrocinio de su departamento o institución.",
+      "donate": "Donar",
+      "contact": "Contáctenos"
+    },
     "empty": {
       "title": "Todavía no hay chatbots",
       "description": "Empiece por crear su primer chatbot de IA",
@@ -365,9 +371,9 @@
     "upload": {
       "trigger": "Subir archivo",
       "title": "Subir archivos",
-      "description": "Suba uno o varios archivos PDF, Word, PowerPoint, TXT, Markdown, JSON o CSV (máx. {maxMb, number} MB cada uno)",
+      "description": "Suba uno o varios archivos PDF, Word, PowerPoint, TXT, Markdown, JSON, CSV o de imagen (máx. {maxMb, number} MB cada uno)",
       "dropzone": "<click>Haga clic para subir</click> o arrastre y suelte",
-      "formats": "PDF, Word, PowerPoint, TXT, Markdown, JSON o CSV (máx. {maxMb, number} MB cada uno)",
+      "formats": "PDF, Word, PowerPoint, TXT, Markdown, JSON, CSV o imágenes (máx. {maxMb, number} MB cada uno)",
       "multipleHint": "Puede seleccionar varios archivos",
       "submit": "{count, plural, =0 {Subir} other {Subir (#)}}",
       "uploading": "Subiendo…",
@@ -378,7 +384,7 @@
       "scrollHint": "Desplácese para ver todos los archivos",
       "emptyFile": "No se puede subir un archivo vacío",
       "tooLarge": "El tamaño del archivo ({sizeMb, number} MB) supera el límite de {maxMb, number} MB",
-      "unsupportedType": "El tipo de archivo «{type}» no es compatible. Suba archivos PDF, Word (.doc, .docx), PowerPoint (.pptx), de texto, Markdown, JSON o CSV.",
+      "unsupportedType": "El tipo de archivo «{type}» no es compatible. Suba archivos PDF, Word (.doc, .docx), PowerPoint (.pptx), de texto, Markdown, JSON, CSV o de imagen (JPEG, PNG, WebP, TIFF).",
       "duplicateName": "Ya existe un archivo con el nombre «{name}». Cambie el nombre de su archivo o elimine el existente.",
       "fileError": "{name}: {error}",
       "duplicateInSelection": "Archivo duplicado en la selección",
@@ -1338,7 +1344,7 @@
       "failedToProcess": "No se pudo procesar este archivo. Vuelva a subirlo o revise su estado en la página Archivos.",
       "sizeMismatch": "El tamaño del archivo no coincide: se esperaban {expected, number} bytes y se recibieron {actual, number}. Es posible que la subida esté dañada.",
       "notInStorage": "No se encontró el archivo en el almacenamiento. Es posible que la subida haya fallado.",
-      "unsupportedType": "Tipo de archivo no compatible: {type}. Tipos compatibles: PDF, Word (.doc, .docx), PowerPoint (.pptx), texto, Markdown, JSON, CSV",
+      "unsupportedType": "Tipo de archivo no compatible: {type}. Tipos compatibles: PDF, Word (.doc, .docx), PowerPoint (.pptx), texto, Markdown, JSON, CSV e imágenes (JPEG, PNG, WebP, TIFF)",
       "tooLarge": "El tamaño del archivo supera el límite de {maxMb, number} MB. Tamaño actual: {sizeMb, number} MB",
       "extensionMismatch": "La extensión del archivo (.{extension}) no coincide con su tipo ({type}). Es posible que se haya cambiado el nombre del archivo o que esté dañado.",
       "retryNotAllowed": "Solo se pueden reintentar archivos con errores, atascados o en procesamiento",

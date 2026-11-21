@@ -3,7 +3,14 @@
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, CheckCircle, XCircle, Eye, MoreHorizontal } from "lucide-react";
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Mail,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +21,7 @@ import {
 import { UserAvatarCell, UserEmailCell } from "../../components/UserCells";
 import type { PendingUser } from "./types";
 
-// A single pending user row: identity cells plus approve/reject actions
+// A single pending user row: identity cells plus email/approve/reject actions
 // rendered as buttons (desktop) or a dropdown menu (mobile).
 export function PendingUserRow({
   user,
@@ -22,12 +29,14 @@ export function PendingUserRow({
   onOpenDetails,
   onApprove,
   onReject,
+  onSendEmail,
 }: {
   user: PendingUser;
   isAnyActionPending: boolean;
   onOpenDetails: (user: PendingUser) => void;
   onApprove: (userId: string, userName: string, userEmail: string) => void;
   onReject: (userId: string, userName: string, userEmail: string) => void;
+  onSendEmail: (userId: string, userName: string, userEmail: string) => void;
 }) {
   return (
     <TableRow className="hover:bg-muted/50 transition-colors">
@@ -69,6 +78,17 @@ export function PendingUserRow({
           >
             <Eye className="h-4 w-4" />
             Details
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              onSendEmail(user.id, user.name || "User", user.email)
+            }
+            className="gap-2"
+          >
+            <Mail className="h-4 w-4" />
+            Email
           </Button>
           <Button
             size="sm"
@@ -116,6 +136,15 @@ export function PendingUserRow({
               >
                 <Eye className="h-4 w-4 mr-2" />
                 Details
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  onSendEmail(user.id, user.name || "User", user.email)
+                }
+                className="cursor-pointer"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Send email
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

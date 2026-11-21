@@ -17,6 +17,7 @@ import { keepPreviousData } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { serverErrorMessage } from "@/lib/server-error-message";
 import { DailyUsageCard } from "@/components/dashboard/chatbots/DailyUsageCard";
+import { SupportCard } from "@/components/dashboard/chatbots/SupportCard";
 
 const ITEMS_PER_PAGE = 4;
 
@@ -190,6 +191,7 @@ export default function ChatbotsPage() {
                 )}
               </>
             )}
+            <SupportCard />
           </div>
         )}
       </div>

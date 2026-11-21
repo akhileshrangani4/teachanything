@@ -169,6 +169,20 @@
       "when": 1794963669018,
       "tag": "0023_daily_message_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795225575490,
+      "tag": "0024_daily_limit_warning_email",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795227180251,
+      "tag": "0025_registration_emails",
+      "breakpoints": true
     }
   ]
 }
