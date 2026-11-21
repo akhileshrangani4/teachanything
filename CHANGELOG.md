@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.41.1](https://github.com/akhileshrangani4/teachanything/compare/v1.41.0...v1.41.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **admin:** make the header language menu work in the admin panel ([#594](https://github.com/akhileshrangani4/teachanything/issues/594)) ([004916a](https://github.com/akhileshrangani4/teachanything/commit/004916ae5d872a883a3cd294769f9a6db9a993c5))
+
 ## [1.41.0](https://github.com/akhileshrangani4/teachanything/compare/v1.40.0...v1.41.0) (2026-11-21)
 
 
