@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MAX_FILE_SIZE } from "./file-constants";
+import { ALLOWED_EXTENSIONS, MAX_FILE_SIZE } from "./file-constants";
 import { useUploadQueue } from "./upload-file-dialog/use-upload-queue";
 import { SelectedFileList } from "./upload-file-dialog/selected-file-list";
 import { UploadSummary } from "./upload-file-dialog/upload-summary";
@@ -97,7 +97,7 @@ export function UploadFileDialog({
               type="file"
               ref={fileInputRef}
               onChange={handleInputChange}
-              accept=".pdf,.doc,.docx,.pptx,.txt,.md,.json,.csv"
+              accept={ALLOWED_EXTENSIONS.join(",")}
               multiple
               className="hidden"
             />

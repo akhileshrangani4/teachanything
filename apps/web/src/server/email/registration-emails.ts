@@ -3,7 +3,9 @@ import { IncorrectInfo } from "@/components/emails/IncorrectInfo";
 import { GenericAdminMessage } from "@/components/emails/GenericAdminMessage";
 import { REGISTRATION_EMAIL_TEMPLATES } from "@/lib/registration-email-templates";
 import { queueEmail } from "./delivery";
-import { supportEmail } from "./notifications";
+import { getAdminContactEmail } from "./support-email";
+
+const supportEmail = getAdminContactEmail();
 
 /**
  * Registration emails an admin sends to a pending user from the admin

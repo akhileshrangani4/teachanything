@@ -219,16 +219,16 @@ export function easternDateKey(now: Date): string {
 }
 
 /** Whose daily count a message is charged to. */
-type DailyCountScope = "chatbot" | "owner";
+export type DailyCountScope = "chatbot" | "owner";
 
-/** Add one to a scope's count for `date`; whether it is still within `limit`. */
+/** Add one to a scope's count for `date` and return the new count. */
 async function incrementDailyCount(
   client: Redis,
   scope: DailyCountScope,
   id: string,
   limit: number,
   date: string,
-): Promise<boolean> {
+): Promise<number> {
   const key = `@ratelimit/${scope}-daily:${id}:${date}`;
   const [count] = await client
     .pipeline()
@@ -239,8 +239,19 @@ async function incrementDailyCount(
   if (count === limit + 1) {
     logWarn("Daily message limit reached", { scope, id, limit });
   }
-  return count <= limit;
+  return count;
 }
+
+/**
+ * Whether a message was admitted, and, when it was, the counts it brought
+ * each scope to (absent when Redis is unconfigured or erroring).
+ */
+export type DailyMessageResult = {
+  isAllowed: boolean;
+  counts?: { chatbot: number; owner: number };
+  /** The Eastern date the message was counted on. */
+  date: string;
+};
 
 /**
  * Count one student message against its chatbot's daily limit and its
@@ -262,33 +273,60 @@ export async function consumeDailyMessage(
   chatbot: { id: string; ownerId: string },
   limits: { chatbot: number; owner: number },
   now: Date = new Date(),
-): Promise<boolean> {
-  if (!redis) return true;
-
+): Promise<DailyMessageResult> {
   const date = easternDateKey(now);
+  if (!redis) return { isAllowed: true, date };
+
   try {
-    const withinChatbotLimit = await incrementDailyCount(
+    const chatbotCount = await incrementDailyCount(
       redis,
       "chatbot",
       chatbot.id,
       limits.chatbot,
       date,
     );
-    if (!withinChatbotLimit) return false;
-    return await incrementDailyCount(
+    if (chatbotCount > limits.chatbot) return { isAllowed: false, date };
+    const ownerCount = await incrementDailyCount(
       redis,
       "owner",
       chatbot.ownerId,
       limits.owner,
       date,
     );
+    if (ownerCount > limits.owner) return { isAllowed: false, date };
+    return {
+      isAllowed: true,
+      counts: { chatbot: chatbotCount, owner: ownerCount },
+      date,
+    };
   } catch (err) {
     logWarn("Daily message limit check failed; allowing message", {
       chatbotId: chatbot.id,
       error: err instanceof Error ? err.message : String(err),
     });
-    return true;
+    return { isAllowed: true, date };
   }
+}
+
+/**
+ * Claim the one heads-up email allowed per (scope, id, threshold, Eastern
+ * day). `SET NX` makes concurrent requests race for a single winner, so a
+ * warning is never sent twice. False when already claimed, or when Redis is
+ * unconfigured (no counts, so nothing to warn about).
+ */
+export async function claimLimitWarning(
+  scope: DailyCountScope,
+  id: string,
+  threshold: number,
+  date: string,
+): Promise<boolean> {
+  if (!redis) return false;
+  const key = `@ratelimit/limit-warning:${scope}:${id}:${threshold}:${date}`;
+  const result = await redis.set(key, 1, {
+    nx: true,
+    ex: DAILY_COUNT_TTL_SECONDS,
+  });
+  return result === "OK";
 }
 
 /** Deny result used when a rate limiter is unavailable and we fail closed. */

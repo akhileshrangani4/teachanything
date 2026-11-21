@@ -1,5 +1,5 @@
 {
-  "id": "16af9fd4-4e96-4b41-99dd-71d886baa539",
+  "id": "832fdb79-b96a-49f5-bdec-f2b4d741f0fa",
   "prevId": "4ae0aafe-92e2-426d-a455-56b9550ab260",
   "version": "7",
   "dialect": "postgresql",
@@ -1204,27 +1204,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "email_deliveries_recipient_created_idx": {
-          "name": "email_deliveries_recipient_created_idx",
-          "columns": [
-            {
-              "expression": "recipient_email",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {},
@@ -2124,9 +2103,7 @@
         "account_enabled",
         "account_deleted",
         "password_reset",
-        "request_more_info",
-        "incorrect_info",
-        "generic_admin_message"
+        "daily_limit_warning"
       ]
     },
     "public.message_rating": {

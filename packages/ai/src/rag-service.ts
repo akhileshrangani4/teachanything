@@ -1,6 +1,7 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { logWarn, logError } from "@teachanything/logger";
 import { assertFileSignature } from "./file-signature";
+import { recognizeImageText } from "./image-ocr";
 import type { OpenRouterClient } from "./openrouter-client";
 import { CHARS_PER_TOKEN } from "./token-budget";
 
@@ -97,6 +98,12 @@ export class RAGService {
 
         case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
           return await this.extractPowerPoint(buffer);
+
+        case "image/jpeg":
+        case "image/png":
+        case "image/webp":
+        case "image/tiff":
+          return await this.extractImage(buffer, mimeType);
 
         case "application/vnd.ms-powerpoint":
           throw new Error(
@@ -211,6 +218,25 @@ export class RAGService {
 
     if (!sanitizedText) {
       throw new Error("Word document contains no readable text content");
+    }
+
+    return sanitizedText;
+  }
+
+  /**
+   * Extract text from an image with OCR. Images are one "page" with no page
+   * boundaries, so they are chunked like Word documents (no pageNumber).
+   */
+  private async extractImage(
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<string> {
+    const sanitizedText = this.sanitizeText(
+      await recognizeImageText(buffer, mimeType),
+    );
+
+    if (!sanitizedText) {
+      throw new Error("Image contains no readable text content");
     }
 
     return sanitizedText;

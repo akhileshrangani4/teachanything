@@ -1,4 +1,5 @@
 import { env, getAdminEmails } from "@/lib/env";
+import { getAdminContactEmail } from "./support-email";
 import { logInfo, logError } from "@/lib/logger";
 import { db } from "@teachanything/db";
 import { user } from "@teachanything/db/schema";
@@ -15,10 +16,7 @@ import { PasswordReset } from "@/components/emails/PasswordReset";
 import { queueEmail } from "./delivery";
 
 // Support email - computed once at module load
-export const supportEmail =
-  env.NEXT_PUBLIC_CONTACT_EMAIL ||
-  getAdminEmails()[0] ||
-  "no admin email found";
+const supportEmail = getAdminContactEmail();
 
 /**
  * Get admin emails from the database.

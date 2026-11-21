@@ -14,10 +14,15 @@ const pipeline = {
   exec: () => exec(),
 };
 
+const set = jest.fn<() => Promise<"OK" | null>>();
+
 jest.unstable_mockModule("@upstash/redis", () => ({
   Redis: class {
     pipeline() {
       return pipeline;
+    }
+    set(...args: unknown[]) {
+      return (set as (...a: unknown[]) => Promise<"OK" | null>)(...args);
     }
   },
 }));
@@ -31,7 +36,7 @@ jest.unstable_mockModule("@/lib/env", () => ({
 const logWarn = jest.fn();
 jest.unstable_mockModule("@/lib/logger", () => ({ logWarn }));
 
-const { consumeDailyMessage, easternDateKey } =
+const { consumeDailyMessage, easternDateKey, claimLimitWarning } =
   await import("@/server/rate-limit");
 
 describe("easternDateKey", () => {
@@ -77,25 +82,31 @@ describe("consumeDailyMessage", () => {
     expect(expire).toHaveBeenCalledWith(ownerKey, 48 * 60 * 60);
   });
 
-  it("allows messages up to and including both limits", async () => {
+  it("allows messages up to and including both limits, with their counts", async () => {
     counts(150, 300);
-    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(true);
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toEqual({
+      isAllowed: true,
+      counts: { chatbot: 150, owner: 300 },
+      date: "2026-11-17",
+    });
     expect(logWarn).not.toHaveBeenCalled();
   });
 
   it("refuses past the chatbot limit without charging the owner", async () => {
     counts(151);
-    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(
-      false,
-    );
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toEqual({
+      isAllowed: false,
+      date: "2026-11-17",
+    });
     expect(incr.mock.calls).toEqual([[chatbotKey]]);
   });
 
   it("refuses past the owner limit", async () => {
     counts(10, 301);
-    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(
-      false,
-    );
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toEqual({
+      isAllowed: false,
+      date: "2026-11-17",
+    });
   });
 
   it("logs only the first refusal of the day", async () => {
@@ -107,7 +118,33 @@ describe("consumeDailyMessage", () => {
 
   it("fails open when Redis errors", async () => {
     exec.mockRejectedValue(new Error("ECONNREFUSED"));
-    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toBe(true);
+    await expect(consumeDailyMessage(chatbot, limits, now)).resolves.toEqual({
+      isAllowed: true,
+      date: "2026-11-17",
+    });
     expect(logWarn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("claimLimitWarning", () => {
+  beforeEach(() => set.mockReset());
+
+  it("claims the day's slot with SET NX and a 48h expiry", async () => {
+    set.mockResolvedValue("OK");
+    await expect(
+      claimLimitWarning("chatbot", "bot-1", 80, "2026-11-17"),
+    ).resolves.toBe(true);
+    expect(set).toHaveBeenCalledWith(
+      "@ratelimit/limit-warning:chatbot:bot-1:80:2026-11-17",
+      1,
+      { nx: true, ex: 48 * 60 * 60 },
+    );
+  });
+
+  it("reports an already claimed slot as not claimed", async () => {
+    set.mockResolvedValue(null);
+    await expect(
+      claimLimitWarning("owner", "owner-1", 100, "2026-11-17"),
+    ).resolves.toBe(false);
   });
 });

@@ -48,6 +48,7 @@ export const emailTypeEnum = pgEnum("email_type", [
   "account_enabled",
   "account_deleted",
   "password_reset",
+  "daily_limit_warning",
   "request_more_info",
   "incorrect_info",
   "generic_admin_message",
