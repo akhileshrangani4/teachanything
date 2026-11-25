@@ -10,7 +10,9 @@ import {
 import {
   getOwnerUsage,
   NO_USAGE,
-  ownerTodayCountSql,
+  ownerUsageCountSql,
+  USAGE_SORT_KEYS,
+  USAGE_SORT_WINDOWS,
 } from "@/server/queries/message-usage";
 
 /**
@@ -49,12 +51,18 @@ export const getPendingUsersProcedure = adminProcedure
     const totalCount = Number(totalCountResult?.count || 0);
 
     // Build sort order
+    const sortBy = input.sortBy;
     const sortColumn =
-      input.sortBy === "name"
-        ? user.name
-        : input.sortBy === "email"
-          ? user.email
-          : user.createdAt;
+      sortBy in USAGE_SORT_WINDOWS
+        ? ownerUsageCountSql(
+            user.id,
+            USAGE_SORT_WINDOWS[sortBy as keyof typeof USAGE_SORT_WINDOWS],
+          )
+        : sortBy === "name"
+          ? user.name
+          : input.sortBy === "email"
+            ? user.email
+            : user.createdAt;
     const orderBy =
       input.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);
 
@@ -103,7 +111,14 @@ export const getAllUsersProcedure = adminProcedure
       offset: z.number().min(0).default(0),
       search: z.string().max(200).optional(),
       sortBy: z
-        .enum(["name", "email", "role", "status", "createdAt", "usageToday"])
+        .enum([
+          "name",
+          "email",
+          "role",
+          "status",
+          "createdAt",
+          ...USAGE_SORT_KEYS,
+        ])
         .default("usageToday"),
       sortDir: z.enum(["asc", "desc"]).default("desc"),
     }),
@@ -128,17 +143,21 @@ export const getAllUsersProcedure = adminProcedure
     const totalCount = Number(totalCountResult?.count || 0);
 
     // Build sort order
+    const sortBy = input.sortBy;
     const sortColumn =
-      input.sortBy === "name"
-        ? user.name
-        : input.sortBy === "email"
-          ? user.email
-          : input.sortBy === "role"
-            ? user.role
-            : input.sortBy === "status"
-              ? user.status
-              : input.sortBy === "usageToday"
-                ? ownerTodayCountSql(user.id)
+      sortBy in USAGE_SORT_WINDOWS
+        ? ownerUsageCountSql(
+            user.id,
+            USAGE_SORT_WINDOWS[sortBy as keyof typeof USAGE_SORT_WINDOWS],
+          )
+        : sortBy === "name"
+          ? user.name
+          : input.sortBy === "email"
+            ? user.email
+            : input.sortBy === "role"
+              ? user.role
+              : input.sortBy === "status"
+                ? user.status
                 : user.createdAt;
     const orderBy =
       input.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);

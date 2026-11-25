@@ -77,31 +77,58 @@ export async function getOwnerUsage(
   return toUsageMap(rows);
 }
 
+/** The windows the admin lists can sort by, matching `MessageUsage`. */
+export type UsageWindow = keyof MessageUsage;
+
+function windowStart(window: UsageWindow) {
+  return window === "today"
+    ? easternDayStart
+    : window === "last7Days"
+      ? sql`now() at time zone 'UTC' - interval '7 days'`
+      : sql`now() at time zone 'UTC' - interval '30 days'`;
+}
+
 /**
- * Today's student message count for the chatbot in `chatbotId`, as a
+ * The chatbot in `chatbotId`'s student message count over `window`, as a
  * correlated subquery the admin lists can sort by.
  */
-export function chatbotTodayCountSql(chatbotId: AnyColumn) {
+export function chatbotUsageCountSql(
+  chatbotId: AnyColumn,
+  window: UsageWindow,
+) {
   return sql<number>`(
     select count(*) from ${messages}
     join ${conversations} on ${conversations.id} = ${messages.conversationId}
     where ${conversations.chatbotId} = ${chatbotId}
       and ${messages.role} = 'user'
-      and ${messages.createdAt} >= ${easternDayStart}
+      and ${messages.createdAt} >= ${windowStart(window)}
   )`;
 }
 
 /**
- * Today's student message count across all chatbots of the user in
+ * The student message count over `window` across all chatbots of the user in
  * `ownerId`, as a correlated subquery the admin lists can sort by.
  */
-export function ownerTodayCountSql(ownerId: AnyColumn) {
+export function ownerUsageCountSql(ownerId: AnyColumn, window: UsageWindow) {
   return sql<number>`(
     select count(*) from ${messages}
     join ${conversations} on ${conversations.id} = ${messages.conversationId}
     join ${chatbots} on ${chatbots.id} = ${conversations.chatbotId}
     where ${chatbots.userId} = ${ownerId}
       and ${messages.role} = 'user'
-      and ${messages.createdAt} >= ${easternDayStart}
+      and ${messages.createdAt} >= ${windowStart(window)}
   )`;
 }
+
+/** Sort keys for the usage columns, and the window each one counts. */
+export const USAGE_SORT_WINDOWS = {
+  usageToday: "today",
+  usage7Days: "last7Days",
+  usage30Days: "last30Days",
+} as const satisfies Record<string, UsageWindow>;
+
+export type UsageSortKey = keyof typeof USAGE_SORT_WINDOWS;
+export const USAGE_SORT_KEYS = Object.keys(USAGE_SORT_WINDOWS) as [
+  UsageSortKey,
+  ...UsageSortKey[],
+];

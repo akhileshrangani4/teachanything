@@ -192,6 +192,22 @@ export function AllUsersTab() {
                       >
                         Messages today
                       </SortableTableHead>
+                      <SortableTableHead
+                        column="usage7Days"
+                        currentSortBy={state.sortBy}
+                        currentSortDir={state.sortDir}
+                        onSort={actions.toggleSort}
+                      >
+                        7 days
+                      </SortableTableHead>
+                      <SortableTableHead
+                        column="usage30Days"
+                        currentSortBy={state.sortBy}
+                        currentSortDir={state.sortDir}
+                        onSort={actions.toggleSort}
+                      >
+                        30 days
+                      </SortableTableHead>
                       <TableHead className="font-semibold text-right">
                         Actions
                       </TableHead>

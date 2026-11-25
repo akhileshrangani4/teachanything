@@ -10,8 +10,11 @@ export type WebSourceSortBy =
 
 export type ChatbotSortBy = "name" | "model" | "createdAt";
 
+/** The admin lists' usage columns: today, last 7 days, last 30 days. */
+type UsageSortBy = "usageToday" | "usage7Days" | "usage30Days";
+
 export type UserSortBy =
-  "name" | "email" | "role" | "status" | "createdAt" | "usageToday";
+  "name" | "email" | "role" | "status" | "createdAt" | UsageSortBy;
 
 export type DomainSortBy = "domain" | "createdAt";
 
@@ -22,6 +25,6 @@ export type AdminChatbotSortBy =
   | "createdAt"
   | "featured"
   | "fileCount"
-  | "usageToday";
+  | UsageSortBy;
 
 export type PendingUserSortBy = "name" | "email" | "createdAt";
