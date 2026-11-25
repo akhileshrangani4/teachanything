@@ -16,6 +16,7 @@ const CHAT_ERROR_KEYS = {
   turn_in_progress: "errors.chat.turnInProgress",
   daily_limit_reached: "errors.chat.dailyLimitReached",
   chatbot_paused: "errors.chat.chatbotPaused",
+  service_unavailable: "errors.chat.serviceUnavailable",
 } as const;
 
 export type ChatErrorCode = keyof typeof CHAT_ERROR_KEYS;
