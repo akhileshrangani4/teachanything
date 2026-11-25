@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.42.0](https://github.com/akhileshrangani4/teachanything/compare/v1.41.1...v1.42.0) (2026-11-25)
+
+
+### Features
+
+* **admin:** show and sort 7-day and 30-day usage in the admin lists ([#598](https://github.com/akhileshrangani4/teachanything/issues/598)) ([4cd966f](https://github.com/akhileshrangani4/teachanything/commit/4cd966f194f35a605751d365aa9fb2e2d8228b16))
+* **chat:** tell students when the AI budget has run out ([#596](https://github.com/akhileshrangani4/teachanything/issues/596)) ([2c34521](https://github.com/akhileshrangani4/teachanything/commit/2c34521ddf7beb92ad68925d64201dc852589e62))
+
 ## [1.41.1](https://github.com/akhileshrangani4/teachanything/compare/v1.41.0...v1.41.1) (2026-11-21)
 
 

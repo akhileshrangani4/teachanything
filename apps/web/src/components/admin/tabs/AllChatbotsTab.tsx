@@ -157,8 +157,8 @@ export function AllChatbotsTab() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
+              <div className="rounded-md border overflow-x-auto">
+                <Table className="min-w-[800px]">
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <SortableTableHead
@@ -176,6 +176,22 @@ export function AllChatbotsTab() {
                         onSort={actions.toggleSort}
                       >
                         Messages today
+                      </SortableTableHead>
+                      <SortableTableHead
+                        column="usage7Days"
+                        currentSortBy={state.sortBy}
+                        currentSortDir={state.sortDir}
+                        onSort={actions.toggleSort}
+                      >
+                        7 days
+                      </SortableTableHead>
+                      <SortableTableHead
+                        column="usage30Days"
+                        currentSortBy={state.sortBy}
+                        currentSortDir={state.sortDir}
+                        onSort={actions.toggleSort}
+                      >
+                        30 days
                       </SortableTableHead>
                       <TableHead className="font-semibold">Status</TableHead>
                       <SortableTableHead

@@ -63,3 +63,37 @@ export function isTransientError(errorMessage: string): boolean {
     errorMessage.includes("Service Unavailable")
   );
 }
+
+/**
+ * OpenRouter refusing a request because the money ran out: a key or account
+ * budget hit its limit (403, "API key budget limit exceeded (monthly limit)")
+ * or the credit balance is empty (402, "Insufficient credits"). Nothing works
+ * again until an admin raises the budget or the window resets, so the student
+ * should be told that, not "try again".
+ *
+ * Reads the message, the raw response body and any wrapped cause, because the
+ * AI SDK can hand over an `APICallError`, or a `RetryError` around one.
+ */
+export function isOutOfCreditsError(error: unknown): boolean {
+  return /budget limit exceeded|insufficient credits|requires more credits/i.test(
+    errorTexts(error, 3).join("\n"),
+  );
+}
+
+function errorTexts(error: unknown, depth: number): string[] {
+  if (depth < 0 || typeof error !== "object" || error === null) {
+    return typeof error === "string" ? [error] : [];
+  }
+  const fields = error as {
+    message?: unknown;
+    responseBody?: unknown;
+    cause?: unknown;
+    lastError?: unknown;
+  };
+  return [
+    ...(typeof fields.message === "string" ? [fields.message] : []),
+    ...(typeof fields.responseBody === "string" ? [fields.responseBody] : []),
+    ...errorTexts(fields.cause, depth - 1),
+    ...errorTexts(fields.lastError, depth - 1),
+  ];
+}

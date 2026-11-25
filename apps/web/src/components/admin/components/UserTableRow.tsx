@@ -41,7 +41,7 @@ interface UserData {
   country: string | null;
   dailyMessageLimit: number | null;
   chatbotsPaused: boolean;
-  usage: { today: number };
+  usage: { today: number; last7Days: number; last30Days: number };
   createdAt: Date | string;
 }
 
@@ -155,6 +155,12 @@ export function UserTableRow({
           used={user.usage.today}
           limit={user.dailyMessageLimit ?? OWNER_DAILY_MESSAGE_LIMIT}
         />
+      </TableCell>
+      <TableCell className="tabular-nums">
+        {user.usage.last7Days.toLocaleString()}
+      </TableCell>
+      <TableCell className="tabular-nums">
+        {user.usage.last30Days.toLocaleString()}
       </TableCell>
       <TableCell
         className="text-right pr-2"

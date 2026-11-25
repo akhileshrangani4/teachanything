@@ -6,6 +6,7 @@ import {
   MODEL_REGISTRY,
   calculateChunkLimit,
 } from "@teachanything/ai";
+import { isOutOfCreditsError } from "@teachanything/ai/error-utils";
 import { modelSupportsTools } from "@teachanything/ai/models";
 import { chatbots } from "@teachanything/db/schema";
 import type { db as DbType } from "@teachanything/db";
@@ -282,7 +283,11 @@ async function streamClaimedTurn(
 
   const onStreamError = (error: unknown): string => {
     logError(error, "stream error in streamChat", { chatbotId: chatbot.id });
-    return "Failed to generate a response. Please try again.";
+    // A coded body, like the route's refusals, so the client can show it in
+    // the reader's language (see describeChatError).
+    return isOutOfCreditsError(error)
+      ? JSON.stringify({ code: "service_unavailable" })
+      : "Failed to generate a response. Please try again.";
   };
 
   const stream = createAssistantMessageStream({
