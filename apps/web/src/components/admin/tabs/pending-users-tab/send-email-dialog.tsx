@@ -28,6 +28,7 @@ import {
 } from "@/lib/registration-email-templates";
 import type { SendRegistrationEmailInput } from "@/server/routers/admin/procedures/registration-email";
 import type { UserDialogState } from "./types";
+import { EmailPreview } from "./email-preview";
 
 /** The procedure's input without the recipient, which the dialog adds. */
 export type SendEmailRequest = SendRegistrationEmailInput extends infer Input
@@ -64,6 +65,7 @@ export function SendEmailDialog({
         {dialog.isOpen && (
           <SendEmailForm
             recipientEmail={dialog.userEmail ?? ""}
+            recipientName={dialog.userName ?? ""}
             onCancel={onClose}
             onSend={onSend}
             isSending={isSending}
@@ -76,11 +78,13 @@ export function SendEmailDialog({
 
 function SendEmailForm({
   recipientEmail,
+  recipientName,
   onCancel,
   onSend,
   isSending,
 }: {
   recipientEmail: string;
+  recipientName: string;
   onCancel: () => void;
   onSend: (request: SendEmailRequest) => void;
   isSending: boolean;
@@ -153,6 +157,12 @@ function SendEmailForm({
           />
         </div>
       )}
+
+      <EmailPreview
+        templateId={templateId}
+        recipientName={recipientName}
+        customMessage={customMessage}
+      />
 
       <dl className="rounded-md border bg-muted/50 p-3 text-sm grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         <dt className="text-muted-foreground">To</dt>
