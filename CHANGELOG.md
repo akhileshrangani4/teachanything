@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.43.0](https://github.com/akhileshrangani4/teachanything/compare/v1.42.1...v1.43.0) (2026-11-25)
+
+
+### Features
+
+* **admin:** preview the full registration email before sending ([#601](https://github.com/akhileshrangani4/teachanything/issues/601)) ([24b74e6](https://github.com/akhileshrangani4/teachanything/commit/24b74e60f6b78e2b496696d215931faa86ead0dc))
+
 ## [1.42.1](https://github.com/akhileshrangani4/teachanything/compare/v1.42.0...v1.42.1) (2026-11-25)
 
 
