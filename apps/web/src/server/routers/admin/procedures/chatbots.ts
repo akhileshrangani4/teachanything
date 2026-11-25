@@ -8,7 +8,11 @@ import {
 import { eq, sql, desc, asc, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { escapeLikePattern } from "@/server/utils";
-import { chatbotTodayCountSql } from "@/server/queries/message-usage";
+import {
+  chatbotUsageCountSql,
+  USAGE_SORT_KEYS,
+  USAGE_SORT_WINDOWS,
+} from "@/server/queries/message-usage";
 import { selectAdminChatbots, withChatbotUsage } from "../chatbot-rows";
 
 /**
@@ -29,7 +33,7 @@ export const getAllChatbotsProcedure = adminProcedure
           "createdAt",
           "featured",
           "fileCount",
-          "usageToday",
+          ...USAGE_SORT_KEYS,
         ])
         .default("usageToday"),
       sortDir: z.enum(["asc", "desc"]).default("desc"),
@@ -69,19 +73,23 @@ export const getAllChatbotsProcedure = adminProcedure
 
     // Build sort order - fileCount requires special handling as it's an aggregate
     const fileCountExpr = sql<number>`count(distinct ${chatbotFileAssociations.id})`;
+    const sortBy = input.sortBy;
     const sortColumn =
-      input.sortBy === "name"
-        ? chatbots.name
-        : input.sortBy === "owner"
-          ? user.name
-          : input.sortBy === "model"
-            ? chatbots.model
-            : input.sortBy === "featured"
-              ? chatbots.featured
-              : input.sortBy === "fileCount"
-                ? fileCountExpr
-                : input.sortBy === "usageToday"
-                  ? chatbotTodayCountSql(chatbots.id)
+      sortBy in USAGE_SORT_WINDOWS
+        ? chatbotUsageCountSql(
+            chatbots.id,
+            USAGE_SORT_WINDOWS[sortBy as keyof typeof USAGE_SORT_WINDOWS],
+          )
+        : sortBy === "name"
+          ? chatbots.name
+          : input.sortBy === "owner"
+            ? user.name
+            : input.sortBy === "model"
+              ? chatbots.model
+              : input.sortBy === "featured"
+                ? chatbots.featured
+                : input.sortBy === "fileCount"
+                  ? fileCountExpr
                   : chatbots.createdAt;
     const orderBy =
       input.sortDir === "asc" ? asc(sortColumn) : desc(sortColumn);

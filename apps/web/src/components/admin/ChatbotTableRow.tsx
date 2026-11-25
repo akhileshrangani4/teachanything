@@ -72,6 +72,12 @@ export function ChatbotTableRow({
           limit={chatbot.dailyMessageLimit ?? CHATBOT_DAILY_MESSAGE_LIMIT}
         />
       </TableCell>
+      <TableCell className="tabular-nums">
+        {chatbot.usage.last7Days.toLocaleString()}
+      </TableCell>
+      <TableCell className="tabular-nums">
+        {chatbot.usage.last30Days.toLocaleString()}
+      </TableCell>
       <TableCell>
         <ChatbotStatusBadges
           paused={chatbot.paused}

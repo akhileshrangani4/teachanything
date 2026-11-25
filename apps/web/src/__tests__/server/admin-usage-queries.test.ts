@@ -94,10 +94,17 @@ describe("message usage helpers", () => {
     expect(owners.get("owner-1")?.today).toBe(9);
   });
 
-  it("build sortable today-count expressions", () => {
-    expect(usage.chatbotTodayCountSql(usage.NO_USAGE as never)).toBeDefined();
-    expect(usage.ownerTodayCountSql(usage.NO_USAGE as never)).toBeDefined();
-  });
+  it.each(["today", "last7Days", "last30Days"] as const)(
+    "build sortable %s count expressions",
+    (window) => {
+      expect(
+        usage.chatbotUsageCountSql(usage.NO_USAGE as never, window),
+      ).toBeDefined();
+      expect(
+        usage.ownerUsageCountSql(usage.NO_USAGE as never, window),
+      ).toBeDefined();
+    },
+  );
 });
 
 const chatbotRow = {
@@ -161,7 +168,7 @@ describe("admin lists sorted by today's usage", () => {
       [usageRow("owner-1", 300)],
     ]);
     const result = await caller(db).getAllUsers({
-      sortBy: "usageToday",
+      sortBy: "usage7Days",
       search: "dr",
     });
     expect(result.totalCount).toBe(2);
@@ -176,7 +183,7 @@ describe("admin lists sorted by today's usage", () => {
       [usageRow(chatbotRow.id, 150)],
       [usageRow("owner-1", 300)],
     ]);
-    const result = await caller(db).getAllChatbots({ sortBy: "usageToday" });
+    const result = await caller(db).getAllChatbots({ sortBy: "usage30Days" });
     expect(result.chatbots[0]).toMatchObject({
       usage: { today: 150 },
       ownerUsage: { today: 300 },
