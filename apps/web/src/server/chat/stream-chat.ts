@@ -6,11 +6,11 @@ import {
   MODEL_REGISTRY,
   calculateChunkLimit,
 } from "@teachanything/ai";
-import { isOutOfCreditsError } from "@teachanything/ai/error-utils";
 import { modelSupportsTools } from "@teachanything/ai/models";
 import { chatbots } from "@teachanything/db/schema";
 import type { db as DbType } from "@teachanything/db";
 import { createRetrievalTools } from "@/server/retrieval-tools";
+import { createTurnErrorText } from "@/server/chat/turn-error-text";
 import { maybeEnqueueReprocess } from "@/server/reprocess";
 import { clampMaxTokens } from "@/lib/chat/helpers";
 import { env } from "@/lib/env";
@@ -281,13 +281,10 @@ async function streamClaimedTurn(
     executeErrored: false,
   };
 
+  const turnErrorText = createTurnErrorText();
   const onStreamError = (error: unknown): string => {
     logError(error, "stream error in streamChat", { chatbotId: chatbot.id });
-    // A coded body, like the route's refusals, so the client can show it in
-    // the reader's language (see describeChatError).
-    return isOutOfCreditsError(error)
-      ? JSON.stringify({ code: "service_unavailable" })
-      : "Failed to generate a response. Please try again.";
+    return turnErrorText(error);
   };
 
   const stream = createAssistantMessageStream({
