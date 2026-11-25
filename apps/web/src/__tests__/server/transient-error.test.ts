@@ -2,6 +2,7 @@ import { describe, it, expect } from "@jest/globals";
 import {
   isTransientError,
   isPermanentProviderError,
+  isOutOfCreditsError,
 } from "@teachanything/ai/error-utils";
 
 /**
@@ -125,6 +126,58 @@ describe("isPermanentProviderError", () => {
       "Failed to extract PDF content: bad object 500 in XRef",
     ]) {
       expect(isPermanentProviderError(msg)).toBe(false);
+    }
+  });
+});
+
+describe("isOutOfCreditsError", () => {
+  // Captured from OpenRouter on 2026-11-24 while the monthly budget was spent.
+  const budgetBody = JSON.stringify({
+    error: {
+      message:
+        "API key budget limit exceeded (monthly limit). Contact your org admin. $30.00 of $30.00 used; resets 2026-12-01T00:00:00.000Z.",
+      code: 403,
+    },
+  });
+
+  it("matches a spent key budget, in the message or only in the body", () => {
+    expect(
+      isOutOfCreditsError(new Error("API key budget limit exceeded")),
+    ).toBe(true);
+    expect(
+      isOutOfCreditsError(
+        Object.assign(new Error("Forbidden"), { responseBody: budgetBody }),
+      ),
+    ).toBe(true);
+  });
+
+  it("matches an empty credit balance", () => {
+    expect(isOutOfCreditsError(new Error("Insufficient credits"))).toBe(true);
+  });
+
+  it("looks inside a retry wrapper and a cause", () => {
+    const inner = new Error("API key budget limit exceeded (monthly limit)");
+    expect(
+      isOutOfCreditsError(
+        Object.assign(new Error("Failed after 3 attempts"), {
+          lastError: inner,
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isOutOfCreditsError(new Error("Stream failed", { cause: inner })),
+    ).toBe(true);
+  });
+
+  it("ignores other failures", () => {
+    for (const error of [
+      new Error("Rate limit exceeded"),
+      new Error("API error: 500"),
+      "budget",
+      null,
+      undefined,
+    ]) {
+      expect(isOutOfCreditsError(error)).toBe(false);
     }
   });
 });

@@ -23,6 +23,7 @@ describe("describeChatError", () => {
     ["chatbot_not_shared", fr.errors.notFoundItems.chatbotNotShared],
     ["send_failed", fr.errors.chat.sendFailed],
     ["turn_in_progress", fr.errors.chat.turnInProgress],
+    ["service_unavailable", fr.errors.chat.serviceUnavailable],
   ])("translates the route code %s", (code, expected) => {
     expect(describeChatError(bodyWithCode(code), french.t)).toBe(expected);
   });

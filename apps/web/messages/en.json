@@ -1374,7 +1374,8 @@
       "streamInterrupted": "The response was interrupted. Please try again.",
       "turnInProgress": "A response is already in progress — wait for it to finish.",
       "dailyLimitReached": "This chatbot has reached its daily message limit. Please try again tomorrow.",
-      "chatbotPaused": "This chatbot is currently unavailable."
+      "chatbotPaused": "This chatbot is currently unavailable.",
+      "serviceUnavailable": "Teach Anything has used up its AI budget for this month, so chatbots can't answer right now. Please try again later."
     }
   }
 }

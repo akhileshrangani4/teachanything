@@ -19,10 +19,12 @@ import { useTranslation } from "react-i18next";
 import { useMessageRatings } from "@/hooks/use-message-ratings";
 
 /** Refusals that mean the chatbot can't answer anyone right now. */
-type UnavailableCode = "daily_limit_reached" | "chatbot_paused";
+type UnavailableCode =
+  "daily_limit_reached" | "chatbot_paused" | "service_unavailable";
 const UNAVAILABLE_NOTICE_KEYS = {
   daily_limit_reached: "errors.chat.dailyLimitReached",
   chatbot_paused: "errors.chat.chatbotPaused",
+  service_unavailable: "errors.chat.serviceUnavailable",
 } as const satisfies Record<UnavailableCode, string>;
 const UNAVAILABLE_CODES: ReadonlySet<ChatErrorCode> = new Set(
   Object.keys(UNAVAILABLE_NOTICE_KEYS) as UnavailableCode[],
