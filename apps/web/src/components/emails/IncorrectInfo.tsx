@@ -1,52 +1,19 @@
 import * as React from "react";
-import { EmailLayout } from "./email-layout";
-import { text, link, signature, footer, list } from "./email-styles";
+import { REGISTRATION_EMAIL_BODIES } from "@/lib/registration-email-templates";
+import { RegistrationEmailBody } from "./registration-email-body";
 
 interface IncorrectInfoProps {
   userName: string;
   supportEmail: string;
 }
 
-export function IncorrectInfo({ userName, supportEmail }: IncorrectInfoProps) {
+/** Tells a pending user their details look wrong and asks for corrections. */
+export function IncorrectInfo(props: IncorrectInfoProps) {
   return (
-    <EmailLayout>
-      <p style={text}>Hi {userName},</p>
-
-      <p style={text}>
-        Thank you for registering with Teach Anything®. Some of the details in
-        your registration look incorrect or incomplete, so we are not able to
-        approve your account yet.
-      </p>
-
-      <p style={text}>
-        Please reply to this email with corrected versions of the following:
-      </p>
-
-      <ul style={list}>
-        <li>Your institutional affiliation</li>
-        <li>Your department</li>
-        <li>A faculty or academic webpage that lists you</li>
-      </ul>
-
-      <p style={text}>
-        Once we have the corrected details, we will review your registration
-        again.
-      </p>
-
-      <p style={signature}>
-        Best regards,
-        <br />
-        Teach Anything® Team
-      </p>
-
-      <p style={footer}>
-        Replies to this email reach our support team. You can also contact us at{" "}
-        <a href={`mailto:${supportEmail}`} style={link}>
-          {supportEmail}
-        </a>
-        .
-      </p>
-    </EmailLayout>
+    <RegistrationEmailBody
+      {...props}
+      body={REGISTRATION_EMAIL_BODIES.incorrect_info}
+    />
   );
 }
 

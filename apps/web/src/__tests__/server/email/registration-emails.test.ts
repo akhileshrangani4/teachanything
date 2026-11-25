@@ -36,7 +36,7 @@ const {
   sendIncorrectInfoEmail,
   sendGenericAdminEmail,
 } = await import("@/server/email/registration-emails");
-const { REGISTRATION_EMAIL_TEMPLATES } =
+const { REGISTRATION_EMAIL_TEMPLATES, REGISTRATION_EMAIL_BODIES } =
   await import("@/lib/registration-email-templates");
 
 const recipient = {
@@ -105,6 +105,26 @@ describe("rendered registration emails", () => {
       // Replies work (replyTo is set), so the footer must not say otherwise.
       expect(html).not.toMatch(/do not reply/i);
       expect(html).toContain(`mailto:${queued.replyTo}`);
+    },
+  );
+
+  it.each([
+    ["request_more_info", () => sendRequestMoreInfoEmail(recipient)],
+    ["incorrect_info", () => sendIncorrectInfoEmail(recipient)],
+  ] as const)(
+    "%s sends exactly the text the admin dialog previews",
+    async (templateId, send) => {
+      await send();
+      const html = await render(lastQueued().reactComponent);
+      const body = REGISTRATION_EMAIL_BODIES[templateId];
+      for (const line of [
+        body.intro,
+        body.request,
+        ...body.items,
+        body.closing,
+      ]) {
+        expect(html).toContain(line);
+      }
     },
   );
 

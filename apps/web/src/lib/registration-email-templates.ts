@@ -43,3 +43,43 @@ export const REGISTRATION_EMAIL_TEMPLATES: Record<
     summary: "Sends the message you write below.",
   },
 };
+
+/** The fixed text of a ready-made registration email, after "Hi {name},". */
+export interface RegistrationEmailBody {
+  intro: string;
+  request: string;
+  items: readonly string[];
+  closing: string;
+}
+
+const REQUESTED_DETAILS = [
+  "Your institutional affiliation",
+  "Your department",
+  "A faculty or academic webpage that lists you",
+] as const;
+
+/**
+ * Body text of the two ready-made emails. The email components render it and
+ * the admin dialog previews it, so the preview is the email the user gets.
+ */
+export const REGISTRATION_EMAIL_BODIES: Record<
+  Exclude<RegistrationEmailTemplateId, "generic_admin_message">,
+  RegistrationEmailBody
+> = {
+  request_more_info: {
+    intro:
+      "Thank you for registering with Teach Anything®. Before we can approve your account, we need a little more information about your teaching role.",
+    request: "Please reply to this email with the following:",
+    items: REQUESTED_DETAILS,
+    closing: "We will review your reply and follow up as soon as we can.",
+  },
+  incorrect_info: {
+    intro:
+      "Thank you for registering with Teach Anything®. Some of the details in your registration look incorrect or incomplete, so we are not able to approve your account yet.",
+    request:
+      "Please reply to this email with corrected versions of the following:",
+    items: REQUESTED_DETAILS,
+    closing:
+      "Once we have the corrected details, we will review your registration again.",
+  },
+};
