@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.42.1](https://github.com/akhileshrangani4/teachanything/compare/v1.42.0...v1.42.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **chat:** keep the out-of-budget notice when the fallback also fails ([#599](https://github.com/akhileshrangani4/teachanything/issues/599)) ([1f0f380](https://github.com/akhileshrangani4/teachanything/commit/1f0f380f64b42fa09c6546c2e9b2c606c9b41611))
+
 ## [1.42.0](https://github.com/akhileshrangani4/teachanything/compare/v1.41.1...v1.42.0) (2026-11-25)
 
 
